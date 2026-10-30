@@ -1,0 +1,258 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TFO · New strategies (PAPER)</title>
+<!-- 2026-10-19 (Brett 17:14 AEDT 'Update the dashboard to reflect the change so we can see it all trade'). READ-ONLY, PAPER.
+     Sources: KDESK :18831 /?card=stopped (iframe), War Room /api/m and /api/trend18 (same origin). No placeholder numbers:
+     a sleeve without a ledger says so.
+     2026-10-19 (Brett 18:13 AEDT 'Yes, review and put D4 and U4 live in paper tonight'): D4/U4 cards read the runners' own status
+     JSON (swing_d4_status.json / swing_u4_status.json = symlinks to ~/.tfo_swing/status.json, ~/.tfo_swing_us/status.json).
+     2026-10-19 (Brett 18:51-18:53 AEDT): 'Strategy research' card reads static/strategy_research.json, generated from
+     /workspace/trend_bgo_20261019 (REPORT.md section 11). Research only, nothing trades from it. -->
+<style>
+:root{--bg:#0b0e14;--panel:#12161f;--panel2:#1a2029;--line:#232b38;--fg:#e9edf4;--dim:#93a0b4;--cyan:#4cc9c0;--amber:#f0b429;--red:#f6465d;--green:#31d07c;
+--mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;--sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,sans-serif}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--fg);font:13px/1.45 var(--mono)}
+h1{font:800 15px var(--sans);letter-spacing:.12em;margin:0;padding:10px 12px;border-bottom:1px solid var(--line)}h1 .s{font:400 11px var(--mono);color:var(--dim);letter-spacing:0;margin-left:8px}
+.grid{display:grid;gap:10px;padding:10px;grid-template-columns:repeat(auto-fit,minmax(420px,1fr))}
+section{background:var(--panel);border:1px solid var(--line);border-radius:4px;min-width:0}section.full{grid-column:1/-1}
+section h2{margin:0;padding:8px 10px;font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--dim);display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.b{padding:0 10px 10px;overflow-x:auto}.badge{font-size:10px;padding:2px 7px;border-radius:3px;border:1px solid}
+.live{color:var(--green);border-color:#0d3d1f}.notlive{color:var(--amber);border-color:#5a4a00}.stop{color:var(--red);border-color:#5a0f0f}
+table{width:100%;border-collapse:collapse;font-size:12px}td,th{padding:4px;border-top:1px solid var(--line);text-align:left;white-space:nowrap}th{color:var(--dim);font-weight:400;font-size:10px;text-transform:uppercase}
+.num{text-align:right}.pos{color:var(--green)}.neg{color:var(--red)}.dim{color:var(--dim)}.kv{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:6px;margin:6px 0}
+.k{background:var(--panel2);border:1px solid var(--line);border-radius:3px;padding:6px 8px}.k .l{font-size:10px;color:var(--dim);text-transform:uppercase}.k .v{font:800 17px var(--sans)}
+.rs{font:16px/1.4 var(--sans)}.rs .hd{font:600 17px var(--sans);margin:6px 0 4px}.rs .sub{color:var(--dim);font-size:14px;margin-bottom:8px}
+.rs table{font:15px var(--sans)}.rs td,.rs th{padding:9px 8px;white-space:normal;vertical-align:top}.rs th{font-size:12px}
+.rs .nm{font-weight:700;font-size:16px;min-width:200px}.rs .note{color:#c7d0dd;font-size:14px;min-width:280px;max-width:520px}
+.vd{display:inline-block;font:800 20px var(--sans);padding:6px 14px;border-radius:6px;letter-spacing:.05em}.vd.p{background:#0f5a2c;color:#7dffb0;border:2px solid var(--green)}.vd.f{background:#5a0f17;color:#ffb3bd;border:2px solid var(--red)}
+.rs .big{font:800 18px var(--sans)}.rs .sm{font-size:13px;color:var(--dim)}
+iframe{width:100%;height:470px;border:0;background:var(--bg)}
+</style></head><body>
+<h1>NEW STRATEGIES · PAPER <span class=s id=upd>loading…</span></h1>
+<div class=grid>
+<section class=full id=d4fsec><h2>D4 focus · Kraken daily swing · A$100k paper book <span class="badge notlive" id=d4fb>…</span><span class=dim id=d4fu></span></h2>
+ <div class="b rs" id=d4f style="font-size:18px"><div class=dim>loading…</div></div></section>
+<!-- BTC-POUNCE live paper card added 20 Oct 2026 (Brett approval 07:20 AEDT); reads /static/btc_pounce_status.json -> ~/.tfo_btc_pounce/status.json -->
+<section class=full id=bpsec><h2>BTC pounce · wait-and-pounce rule A · A$1,000,000 paper book · 5% risk per trade <span class="badge notlive" id=bpb>…</span><span class=dim id=bpu></span></h2>
+ <div class="b rs" id=bp style="font-size:18px"><div class=dim>loading…</div></div></section>
+<!-- HONEST10 paper forward tests RP10 + BOOKA added 24 Oct 2026 (Brett approval 10:12 WITA); reads /static/honest10_status.json -> ~/.tfo_honest10/status.json -->
+<section class=full id=h10sec><h2>HONEST10 forward tests · RP10 and BOOK A · A$1,000,000 paper each <span class="badge notlive" id=h10b>…</span><span class=dim id=h10u></span></h2>
+ <div class="b rs" id=h10 style="font-size:18px"><div class=dim>loading…</div></div></section>
+<!-- wait-and-pounce card (static, research only) added 19 Oct 2026 ~20:25 AEDT from KDESK research/wait_pounce_20261019/REPORT.md -->
+<section class=full id=wpsec><h2>Wait-and-pounce · cash most of the time, big bet on rare setups · pre-registered test 19 Oct 2026 <span class="badge notlive">ONLY A PASSES BOTH WINDOWS · WEAK EVIDENCE</span><span class=dim>RESEARCH · PAPER ONLY · NOT TRADING · static, run 19 Oct ~20:15 AEDT</span></h2><div class=b>
+<div class=dim>A$1M book, A$ unhedged, after all costs (Kraken 0.40% taker + 0.10% slippage, OANDA spreads + financing, ETF costs, A$↔US$ conversion). Idle cash earns the AUD cash rate (2.2%/yr 2014–25, 4.3% held-back year). Hard stop on every trade, sized so a stop-out loses 5% of the book (A$50k). Held-back year = 18 Oct 2025 → 17 Oct 2026, run once. Pre-registered 20:10 AEDT. PASS = held-back year ≥ +10%.</div>
+<table><tr><th>Rule (5% risk per trade)</th><th>Verdict</th><th>2014→Oct 2025 %/yr</th><th>Held-back year, A$1M</th><th>Trades (win %)</th><th>Worst drop</th><th>Worst year</th><th>Time in market</th><th>Without best trade</th><th>Evidence</th></tr>
+<tr><td>A BTC capitulation buy (after a &gt;50% crash, buy the turn)</td><td>PASS</td><td>+13.2%</td><td>+A$170,354 (+17.0%) · 1 trade, still open</td><td>30 (47%)</td><td>−22%</td><td>2014 −14.1%</td><td>23%</td><td>+8.5%/yr</td><td>t = 1.9, weak</td></tr>
+<tr><td>B BTC confluence (trend + breadth + volume)</td><td>FAIL</td><td>+9.1%</td><td>+A$51,123 (+5.1%)</td><td>9 (67%)</td><td>−20%</td><td>2021 +0.1%</td><td>10%</td><td>+5.3%/yr</td><td>9 trades, anecdote</td></tr>
+<tr><td>C Gold/oil washout reversal (OANDA)</td><td>FAIL</td><td>+3.5% (2000→)</td><td>+A$42,634 (+4.3%) · no trade, cash</td><td>32 (56%)</td><td>−15%</td><td>2018 −9.4%</td><td>6%</td><td>+3.1%/yr</td><td>no edge (t = 0)</td></tr>
+<tr><td>D SPY/QQQ crash buy (−20% + VIX ≥35)</td><td>FAIL</td><td>+4.8% (2000→)</td><td>+A$42,634 (+4.3%) · no trade, cash</td><td>69 (46%)</td><td>−22%</td><td>2011 −13.6%</td><td>49%</td><td>+3.9%/yr</td><td>t = 1.6; rule badly built</td></tr>
+<tr><td>E D4 "A+ only", big size</td><td>PASS (hollow)</td><td>+4.5%</td><td>+A$197,078 (+19.7%) · 4 trades</td><td>129 (35%)</td><td>−29%</td><td>2025 −19.3%</td><td>28%</td><td>+2.6%/yr</td><td>t = 0.9, none</td></tr>
+<tr><td>D4 as running (normal size, ref)</td><td>ref</td><td>+7.3%</td><td>+A$164,048 (+16.4%)</td><td>474 (36%)</td><td>−17%</td><td>2025 −0.1%</td><td>39%</td><td>+6.3%/yr</td><td>t = 2.9</td></tr>
+<tr><td>Hold BTC / cash (ref)</td><td>ref</td><td>+65.8% / +2.2%</td><td>−A$297,196 (−29.7%) / +A$42,634</td><td>—</td><td>−83% / 0%</td><td>2018 −70.8%</td><td>100% / 0%</td><td>—</td><td>—</td></tr></table>
+<table><tr><th>Rule A: risk per trade</th><th>One stop-out costs</th><th>2014→Oct 2025 %/yr</th><th>Held-back year</th><th>Worst drop</th><th>Worst year</th><th>vs 10%/yr</th><th>vs Brett's 20%/yr</th></tr>
+<tr><td>2%</td><td>≈A$20,000</td><td>+6.9%</td><td>+A$93,722 (+9.4%)</td><td>−12%</td><td>−4.8%</td><td>FAIL</td><td>no</td></tr>
+<tr><td>5%</td><td>≈A$50,000</td><td>+13.2%</td><td>+A$170,354 (+17.0%)</td><td>−22%</td><td>−14.1%</td><td>PASS</td><td>no</td></tr>
+<tr><td>10%</td><td>≈A$100,000</td><td>+17.4%</td><td>+A$229,393 (+23.0%)</td><td>−38%</td><td>−27.7%</td><td>PASS</td><td>close, at a −38% drop</td></tr></table>
+<div class=dim><b>Plain read:</b> waiting and pouncing only worked on Bitcoin after a &gt;50% crash (rule A): about 13%/yr on A$1M with a −22% worst drop, in the market a quarter of the time. That clears the 10%/yr bar but not Brett's 20%/yr business benchmark; 20% needs 10% risk per trade and a −38% drop. The proof is thin: 30 trades in 11 years (t = 1.9), one trade (late 2020) made a third of the profit, and the held-back pass is one open BTC trade (bought 19 Aug 2026 at US$69.4k). It would take ~55 trades (~10 more years) to tell skill from luck. Bigger size did not help elsewhere: E's return fell as size rose because coins can't absorb A$1M orders. Not trading any of it. Files: KDESK research/wait_pounce_20261019/.</div></div></section>
+<section class=full id=spsec><h2>Small-player edge hunt + D4 "is it just BTC?" · 19 Oct 2026 <span class="badge stop">ALL 3 FAIL</span><span class=dim>RESEARCH · PAPER ONLY · NOT TRADING · static</span></h2><div class=b>
+<div class=dim>Kraken daily data, A$1M, after 0.40% taker fee + spread + volume impact; each trade ≤2% of the coin's daily volume. Held-back year 18 Oct 2025 → 17 Oct 2026, run once. Pre-registered 20:05 AEDT.</div>
+<table><tr><th>Test</th><th>Verdict</th><th>2018→Oct 2025 %/yr</th><th>Worst drop</th><th>Worst year</th><th>Held-back year, A$1M</th><th>Money it could use (of A$1M)</th><th>Corr. D4</th></tr>
+<tr><td>S1 new Kraken listings, strong after day 7</td><td>FAIL</td><td>+2.6%</td><td>−20%</td><td>2025 −9.4%</td><td>−A$47,176</td><td>~1–2%</td><td>0.05 / 0.30</td></tr>
+<tr><td>S2 small-cap coin relative strength</td><td>FAIL</td><td>−3.5%</td><td>−47%</td><td>2025 −22.1%</td><td>+A$49,248</td><td>~2–8%</td><td>0.51 / 0.38</td></tr>
+<tr><td>S3 small-cap weekly dip-buy (maker)</td><td>FAIL</td><td>−0.7%</td><td>−25%</td><td>2025 −14.0%</td><td>−A$50,021</td><td>~1–4%</td><td>0.38 / 0.29</td></tr></table>
+<div class=dim><b>D4 on real Kraken data:</b> 8.0%/yr since Jun 2018, worst drop −23%, worst year −4.1%. Only 13% of its daily moves are explained by BTC, but its extra return over BTC is not statistically proven (t = 1.1). A plain 21% BTC / 79% cash hold with the same risk made 9.6%/yr (worst year −16%). D4 won the held-back year (+11.8% vs −5.3%). Without its best trade and the Aug–Oct 2026 rally D4 makes 4.9%/yr. Proposed kill rules are written up (not live): research/smallplayer_20261019/REPORT.md.</div></div></section>
+<section class=full id=fxsec><h2>FX pairs to pair with D4 · pre-registered test 19 Oct 2026 <span class="badge stop">ALL 3 FAIL</span><span class=dim>RESEARCH · PAPER ONLY · NOT TRADING · static, run 19 Oct ~20:00 AEDT</span></h2><div class=b>
+<div class=dim>OANDA 7 USD pairs (8 currencies), monthly, long top-2 / short bottom-2, 8% vol target, OANDA spread + 1 bp slippage + financing (rate gap + 1%/yr). A$1M book, after all costs. Held-back year = 18 Oct 2025 → 17 Oct 2026, run once. Pass needs: IS ≥3%/yr and Sharpe ≥0.4 AND positive held-back year AND beating its baseline.</div>
+<table><tr><th>Test</th><th>Verdict</th><th>2004→Oct 2025 %/yr</th><th>Worst drop</th><th>Held-back year, A$1M</th><th>Corr. with D4</th><th>50/50 with D4: 2018→25 / held-back</th></tr>
+<tr><td>B0 plain G10 carry (baseline)</td><td>FAIL</td><td>−0.5%</td><td>−36%</td><td>+A$90,900 (+9.1%)</td><td>−0.01 / 0.04</td><td>5.2%/yr / +11.2%</td></tr>
+<tr><td>T1 carry + crash filter</td><td>FAIL</td><td>+0.1%</td><td>−26%</td><td>+A$65,900 (+6.6%)</td><td>−0.03 / −0.03</td><td>5.5%/yr / +9.9%</td></tr>
+<tr><td>T2 carry + momentum + value</td><td>FAIL</td><td>−0.7%</td><td>−26%</td><td>+A$150,600 (+15.1%)</td><td>−0.03 / 0.04</td><td>4.6%/yr / +14.2%</td></tr>
+<tr><td>T3 ML gradient boosting (walk-forward from 2013)</td><td>FAIL (lost to T2 baseline)</td><td>−2.0% (2013→)</td><td>−34%</td><td>+A$34,500 (+3.5%)</td><td>0.04 / 0.09</td><td>3.8%/yr / +8.3%</td></tr>
+<tr><td>D4 alone (older Binance-proxy/Kraken series)</td><td>ref</td><td>12.0%/yr (2018→)</td><td>−17%</td><td>+A$128,000 (+12.8%)</td><td>—</td><td>—</td></tr></table>
+<div class=dim>Plain read: FX is uncorrelated with D4 (≈0), but none of these FX books made money over 20 years after costs, so adding them halves D4's long-run return. The good held-back year is one year and is not enough to trust. Not trading any of them. Files: KDESK research/ai_mandate_20261019/fx/.</div></div></section>
+<section class=full id=rsec><h2>Strategy research · what would A$1M make? <span class="badge notlive">RESEARCH · PAPER ONLY · NOT TRADING</span><span class=dim id=rsu></span></h2>
+ <div class="b rs" id=rs><div class=dim>loading…</div></div></section>
+<section class=full><h2>KDESK pump buying <span class="badge stop">STOPPED 19 Oct 17:11:02 AEDT</span><span class=dim>Brett's decision 17:08 · live from KDESK :18831</span></h2>
+ <div class=b><iframe id=kd title="KDESK stopped"></iframe><div class=dim id=kdnote></div></div></section>
+
+<section><h2>D4 daily swing · Kraken crypto <span class="badge notlive" id=d4b>…</span><span class=dim id=d4u></span></h2><div class=b id=d4><div class=dim>loading…</div></div></section>
+<section><h2>U4 US sector-ETF rotation <span class="badge notlive" id=u4b>…</span><span class=dim id=u4u></span></h2><div class=b id=u4><div class=dim>loading…</div></div></section>
+
+<section><h2>Trend18 sleeve <span class="badge live" id=t18b>…</span><span class=dim id=t18u></span></h2><div class=b id=t18><div class=dim>loading…</div></div></section>
+<section><h2>OANDA FX (practice) <span class="badge live" id=oab>…</span><span class=dim id=oau></span></h2><div class=b id=oa><div class=dim>loading…</div></div></section>
+</div>
+<script>
+const $=id=>document.getElementById(id),esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const num=x=>typeof x==='number'&&isFinite(x)?x:null, C=x=>x<0?'neg':x>0?'pos':'';
+const M=(x,cur='A$',d=2)=>num(x)==null?'UNKNOWN':(x<0?'-':'')+cur+Math.abs(x).toLocaleString('en-AU',{minimumFractionDigits:d,maximumFractionDigits:d});
+const T=iso=>{if(!iso)return '–';const t=new Date(iso);return isNaN(t)?esc(iso):t.toLocaleString('en-AU',{timeZone:'Australia/Sydney',day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit',hour12:false})+' AEDT'};
+async function J(u,ms){const c=new AbortController(),t=setTimeout(()=>c.abort(),ms);try{const r=await fetch(u,{cache:'no-store',signal:c.signal});if(r.status!=200)throw new Error(u+' HTTP '+r.status);return await r.json()}finally{clearTimeout(t)}}
+const tbl=(h,rows)=>rows.length?'<table><tr>'+h.map(x=>'<th>'+x+'</th>').join('')+'</tr>'+rows.map(r=>'<tr>'+r.join('')+'</tr>').join('')+'</table>':'<div class=dim>none</div>';
+const td=(x,c='')=>'<td class="'+c+'">'+x+'</td>';
+
+const TE=x=>typeof x==='number'?T(new Date(x*1000).toISOString()):T(x);
+function sydParts(d){const o={};new Intl.DateTimeFormat('en-AU',{timeZone:'Australia/Sydney',weekday:'short',hour:'2-digit',minute:'2-digit',hour12:false}).formatToParts(d).forEach(p=>o[p.type]=p.value);return o}
+function nextSyd(hm,days){let t=Math.ceil(Date.now()/300000)*300000;for(let i=0;i<3000;i++,t+=300000){const p=sydParts(new Date(t));if(hm.includes((p.hour==='24'?'00':p.hour)+':'+p.minute)&&(!days||days.includes(p.weekday)))return T(new Date(t).toISOString())}return '–'}
+function stale(gen,maxh){const t=new Date(gen);return isNaN(t)||(Date.now()-t)/3600e3>maxh}
+async function swing(){
+ let d=null,u=null,e1='',e2='';
+ try{d=await J('/static/swing_d4_status.json',10000)}catch(e){e1=e.message}
+ try{u=await J('/static/swing_u4_status.json',10000)}catch(e){e2=e.message}
+ if(d&&d.paper_only){
+  const st=d.halted?['HALTED (kill rule)','stop']:stale(d.generated_utc,1)?['STALE','stop']:['LIVE PAPER','live'];
+  $('d4b').textContent=st[0];$('d4b').className='badge '+st[1];$('d4u').textContent='status '+T(d.generated_utc);
+  $('d4').innerHTML='<div>Own A$100,000 paper book · own ledger ~/.tfo_swing/swing_paper.sqlite · live since 19 Oct 2026 (Brett 18:13 AEDT) · public Kraken data, no keys</div><div class=kv>'+
+   '<div class=k><div class=l>Equity (est.)</div><div class=v>'+M(d.equity_est_aud,'A$',0)+'</div><div class=dim>cash '+M(d.cash_aud,'A$',0)+'</div></div>'+
+   '<div class=k><div class=l>P&amp;L after fees</div><div class="v '+C(d.total_pnl_aud_after_fees)+'">'+M(d.total_pnl_aud_after_fees)+'</div><div class=dim>realised '+M(d.realised_pnl_aud)+' · open '+M(d.open_upl_aud_after_exit_fee)+'</div></div>'+
+   '<div class=k><div class=l>Positions / trades</div><div class=v>'+d.positions.length+' / '+d.n_trades+'</div><div class=dim>fees paid '+M(d.fees_aud)+'</div></div>'+
+   '<div class=k><div class=l>BTC regime</div><div class=v>'+(d.last_regime_on==null?'–':d.last_regime_on?'ON':'OFF')+'</div><div class=dim>BTC vs 200d SMA</div></div></div>'+
+   '<div class=dim>Positions (stop on every position; marks = last 15-min Kraken bar)</div>'+
+   tbl(['Pair','Opened','Qty','Fill US$','Mark US$','Stop US$','Cost A$','Open P&L A$ (after exit fee)'],d.positions.map(p=>[td(esc(p.pair)),td(T(p.opened_utc)),td(p.qty,'num'),td(p.fill_usd,'num'),td(p.mark_usd??'–','num'),td(num(p.stop)?p.stop.toPrecision(6):'–','num'),td(M(p.cost_aud),'num'),td(M(p.upl_aud_after_exit_fee),'num '+C(p.upl_aud_after_exit_fee))]))+
+   '<div class=dim style="margin-top:6px">Closed trades (newest first)</div>'+
+   tbl(['Pair','Opened','Closed','P&L A$','R','Reason'],d.trades.slice(0,10).map(t=>[td(esc(t.pair)),td(T(t.opened_utc)),td(T(t.closed_utc)),td(M(t.pnl_aud),'num '+C(t.pnl_aud)),td(num(t.r)?t.r.toFixed(2):'–','num'),td(esc(t.reason))]))+
+   '<div class=dim>Last daily run '+TE(d.last_daily_utc)+' · last stop check '+TE(d.last_stops_utc)+' · next daily '+nextSyd(['11:05'])+' · stops every 15 min · kill: '+esc(d.kill)+' · costs: Kraken taker 0.40% each side + ADV slippage</div>';
+ }else{$('d4b').textContent='NO DATA';$('d4b').className='badge stop';$('d4').innerHTML='<div class=dim>D4 status unavailable: '+esc(e1||'no status file')+'</div>'}
+ if(u&&u.paper_only){
+  const st=u.halted?['HALTED (kill rule)','stop']:stale(u.generated_utc,100)?['STALE','stop']:['LIVE PAPER','live'];
+  $('u4b').textContent=st[0];$('u4b').className='badge '+st[1];$('u4u').textContent='status '+T(u.generated_utc);
+  const fx=num(u.usdaud);
+  $('u4').innerHTML='<div>Own US$100,000 paper book · own ledger ~/.tfo_swing_us/swing_us_paper.sqlite · live since 19 Oct 2026 (Brett 18:13 AEDT) · Yahoo daily bars, no broker, no orders</div><div class=kv>'+
+   '<div class=k><div class=l>Equity</div><div class=v>'+M(u.equity_aud,'A$',0)+'</div><div class=dim>'+M(u.equity_usd,'US$',0)+'</div></div>'+
+   '<div class=k><div class=l>P&amp;L after costs</div><div class="v '+C(u.total_pnl_usd_after_costs)+'">'+M(u.total_pnl_aud_after_costs)+'</div><div class=dim>'+M(u.total_pnl_usd_after_costs,'US$')+' · realised '+M(u.realised_pnl_usd,'US$')+'</div></div>'+
+   '<div class=k><div class=l>Positions / trades</div><div class=v>'+u.positions.length+' / '+u.n_trades+'</div><div class=dim>commissions '+M(u.commissions_usd,'US$')+'</div></div>'+
+   '<div class=k><div class=l>Pending (next open)</div><div class=v>'+((u.pending_entries||[]).length+(u.pending_exits||[]).length)+'</div><div class=dim>buy '+esc((u.pending_entries||[]).join(' ')||'–')+' · sell '+esc((u.pending_exits||[]).join(' ')||'–')+'</div></div></div>'+
+   '<div class=dim>Positions (stop on every position; marks = last US close)</div>'+
+   tbl(['ETF','Entry','Qty','Fill US$','Last US$','Stop US$','Open P&L US$','Open P&L A$'],u.positions.map(p=>[td(esc(p.sym)),td(esc(p.entry_day)),td(num(p.qty)?p.qty.toFixed(2):'–','num'),td(num(p.fill)?p.fill.toFixed(2):'–','num'),td(num(p.last_close)?p.last_close.toFixed(2):'–','num'),td(num(p.stop)?p.stop.toFixed(2):'–','num'),td(M(p.upl_usd_after_exit_costs,'US$'),'num '+C(p.upl_usd_after_exit_costs)),td(M(p.upl_aud_after_exit_costs),'num '+C(p.upl_aud_after_exit_costs))]))+
+   '<div class=dim style="margin-top:6px">Closed trades (newest first)</div>'+
+   tbl(['ETF','Entry','Exit','P&L US$','P&L A$','Reason'],u.trades.slice(0,10).map(t=>[td(esc(t.sym)),td(esc(t.entry)),td(esc(t.exit)),td(M(t.pnl_usd,'US$'),'num '+C(t.pnl_usd)),td(M(t.pnl_aud),'num '+C(t.pnl_aud)),td(esc(t.why))]))+
+   '<div class=dim>Last US session processed '+esc(u.last_session||'–')+' · last run '+T(u.last_run_utc)+' · next run '+nextSyd(['09:30'],['Tue','Wed','Thu','Fri','Sat'])+' · kill: '+esc(u.kill)+' · A$ = US$ × '+(fx?fx.toFixed(4):'n/a')+' (Kraken AUDUSD at last run) · costs: US$0.005/sh (min $1) + SEC fee + ADV slippage</div>';
+ }else{$('u4b').textContent='NO DATA';$('u4b').className='badge stop';$('u4').innerHTML='<div class=dim>U4 status unavailable: '+esc(e2||'no status file')+'</div>'}
+}
+async function run(){
+ swing();
+
+async function d4focus(){
+ let d=null,r=null,er='';
+ try{d=await J('/static/swing_d4_status.json',10000)}catch(e){er+=e.message+' '}
+ try{r=await J('/static/swing_d4_research.json',10000)}catch(e){er+=e.message}
+ if(!d||!d.paper_only){$('d4fb').textContent='NO DATA';$('d4fb').className='badge stop';$('d4f').innerHTML='<div>D4 status unavailable: '+esc(er)+'</div>';return}
+ const st=d.halted?['HALTED (kill rule)','stop']:stale(d.generated_utc,1)?['STALE','stop']:['LIVE PAPER','live'];
+ $('d4fb').textContent=st[0];$('d4fb').className='badge '+st[1];$('d4fu').textContent='ledger status '+T(d.generated_utc);
+ const eq=d.equity_est_aud,pk=d.peak_equity_aud,kl=pk*0.9,ret=eq/d.book_start_aud-1;
+ const big=(l,v,sub,c='')=>'<div class=k style="padding:10px 12px"><div class=l style="font-size:13px">'+l+'</div><div class="v '+c+'" style="font-size:28px">'+v+'</div><div style="font-size:15px;color:#c7d0dd">'+sub+'</div></div>';
+ let h='<div class=kv style="grid-template-columns:repeat(auto-fit,minmax(230px,1fr))">'+
+  big('Paper equity (after fees)',M(eq,'A$',0),'started A$100,000 · '+(ret>=0?'+':'')+(ret*100).toFixed(2)+'%',C(ret))+
+  big('Open positions',String(d.positions.length),d.n_trades+' closed trades · fees '+M(d.fees_aud,'A$',0))+
+  big('Kill rule distance',M(eq-kl,'A$',0),'equity can fall to '+M(kl,'A$',0)+' (−10% from peak '+M(pk,'A$',0)+'); any single loss over A$1,500 also halts')+
+  big('BTC regime',d.last_regime_on?'ON':'OFF',r?('BTC '+r.regime.btc_close.toLocaleString('en-AU')+' vs 200-day '+r.regime.btc_sma200.toLocaleString('en-AU')+' US$ ('+(r.regime.pct_above>0?'+':'')+r.regime.pct_above+'%)'):'',d.last_regime_on?'pos':'neg')+'</div>';
+ h+='<div class=hd>Open positions and stops</div>'+tbl(['Coin','Opened','Fill US$','Mark US$','Stop US$','Cost A$','Open P&L A$'],d.positions.map(p=>[td(esc(p.pair)),td(T(p.opened_utc)),td(p.fill_usd,'num'),td(p.mark_usd??'–','num'),td(num(p.stop)?p.stop.toPrecision(6):'–','num'),td(M(p.cost_aud,'A$',0),'num'),td(M(p.upl_aud_after_exit_fee,'A$',0),'num '+C(p.upl_aud_after_exit_fee))]));
+ if(!d.positions.length)h=h.replace('<div class=dim>none</div>','<div style="font-size:17px">No open positions. No coin has broken out since go-live.</div>');
+ if(r){
+  h+='<div class=hd>Today\'s candidates · next decision '+nextSyd(['11:05'])+'</div><div class=sub>'+esc(r.candidates_note)+' Snapshot '+T(r.as_of_utc)+'.</div>'+
+   tbl(['Coin','Last close US$','Breakout level US$','Rise needed','In ATRs'],r.candidates.slice(0,8).map(c=>[td(esc(c.sym),'nm'),td(c.last_close_usd.toPrecision(6),'num'),td(c.trigger_usd.toPrecision(6),'num'),td('+'+c.pct_to_trigger.toFixed(1)+'%','num big'),td(c.atr_to_trigger.toFixed(1),'num')]));
+  const k=r.capacity.find(x=>x.book_aud===1000000),f=x=>(x*100).toFixed(1)+'%';
+  h+='<div class=hd>Backtest vs live, scaled to A$1M</div>'+tbl(['','Return','A$ on A$1M','Worst drop'],[
+   [td('Live paper since 19 Oct 2026','nm'),td((ret>=0?'+':'')+f(ret),'num big '+C(ret)),td(M(ret*1e6,'A$',0),'num big '+C(ret)),td(f(Math.min(0,eq/pk-1)),'num')],
+   [td('Backtest, real Kraken data, Jun 2018 – Oct 2026','nm'),td(f(k.cagr_2018_2026)+' a year','num big'),td(M(k.cagr_2018_2026*1e6,'A$',0)+' a year','num big'),td(f(k.maxdd),'num')],
+   [td('Backtest test year (Oct 2025 – Oct 2026)','nm'),td('+'+f(k.holdout_ret),'num big pos'),td(M(k.holdout_net_aud,'A$',0),'num big pos'),td('','num')],
+   [td('Same test year without the Aug–Oct 2026 rally','nm'),td(f(k.holdout_ex_rally_net_aud/1e6),'num big'),td(M(k.holdout_ex_rally_net_aud,'A$',0),'num big'),td('','num')],
+   [td('Old Binance stand-in (for comparison)','nm'),td(f(r.binance_standin_1m.cagr_2018_2025)+' a year','num'),td(M(r.binance_standin_1m.holdout_net_aud,'A$',0)+' test year','num'),td(M(r.binance_standin_1m.maxdd_aud,'A$',0),'num')]])+
+   '<div class=sub>A$1M backtest after Kraken taker fees 0.40% each side and slippage; '+f(k.liq_capped)+' of A$1M trades were shrunk by the 1%-of-daily-volume cap. Source: '+esc(r.source)+'.</div>';
+ }
+ $('d4f').innerHTML=h;
+}
+d4focus();setInterval(d4focus,60000);
+async function bpounce(){
+ let d=null,er='';try{d=await J('/static/btc_pounce_status.json',10000)}catch(e){er=e.message}
+ if(!d||!d.paper_only){$('bpb').textContent='NO DATA';$('bpb').className='badge stop';$('bp').innerHTML='<div class=dim>'+esc(er||'status not paper_only')+'</div>';return}
+ const st=d.halted?['HALTED (kill rule)','stop']:stale(d.generated_utc,1)?['STALE','stop']:['LIVE PAPER','live'];
+ $('bpb').textContent=st[0];$('bpb').className='badge '+st[1];$('bpu').textContent=' status '+T(d.generated_utc);
+ const p=d.position,e=d.episode||{},lb=d.last_bar||{},k=d.kill||{},tot=d.equity_est_aud-d.book_start_aud;
+ const sig=p?'IN A TRADE':(lb.armed?'ARMED, waiting for a breakout':'NOT ARMED');
+ const days=Math.max(1,(Date.now()-Date.parse('2026-10-20T00:00:00Z'))/864e5);
+ $('bp').innerHTML='<div>Paper only. Public Kraken prices, no keys, no real orders. Its own ledger (~/.tfo_btc_pounce/pounce_paper.sqlite). Started with no position on 20 Oct 2026.</div>'+
+ '<div class=kv><div class=k><div class=l>Signal now</div><div class=v>'+sig+'</div><div class=dim>BTC close '+M(lb.close,'US$',0)+' · buys if a daily close goes above '+M(e.next_breakout_usd,'US$',0)+' (or back above the 200-day average '+M(lb.sma200,'US$',0)+')</div></div>'+
+ '<div class=k><div class=l>Equity</div><div class=v>'+M(d.equity_est_aud,'A$',0)+'</div><div class="dim '+C(tot)+'">since start '+M(tot,'A$',0)+' · interest '+M(d.interest_aud,'A$',0)+' · fees '+M(d.fees_aud,'A$',0)+'</div></div>'+
+ '<div class=k><div class=l>Position</div><div class=v>'+(p?M(p.mark_aud,'A$',0):'none (cash)')+'</div><div class=dim>'+(p?'stop '+M(p.stop,'US$',0)+' · loss if stopped '+M(p.loss_if_stopped_aud,'A$',0):'trades closed: '+d.n_trades)+'</div></div></div>'+
+ tbl(['','Live paper','Backtest (A$1M, 5% risk)'],[
+  [td('Return'),td(M(tot,'A$',0)+' in '+days.toFixed(0)+' day(s)'),td('+13.2% a year 2014–Oct 2025 (≈A$132k/yr); held-back year +17.0% from 1 trade')],
+  [td('Trades'),td(String(d.n_trades)),td('30 in 11.5 years (≈2–3 a year), 47% winners')],
+  [td('Average win / loss'),td(d.n_trades?M(d.realised_pnl_aud/d.n_trades,'A$',0)+' avg':'–'),td('+A$249,562 / −A$54,941')],
+  [td('Worst drop'),td(M(d.equity_est_aud-d.peak_equity_aud,'A$',0)+' from peak'),td('−22%')]])+
+ '<h3>Kill rules (stop new buys; Brett clears)</h3>'+tbl(['Rule','Limit','Now'],[
+  [td('Drawdown'),td('equity below peak − A$330,000 ('+M(k.drawdown_floor_aud,'A$',0)+')'),td(M(k.distance_aud,'A$',0)+' of room',k.distance_aud>0?'pos':'neg')],
+  [td('Single loss'),td('any loss over 1.5× planned risk'),td(d.halt_reasons.includes('single_loss')?'TRIPPED':'ok')],
+  [td('Slippage'),td('fill slippage over 0.20% (2× the 0.10% assumption)'),td(d.halt_reasons.includes('slippage')?'TRIPPED':'ok')]])+
+ '<div class=dim>Costs: Kraken taker 0.40% each side (maker 0.25% not assumed), A$/US$ 0.10% each way. Checks: daily 11:10 + 11:40 AEDT, stop every 15 min. Last daily '+TE(d.last_daily_utc)+' · last stop check '+TE(d.last_stops_utc)+'. Weak evidence: 30 backtest trades, t≈1.9.</div>'}
+bpounce();setInterval(bpounce,60000);
+async function honest10(){
+ let d=null,er='';try{d=await J('/static/honest10_status.json',10000)}catch(e){er=e.message}
+ if(!d||!d.paper_only){$('h10b').textContent='NO DATA';$('h10b').className='badge stop';$('h10').innerHTML='<div class=dim>'+esc(er||'status not paper_only')+'</div>';return}
+ const st=stale(d.generated_utc,26)?['STALE','stop']:['LIVE PAPER','live'];
+ $('h10b').textContent=st[0];$('h10b').className='badge '+st[1];$('h10u').textContent=' status '+T(d.generated_utc);
+ const A=x=>x==null?'–':(x<0?'−':'')+'A$'+Math.abs(Math.round(x)).toLocaleString('en-AU');
+ const rows=Object.entries(d.books).map(([b,v])=>{const s=v.scorecard;return [td(b),td(s.verdict),td(s.started||'not yet'),td(A(s.equity_aud)),td(A(s.pnl_aud),s.pnl_aud<0?'neg':'pos'),
+   td(s.annualised==null?'– (needs 30 days)':(s.annualised*100).toFixed(1)+'%'),td(A(s.worst_drop_aud)),td(A(v.costs_aud)),td(v.positions.map(p=>esc(p.sym)).join(' ')||'cash'),td(v.last_error?esc(v.last_error):'ok')]});
+ $('h10').innerHTML='<div>Paper only. Public Yahoo + Kraken closes, no keys, no orders. Own ledgers ~/.tfo_honest10/RP10.sqlite and BOOKA.sqlite, daily equity CSVs in A$ after costs (ETFs 5bp, Kraken 50bp per side). RP10 = risk parity SPY/TLT/GLD at 10% vol, monthly. BOOK A = 40% RP10 + 30% top-3 sector ETFs by 12-month momentum (monthly) + 30% BTC/ETH trend. First fills at the US close of Mon 26 Oct 2026 (ET) and the Kraken daily close of the same date; month-end rebalances from 30 Oct.</div>'+
+ tbl(['Book','Verdict','Started','Equity','P&amp;L','Per year','Worst drop','Costs','Holding','Errors'],rows)+
+ '<div class=dim>Bar at 12 months: at least 10% a year after costs and a worst drop no worse than −A$150,000. Research holdout 2024–26: RP10 +14.1%/yr, BOOK A +14.9%/yr; both weak evidence (deflated Sharpe below 0.95, mostly equity + gold beta). Crypto sleeve: '+esc(d.crypto_source)+'. Runs 08:30 / 09:30 / 11:30 WITA daily.</div>'}
+honest10();setInterval(honest10,60000);
+ let m=null,t=null,err=[];
+ try{m=await J('/api/m',45000)}catch(e){err.push('/api/m: '+(e.name==='AbortError'?'timeout':e.message))}
+ try{t=await J('/api/trend18',20000)}catch(e){err.push('/api/trend18: '+(e.name==='AbortError'?'timeout':e.message))}
+ const o=m&&m.oanda, audusd=o&&num(o.audusd), toA=u=>num(u)==null||!audusd?null:u/audusd;
+ // Trend18
+ if(t&&t.status==='OK'){
+  const pnl=num(t.pnl_usd), cost=num(t.costs_paid_usd);
+  $('t18b').textContent=t.kill&&t.kill.active?'KILL ACTIVE':'LIVE PAPER';$('t18b').className='badge '+(t.kill&&t.kill.active?'stop':'live');
+  $('t18u').textContent='marked '+T(t.updated);
+  const hold=(t.holdings||[]).filter(h=>num(h.qty)&&h.qty!==0);
+  const reb=(t.rebalances||[]).slice(-6).reverse();
+  $('t18').innerHTML='<div class=kv>'+
+   '<div class=k><div class=l>Equity</div><div class=v>'+M(toA(t.equity_usd),'A$',0)+'</div><div class=dim>'+M(t.equity_usd,'US$',0)+'</div></div>'+
+   '<div class=k><div class=l>P&amp;L after costs</div><div class="v '+C(pnl)+'">'+M(toA(pnl),'A$',0)+'</div><div class=dim>'+M(pnl,'US$',0)+' on '+M(t.funded_usd,'US$',0)+' funded</div></div>'+
+   '<div class=k><div class=l>Drawdown</div><div class="v neg">'+(num(t.drawdown_pct)==null?'UNKNOWN':t.drawdown_pct.toFixed(2)+'%')+'</div><div class=dim>kill at -30% NAV/unit</div></div>'+
+   '<div class=k><div class=l>Costs paid</div><div class=v>'+M(toA(cost),'A$',0)+'</div><div class=dim>'+M(cost,'US$',2)+'</div></div></div>'+
+   '<div class=dim>Positions (levered ETFs + BTC; marks: Yahoo last / Kraken mid)</div>'+
+   tbl(['Inst','Qty','Avg cost','Mark','Value A$','Open P&L A$','Weight'],hold.map(h=>[td(esc(h.inst)),td(h.qty,'num'),td(num(h.avg_cost)?h.avg_cost.toFixed(2):'–','num'),td(num(h.px)?h.px.toFixed(2):'–','num'),td(M(toA(h.value_usd),'A$',0),'num'),td(M(toA(h.upl_usd),'A$',0),'num '+C(h.upl_usd)),td(num(h.weight_pct)?h.weight_pct.toFixed(1)+'%':'–','num')]))+
+   '<div class=dim style="margin-top:6px">Trades (rebalances, newest first)</div>'+
+   tbl(['When','Reason','Fills'],reb.map(r=>[td(esc(r.syd||T(r.utc))),td(esc(r.reason)),td((r.fills||[]).length,'num')]))+
+   '<div class=dim>A$ = US$ / AUDUSD '+(audusd||'n/a')+' (OANDA). Next: '+esc(typeof t.next==='string'?t.next:JSON.stringify(t.next||'').slice(0,160))+'</div>';
+ }else{$('t18b').textContent='NO DATA';$('t18b').className='badge stop';$('t18').innerHTML='<div class=dim>Trend18 data unavailable: '+esc(t?(t.error||t.status):err.join('; '))+'</div>'}
+ // OANDA
+ if(o){
+  const pos=(m.positions||[]).filter(p=>p.book==='OANDA');
+  $('oab').textContent=o.badge==='OK'?'LIVE PRACTICE':esc(o.badge||'?');$('oab').className='badge '+(o.badge==='OK'?'live':'stop');
+  $('oau').textContent='as of '+(o.asof_syd?esc(o.asof_syd)+' AEDT':T(o.asof_utc));
+  $('oa').innerHTML='<div class=kv><div class=k><div class=l>NAV</div><div class=v>'+M(o.nav_aud,'A$',0)+'</div><div class=dim>start '+M(o.start_nav_aud,'A$',0)+'</div></div>'+
+   '<div class=k><div class=l>P&amp;L</div><div class="v '+C(o.pnl_aud)+'">'+M(o.pnl_aud)+'</div><div class=dim>vs start NAV</div></div>'+
+   '<div class=k><div class=l>Open trades</div><div class=v>'+(o.tfo_open??'–')+'</div><div class=dim>open P&amp;L '+M(o.tfo_upl_aud)+'</div></div></div>'+
+   tbl(['Instrument','Open P&L A$','Stop','Price','Stop dist','Note'],pos.map(p=>[td(esc(p.sym)),td(M(p.pnl_aud),'num '+C(p.pnl_aud)),td(p.stop??'–','num'),td(p.px??'–','num'),td(p.stop_dist_pct==null?'–':p.stop_dist_pct+'%','num'),td(esc(p.stop_note),'dim')]))+
+   '<div class=dim>OANDA practice account (not desk equity).</div>';
+ }else{$('oab').textContent='NO DATA';$('oab').className='badge stop';$('oa').innerHTML='<div class=dim>OANDA data unavailable: '+esc(err.join('; '))+'</div>'}
+ $('upd').textContent='updated '+new Date().toLocaleString('en-AU',{timeZone:'Australia/Sydney',day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false})+' AEDT'+(m&&m.generated_syd?' · War Room data '+esc(m.generated_syd):'')+(err.length?' · errors: '+esc(err.join('; ')):'');
+}
+if(/:18831\//.test(document.referrer||'')&&window.top!==window){const k=document.getElementById('kd').closest('section');k.style.display='none'}  // embedded in KDESK itself: its own STOPPED card is already above
+const kd=location.protocol+'//'+location.hostname+':18831/?card=stopped';$('kd').src=kd;
+$('kdnote').innerHTML='KDESK card: <a style="color:var(--cyan)" target=_blank href="'+kd.replace('/?card=stopped','/')+'">open the KDESK dashboard</a> (reachable on 127.0.0.1 and the tailnet address).';
+async function research(){
+ let d=null;try{d=await J('/static/strategy_research.json',10000)}catch(e){$('rs').innerHTML='<div class=dim>Research data unavailable: '+esc(e.message)+'</div>';return}
+ const A=x=>num(x)==null?'n/a':(x<0?'−':'+')+'A$'+Math.round(Math.abs(x)).toLocaleString('en-AU');
+ const L=x=>num(x)==null?'n/a':'A$'+Math.round(Math.abs(x)).toLocaleString('en-AU');
+ const P=x=>num(x)==null?'n/a':(x>0?'+':'')+(x*100).toFixed(1)+'%';
+ $('rsu').textContent='from REPORT.md · '+esc(d.generated_aedt);
+ const rows=d.rows.map(r=>{
+  const sp=r.split?'<div class=sm>Split: '+Object.entries(r.split).map(([k,v])=>esc(k)+' '+(v*100).toFixed(0)+'%').join(' · ')+'</div>':'';
+  return [td('<div class=nm>'+esc(r.name)+'</div>'+sp),
+   td('<span class="vd '+(r.verdict==='PASS'?'p':'f')+'">'+r.verdict+'</span>'),
+   td('<div class="big '+C(r.holdout_aud)+'">'+A(r.holdout_aud)+'</div><div class=sm>'+P(r.holdout_pct)+' in the last 12 months</div>','num'),
+   td('<div class=big>'+A(r.expected_aud_yr)+'</div><div class=sm>'+P(r.longrun_pct)+' a year, since '+esc(String(r.longrun_from).slice(0,4))+'</div>','num'),
+   td('<div class="big neg">−'+L(r.worst_drop_aud)+'</div><div class=sm>'+P(r.worst_drop_pct)+' from a peak</div>','num'),
+   td(r.worst_year==null?'<span class=sm>not in source report</span>':'<div class="big '+C(r.worst_year_aud)+'">'+A(r.worst_year_aud)+'</div><div class=sm>'+r.worst_year+' ('+P(r.worst_year_pct)+')</div>','num'),
+   td(esc(r.note),'note')]});
+ $('rs').innerHTML='<div class=hd>'+esc(d.best)+'</div><div class=sub>'+esc(d.bar)+' Everything is after fees, spreads, slippage and financing, in A$ on a A$1,000,000 book. '+esc(d.dd_basis||'')+' Sorted best first by the last 12 months.</div>'+
+  tbl(['Strategy','Verdict','Last 12 months on A$1M','Expected per year on A$1M (long-run)','Worst drop on A$1M','Worst calendar year on A$1M','In plain English'],rows)+
+  '<div class=sub style="margin-top:8px">PASS only means the last 12 months cleared 10%. One year is noisy. Read the plain-English note for whether it also held up in earlier years. Source: '+esc(d.source)+'</div>';
+}
+research();
+run();setInterval(run,60000);
+</script></body></html>

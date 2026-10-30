@@ -1,0 +1,32 @@
+# secrets — never versioned (belt-and-suspenders; none live here anyway)
+*.env
+.env
+*secret*
+*token*
+*_creds*
+# regenerable / heavy / churny
+__pycache__/
+*.pyc
+*.log
+reports/*.log
+reports/command_server*.log
+reports/launchd.*.log
+.tick.lock
+# daily snapshot tarballs — regenerable, and versioning them compounds:
+# each tar would contain the .git that holds every previous tar.
+backups/
+# keep the IRREPLACEABLE: all .py, all *PREREGISTRATION.md, reports/*.json,
+# reports/tournament/, ledgers, equity csvs, dashboards, tests, SKILL context
+# 2026-10-17 (Brett 14:27 item 6): regenerable runtime bulk. Files stay on disk; desk_tick.sh's daily git backup still covers reports/ and state/.
+reports/revisions/rollback/
+work/oanda_v3/*.json
+*.bak_*
+.claude/worktrees/
+secrets/
+# tfo_lagfix_20261031: bulk regenerable binaries out of the daily `git add -A` snapshot (7.9G pit.sqlite + backups were re-packed nightly -> 3G tmp_pack I/O storms / Mac lag)
+data/pit/*.sqlite*
+data/history/*.sqlite*
+*.sqlite.bak-*
+state/hunt_orch/us_scan/**/*.pkl
+*.parquet
+work/oanda_v3/*.json

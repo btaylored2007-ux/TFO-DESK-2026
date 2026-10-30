@@ -1,0 +1,2610 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Taylor Family Office · War Room</title>
+<style>
+  :root{
+    --bg:#0b0e14; --panel:#12161f; --panel2:#1a2029; --line:#232b38; --line2:#1c2330;
+    --fg:#e9edf4; --dim:#93a0b4; --dim2:#5c6577; --cyan:#4cc9c0; --amber:#f0b429;
+    --red:#f6465d; --green:#31d07c; --violet:#a78bfa;
+    --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,sans-serif;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--mono);font-size:13px;line-height:1.5}
+  header{border-bottom:1px solid var(--line);padding:12px 18px;display:flex;
+         align-items:center;gap:14px;flex-wrap:wrap;position:sticky;top:0;
+         background:var(--bg);z-index:10}
+  h1{font-size:14px;letter-spacing:.18em;margin:0;text-transform:uppercase}
+  .sub{color:var(--dim);font-size:10px;letter-spacing:.1em}
+  .pill{border:1px solid var(--line);border-radius:3px;padding:3px 9px;font-size:10px;
+        letter-spacing:.12em;text-transform:uppercase;color:var(--dim);white-space:nowrap}
+  .pill.ok{border-color:var(--green);color:var(--green)}
+  .pill.warn{border-color:var(--amber);color:var(--amber)}
+  .pill.bad{border-color:var(--red);color:var(--red)}
+  .spacer{flex:1}
+  main{padding:14px 18px 50px;display:grid;gap:14px;
+       grid-template-columns:repeat(auto-fit,minmax(min(330px,100%),1fr))}
+  section{border:1px solid var(--line);background:var(--panel);border-radius:4px;
+          padding:13px 15px;min-width:0}
+  section.wide{grid-column:1/-1}
+  h2{font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--cyan);
+     margin:0 0 11px;font-weight:600;display:flex;justify-content:space-between;align-items:center}
+  h2 .meta{color:var(--dim2);letter-spacing:.06em;text-transform:none;font-weight:400}
+  .kpis{display:grid;gap:10px;grid-template-columns:repeat(auto-fit,minmax(140px,1fr))}
+  .kpi{border:1px solid var(--line2);background:var(--panel2);border-radius:3px;padding:9px 11px}
+  .kpi .lbl{color:var(--dim);font-size:9px;letter-spacing:.13em;text-transform:uppercase}
+  .kpi .val{font-size:19px;margin-top:3px;font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+  .kpi .sub2{color:var(--dim2);font-size:10px}
+  table{width:100%;border-collapse:collapse;font-size:12px}
+  th,td{text-align:left;padding:4px 7px;border-bottom:1px solid var(--line2);white-space:nowrap}
+  th{color:var(--dim);font-weight:500;font-size:9px;letter-spacing:.1em;text-transform:uppercase}
+  td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
+  .neg{color:var(--red)} .pos{color:var(--green)} .dim{color:var(--dim)} .amb{color:var(--amber)}
+  .scroll{overflow-x:auto} .vscroll{max-height:280px;overflow-y:auto}
+  .kv{display:flex;justify-content:space-between;gap:10px;padding:3px 0;border-bottom:1px solid var(--line2)}
+  .kv:last-child{border-bottom:none}
+  .kv span:last-child{font-variant-numeric:tabular-nums}
+  .tag{display:inline-block;border:1px solid var(--line);border-radius:2px;padding:0 5px;
+       font-size:9px;color:var(--dim);margin-left:4px}
+  .tag.cfd{border-color:var(--amber);color:var(--amber)}
+  /* age tag for non-live marks — a last-good mark must carry a visible age */
+  .agetag{display:inline-block;border:1px solid var(--line);border-radius:2px;padding:0 5px;
+          font-size:9px;color:var(--dim);margin-left:5px;white-space:nowrap}
+  .agetag.amber{border-color:var(--amber);color:var(--amber)}
+  .log{font-size:11px;line-height:1.45;max-height:260px;overflow-y:auto;color:var(--dim)}
+  .log div{padding:1px 0;border-bottom:1px solid rgba(15,58,60,.35);white-space:pre-wrap;word-break:break-word}
+  .bar{height:7px;background:var(--line2);border-radius:2px;overflow:hidden}
+  .bar i{display:block;height:100%;background:var(--cyan)}
+  .note{color:var(--dim2);font-size:10px;margin-top:8px;line-height:1.55}
+  svg{display:block;width:100%;height:auto}
+  .banner{grid-column:1/-1;border:1px solid var(--amber);border-left-width:3px;
+          background:rgba(240,180,41,.05);padding:9px 13px;border-radius:3px;
+          color:var(--amber);font-size:11px;letter-spacing:.04em}
+  .problem{color:var(--red);border-color:var(--red);background:rgba(255,92,108,.05)}
+  /* Brett hard rule 2026-09-26: no red banners, no stale-data blocks. Health notes live behind one small
+     neutral header indicator (#p-hi); every banner renders neutral. */
+  .banner,.banner.problem,.pill.problem{border-color:var(--line);color:var(--dim);background:transparent}
+  .pill.bad{border-color:var(--line);color:var(--dim)}
+  .hind{cursor:pointer;background:transparent;font-family:inherit;color:var(--dim)}
+  .hpanel{margin:6px 16px 0;border:1px solid var(--line);border-radius:3px;padding:8px 12px;color:var(--dim);font-size:11px;line-height:1.5}
+  .betatag{display:inline-block;border:1px solid var(--line);border-radius:3px;padding:1px 6px;font-size:10px;color:var(--dim);letter-spacing:.04em;font-weight:400}
+  .nodata{color:var(--dim);font-size:10px}
+
+  .hero{grid-column:1/-1;border:1px solid var(--green);background:linear-gradient(180deg,rgba(49,208,124,.09),var(--panel));
+        border-radius:6px;padding:16px 18px}
+  .hero.short{border-color:var(--red);background:linear-gradient(180deg,rgba(246,70,93,.08),var(--panel))}
+  .hero-top{display:flex;flex-wrap:wrap;gap:14px 28px;align-items:flex-end;justify-content:space-between}
+  .hero-title{font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--dim);margin:0 0 6px}
+  .hero-eq{font-size:34px;font-variant-numeric:tabular-nums;letter-spacing:-.03em;line-height:1.1}
+  .hero-eq .tag{font-size:12px;letter-spacing:.14em;margin-left:10px;vertical-align:middle}
+  .hero-pnl{display:flex;flex-wrap:wrap;gap:10px}
+  .hero-chip{border:1px solid var(--line2);background:var(--panel2);border-radius:4px;padding:8px 12px;min-width:120px}
+  .hero-chip .lbl{font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:var(--dim)}
+  .hero-chip-seed{border-color:var(--cyan)}
+  .hero-chip-seed .lbl{color:var(--cyan)}
+  .hero-chip .val{font-size:16px;margin-top:2px;font-variant-numeric:tabular-nums}
+  .hero-grid{display:grid;grid-template-columns:1.2fr 1fr;gap:14px;margin-top:14px}
+  @media (max-width:900px){.hero-grid{grid-template-columns:1fr}}
+  .hero-panel{border:1px solid var(--line2);border-radius:4px;background:var(--panel2);padding:10px 12px}
+  .hero-panel h3{margin:0 0 8px;font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--cyan)}
+  .hero-panel table{font-size:12px}
+  .hero-panel td, .hero-panel th{padding:5px 6px}
+
+
+
+/* ---------- firm daily return; identical on desktop and mobile ---------- */
+.daily-pnl{--daily-text:var(--text,var(--fg));--daily-muted:var(--muted,var(--dim));
+  --daily-line:var(--border,var(--line));--daily-accent:var(--accent,var(--cyan));
+  --daily-up:var(--up,var(--green));--daily-down:var(--down,var(--red));
+  color:var(--daily-text);font-family:var(--sans);max-width:560px;min-width:0;
+  margin-top:16px;padding-top:12px;border-top:1px solid var(--daily-line)}
+.daily-heading{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:12px;
+  font-weight:600;letter-spacing:.06em;color:var(--daily-muted)}
+.daily-badge{font-size:11px;font-weight:600;line-height:1.4;letter-spacing:0;
+  padding:2px 6px;border:1px solid var(--daily-line);border-radius:4px;color:var(--daily-muted)}
+.daily-badge.estimated,.daily-badge.unverified{color:#f0b429;border-color:#826722}
+.daily-values{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;margin:4px 0 8px;
+  font-variant-numeric:tabular-nums;font-weight:700;line-height:1.25}
+.daily-amount{font-size:clamp(24px,5vw,28px);letter-spacing:-.02em}
+.daily-percent{font-size:24px;letter-spacing:-.02em}
+.daily-positive{color:var(--daily-up)}.daily-negative{color:var(--daily-down)}
+.daily-mover{font-size:14px;line-height:1.5;margin:12px 0;overflow-wrap:anywhere}
+.daily-mover-label{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:12px;font-weight:600;
+  color:var(--daily-muted);letter-spacing:.04em;margin-bottom:4px}
+.daily-movers{list-style:none;padding:0;margin:0;counter-reset:movers}
+.daily-movers li{counter-increment:movers;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;
+  padding:6px 0;border-bottom:1px solid var(--daily-line)}
+.daily-movers li:last-child{border-bottom:0}
+.daily-mover-name{font-weight:500;min-width:0}
+.daily-mover-name::before{content:counter(movers) '. ';color:var(--daily-muted);font-weight:400}
+.daily-mover-numbers{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.daily-mover-value{display:block;font-weight:600}
+.daily-mover-percent{display:block;font-size:12px}
+.daily-mover-symbol{display:block;font-size:11px;font-weight:400;color:var(--daily-muted);margin-top:1px}
+.daily-mover-column-labels{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;padding:6px 0;font-size:10px;color:var(--daily-muted);align-items:end}
+.daily-mover-column-labels>span:last-child{text-align:right}
+.daily-history-movers .daily-mover-column-labels{display:none}
+.daily-mover-detail{display:block;font-size:11px;color:var(--daily-muted);margin-top:6px}
+.daily-mover.pending{color:var(--daily-muted);font-size:12px}
+.daily-history-movers{margin-top:4px}
+.daily-history-movers>summary{font-size:11px;gap:4px}
+.daily-history-movers>summary::after{content:'+'}
+.daily-history-movers[open]>summary::after{content:'−'}
+.daily-history-movers .daily-movers li{display:block;padding:8px 0;font-size:11px}
+.daily-history-movers .daily-mover-numbers{text-align:left;white-space:normal;margin-top:2px}
+.daily-history-movers .daily-mover-detail{font-size:10px}
+.daily-meta,.daily-context,.daily-note,.daily-basis{font-size:12px;color:var(--daily-muted);
+  line-height:1.5;margin:4px 0;overflow-wrap:anywhere;letter-spacing:0}
+.daily-context{color:var(--daily-text)}
+.daily-note:empty,.daily-basis:empty{display:none}
+.daily-history{margin-top:12px;border-top:1px solid var(--daily-line)}
+.daily-history summary{display:flex;align-items:center;justify-content:space-between;gap:12px;
+  min-height:44px;cursor:pointer;list-style:none;font-size:12px;color:var(--daily-muted)}
+.daily-history summary::-webkit-details-marker{display:none}
+.daily-history summary::after{content:'+';font-size:20px;color:var(--daily-accent);line-height:1}
+.daily-history[open]>summary::after{content:'−'}
+.daily-history summary:hover{color:var(--daily-text)}
+.daily-history summary:active{color:var(--daily-accent)}
+.daily-history summary:focus-visible{outline:2px solid var(--daily-accent);outline-offset:3px;border-radius:2px}
+.daily-history table{width:100%;table-layout:fixed;border-collapse:collapse;font-size:12px}
+.daily-history th,.daily-history td{white-space:normal;padding:8px 4px;border-bottom:1px solid var(--daily-line);
+  vertical-align:top;text-align:right;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+.daily-history th{font-size:11px;text-transform:none;letter-spacing:0;color:var(--daily-muted);font-weight:500}
+.daily-history th:first-child,.daily-history td:first-child{text-align:left;width:40%;padding-left:0}
+.daily-history th:nth-child(2),.daily-history td:nth-child(2){width:37%}
+.daily-history th:last-child,.daily-history td:last-child{width:23%;padding-right:0}
+.daily-history td .daily-badge{display:table;margin-top:4px}
+.daily-history tbody tr:last-child td{border-bottom:0}
+.daily-empty{font-size:12px;color:var(--daily-muted);margin:0 0 8px;line-height:1.5}
+@media(max-width:600px){.daily-pnl{max-width:100%;margin-top:16px}.daily-values{gap:8px 12px}
+  .daily-percent{font-size:20px}.daily-history th,.daily-history td{padding-top:12px;padding-bottom:12px}}
+
+/* ---------- dated paper salary ---------- */
+.salary-card{--salary-text:var(--text,var(--fg));--salary-muted:var(--muted,var(--dim));
+  --salary-line:var(--border,var(--line));--salary-accent:var(--accent,var(--cyan));
+  grid-column:1/-1;min-width:0;padding:16px 20px;border:1px solid var(--salary-line);
+  border-left:3px solid var(--salary-accent);border-radius:8px;
+  background:var(--surface,var(--panel));font-family:var(--sans);color:var(--salary-text)}
+.salary-head{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:12px}
+.salary-card h2{display:block;margin:0;color:var(--salary-accent);font-size:12px;
+  font-weight:700;letter-spacing:.14em;line-height:1.4;text-transform:uppercase}
+.salary-paper{border:1px solid var(--salary-line);border-radius:4px;padding:2px 7px;
+  color:var(--salary-muted);font-size:11px;font-weight:600;letter-spacing:.08em}
+.salary-state{font-size:12px;color:var(--salary-muted);margin-left:auto}
+.salary-state.pending{color:#f0b429}
+.salary-layout{display:grid;grid-template-columns:minmax(200px,1.25fr) minmax(0,2fr);gap:24px;align-items:center}
+.salary-payee{font-size:16px;font-weight:600;line-height:1.4}
+.salary-amount{font-size:24px;font-weight:700;letter-spacing:-.025em;line-height:1.25;margin-top:4px;
+  font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+.salary-frequency{font-size:12px;font-weight:400;color:var(--salary-muted);letter-spacing:0;margin-left:6px}
+.salary-metrics{display:grid;grid-template-columns:1.2fr 1fr 1fr;gap:16px;margin:0;min-width:0}
+.salary-metrics>div{min-width:0}
+.salary-metrics dt{font-size:12px;color:var(--salary-muted);margin:0 0 4px}
+.salary-metrics dd{font-size:14px;font-weight:600;line-height:1.45;margin:0;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+.salary-secondary{display:block;font-size:12px;font-weight:400;color:var(--salary-muted);margin-top:2px;line-height:1.5}
+.salary-history{margin-top:12px;border-top:1px solid var(--salary-line)}
+.salary-history summary{display:flex;justify-content:space-between;align-items:center;gap:12px;
+  cursor:pointer;list-style:none;min-height:44px;padding:10px 0 0;font-size:12px;color:var(--salary-muted)}
+.salary-history summary::-webkit-details-marker{display:none}
+.salary-history summary::after{content:'+';font-size:20px;line-height:1;color:var(--salary-accent)}
+.salary-history[open] summary::after{content:'−'}
+.salary-history summary:hover{color:var(--salary-text)}
+.salary-history summary:active{color:var(--salary-accent)}
+.salary-history summary:focus-visible{outline:2px solid var(--salary-accent);outline-offset:4px;border-radius:2px}
+.salary-history table{table-layout:fixed;width:100%;border-collapse:collapse;margin-top:12px;font-size:12px}
+.salary-history th,.salary-history td{padding:10px 8px;border-bottom:1px solid var(--salary-line);
+  text-align:left;white-space:normal;overflow-wrap:anywhere;vertical-align:top}
+.salary-history th{font-size:11px;font-weight:500;letter-spacing:.03em;text-transform:none;color:var(--salary-muted)}
+.salary-history th:first-child,.salary-history td:first-child{padding-left:0;width:44%}
+.salary-history th:nth-child(2),.salary-history td:nth-child(2){width:30%;font-variant-numeric:tabular-nums}
+.salary-history th:last-child,.salary-history td:last-child{padding-right:0;width:26%}
+.salary-history tbody tr:last-child td{border-bottom:0}
+.salary-history .salary-secondary{font-size:11px}
+.salary-empty{font-size:12px;color:var(--salary-muted);padding:12px 0 0;margin:0}
+@media(max-width:700px){
+  .salary-card{padding:16px;margin-bottom:12px}
+  .salary-head{gap:8px;margin-bottom:12px}.salary-state{margin-left:0}
+  .salary-layout{grid-template-columns:1fr;gap:16px}
+  .salary-metrics{grid-template-columns:1fr 1fr;gap:12px 16px}
+  .salary-metrics>div:first-child{grid-column:1/-1}
+  .salary-metrics>div:first-child dd .salary-secondary{display:inline;margin-left:8px}
+  .salary-history th,.salary-history td{padding:8px 5px}
+}
+
+</style>
+<link rel="stylesheet" href="/static/tfo_legacy.css">
+<!-- MOBILE v2 -->
+<link rel="manifest" href="/static/manifest.json"><meta name="theme-color" content="#000000">
+<meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="apple-mobile-web-app-title" content="War Room">
+<link rel="apple-touch-icon" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAMAAAADACAIAAADdvvtQAAAIfUlEQVR4nO3dS2wcdx3A8ZnZ2dmX95E4sZM0zqsRaSoakCNCpfbAQxBkhKIekNoL9FKRC0IgJA4JlaiaAxeQKiH1BhL0wqXQSBG04iHgEEXUlQKqmrZ54dTk5Wa9tve9MxzszG4We2zP7/+fnU2/n5PHmp2d+P/1f3dnxhMzV9xmAGFZg94BDDcCgggBQYSAIEJAECEgiBAQRAgIIgQEEQKCCAFBhIAgQkAQISCIEBBECAgiBAQRAoKIPZBnHT83NZDnfejdmjoX8TOakV0TTTQRiyamKAIinQHSnZHegEgnJvRlpPFNNPXEh76x0DIDkU5sKZ+K1M9A1BNnykdHcUDUE39qx0jlS9jG9yz6wxWfENEPgbKANrjrpBOBKMciuiPRpBOZ5R91NG8n1MxAwftKOgOke2gUvImmnjgL/vnLZym9Z+OpJw60joI0oICEqSc+AsZCOAlxPRBERAEx/QwRTZMQMxBEtATE9BNPOsaFGQgi4QNa64WT6SfO1hqd0G+DmIEgQkAQISCIEBBECAgiBAQRAoIIAUGEgCBCQBAhIIgQEEQICCIEBBECgggBQYSAIEJAECEgiBAQRAgIIgQEEQKCCAFBhIAgQkAQISCIEBBECAgiBAQRAoIIAUGEgCBCQBAhIIgQEEQICCIEBBECgggBQYSAIEJAECEgiBAQRAgIIgQEEQKCCAFBhIAgQkAQsQe9A59EVtGx9+cT41lzJGk6ltd0vcVW53atfaXizjcHvXebMzQBSf5v87X0/QeiwqdYeu2Dxdc+CFghsT2TOb479fROe8/IWuu0ZxYb/7hZ+8NM505NsjORGZqAhpqZS+afP5Q5PmHYZvCa9sSI/dzB3Dcfrb05s/DLS95SK5o9DI2AtEs+ViqdmrRG0w981/U6/6127jW8StMsOIktqcTOrGHdz8s2M1N7Up8fK5+Zbr1XjnyXN2FoApr7zt+CV8ie2JeZ2rPx9YPVzv2n+vtrm3rIqm9fnKPbSy8eNZPdDyvtK5Xq2euN87f61reKTurJ8ew39toHCivfGU1v+emT5Z/8szl9d9P/gKgMTUDtmcXgFdzKA+Ox7vrrbk24BcMwkgeLpR9P+vV4LXfxV5eqb1wzOt4qzzjfrP1xpvbWjeyJfSPPH1p+lJm0Si8evffD860P54U7owkf43UxM3bx9KTpJJYXvbY7f2a6+vrVVevpcr3q61fnz0x7bXdlO06ieGrSzCR073A4BKTLyLc/lRjL+IuVn11sXLi9wcc2Ltyu/Pyiv5gYz4x865Di/VOEgLRIjGeyU3v9xcaF2/W/zm5qC/W/zPYGl/363t4c44OAtMie2Nf9xO55C6++G2IjC6++a3j3X+9sM3tin5qdU4qANEiY6S894i81p+92blZDbKZzs9r7+Sv95Ue6n/Njg4DUcw5vsQqOv1h780boTdXe6j7WKjjJx0qSHdOBgNRLPrG1d7H5r7nQm2pe/Lh30TkyGnpTmhCQesn7RwINw+jcqbvl8OdH3XLDnat3t/xoIWDlgSAg9RK7cv7X7asV4dZaVxe6W96ZFW5NOQJSzxpN+V97C9KzoV7PEXZrazpgzYEYmlMZEcs9ezD37MENrtx3IYeZ6f5UXfHpdLfa7m45G7vj0cxA6pl296fq1TvCrXm1noCSsRuv2O3QQ8A/jWUYhpmWzhm985nXcgPWHAhewla3qcs5+i7M8GptM7lyHMjKJYV7YmV7AqpK5zPlCGh1kss53LmGfyDRzEsDMnuOSbof1wPWHAhewtTrzC75X9sHpEdukvvz/tft2TCnRLQiIPVal7vHfhLb0lYpFbByMKuU6r0Wtn05dpeVEZB6zYsPnLtwjmxda811OZ954NxF35mNOCAg9VrvlXvfVme+sjv0pjJf7T7WLTdbl8qSHdOBgDRwvfqfP/KXnMltiR1hTkEkdmSdz3ZnoPqfbhhu4OWwg0BAWlR/d617NMg08ycfD7GR/MnHDXPlAiCv7VbfuKZo71QiIC06d2q1s9f9xdSxsfQXdm1qC+kv7kodG/MXa2evd+7E7jO8QUD6LP7m/d4LEQs/OJL63PYNPjZ1bKzw/SP+YudmdfHX7yveP0UISBev1imfmfYaK8eOTdsqnj6afWb/OpelWmb2mf3FU5P+CTWv0Sm/PC0/p6YJAWnUvlwpv/S217z/F15JK//C4dFXnsocn+i95nWZVXAyxydGX3kq/8Lh7t8iNt3yS2+3r0gvKtKHUxl6Nd+5e+9H50unu38bbx8oFL73hPHdT7dnq+69hrfQNPOOtSVl78r2TU7uXL388nQMP7r3IiDtWpfKd0/+vf/uHJZp784Zu3OrP6btcXcOdHlLrcov/r302w8zX9uTenqHPfHw3B/IzBW3hXvkWrdj6rtrE/6fVXTsA4XEeMYaSRpJy2i57mKrcyuiO5SpHThmoAFw55vNd+J7x5ZN4VMYRAgIIgQEEQKCCAFBhIAgQkAQISCIEBBECAgiBAQRAoIIAUGEgCBCQBAhIIgQEEQICCIEBBECgggBQYSAIEJAECEgiBAQRAgIIgQEEQKCSPiA1rqZw1o3f0AcKL+nCjMQRLQExCQUTzrGhRkIIqKAAl44mYTiJmBEJDeVYwaCiDQgJqGhoGn6MXTPQDQUB1pHQUFAwQnT0GAF//zlt9QNf5vfPuuGwu1/IxbNiER3m9/lfw8ZRSDKWV/ZDGRsZr/JSJPoh0BlQAbveIaEwl9gxZ/CmFriT+0Yqf8YT0Nxpnx0FL+E9eLlLFY0/WJrPJDIVBQf+sZC4wzkYyoaIN2/xlEEtIyMIhbNK0B0AfUiJk2if9swmIDw0OB6IIgQEEQICCIEBBECgggBQYSAIEJAECEgiBAQRAgIIgQEEQKCCAFBhIAgQkAQISCI/A+fo4FZaDslLwAAAABJRU5ErkJggg==">
+<style>
+#mtabs{display:none}
+@media (max-width:700px){
+ html{-webkit-text-size-adjust:100%}
+ body{font-size:17px!important;line-height:1.45;background:#000!important;color:#f5f5f5!important;margin:0!important;padding:0 12px 84px!important;overflow-x:hidden}
+ body *{font-size:17px!important;color:inherit;max-width:100%;box-sizing:border-box;word-break:break-word}
+ h1{font-size:24px!important}h2{font-size:21px!important}
+ [class*=grid],[class*=row],[class*=cols],.container,main,section{display:block!important;grid-template-columns:1fr!important;width:auto!important;float:none!important}
+ header,.topbar{position:sticky;top:0;z-index:50;background:#000;padding-top:env(safe-area-inset-top)}
+ .num,td.num,[class*=pnl],[class*=price],[class*=value]{font-size:20px!important;font-weight:700;font-variant-numeric:tabular-nums}
+ .pos,.up,.green{color:#4ade80!important}.neg,.down,.red{color:#f87171!important}
+ html,body{overflow-x:hidden!important}
+ img,canvas,svg,iframe,pre{max-width:100%!important;height:auto}
+ pre{white-space:pre-wrap}
+ #plan48{position:static!important;border-width:3px!important;border-radius:14px;margin:8px 0;padding:12px!important}
+ #plan48,#plan48 *{color:#000!important}
+ #plan48 b{font-size:20px!important}
+ #plan48 tr{background:#fff!important;border:2px solid #000!important;color:#000}
+ #plan48 td:nth-child(2),#plan48 td:nth-child(3){font-size:22px!important;font-weight:800}
+ #plan48 td{font-size:19px!important;font-weight:600}
+ #plan48 td::before{color:#444!important}
+ a,button,select,input{min-height:44px;min-width:44px}
+ #mtabs{display:flex;position:fixed;bottom:0;left:0;right:0;z-index:99;background:#111;border-top:1px solid #444;padding-bottom:env(safe-area-inset-bottom)}
+ #mtabs a{flex:1;text-align:center;line-height:56px;color:#fff;text-decoration:none;font-size:17px!important;font-weight:600}
+}
+@media (max-width:600px){
+ table,thead,tbody,tr,td,th{display:block!important;width:100%!important}
+ thead,tr:has(> th){display:none!important}
+ td{flex-wrap:wrap}
+ tr{background:#111;border:1px solid #444;border-radius:12px;margin:10px 0;padding:8px 12px}
+ td{display:flex!important;justify-content:space-between;gap:12px;padding:6px 0!important;border:0!important;text-align:right}
+ td::before{content:attr(data-label);color:#aaa;text-align:left;font-weight:600}
+}
+</style>
+</head>
+<body>
+<!-- WAR ROOM CLEAN v1 2026-10-27 (PAPER; static/warroom_clean.{css,js}, static/asset_info.json). Older panels live under the More tab. -->
+<link rel="stylesheet" href="/static/warroom_clean.css">
+<link rel="stylesheet" href="/static/warroom_markets.css"><!-- ALL MARKETS v1 2026-10-27 -->
+<!-- STRATEGY TRACKER v1 2026-10-28 (PAPER, report only) -->
+<style>#trackercard td,#trackercard th{white-space:normal!important;max-width:170px!important;word-break:break-word;vertical-align:top;font-size:11px!important}#trackercard table{table-layout:fixed!important;width:100%!important}</style>
+<div id="trackercard" style="margin:8px;max-width:calc(100vw - 16px);box-sizing:border-box;padding:10px;border:2px solid #3a7;border-radius:8px;overflow-x:auto"><b>Strategy Tracker · PAPER · every strategy running · sorted best to worst (P&L after costs, A$)</b> <span id="trk_upd" class="lbl"></span>
+<div id="trk_body" style="font-size:12px">loading…</div><div class="lbl" style="font-size:11px">Hunt books: Target +3% / Stop -8% on new trades; break-even win rate 72.7% + costs. Triage verdict is info only - nothing is disabled.</div></div>
+<script>(function(){const n=(x,u)=>x==null?'—':(x+' '+u);const f=(x,p)=>x==null?'—':(p?Math.round(x*100)+'%':(typeof x=='number'?'A$'+(x>=0?'+':'')+Math.round(x).toLocaleString():x));
+const COLS=['Strategy','Status','Target / stop','Open','Trades','P&L after costs','Win rate (BE)','Expectancy','Pass mark','Kill distance','Missed (shadow)','Verdict (info)'];
+function r(){fetch('/static/strategy_tracker.json?t='+Date.now()).then(x=>x.json()).then(j=>{document.getElementById('trk_upd').textContent=j.updated_wita||'';
+let h='<table style="border-collapse:collapse;width:100%;table-layout:auto;font-size:11px"><tr>'+COLS.map(c=>'<th style="text-align:left;border-bottom:1px solid #555;padding:2px 6px">'+c+'</th>').join('')+'</tr>';
+(j.rows||[]).forEach(o=>{const c=o.pnl_aud==null?'':(o.pnl_aud>0?'color:#3c3':(o.pnl_aud<0?'color:#e55':''));
+const cells=[o.strategy,o.status,(o.rule||'—').replace(' (new trades); 48-72h exit; max 3 open',' new; 48-72h; max 3'),n(o.open,'open'),n(o.trades,'closed'),'<span style="'+c+'">'+f(o.pnl_aud)+'</span>',f(o.win_rate,1)+(o.be_win_rate?' (BE '+Math.round(o.be_win_rate*100)+'%)':''),f(o.expectancy_aud),f(o.pass_mark),f(o.kill),n(o.missed_shadow,'missed'),o.verdict];
+h+='<tr>'+cells.map((v,i)=>'<td data-label="'+COLS[i]+'" style="padding:2px 6px;border-bottom:1px solid #333;max-width:220px;white-space:normal;word-break:break-word;vertical-align:top">'+v+'</td>').join('')+'</tr>'});
+document.getElementById('trk_body').innerHTML=h+'</table>'}).catch(e=>{document.getElementById('trk_body').textContent='tracker feed unavailable'})}r();setInterval(r,60000)})();</script>
+<!-- THEME CAP v1 2026-10-28 (PAPER, WARN-ONLY; theme_exposure.py -> static/theme_exposure.json) -->
+<div id="themecard" style="margin:8px;max-width:calc(100vw - 16px);box-sizing:border-box;padding:10px;border:2px solid #c90;border-radius:8px;overflow-x:auto"><b>Theme cap · combined stress · PAPER · WARN-ONLY (never blocks or resizes)</b> <span id="thm_upd" class="lbl"></span>
+<div id="thm_body" style="font-size:12px">loading…</div><div class="lbl" style="font-size:11px">Stress: NDX -20%, S&amp;P -15%, BTC -30%, gold -15%, silver +15%, equities -15%, AUD -5%. Cap per theme = 20% of firm stress budget. Flag on the worse of now / now+staged. AI-infra is a look-through sub-theme.</div></div>
+<script>(function(){const a=x=>x==null?'—':'A$'+Math.round(x).toLocaleString();const p=x=>x==null?'—':Math.round(x*100)+'%';const col={RED:'#e55',AMBER:'#fa3',GREEN:'#3c3'};
+function r(){fetch('/static/theme_exposure.json?t='+Date.now()).then(x=>x.json()).then(j=>{document.getElementById('thm_upd').textContent=(j.updated_wita||'')+' · firm NAV '+a(j.firm_nav_aud)+' · stress budget '+a(j.stress_budget_aud)+' ('+p(j.budget_pct_of_firm_nav)+') · cap/theme '+a(j.theme_cap_aud)+' · total stress now '+a(j.total_current_stress_loss_aud)+' ('+p(j.total_current_pct_of_budget)+' of budget)';
+let h='<table style="border-collapse:collapse;width:100%;font-size:11px"><tr>'+['Theme','Net A$','Lev-adj A$ (incl staged)','Stress loss now','% cap now','Stress +staged','% cap +staged','Flag','Largest'].map(c=>'<th style="text-align:left;border-bottom:1px solid #555;padding:2px 6px">'+c+'</th>').join('')+'</tr>';
+(j.themes||[]).forEach(t=>{h+='<tr>'+[t.label,a(t.net_aud),a(t.lev_adj_aud),a(t.current_stress_loss_aud),p(t.current_pct_of_cap),a(t.proforma_stress_loss_aud),p(t.proforma_pct_of_cap),'<b style="color:'+(col[t.flag]||'')+'">'+t.flag+'</b>',(t.top||[]).join('; ')].map(v=>'<td style="padding:2px 6px;border-bottom:1px solid #333;white-space:normal;vertical-align:top">'+v+'</td>').join('')+'</tr>'});
+document.getElementById('thm_body').innerHTML=h+'</table>'}).catch(e=>{document.getElementById('thm_body').textContent='theme feed unavailable'})}r();setInterval(r,60000)})();</script>
+<!-- HUNT FUNNEL v1 2026-10-28 (PAPER; hunt_shape_trial.py -> static/hunt_funnel.json; unique names, cleared = final CLEARED) -->
+<div id="huntfunnel" style="margin:8px;max-width:calc(100vw - 16px);box-sizing:border-box;padding:10px;border:2px solid #9c6;border-radius:8px;overflow-x:auto"><b>Hunt funnel · PAPER · unique names (cleared = clearance final CLEARED)</b> <span id="hf_upd" class="lbl"></span><div id="hf_body">loading…</div></div>
+<script>(function(){function r(){fetch('/static/hunt_funnel.json?t='+Date.now()).then(x=>x.json()).then(j=>{document.getElementById('hf_upd').textContent=(j.updated_wita||'')+' · trial '+((j.trial||{}).progress||'');
+let h='<table><tr><th>book</th><th>candidates</th><th>cleared</th><th>triggered</th><th>filled</th><th>24h cand/clr/trig/fill</th></tr>';for(const [b,x] of Object.entries(j.books||{})){const a=x.all_time||{},d=x.last_24h||{};h+='<tr><td>'+b+'</td><td>'+a.candidates+'</td><td>'+a.cleared+'</td><td>'+(a.triggered??'–')+'</td><td>'+a.filled+'</td><td>'+(x.last_24h?[d.candidates,d.cleared,d.triggered,d.filled].join('/'):'–')+'</td></tr>'}
+document.getElementById('hf_body').innerHTML=h+'</table>'}).catch(e=>{document.getElementById('hf_body').textContent='funnel feed unavailable'})}r();setInterval(r,300000)})();</script>
+<!-- SCORECARD WEEKLY v1 2026-10-28 (PAPER, REPORT ONLY; scorecard_weekly.py -> static/scorecard_weekly.json) -->
+<div id="scorecard" style="margin:8px;max-width:calc(100vw - 16px);box-sizing:border-box;padding:10px;border:2px solid #69c;border-radius:8px;overflow-x:auto"><b>Weekly per-book A$ scorecard · PAPER · REPORT ONLY (flags never switch anything off)</b> <span id="sc_upd" class="lbl"></span>
+<div id="sc_body" style="font-size:12px">loading…</div><div class="lbl" id="sc_rules" style="font-size:11px"></div></div>
+<script>(function(){const a=x=>x==null?'—':'A$'+(x>=0?'+':'')+Math.round(x).toLocaleString();
+function r(){fetch('/static/scorecard_weekly.json?t='+Date.now()).then(x=>x.json()).then(j=>{document.getElementById('sc_upd').textContent=(j.updated_wita||'')+' · flagged '+(j.n_flagged||0);
+let h='<table style="border-collapse:collapse;width:100%;font-size:11px"><tr>'+['Book','P&L after costs','Benchmark','Bench A$','Excess','Sample','Flag'].map(c=>'<th style="text-align:left;border-bottom:1px solid #555;padding:2px 6px">'+c+'</th>').join('')+'</tr>';
+(j.books||[]).forEach(b=>{const c=b.flag.startsWith('CUT')?'#e55':(b.flag=='WATCH'?'#fa3':'#3c3');h+='<tr>'+[b.book,a(b.pnl_aud),b.benchmark,a(b.bench_pnl_aud),a(b.excess_aud),b.sample_text,'<b style="color:'+c+'">'+b.flag+'</b> '+(b.flag_reasons||[]).join('; ')].map(v=>'<td style="padding:2px 6px;border-bottom:1px solid #333;white-space:normal;vertical-align:top">'+v+'</td>').join('')+'</tr>'});
+document.getElementById('sc_body').innerHTML=h+'</table>';const R=j.rules||{};document.getElementById('sc_rules').textContent='Pre-committed: '+(R.R1_underperform||'')+' ('+Math.round((R.underperf_pct||0)*100)+'%, floor A$'+(R.underperf_floor_aud||0).toLocaleString()+', min '+R.min_sample_trades+' trades / '+R.min_sample_sessions+' sessions); '+(R.R2_no_fills||'')}).catch(e=>{document.getElementById('sc_body').textContent='scorecard feed unavailable'})}r();setInterval(r,300000)})();</script>
+<div id="wc">
+ <div style="display:flex;align-items:center;justify-content:space-between;gap:8px"><h1>War Room</h1><a href="http://100.127.19.45:18870/" style="margin-left:10px;font-size:13px">Taylor Hedge Fund →</a><span class="paper">PAPER ONLY</span></div>
+ <div class="muted" id="wcupd">Loading…</div>
+ <div class="tot" id="wctot"></div>
+ <div class="wcpane" id="wcp-plan"><div id="wcplan"></div></div>
+ <div class="wcpane" id="wcp-pos"><h2>All open positions</h2><div id="wcpos"></div></div>
+ <div class="wcpane" id="wcp-pl"><h2>P&amp;L</h2><div id="wcpl"></div></div>
+ <div class="wcpane" id="wcp-risk"><h2>Risk</h2><div id="wcrisk"></div><div id="wcriskx"></div></div>
+ <div class="wcpane" id="wcp-more"><h2>More (older panels, full detail)</h2></div>
+</div>
+<div id="wcmore" style="display:none"></div>
+<div id="wcpop" role="dialog"></div>
+<nav id="wctabs"><button data-p="plan">Plan</button><button data-p="pos">Positions</button><button data-p="pl">P&amp;L</button><button data-p="risk">Risk</button><button data-p="more">More</button></nav>
+<script src="/static/warroom_clean.js"></script>
+<script src="/static/warroom_markets.js"></script><!-- ALL MARKETS v1 2026-10-27: /api/markets -->
+<script src="/static/hunt_slots.js"></script>
+<script src="/static/warroom_topcards.js?v=20261028-dualfx"></script><!-- MOBILE TOP CARDS v2 2026-10-28: Fundamental + OANDA + TREND-CORE + Crypto Sleeve dual-currency --><!-- HUNT SLOTS v1 2026-10-27: armed / open slots / backups per card (hunt_orchestrator.py) -->
+<!-- /WAR ROOM CLEAN v1 -->
+<!-- SIMPLE TOP v1 -->
+<style>
+#simpletop{background:#0b0d10;color:#f4f6f8;font:18px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;padding:20px 16px 8px;max-width:1100px;margin:0 auto;box-sizing:border-box;overflow-wrap:anywhere}
+#simpletop *{box-sizing:border-box}
+#simpletop h2{font-size:22px;margin:32px 0 12px;color:#fff}
+#simpletop .big{font-size:40px;font-weight:800;line-height:1.15}
+#simpletop .lbl{font-size:18px;color:#c9d1d9}
+#simpletop .pos{color:#3ddc84}#simpletop .neg{color:#ff5c5c}
+#simpletop .hero{display:flex;flex-wrap:wrap;gap:16px}
+#simpletop .hero>div{flex:1 1 260px;background:#161b22;border-radius:14px;padding:18px}
+#simpletop .mood{font-size:20px;margin:18px 0 0;padding:16px;background:#161b22;border-radius:14px;border-left:6px solid #ffcc00}
+#simpletop .cards{display:flex;flex-wrap:wrap;gap:16px}
+#simpletop .card{flex:1 1 300px;background:#161b22;border-radius:14px;padding:18px}
+#simpletop .tk{font-size:36px;font-weight:800}
+#simpletop .st{font-size:20px;font-weight:800;padding:4px 12px;border-radius:8px;float:right;margin-top:6px}
+#simpletop .WAITING{background:#ffcc00;color:#000}#simpletop .INTRADE{background:#3d8bff;color:#fff}
+#simpletop .WON{background:#3ddc84;color:#000}#simpletop .STOPPED{background:#ff5c5c;color:#000}#simpletop .MISSED{background:#888;color:#000}
+#simpletop .line{font-size:20px;margin:12px 0}
+#simpletop .rp{display:flex;gap:24px;font-size:20px}
+#simpletop details{margin-top:12px}#simpletop summary{font-size:18px;color:#8ab4ff;cursor:pointer;padding:8px 0}
+#simpletop table{width:100%;border-collapse:collapse;font-size:18px}#simpletop td{padding:6px 0;border-bottom:1px solid #2a313a}#simpletop td:last-child{text-align:right}
+#simpletop .cmp{display:flex;flex-wrap:wrap;gap:16px}#simpletop .cmp>div{flex:1 1 200px;background:#161b22;border-radius:14px;padding:18px}
+#simpletop .cmp .nm{font-size:20px;font-weight:700}#simpletop .wait{color:#c9d1d9;font-size:18px;font-style:italic}
+#simpletop .row{display:flex;flex-wrap:wrap;justify-content:space-between;gap:8px;padding:14px 16px;background:#161b22;border-radius:12px;margin-bottom:10px;font-size:20px}
+#simpletop .row b{flex:1 1 160px}
+#simpletop .upd{font-size:18px;color:#c9d1d9;margin-top:24px}
+#fulldetail{margin:24px auto;max-width:100%}#fulldetail>summary{font:700 20px -apple-system,sans-serif;color:#fff;background:#1f2630;padding:18px;border-radius:12px;cursor:pointer;max-width:1100px;margin:0 auto}
+
+html,body{overflow-x:hidden!important;max-width:100vw}
+#simpletop{width:100%!important;max-width:min(1100px,100vw)!important;font-size:18px!important}
+#simpletop div,#simpletop span,#simpletop b,#simpletop td,#simpletop summary,#simpletop .lbl,#simpletop .wait,#simpletop .upd{font-size:18px!important;letter-spacing:normal!important;text-transform:none!important}
+#simpletop .line,#simpletop .rp,#simpletop .rp *,#simpletop .row,#simpletop .row *,#simpletop .mood,#simpletop .nm,#simpletop .st{font-size:20px!important}
+#simpletop h2{font-size:24px!important;letter-spacing:normal!important;text-transform:none!important}
+#simpletop .big{font-size:40px!important}#simpletop .tk{font-size:36px!important}
+#simpletop .hero>div,#simpletop .card,#simpletop .cmp>div{min-width:0;flex-basis:280px}
+#simpletop .row span{white-space:nowrap}
+#fulldetail{max-width:100vw!important;overflow-x:auto}
+@media(max-width:600px){#simpletop .hero>div,#simpletop .card,#simpletop .cmp>div{flex:1 1 100%}}
+</style>
+<div id="simpletop">
+ <div class="hero">
+  <div><div class="lbl">Paper profit today, after costs</div><div class="big" id="st_today">…</div></div>
+  <div><div class="lbl">Firm value</div><div class="big" id="st_eq">…</div></div>
+ </div>
+ <div class="mood" id="st_mood">Loading…</div>
+ <h2>Hunt trades</h2><div class="cards" id="st_cards"></div><div id="st_cash" class="lbl" style="margin-top:12px"></div><h2 id="st_benchh" style="display:none">Backup bench</h2><div class="lbl" id="st_benchnote"></div><div id="st_bench"></div><details id="st_cutbox" style="display:none"><summary>Cut trades</summary><div id="st_cut" class="lbl"></div></details>
+ <h2>Who picks best</h2>
+ <div class="cmp">
+  <div><div class="nm">Our picks</div><div class="big" id="st_our">…</div><div class="lbl" id="st_ourw"></div><div class="lbl" id="st_ourl"></div></div>
+  <div><div class="nm">GPT picks</div><div class="big" id="st_gp">…</div><div class="lbl" id="st_gpw"></div><div class="lbl" id="st_gpl"></div></div>
+ </div>
+ <!-- CALENDAR v1.1 (2026-10-27, PAPER): reads /static/event_calendar.json -->
+ <style>#stcal{max-width:100vw;overflow-x:hidden}#stcal,#stcal *{box-sizing:border-box;white-space:normal;overflow-wrap:anywhere;max-width:100%}#stcal .ev{background:#161b22;border-radius:12px;padding:10px 12px;margin:6px 0;font-size:16px}#stcal .ev b{color:#fff}#stcal .tag{display:inline-block;font-size:13px;padding:1px 8px;border-radius:9px;background:#30363d;margin-right:6px}#stcal .blk{border-left:5px solid #ff5c5c}#stcal .stg{border-left:5px solid #3ddc84}#stcal .mac{border-left:5px solid #ffcc00}#stcal summary{font-size:18px;cursor:pointer;margin:10px 0}</style>
+ <div id="stcal"><h2>Calendar · next 72h</h2>
+  <div class="lbl" id="cal_sum">Loading…</div>
+  <h2 style="font-size:18px">Big market events (all currencies)</h2><div id="cal_macro"></div>
+  <h2 style="font-size:18px">Warnings on our trades</h2><div id="cal_flags"></div>
+  <h2 style="font-size:18px">Staged setups (bench, not armed)</h2><div id="cal_staged"></div>
+  <h2 style="font-size:18px">FX / OANDA paper bench (simulated fills, no orders)</h2><div id="cal_pb" class="lbl">Loading…</div>
+  <details><summary>Earnings on scanned names (next 72h)</summary><div id="cal_earn"></div></details>
+  <details><summary>Names flagged by an event (review queue)</summary><div id="cal_rev"></div></details>
+  <details><summary>Data sources</summary><div id="cal_feeds" class="lbl"></div></details>
+ </div>
+ <script>(function(){const E=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+ function r(){fetch('/static/event_calendar.json?t='+Date.now()).then(x=>x.json()).then(j=>{const c=j.counts||{};
+  document.getElementById('cal_sum').textContent=`${c.next72} events in the next 72h (${c.next72_earnings} earnings on scanned names, ${c.next72_macro} macro incl. FX) · universe ${(j.universe||{}).us} US + ${(j.universe||{}).kraken} Kraken + ${(j.universe||{}).oanda} OANDA · ${c.reviewed} names reviewed · ${c.passed} passed · ${c.staged} staged · ${c.risk_flags} warnings · risk per trade A$${(j.risk_per_trade_aud||0).toLocaleString()} · updated ${j.generated_wita}`;
+  const nx=j.next72||[];
+  document.getElementById('cal_macro').innerHTML=nx.filter(e=>e.sym==='MACRO').map(e=>`<div class="ev mac"><b>${E(e.when_wita)}</b> · ${E(e.title)}</div>`).join('')||'<div class="lbl">None</div>';
+  document.getElementById('cal_flags').innerHTML=(j.risk_flags||[]).map(f=>`<div class="ev blk"><b>${E(f.sym)}</b> <span class="tag">${E(f.book)}</span>${E(f.event)} · ${E(f.when)}<br>→ ${E(f.action)}</div>`).join('')||'<div class="lbl">No event clashes with our armed or open trades.</div>';
+  document.getElementById('cal_staged').innerHTML=(j.staged||[]).map(s=>`<div class="ev stg"><b>${E(s.sym)}</b> ${s.top3?'<span class="tag">TOP 3</span>':''}<span class="tag">${E(s.direction)}</span> trigger ${s.trigger} · stop ${s.stop} · T1 ${s.t1} (${s.rr_t1}R) · T2 ${s.t2} (${s.rr_t2}R) · ${s.shares} sh · risk A$${s.risk_aud} · ${E(s.breakeven_text||(s.breakeven_winrate!=null?('needs '+(100*s.breakeven_winrate).toFixed(0)+'% win rate'):'break-even unknown'))}<br><span class="lbl">${E((s.events||[]).join(' · '))}</span></div>`).join('')||'<div class="lbl">Nothing passed review.</div>';
+  document.getElementById('cal_earn').innerHTML=nx.filter(e=>e.type==='earnings').map(e=>`<div class="ev"><b>${E(e.sym)}</b> ${E(e.when_wita)} · ${E(e.title)}</div>`).join('');
+  document.getElementById('cal_rev').innerHTML=(j.reviews||[]).slice(0,80).map(v=>`<div class="ev ${v.passed?'stg':'blk'}"><b>${E(v.sym)}</b> ${v.passed?'PASS':'no'} · score ${v.rank_score} · ${E(v.dir)}<br><span class="lbl">${E((v.events||[]).join(' · '))}${v.why&&v.why.length?' — '+E(v.why.join('; ')):''}</span></div>`).join('');
+  document.getElementById('cal_feeds').innerHTML=Object.entries(j.feeds||{}).map(([k,v])=>`${v.ok?'✅':'❌'} ${E(k)} ${E(v.note)}`).join('<br>');
+ }).catch(e=>{document.getElementById('cal_sum').textContent='Calendar unavailable'});
+ fetch('/static/cal_paper_bench.json?t='+Date.now()).then(x=>x.json()).then(b=>{const c=b.counts||{};
+  document.getElementById('cal_pb').innerHTML=`${c.ARMED||0} waiting · ${c.FILLED||0} in trade · ${c.CLOSED||0} closed (net A$${b.net_aud_closed}) · ${c.SHADOW||0} shadow (slots full)`+(b.trades||[]).filter(t=>['ARMED','FILLED','CLOSED'].includes(t.status)).slice(-8).map(t=>`<div class="ev ${t.status==='CLOSED'?(t.net_aud>=0?'stg':'blk'):''}"><b>${E(t.sym)}</b> <span class="tag">${E(t.status)}</span>${E(t.direction)} trigger ${t.trigger} stop ${t.stop}${t.fill?` · filled ${t.fill}`:''}${t.net_aud!=null?` · net A$${t.net_aud}`:''}</div>`).join('');
+ }).catch(e=>{document.getElementById('cal_pb').textContent='No paper bench yet'})}r();setInterval(r,120000)})();</script>
+ <!-- STRATEGY SCOREBOARD (2026-10-28 Brett-approved, PAPER, read-only): one row per book, never merged; /api/strategy_scoreboard -->
+ <div id="stratsb" style="max-width:100vw;overflow-x:auto;margin:8px;box-sizing:border-box;padding:10px;border:2px solid #58a6ff;border-radius:8px">
+  <h2 style="margin:0 0 6px 0">STRATEGY SCOREBOARD · each book separate (PAPER)</h2>
+  <div class="lbl" id="sb_meta">Loading…</div>
+  <div id="sb_tbl" style="margin-top:6px"></div>
+ </div>
+ <script>(function(){
+  const E=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const A=x=>x==null||isNaN(x)?'–':(x<0?'−':'')+'A$'+Math.abs(Math.round(x)).toLocaleString('en-AU');
+  const C=x=>x==null||isNaN(x)?'':(x<0?'color:#f85149':'color:#3fb950');
+  function r(){fetch('/api/strategy_scoreboard?t='+Date.now()).then(x=>x.json()).then(d=>{
+   if(!d.rows){document.getElementById('sb_meta').textContent='Scoreboard unavailable';return;}
+   document.getElementById('sb_meta').textContent=`${d.rows.length} books · generated ${d.generated_wita||'–'} · AUDUSD ${d.audusd!=null?Number(d.audusd).toFixed(4):'–'} · – = missing data (not invented)`;
+   const rows=[...d.rows].sort((a,b)=>(b.pnl_since_start_aud??-1e18)-(a.pnl_since_start_aud??-1e18));
+   document.getElementById('sb_tbl').innerHTML='<table style="border-collapse:collapse;font-size:14px;width:100%"><tr style="text-align:left"><th>Strategy</th><th>Today</th><th>Week</th><th>Since start</th><th>Trades</th><th>Win%</th><th>Max DD</th><th>Days</th><th>Status</th></tr>'+
+    rows.map(r=>`<tr style="border-top:1px solid #30363d"><td title="${E(r.notes||'')}">${E(r.strategy)}</td><td style="${C(r.pnl_today_aud)}">${A(r.pnl_today_aud)}</td><td style="${C(r.pnl_week_aud)}">${A(r.pnl_week_aud)}</td><td style="${C(r.pnl_since_start_aud)}"><b>${A(r.pnl_since_start_aud)}</b></td><td>${E(r.trades??'–')}</td><td>${r.win_rate==null?'–':(r.win_rate*100).toFixed(0)+'%'}</td><td>${r.max_drawdown_pct!=null?Number(r.max_drawdown_pct).toFixed(1)+'%':(r.max_drawdown_aud!=null?A(r.max_drawdown_aud):'–')}</td><td>${E(r.days_live??'–')}</td><td>${E(r.status||'–')}</td></tr>`).join('')+'</table>';
+  }).catch(e=>{document.getElementById('sb_meta').textContent='Scoreboard unavailable';});}
+  r();setInterval(r,300000);})();</script>
+ <!-- TREND-CORE v1 (2026-10-28, PAPER, additive, path B): A$1m AUD slow-trend alongside firm Trend18; reads /static/trend_core_status.json only -->
+ <div id="trendcore" style="max-width:100vw;overflow-x:hidden;margin:8px;box-sizing:border-box;padding:10px;border:2px solid #3a7;border-radius:8px">
+  <h2 style="margin:0 0 6px 0">TREND-CORE · A$1m paper (separate · Trend18 spirit)</h2>
+  <div class="lbl" id="tc_sum">Loading…</div>
+  <div id="tc_hold" style="margin-top:8px"></div>
+  <div class="lbl" id="tc_note" style="margin-top:6px"></div>
+  <div id="tcg_line" style="font-size:16px;margin:4px 0"></div>
+  <script>fetch('/static/trend_core_global_status.json?t='+Date.now()).then(x=>x.json()).then(g=>{const A=x=>x==null||isNaN(x)?'–':(x<0?'−':'')+'A$'+Math.abs(Math.round(x)).toLocaleString('en-AU');
+   const t=(g.targets||[]).filter(t=>t.w>0).map(t=>t.inst+' '+(t.w*100).toFixed(1)+'%').join(' · ');
+   document.getElementById('tcg_line').innerHTML=`GLOBAL widening ${g.executed?'EXECUTED':(g.card_label||('STAGED for '+(g.due_date||'')))+(g.crypto_executed?' · crypto filled '+(g.crypto_executed_wita||''):'')+' (live prices)'} · targets: ${t}<br>&nbsp;&nbsp;└ SPEC sleeve: target ${A(g.spec_target_aud)} · value ${A(g.spec_value_aud)} · P&amp;L <b>${A(g.spec_pnl_aud)}</b> · ${g.spec_halt?'HALTED':'−25% leg stop / −30% halt'}`;}).catch(()=>{});</script>
+ </div>
+ <script>(function(){
+  const E=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const A=x=>x==null||isNaN(x)?'–':(x<0?'−':'')+'A$'+Math.abs(Math.round(x)).toLocaleString('en-AU');
+  const P=x=>x==null||isNaN(x)?'–':(x>0?'+':'')+Number(x).toFixed(2)+'%';
+  const box='background:#161b22;border-radius:12px;padding:10px 12px;margin:6px 0;font-size:16px;overflow-wrap:anywhere';
+  function r(){fetch('/static/trend_core_status.json?t='+Date.now()).then(x=>x.json()).then(s=>{
+    const k=s.kill||{}, nb=s.next_rebalance||{}, gate=s.duration_gate_open;
+    document.getElementById('tc_sum').innerHTML=[
+      `NAV <b>${A(s.nav_aud)}</b> · spare <b>${A(s.spare_aud)}</b> (held ${A(s.spare_held_aud)}) · deployed <b>${A(s.deployed_aud)}</b> / cap ${A(s.deploy_cap_aud)}`,
+      `vs seed <b>${A(s.vs_seed_aud)}</b> · vs prior mark <b>${A(s.vs_prior_aud)}</b> · DD <b>${P(s.drawdown_pct)}</b> · scale ${E(s.scale)} · σ ${E(s.sigma)}`,
+      `Kill ${k.active?'ACTIVE':'armed (−30% NAV/unit)'}${k.pending_rebalance?' · rebalance pending':''} · signal asof ${E(s.signal_asof||'–')} · TMF gate ${gate===true?'OPEN':gate===false?'CLOSED':'–'}`,
+      (()=>{const sh=s.shadow||{};return `SHADOW profit-taking (not in P&L): shadow−real <b>${A(sh.diff_aud)}</b> · shadow NAV ${A(sh.shadow_equity_aud)} · ${E(sh.n_actions??0)} shadow actions${(sh.last_actions||[]).length?' · last '+E(sh.last_actions.slice(-1)[0].rule+' '+sh.last_actions.slice(-1)[0].inst):''}`})(),
+      `Next rebalance <b>${E(nb.date||'–')}</b> (${E(nb.label||'')}) · AUDUSD ${s.audusd!=null?Number(s.audusd).toFixed(4):'–'} · updated ${E(s.updated_wita||'–')}`
+    ].map(x=>`<div style="font-size:16px;margin:2px 0">${x}</div>`).join('');
+    const hs=(s.holdings||[]).filter(h=>(h.qty||0)>0 || (h.value_aud||0)>0);
+    document.getElementById('tc_hold').innerHTML=hs.length?hs.map(h=>`<div style="${box}"><b>${E(h.inst)}</b> · ${E(h.qty)} sh · mark US$${E(h.px_usd)} · <b>${A(h.value_aud)}</b> (${E(h.weight_pct)}%) · UPL ${A(h.upl_aud)}</div>`).join(''):'<div class="lbl">Flat / not yet entered.</div>';
+    document.getElementById('tc_note').textContent=(s.accounting_note||'')+' · PAPER ONLY · not in firm equity.';
+  }).catch(e=>{document.getElementById('tc_sum').textContent='TREND-CORE unavailable';});}
+  r(); setInterval(r,120000);
+ })();</script>
+ <!-- ESSENTIALS v1 (2026-10-28, PAPER, additive): A$1m quality energy/utilities/essential services, all markets; reads /static/essentials_status.json only -->
+ <div id="essentials" style="max-width:100vw;overflow-x:hidden;margin:8px;box-sizing:border-box;padding:10px;border:2px solid #d9a400;border-radius:8px">
+  <h2 style="margin:0 0 6px 0">ESSENTIALS · A$1m paper (energy · utilities · essential services · all markets)</h2>
+  <div class="lbl" id="es_sum">Loading…</div><div id="es_hold" style="margin-top:8px"></div>
+ </div>
+ <script>(function(){
+  const E=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const A=x=>x==null||isNaN(x)?'–':(x<0?'−':'')+'A$'+Math.abs(Math.round(x)).toLocaleString('en-AU');
+  const box='background:#161b22;border-radius:12px;padding:10px 12px;margin:6px 0;font-size:16px;overflow-wrap:anywhere';
+  function r(){fetch('/static/essentials_status.json?t='+Date.now()).then(x=>x.json()).then(s=>{
+    const bm=Object.entries(s.by_market_aud||{}).map(([k,v])=>`${E(k)} ${A(v)}`).join(' · ');
+    document.getElementById('es_sum').innerHTML=[
+     `NAV <b>${A(s.nav_aud)}</b> · cash ${A(s.cash_aud)} (spare ${A(s.spare_aud)} never deployed) · deployed <b>${A(s.deployed_aud)}</b> · staged for next open ${A(s.staged_aud)}`,
+     `CORE P&amp;L <b>${A(s.core_pnl_aud)}</b> · vs seed ${A(s.vs_seed_aud)} · costs ${A(s.costs_paid_aud)}`,
+     `&nbsp;&nbsp;└ SPEC sleeve: value ${A(s.spec_value_aud)} / cap ${A(s.spec_cap_aud)} · P&amp;L <b>${A(s.spec_pnl_aud)}</b> · ${s.spec_halt?'HALTED (−30%)':'running (≤2%/name, −20% stop, −30% halt)'}`,
+     `By market: ${bm||'–'}`, `Rules: ${E((s.rules||{}).rebalance)} · core stop −22% / trend break · updated ${E(s.updated_wita||'–')}`
+    ].map(x=>`<div style="font-size:16px;margin:2px 0">${x}</div>`).join('');
+    document.getElementById('es_hold').innerHTML=(s.holdings||[]).map(h=>h.status==='STAGED'
+      ?`<div style="${box};opacity:.75"><b>${E(h.inst)}</b> · ${E(h.mkt)} · ${E(h.sleeve)} · STAGED next open · target ${A(h.target_aud)} · ref close ${E(h.ref_close_local)} (not a fill)</div>`
+      :`<div style="${box}"><b>${E(h.inst)}</b> · ${E(h.mkt)} · ${E(h.sleeve)} · ${E(h.qty)} sh · entry ${E(h.entry_px_local)} → live ${E(h.mark_px_local)} ${E(h.ccy)} · <b>${A(h.value_aud)}</b> · UPL ${A(h.upl_aud)}${h.stop_hit?' · <b>STOP HIT</b>':''}</div>`).join('');
+  }).catch(e=>{document.getElementById('es_sum').textContent='ESSENTIALS unavailable';});}
+  r(); setInterval(r,120000);
+ })();</script>
+ <!-- ASX BOOK v1 (2026-10-27, PAPER, additive): separate A$1m ASX book, reads /static/hunt48_asx_status.json only -->
+ <div id="asxbook" style="max-width:100vw;overflow-x:hidden"><h2>ASX book · A$1m paper (separate)</h2><div class="lbl" id="asx_sum">Loading…</div><div id="asx_arm"></div>
+  <details><summary style="font-size:18px;cursor:pointer;margin:10px 0">ASX backup bench</summary><div id="asx_bench"></div></details></div>
+ <script>(function(){const E=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+ const row=(t,c)=>`<div class="ev ${c}" style="background:#161b22;border-radius:12px;padding:10px 12px;margin:6px 0;font-size:16px;overflow-wrap:anywhere"><b>${E(t.sym)}</b> <span class="tag">${E(t.status)}</span> ${E(t.direction)} · ${E(t.sector)} · trigger ${t.trigger} (max ${t.max_fill}) · stop ${t.stop} · T1 ${t.t1} · T2 ${t.t2} · ${t.shares} sh · risk A$${Math.round(t.risk_aud_actual||t.risk_aud)}${t.fill?` · filled ${t.fill}`:''}${t.net_aud!=null?` · net A$${t.net_aud}`:''}<br><span class="lbl">from ${E(t.armed_wita)}${t.exit_cut_wita?' · exit by '+E(t.exit_cut_wita):''}${t.short_flag?' · '+E(t.short_flag):''}${t.bench_note?' · '+E(t.bench_note):''}${t.cap_rule?' · cap '+E(t.cap_rule):''}</span><br><span class="tag" style="background:${(t.clearance||{}).desk==='PASS'?'#1f6f3f':(t.clearance||{}).desk==='FAIL'?'#7a2020':'#555'}">desk clearance ${E((t.clearance||{}).desk||'PENDING')}</span>${t.clearance&&t.clearance.RISK?` <span class="lbl">R ${E(t.clearance.RISK)} · B ${E(t.clearance.BEHAVIOR)} · S ${E(t.clearance.SPECIALIST)} · GPT ${E(t.clearance.GPT)} · Claude ${E(t.clearance.CLAUDE)}</span>`:''}</div>`;
+ function r(){fetch('/static/hunt48_asx_status.json?t='+Date.now()).then(x=>x.json()).then(s=>{const c=s.counts||{};
+  document.getElementById('asx_sum').textContent=`${s.liquidity_floor_label||'ASX floor A$2m 20d ADV'} · clearance ${(s.clearance||{}).date_wita||'-'}: ${((s.clearance||{}).desk_pass||[]).length} desk PASS / ${((s.clearance||{}).desk_fail||[]).length} FAIL (GPT/Claude pending) · Equity A$${Math.round(s.equity_aud).toLocaleString('en-AU')} · ${s.slots_used}/${s.max_open} own slots · ${c.FILLED||0} in trade · ${c.ARMED||0} waiting · ${c.BENCH||0} backups · ${c.CLOSED||0} closed (net A$${s.net_aud_closed}) · ^AXJO ${s.regime_axjo} · ${s.passed}/${s.reviewed} passed · ASX ${s.asx_hours_wita} · updated ${s.updated_wita}`;
+  document.getElementById('asx_arm').innerHTML=(s.armed||[]).map(t=>row(t,'stg')).join('')||'<div class="lbl">Nothing armed.</div>';
+  document.getElementById('asx_bench').innerHTML=(s.bench||[]).map(t=>row(t,'')).join('')||'<div class="lbl">Bench empty.</div>';
+ }).catch(e=>{document.getElementById('asx_sum').textContent='ASX book unavailable'})}r();setInterval(r,120000)})();</script>
+ <!-- ASIA BOOKS v1 (2026-10-27, PAPER, additive): 5 separate A$1m books jp/hk/sg/kr/tw, read /static/hunt48_<mkt>_status.json only -->
+ <div id="asiabooks" style="max-width:100vw;overflow-x:hidden"><h2>Asia books · A$1m paper each (separate)</h2><div id="asia_cards"></div></div>
+ <script>(function(){const E=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+ const M=[['jp','Japan TSE'],['hk','Hong Kong HKEX'],['sg','Singapore SGX'],['kr','Korea KRX'],['tw','Taiwan TWSE/TPEx']];
+ const box='background:#161b22;border-radius:12px;padding:10px 12px;margin:6px 0;font-size:16px;overflow-wrap:anywhere';
+ const row=t=>`<div style="${box}"><b>${E(t.sym)}</b> ${E(t.name||'')} <span class="tag">${E(t.status)}</span><br>${E(t.direction)} · ${E(t.sector)}<br>trigger ${t.trigger} (max ${t.max_fill}) · stop ${t.stop}<br>T1 ${t.t1} · T2 ${t.t2} · ${t.shares} sh · risk A$${Math.round(t.risk_aud_actual||0)} · cost ${t.cost_R}R${t.bench_note?'<br><span class="lbl">'+E(t.bench_note)+'</span>':''}</div>`;
+ document.getElementById('asia_cards').innerHTML=M.map(([m,n])=>`<div style="${box};border:1px solid #30363d"><div style="font-size:18px;font-weight:600">${n}</div><div class="lbl" id="as_${m}_sum">Loading…</div><div id="as_${m}_arm"></div><details><summary style="font-size:16px;cursor:pointer;margin:8px 0">Bench</summary><div id="as_${m}_bench"></div></details></div>`).join('');
+ function r(){M.forEach(([m,n])=>fetch(`/static/hunt48_${m}_status.json?t=`+Date.now()).then(x=>x.json()).then(s=>{const c=s.counts||{},u=s.universe||{},cl=s.clearance||{};
+  document.getElementById(`as_${m}_sum`).innerHTML=[`${s.long_only?'LONG-ONLY':'long/short (confirmed borrow)'} · ${E(s.hours_wita)}`,`Universe ${u.listed??'-'} listed · ${u.passing_floor??'-'} pass ${E(s.liquidity_floor_label)}`,
+   `Clearance ${E(cl.date_wita||'-')}: ${(cl.desk_pass||[]).length} PASS / ${(cl.desk_fail||[]).length} FAIL (GPT/Claude pending)`,`Equity A$${Math.round(s.equity_aud).toLocaleString('en-AU')} · ${s.slots_used}/${s.max_open} slots · ${c.FILLED||0} in trade · ${c.ARMED||0} armed · ${c.BENCH||0} bench · ${c.CLOSED||0} closed (net A$${s.net_aud_closed})`,
+   `${E(s.index)} regime ${E(s.regime)} · updated ${E(s.updated_wita)}`].map(E2=>`<div>${E2}</div>`).join('');
+  document.getElementById(`as_${m}_arm`).innerHTML=(s.armed||[]).map(row).join('')||'<div class="lbl">Nothing armed (flat).</div>';
+  document.getElementById(`as_${m}_bench`).innerHTML=(s.bench||[]).map(row).join('')||'<div class="lbl">Bench empty.</div>';
+ }).catch(e=>{document.getElementById(`as_${m}_sum`).textContent=n+' book not built yet / unavailable'}))}r();setInterval(r,120000)})();</script>
+ <!-- LONDON BOOK v1 (2026-10-27, PAPER, additive; Brett pt1522u): separate A$1m LSE FTSE 350 book, reads /static/hunt48_lse_status.json only -->
+ <div id="lsebook" style="max-width:100vw;overflow-x:hidden"><h2>London book · A$1m paper (separate)</h2><div id="lse_card"></div></div>
+ <script>(function(){const E=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+ const box='background:#161b22;border-radius:12px;padding:10px 12px;margin:6px 0;font-size:16px;overflow-wrap:anywhere';
+ const A=x=>x==null||isNaN(x)?'–':(x<0?'−':'')+'A$'+Math.abs(Math.round(x)).toLocaleString('en-AU');
+ const row=t=>`<div style="${box}"><b>${E(t.sym)}</b> ${E(t.name||'')} <span class="tag">${E(t.status)}</span><br>${E(t.direction)} · ${E(t.sector)}<br>trigger ${t.trigger}p (max ${t.max_fill}p) · stop ${t.stop}p<br>T1 ${t.t1}p · T2 ${t.t2}p · ${t.shares} sh · ${A(t.notional_aud)} · risk ${A(t.risk_aud_actual)} · costs ${A(t.est_cost_aud)} (${t.cost_R}R incl. 0.5% stamp)${t.fill?`<br>filled ${t.fill}p${t.exit_cut_wita?' · exit by '+E(t.exit_cut_wita):''}`:''}${t.net_aud!=null?` · net ${A(t.net_aud)}`:''}${t.bench_note?'<br><span class="lbl">'+E(t.bench_note)+'</span>':''}</div>`;
+ document.getElementById('lse_card').innerHTML=`<div style="${box};border:1px solid #30363d"><div style="font-size:18px;font-weight:600">London LSE · FTSE 350</div><div class="lbl" id="ld_sum">Loading…</div><div id="ld_arm"></div><details><summary style="font-size:16px;cursor:pointer;margin:8px 0">Bench</summary><div id="ld_bench"></div></details><details><summary style="font-size:16px;cursor:pointer;margin:8px 0">Recent</summary><div id="ld_recent"></div></details></div>`;
+ function r(){fetch('/static/hunt48_lse_status.json?t='+Date.now()).then(x=>x.json()).then(s=>{const c=s.counts||{},u=s.universe||{},cl=s.clearance||{};
+  document.getElementById('ld_sum').innerHTML=[`${s.long_only?'LONG-ONLY':'long/short (confirmed borrow)'} · ${E(s.hours_wita)}`,`${E(s.hours_note||'')}`,
+   `Universe FTSE 350: ${u.listed??'-'} listed · ${u.passing_floor??'-'} pass ${E(s.liquidity_floor_label)}`,
+   `Costs: ${E(s.cost_model||'')}`,
+   `Clearance ${E(cl.date_wita||'-')}: ${(cl.desk_pass||[]).length} PASS / ${(cl.desk_fail||[]).length} FAIL (GPT/Claude pending)`,
+   `Equity ${A(s.equity_aud)} · open ${A(s.open_pnl_aud)} · closed net ${A(s.net_aud_closed)} · ${s.slots_used}/${s.max_open} slots · ${c.FILLED||0} in trade · ${c.ARMED||0} armed · ${c.BENCH||0} bench · ${c.CLOSED||0} closed`,
+   `A$${Math.round(s.risk_per_trade_aud||0).toLocaleString('en-AU')} risk/trade · 1 per sector · T2 1.5R · cost ≤${(s.cost_R_max||0.30)}R · room ≥1R · stop on every trade`,
+   `${E(s.index)} regime ${E(s.regime)} · updated ${E(s.updated_wita)}`].map(x=>`<div>${x}</div>`).join('');
+  document.getElementById('ld_arm').innerHTML=(s.armed||[]).map(row).join('')||'<div class="lbl">Nothing armed (flat).</div>';
+  document.getElementById('ld_bench').innerHTML=(s.bench||[]).map(row).join('')||'<div class="lbl">Bench empty.</div>';
+  document.getElementById('ld_recent').innerHTML=(s.recent||[]).slice().reverse().map(row).join('')||'<div class="lbl">No history yet.</div>';
+ }).catch(e=>{document.getElementById('ld_sum').textContent='London book not built yet / unavailable'})}r();setInterval(r,120000)})();</script>
+ <h2>Other desks</h2><div id="st_desks"></div>
+ <div class="upd" id="st_upd">Paper money only.</div>
+</div>
+<script>
+(function(){
+const A=n=>(n<0?'−':'')+'A$'+Math.abs(Math.round(n)).toLocaleString('en-AU');
+const S=n=>(n>0?'+':'')+A(n);const C=n=>n>0?'pos':(n<0?'neg':'');
+const WORD={ARMED:'WAITING',FILLED:'IN TRADE',OPEN:'IN TRADE',PARTIAL:'IN TRADE',TRAILING:'IN TRADE',STOPPED:'STOPPED',MISSED:'MISSED'};
+async function j(u){try{const r=await fetch(u+(u.includes('?')?'&':'?')+'t='+Date.now(),{cache:'no-store'});return await r.json()}catch(e){return null}}
+function wita(){return new Date().toLocaleTimeString('en-AU',{timeZone:'Asia/Makassar',hour:'2-digit',minute:'2-digit'})+' WITA'}
+async function go(){
+ const [m,h,d4,u4,bp,cl,gp]=await Promise.all([j('/api/m'),j('/static/hunt48_short_status.json'),j('/static/swing_d4_status.json'),j('/static/swing_u4_status.json'),j('/static/btc_pounce_status.json'),j('/static/hunt48_short_claude_status.json'),j('/static/hunt48_short_gpt_status.json')]);
+ function book(b,idT,idW,idL){if(!b)return;let tot=0,w=0,d=0;(b.trades||[]).forEach(t=>{const p=+(t.pnl_aud||0);tot+=p;if(['CLOSED','STOPPED'].includes(t.status)){d++;if(p>0)w++}});
+  const e=document.getElementById(idT);e.textContent=S(tot);e.className='big '+C(tot);
+  document.getElementById(idW).textContent=d?`${w} won of ${d} finished`:'No trades finished yet';
+  const _tr=(b.trades||[]).filter(t=>!t.bench||t.status==='FILLED');
+  const _bn=(b.trades||[]).filter(t=>t.bench&&t.status==='ARMED'&&t.dist_to_trigger_pct!=null).sort((x,y)=>Math.abs(x.dist_to_trigger_pct)-Math.abs(y.dist_to_trigger_pct));
+  const _bt=(b.trades||[]).filter(t=>t.bench).length,_sh=(b.trades||[]).filter(t=>t.bench&&t.status==='SHADOW').length;
+  const eL=document.getElementById(idL);eL.textContent='Trades: '+_tr.map(t=>t.ticker+(t.direction==='LONG'?' (long)':'')+' '+(WORD[t.status]||t.status).toLowerCase()).join(', ');
+  if(_bt){const bd=document.createElement('div');bd.className='lbl';bd.style.marginTop='4px';
+   bd.textContent=`Backup bench: ${_bn.length} waiting${_sh?` · ${_sh} shadow`:''} · nearest: `+(_bn.slice(0,3).map(t=>`${t.ticker}${t.direction==='LONG'?' (long)':''} ${Math.abs(+t.dist_to_trigger_pct).toFixed(1)}%`).join(', ')||'–');
+   eL.appendChild(bd);}}
+ book(h,'st_our','st_ourw','st_ourl');book(gp,'st_gp','st_gpw','st_gpl');
+ const fx=(m&&m.oanda&&m.oanda.audusd)||0.70;
+ const hp=h?(h.pnl_today_aud||0):0;
+ if(m&&m.main){const t=m.main.today_change_usd/fx+hp;const e=document.getElementById('st_today');e.textContent=S(t);e.className='big '+C(t);
+  document.getElementById('st_eq').textContent=A(m.main.equity_net_usd/fx);}
+ if(h){const mood=/off/i.test(h.regime||'')?'Market mood is risk-off, so we only take short trades (we win if prices fall).':'Market mood: '+h.regime;
+  document.getElementById('st_mood').textContent=mood+' '+h.armed+' trades waiting to start, '+h.open+' in a trade now.';
+  let tot=0,wins=0,done=0;
+  const BW={ARMED:'waiting',FILLED:'IN TRADE',SHADOW:'shadow (book full)',MISSED:'missed',STOPPED:'stopped',CLOSED:'finished'};
+  const bench=(h.trades||[]).filter(t=>t.bench);
+  if(bench.length){document.getElementById('st_benchh').style.display='';
+   document.getElementById('st_benchnote').textContent=`${bench.length} backup short trades. Max ${h.max_open||3} open at once: the first to hit its trigger takes a free slot; after that, others are logged as shadow only.`;
+   document.getElementById('st_bench').innerHTML=bench.map(t=>`<div style="background:#161b22;border-radius:10px;padding:10px 12px;margin-bottom:8px"><div><b>${t.ticker}</b> now ${(+t.price).toFixed(2)} <span class="lbl">(${BW[t.status]||t.status})</span></div><div class="lbl">Sell below ${(+t.trigger).toFixed(2)} · ${t.dist_to_trigger_pct==null?'–':(+t.dist_to_trigger_pct).toFixed(1)+'%'} away · stop ${(+t.stop).toFixed(2)}</div></div>`).join('');}
+  document.getElementById('st_cards').innerHTML=(h.trades||[]).filter(t=>!t.bench||t.status==='FILLED').map(t=>{
+   let w=WORD[t.status]||t.status;const p=+(t.pnl_aud||t.pnl_aud_after_costs||0);tot+=p;
+   if(t.status==='CLOSED'||t.status==='EXITED'||t.status==='TIME_EXIT'){w=p>0?'WON':'STOPPED';done++;if(p>0)wins++}
+   if(t.status==='STOPPED')done++;
+   const away=((t.price-t.trigger)/t.price*100).toFixed(1);
+   const line=w==='WAITING'?`Sells if price drops below ${(+t.trigger).toFixed(2)}, now ${(+t.price).toFixed(2)} (${away}% away)`:
+     w==='IN TRADE'?`Sold at ${(+t.entry).toFixed(2)}, now ${(+t.price).toFixed(2)}. Buys back if it rises to ${(+t.stop).toFixed(2)}`:
+     w==='MISSED'?`Price moved too far before we could sell, so we skipped it`:`Trade finished`;
+   return `<div class="card"><span class="st ${w.replace(' ','')}">${w}</span><div class="tk">${t.ticker}</div>
+   <div class="line">${line}</div><div class="lbl">Borrow not checked; cost assumes 3% a year</div><div class="rp"><div>Risk <b>${A(t.risk_aud||0)}</b></div><div>Profit <b class="${C(p)}">${S(p)}</b></div></div>
+   <details><summary>Show details</summary><table>
+   <tr><td>Sell below</td><td>${(+t.trigger).toFixed(2)}</td></tr><tr><td>Do not sell under</td><td>${(+t.max_fill).toFixed(2)}</td></tr>
+   <tr><td>Buy back (stop loss)</td><td>${(+t.stop).toFixed(2)}</td></tr><tr><td>First target</td><td>${(+t.t1).toFixed(2)}</td></tr>
+   <tr><td>Second target</td><td>${(+t.t2).toFixed(2)}</td></tr><tr><td>Shares</td><td>${t.shares}</td></tr>
+   <tr><td>Borrow cost</td><td>3% a year assumed (not checked)</td></tr><tr><td>Latest close</td><td>${(+t.price).toFixed(2)}</td></tr><tr><td>Closes by</td><td>Thu 29 Oct 22:00 WITA</td></tr></table></details></div>`}).join('');
+  document.getElementById('st_cash').textContent=(h.cash_slots||[]).join(' ');
+  if((h.cut||[]).length){document.getElementById('st_cutbox').style.display='';document.getElementById('st_cut').innerHTML=h.cut.map(c=>`<div>${c.ticker}: Cut (${c.reason}) at ${c.cut_wita||''}</div>`).join('');}}
+ const rows=[];
+ if(m){(m.sleeves||[]).forEach(s=>{let p=s.value_aud!=null?s.value_aud:(s.pnl_usd!=null?s.pnl_usd/fx:(s.name==='Parallel Desk'?s.value_usd/fx:null));
+   let n=s.name==='Main V1'?'Main firm book':s.name==='Trend18'?'Trend book':s.name==='Parallel Desk'?'Parallel desk':s.name==='OANDA'?'Currency practice account':s.name;
+   let open=s.name==='OANDA'?m.oanda.tfo_open:(s.name==='Parallel Desk'?m.parallel.open_clips:(s.name==='Main V1'?(m.positions||[]).length:'–'));
+   if(s.name==='Main V1')p=m.main.today_change_usd/fx;
+   rows.push([n+(s.name==='Main V1'?' (today)':''),p,open]);});}
+ if(d4)rows.push(['Crypto swing book',d4.total_pnl_aud_after_fees||0,(d4.positions||[]).length]);
+ if(u4)rows.push(['US swing book',u4.total_pnl_aud_after_costs||0,(u4.positions||[]).length]);
+ if(bp)rows.push(['Bitcoin pounce book',(bp.equity_est_aud||0)-(bp.book_start_aud||0),bp.position?1:0]);
+ document.getElementById('st_desks').innerHTML=rows.map(r=>`<div class="row"><b style="display:block;width:100%">${r[0]}</b><span class="${C(r[1]||0)}" style="font-weight:800">${r[1]==null?'–':S(r[1])}</span>&nbsp;&nbsp;<span>${r[2]==='–'?'open trades not shown':r[2]+' open'}</span></div>`).join('');
+ document.getElementById('st_upd').textContent='Paper money only. Updated '+wita()+'. Refreshes every minute.';
+}
+function wrap(){const top=document.getElementById('simpletop');if(document.getElementById('fulldetail'))return;
+ const d=document.createElement('details');d.id='fulldetail';const s=document.createElement('summary');s.textContent='Full detail (all desks, old plan, logs, tables)';d.appendChild(s);
+ [...document.body.children].forEach(c=>{if(c!==top&&c.tagName!=='SCRIPT'&&c.tagName!=='STYLE'&&!c.contains(top))d.appendChild(c)});
+ document.body.appendChild(d);}
+document.addEventListener('DOMContentLoaded',()=>{wrap();go();setInterval(go,60000)});
+})();
+</script>
+<!-- /SIMPLE TOP v1 -->
+
+<!-- 48H PLAN BANNER v2 2026-10-26 (PAPER; reads /static/plan48_trades.json) -->
+<div id="plan48" style="position:sticky;top:0;z-index:9999;background:#ffd400;color:#000;border:4px solid #c00;padding:10px 14px;font:14px/1.35 system-ui,sans-serif">
+<b style="font-size:18px">48h PLAN, PAPER ONLY (forward test, no proven edge)</b> <span id="p48meta"></span>
+<div id="p48reg" style="font-weight:600;margin-top:4px"></div>
+<div id="p48why" style="margin-top:2px"></div><div style="font-weight:700;color:#c00;margin-top:2px">&#9888; Short borrow/locate UNVERIFIED for all names: check IBKR shortable + fee &lt;2% before entry, else skip.</div>
+<table style="width:100%;border-collapse:collapse;margin-top:6px;font-size:13px" id="p48t"></table>
+<details style="margin-top:4px"><summary>Shadow book (zero risk) &amp; rules</summary><div id="p48sh" style="font-size:12px"></div></details></div>
+<script>
+(function(){function r(){fetch('/static/plan48_trades.json?t='+Date.now()).then(x=>x.json()).then(j=>{
+var h='<tr style="text-align:left"><th>#</th><th>Ticker</th><th>Dir</th><th>Trigger (15m close)</th><th>Max fill</th><th>Stop</th><th>+2% / +5%</th><th>A$ size</th><th>A$ risk</th><th>Shield</th><th>Time exit</th><th>Ext</th><th>Status</th></tr>';
+(j.trades||[]).forEach(t=>{var e=t.extension||{};h+='<tr style="border-top:1px solid #0004"><td>'+t.id+'</td><td><b>'+t.ticker+'</b></td><td><b>'+(t.direction||'').toUpperCase()+'</b></td><td>'+t.entry_trigger+'</td><td>'+(t.max_fill??'')+(t.shares?' ('+t.shares+' sh)':'')+'</td><td>'+t.stop+'</td><td>'+t.t1+' / '+t.t2+'</td><td>'+Math.round(t.size_aud).toLocaleString()+'</td><td>'+t.risk_aud+'</td><td>'+(t.event_shield?'½ FOMC':'')+'</td><td>'+t.time_exit_wita+'</td><td>'+(e.extended?('day '+e.ext_days+'/10'):'eligible')+'</td><td>'+t.status+(t.pnl_aud!=null?' ('+t.pnl_aud+')':'')+'</td></tr>'});
+document.getElementById('p48t').innerHTML=h;document.getElementById('p48why').textContent=j.why_top3||'';
+var g=j.regime||{};document.getElementById('p48reg').textContent=(g.regime?('Regime: stocks '+g.regime.ibkr.toUpperCase()+' (SPY '+g.SPY+' vs 50d '+g.SPY_50dMA+'), crypto '+g.regime.kraken.toUpperCase()+' (BTC '+g.BTC+' vs 50d '+g.BTC_50dMA+')'):'')+(j.gap5_stress_aud_total?(' | 5% gap stress A$'+Math.round(j.gap5_stress_aud_total).toLocaleString()):'');
+document.getElementById('p48sh').innerHTML=(j.shadow||[]).map(t=>t.shadow_rank+'. '+t.ticker+' '+t.direction+' trig '+t.entry_trigger+' stop '+t.stop+' ['+t.status+']').join(' &middot; ')+'<br>'+(j.rules||'');
+document.getElementById('p48meta').textContent=' | sleeve A$'+Number(j.sleeve_aud).toLocaleString()+' | generated '+(j.generated||'')+' | loaded '+new Date().toLocaleTimeString();
+}).catch(e=>{document.getElementById('p48meta').textContent=' | trades.json unavailable'})}r();setInterval(r,60000)})();
+</script>
+<!-- /48H PLAN BANNER -->
+<!-- HUNT48 SHORT BANNER v3 2026-10-26 (PAPER; reads /static/hunt48_short_status.json) -->
+<style>
+#h48{background:#0b0b0b;color:#fff;padding:14px 16px 6px;font:17px/1.4 system-ui,-apple-system,sans-serif;border-bottom:3px solid #ffd400}
+#h48 *{box-sizing:border-box}
+#h48 .line{font-size:22px;font-weight:800;margin:0 0 4px}
+#h48 .sub{font-size:15px;color:#ccc;margin-bottom:10px}
+#h48 .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:12px}
+#h48 .card{background:#161616;border:2px solid #444;border-radius:14px;padding:14px}
+#h48 .top{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px}
+#h48 .tk{font-size:28px;font-weight:900}
+#h48 .chip{font-size:15px;font-weight:800;padding:4px 12px;border-radius:999px;color:#000}
+#h48 .ARMED{background:#ffd400}#h48 .FILLED{background:#4ade80}#h48 .STOPPED{background:#f87171}#h48 .CLOSED,#h48 .MISSED{background:#bbb}
+#h48 .px{font-size:26px;font-weight:800;margin-top:8px;font-variant-numeric:tabular-nums}
+#h48 .bar{height:12px;background:#333;border-radius:6px;margin:8px 0;overflow:hidden}
+#h48 .bar>div{height:100%;background:#ffd400}
+#h48 table{width:100%;border-collapse:collapse;font-size:17px}
+#h48 td{padding:3px 0;border:0!important;background:none!important}#h48 td:last-child{text-align:right;font-weight:700;font-variant-numeric:tabular-nums}
+#h48 .pos{color:#4ade80}#h48 .neg{color:#f87171}
+#h48 tr{display:table-row!important;background:none!important;border:0!important;margin:0!important;padding:0!important}#h48 td{display:table-cell!important;width:auto!important}#h48 td::before{content:none!important}
+#h48 details{margin:12px 0 6px;color:#ccc}
+</style>
+<div id="h48">
+ <div class="line" id="h48line">Loading paper shorts…</div>
+<div class="card" id="cspcard" style="margin:8px 0;padding:10px;border:1px solid #444;border-radius:8px"><b>CSP sleeve · PAPER report-only (A$200k, SPY/QQQ/AAPL/MSFT 30-DTE 0.25&Delta; puts)</b><div id="cspbody">loading…</div></div>
+<script>(function(){function r(){fetch('/static/csp_sleeve.json?t='+Date.now()).then(x=>x.json()).then(j=>{var o=(j.open||[]).map(p=>p.name+' '+p.K+'P x'+p.n+' exp '+p.exp+' cr '+p.credit+' ask '+(p.mark_ask==null?'?':p.mark_ask)+' uP&L A$'+Math.round(p.upnl_aud||0)).join('<br>')||'no open puts';
+document.getElementById('cspbody').innerHTML='Sleeve P&amp;L <b>A$'+Math.round(j.sleeve_pnl_aud)+'</b> (realized A$'+Math.round(j.realized_aud)+') · updated '+j.updated+'<br>'+o+'<br><small>Today: '+(j.today||[]).join(' · ')+'<br>'+j.backtest+'</small>';}).catch(e=>{document.getElementById('cspbody').textContent='no data yet';});}r();setInterval(r,60000);})();</script>
+<!-- 2026-10-29 TFO 11:44 WITA (PAPER, display only): universe-rescan hang watchdog card; reads static/rescan_watchdog_health.json -->
+<div class="card" id="wdcard" style="margin:8px 0;padding:10px;border:2px solid #444;border-radius:8px"><b>Rescan watchdog · universe rescans (PAPER)</b> <span id="wdbadge" style="padding:1px 8px;border-radius:8px;font-weight:bold">…</span><div id="wdbody">loading…</div></div>
+<script>
+function wdRender(j, nowMs){var STALE_S=300, age=null, m=String(j.updated_wita||'').match(/^(\d{4})-(\d\d)-(\d\d) (\d\d):(\d\d):(\d\d)/);
+ if(m){age=(nowMs-Date.UTC(+m[1],+m[2]-1,+m[3],+m[4]-8,+m[5],+m[6]))/1000;}
+ var stale=(age===null||age>STALE_S), alarm=!!j.alarm||(j.alarms||[]).length>0||j.ok!==true;
+ var lvl=alarm?'RED':(stale?'AMBER':'GREEN'), col={GREEN:'#1e7e34',AMBER:'#b8860b',RED:'#b02a37'}[lvl];
+ var why=alarm?('ALARM: '+(j.alarms||[]).map(function(a){return a.pid?('pid '+a.pid+' '+a.mkt+' no progress '+a.stalled_s+'s'):(a.mkt+' orphan lock');}).join(' · ')):(stale?('STALE: last check '+(age===null?'unknown':Math.round(age/60)+' min ago')+' (>5 min)'):'OK: no hung rescan');
+ var acts=(j.actions||[]).map(function(a){return (a.pid?('pid '+a.pid):a.lock)+' → '+a.action;}).join(' · ');
+ var html=why+'<br>Last check: '+(j.updated_wita||'?')+' · last alarm: '+(j.last_alarm_wita||'none')+' · watching '+((j.watching||[]).length)+' rescan(s)'+(acts?'<br><small>Actions: '+acts+'</small>':'');
+ return {level:lvl,color:col,html:html};}
+(function(){function r(){fetch('/static/rescan_watchdog_health.json?t='+Date.now()).then(function(x){return x.json();}).then(function(j){var o=wdRender(j,Date.now());
+ var b=document.getElementById('wdbadge');b.textContent=o.level;b.style.background=o.color;b.style.color='#fff';document.getElementById('wdcard').style.borderColor=o.color;document.getElementById('wdbody').innerHTML=o.html;})
+ .catch(function(e){var b=document.getElementById('wdbadge');b.textContent='RED';b.style.background='#b02a37';b.style.color='#fff';document.getElementById('wdcard').style.borderColor='#b02a37';document.getElementById('wdbody').textContent='no watchdog health file';});}r();setInterval(r,60000);})();
+</script>
+<div class="card" id="fpmcard" style="margin:8px 0;padding:10px;border:1px solid #444;border-radius:8px"><b>Forward-book pass mark (pre-registered 28 Oct 05:04 WITA)</b>
+ <div id="fpmline" style="font-size:13px;color:#ccc">loading…</div></div>
+<script>(function(){function r(){fetch('/static/forward_pass_mark.json?t='+Date.now()).then(x=>x.json()).then(j=>{
+var c=(j.checkpoints||[]).map(k=>k.n+' trades: '+(k.status=='PENDING'?'PENDING ('+k.need+' to go)':k.status+' (mean '+k.mean_R+'R, median '+k.median_R+'R, p '+k.p+')')).join(' · ');
+document.getElementById('fpmline').innerHTML='Rule: after costs, median R &gt; 0 AND mean R &gt; 0 AND permutation p &lt; 0.10, checked at 50 and 100 trades. Closed: '+j.n_closed+(j.mean_R!=null?' (mean '+j.mean_R.toFixed(3)+'R, median '+j.median_R.toFixed(3)+'R)':'')+'<br>'+c+(j.flag?'<br><b style="color:#f66">'+j.flag+'</b>':'')+'<br><span style="font-size:11px">Report only: never disables anything. Updated '+(j.updated_wita||'')+'</span>';}).catch(()=>{});}r();setInterval(r,300000);})();</script>
+ <div class="sub" id="h48sub"></div>
+ <div class="cards" id="h48cards"></div>
+ <details><summary>Old plan banner (QQQ dropped, earlier picks)</summary><div id="h48old"></div></details>
+</div>
+<script>
+(function(){function f(x,d){return x==null?'–':Number(x).toLocaleString(undefined,{minimumFractionDigits:d==null?2:d,maximumFractionDigits:d==null?2:d})}
+function r(){fetch('/static/hunt48_short_status.json?t='+Date.now()).then(x=>x.json()).then(j=>{
+var p=(j.pnl_since_entry_aud!=null?j.pnl_since_entry_aud:j.pnl_today_aud)||0,q=j.pnl_today_aud||0;/* OPEN-PNL FIX 2026-10-27: headline = since-entry P&L, plus today */document.getElementById('h48line').innerHTML=(j.regime||'')+' &nbsp;|&nbsp; '+j.armed+' armed, '+j.open+' open &nbsp;|&nbsp; Open P&amp;L after costs <span class="'+(p>=0?'pos':'neg')+'">A$'+f(p,0)+'</span> &nbsp;·&nbsp; today <span class="'+(q>=0?'pos':'neg')+'">A$'+f(q,0)+'</span>';
+document.getElementById('h48sub').textContent='Paper only. Prices updated '+(j.updated_wita||'')+'. Costs: '+(j.costs||'')+'. Dropped: '+(j.dropped||[]).map(d=>d.ticker+' ('+d.reason+')').join(', ');
+document.getElementById('h48cards').innerHTML=(j.trades||[]).map(t=>{var d=t.dist_to_trigger_pct,full=Math.abs((t.orig_stop-t.trigger)/t.trigger*100)||5,prog=t.status=='ARMED'&&d!=null?Math.max(0,Math.min(100,100-(d/full)*100)):100,pl=t.pnl_aud||0;
+return '<div class="card"><div class="top"><span class="tk">'+t.ticker+' <span style="font-size:17px;color:#ccc">short</span></span><span class="chip '+t.status+'">'+t.status+'</span></div>'+
+'<div class="px">Now '+f(t.price)+' <span style="font-size:17px;color:#ccc">vs trigger '+f(t.trigger)+(d!=null?' ('+(d>0?'+':'')+d+'%)':'')+'</span></div>'+
+'<div class="bar" title="how close to the entry trigger"><div style="width:'+prog+'%"></div></div>'+
+'<table><tr><td>Sell short below</td><td>'+f(t.trigger)+' (not under '+f(t.max_fill)+')</td></tr><tr><td>Entry price</td><td>'+(t.entry?f(t.entry):'not filled')+'</td></tr><tr><td>Stop (buy back)</td><td>'+f(t.stop)+'</td></tr><tr><td>Targets</td><td>'+f(t.t1)+' / '+f(t.t2)+'</td></tr><tr><td>Shares</td><td>'+f(t.shares,0)+'</td></tr><tr><td>Risk</td><td>A$'+f(t.risk_aud,0)+'</td></tr><tr><td>P&amp;L after costs</td><td class="'+(pl>=0?'pos':'neg')+'">A$'+f(pl,0)+'</td></tr><tr><td>Exit by</td><td>'+t.time_exit_wita+'</td></tr></table></div>'}).join('');
+}).catch(e=>{document.getElementById('h48line').textContent='Paper short status unavailable'})}r();setInterval(r,60000);
+var o=document.getElementById('plan48');if(o){document.getElementById('h48old').appendChild(o);o.style.position='static'}})();
+</script>
+<!-- /HUNT48 SHORT BANNER v3 -->
+
+
+
+
+<header>
+  <div>
+    <h1>Taylor Family Office</h1>
+    <div class="sub">war room · all books · read-only · paper</div>
+  </div>
+  <span class="pill warn">Paper only</span>
+  <span class="pill" id="p-mandate">mandate —</span>
+  <span class="pill" id="p-health">health —</span>
+  <button class="pill hind" id="p-hi" style="display:none" onclick="hiToggle()" title="Desk health notes (click to show)">notes</button>
+  <span class="pill" id="p-engine">engine —</span>
+  <span class="spacer"></span>
+  <span class="pill" id="p-updated">—</span>
+</header>
+<div class="hpanel" id="hi-panel" style="display:none"></div>
+
+<main id="main">
+  <!-- 2026-10-19 Brett 17:14 AEDT: new-strategies panel + KDESK STOPPED (read-only; static/new_strategies.html) -->
+  <section class="wide" id="new-strategies-panel" style="border:2px solid #4cc9c0">
+    <h2>New strategies &middot; KDESK pump buying STOPPED 19 Oct 17:11 AEDT <span class="meta">paper only &middot; live &middot; <a href="/static/new_strategies.html" target="_blank" style="color:#4cc9c0">open full page</a></span></h2>
+    <iframe src="/static/new_strategies.html" title="New strategies" style="width:100%;height:1450px;border:0;background:#0b0e14"></iframe>
+  </section>
+  <section class="salary-card" id="salary-card" aria-labelledby="salary-title">
+    <div class="salary-head"><h2 id="salary-title">Salary</h2><span class="salary-paper">PAPER ONLY</span><span class="salary-state" id="salary-state">Loading salary record…</span></div>
+    <div class="salary-layout">
+      <div><div class="salary-payee" id="salary-payee">Brent Taylor</div><div class="salary-amount"><span id="salary-monthly">—</span><span class="salary-frequency">/ month</span></div></div>
+      <dl class="salary-metrics">
+        <div><dt>Latest payment · Sydney date</dt><dd id="salary-latest">—</dd></div>
+        <div><dt>Next payment</dt><dd id="salary-next">—</dd></div>
+        <div><dt>Total paid · paper</dt><dd id="salary-total">—</dd></div>
+      </dl>
+    </div>
+    <details class="salary-history"><summary><span id="salary-history-label">Dated payment history</span></summary><div id="salary-history-body"><p class="salary-empty">Loading dated records…</p></div></details>
+  </section>
+
+  <div class="banner" id="alerts" style="display:none"></div>
+
+  <!-- DATA INTEGRITY. Every figure this board cannot compute honestly is
+       declared here, loudly, with the reason. Nothing is quietly replaced by a
+       fallback that looks like a real number. -->
+  <div class="banner problem" id="data-integrity" style="display:none"></div>
+
+  <section class="wide hero" id="tfo-hero">
+    <div class="hero-top">
+      <div>
+        <div class="hero-title">Taylor Family Office · total equity</div>
+        <div class="hero-eq" id="hero-equity">— <span class="tag" id="hero-status"></span></div>
+        <div class="daily-pnl" id="daily-pnl" role="group" aria-labelledby="daily-title">
+          <div class="daily-heading"><span id="daily-title">TODAY · Sydney</span><span class="daily-badge" id="daily-status">Loading</span></div>
+          <div class="daily-values" id="daily-values"><span class="daily-amount" id="daily-amount">—</span><span class="daily-percent" id="daily-percent">—</span></div>
+          <div class="daily-mover pending" id="daily-mover">Top 5 asset movers — asset attribution unavailable</div>
+          <div class="daily-meta" id="daily-meta">Loading dated daily record…</div>
+          <div class="daily-context">Salary withdrawals excluded • includes unrealised P&amp;L</div>
+          <div class="daily-basis" id="daily-basis"></div>
+          <div class="daily-note" id="daily-note"></div>
+          <details class="daily-history" id="daily-history"><summary><span id="daily-history-label">Dated daily history</span></summary><div id="daily-history-body"><p class="daily-empty">Loading daily records…</p></div></details>
+        </div>
+        <div class="sub" id="hero-sub" style="margin-top:6px">loading firm marks…</div>
+      </div>
+      <div class="hero-pnl" id="hero-chips"></div>
+    </div>
+    <div class="hero-grid">
+      <div class="hero-panel">
+        <h3>Top performers (book P&amp;L vs funding basis)</h3>
+        <div class="scroll"><table>
+          <thead><tr><th>Book</th><th class="num">Equity</th><th class="num">P&amp;L</th><th class="num">%</th></tr></thead>
+          <tbody id="hero-top"><tr><td colspan="4" class="dim">loading…</td></tr></tbody>
+        </table></div>
+      </div>
+      <div class="hero-panel">
+        <h3>Recovery sleeve · Gap-Close SOXL</h3>
+        <div id="hero-soxl" class="dim">loading…</div>
+        <h3 style="margin-top:14px">Laggards</h3>
+        <div class="scroll"><table>
+          <thead><tr><th>Book</th><th class="num">P&amp;L</th><th class="num">%</th></tr></thead>
+          <tbody id="hero-lag"><tr><td colspan="3" class="dim">loading…</td></tr></tbody>
+        </table></div>
+      </div>
+    </div>
+  </section>
+
+
+  <!-- 2026-10-09 TFO entry engine panel (read-only, PAPER ONLY). Feed: /static/entry_engine.json written by
+       research/entry_engine/entry_engine.py. Self-contained: no server change. Remove this section to revert. -->
+  <section class="wide" id="entry-engine-panel">
+    <h2>Entry engine <span class="meta" id="ee-meta">paper only &middot; a scan, not a fill &middot; crypto every 5 min, US equities every 15 min in session</span></h2>
+    <div id="ee-autofire" style="margin:0 0 8px;font-size:13px;font-weight:600">Auto-fire: loading…</div><!-- 2026-10-09 auto_fire.py (feed /api/m) -->
+    <pre id="ee-sheet" style="white-space:pre-wrap;margin:0 0 10px;font-size:12px;color:var(--fg)">loading…</pre>
+    <div style="color:var(--dim);font-size:10px;letter-spacing:.13em;text-transform:uppercase;margin-bottom:4px">Last 10 alerts</div>
+    <ul id="ee-alerts" style="margin:0;padding-left:18px;font-size:12px"><li class="dim">loading…</li></ul>
+  </section>
+  <script>
+  (function(){
+    function esc(s){return String(s==null?"":s).replace(/[&<>]/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;"}[c];});}
+    function eeLoad(){
+      fetch("/static/entry_engine.json",{cache:"no-store"}).then(function(r){return r.ok?r.json():null;}).then(function(d){
+        if(!d){document.getElementById("ee-sheet").textContent="entry engine feed not available yet";return;}
+        document.getElementById("ee-sheet").textContent=d.latest_md||"";
+        var age=Math.round((Date.now()-Date.parse(d.utc))/60000);
+        document.getElementById("ee-meta").textContent="paper only · a scan, not a fill · "+(d.status||"?")+" · "+age+" min ago";
+        var a=d.alerts||[];
+        document.getElementById("ee-alerts").innerHTML=a.length?a.map(function(x){return "<li>"+esc(x.text)+"</li>";}).join(""):"<li class=\"dim\">no alerts yet</li>";
+      }).catch(function(){document.getElementById("ee-sheet").textContent="entry engine feed unreachable";});
+    }
+    function afLoad(){  /* 2026-10-09 auto_fire.py status line via /api/m (mobile_api.py; same line as the phone page) */
+      fetch("/api/m",{cache:"no-store"}).then(function(r){return r.ok?r.json():null;}).then(function(d){
+        var a=((d||{}).entry_engine||{}).auto_fire||{}; var el=document.getElementById("ee-autofire");
+        el.textContent=a.line||"Auto-fire: status unavailable"; el.style.color=String(a.state||"").indexOf("ON")===0?"#3ee07a":"#ff5c5c";
+      }).catch(function(){document.getElementById("ee-autofire").textContent="Auto-fire: status unreachable";});
+    }
+    eeLoad(); setInterval(eeLoad,60000); afLoad(); setInterval(afLoad,60000);
+  })();
+  </script>
+
+  <!-- 2026-10-09 Desk status (live) panel (read-only, PAPER ONLY). Feed: /api/m (mobile_api.py): sleeves + status badges,
+       the parallel desk $1,000/day scoreboard, and health incl. a LIVE TCP probe of the Mac IBKR gateway 127.0.0.1:4002.
+       Same feed as the phone page /m. Remove this section to revert. -->
+  <section class="wide" id="desk-status-panel">
+    <h2>Desk status <span class="meta" id="ds-meta">live · paper only · /api/m</span></h2>
+    <div id="ds-body" style="font-size:13px"><span class="dim">loading…</span></div>
+  </section>
+  <script>
+  (function(){
+    function esc(s){return String(s==null?"":s).replace(/[&<>]/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;"}[c];});}
+    function usd(v,dp,sign){ if(v==null||isNaN(v)) return "—"; dp=dp==null?0:dp; var a=Math.abs(v).toLocaleString("en-US",{minimumFractionDigits:dp,maximumFractionDigits:dp}); return (v<0?"−":(sign&&v>0?"+":""))+"$"+a; }
+    function c(v){return v==null?"":(v>=0?"pos":"neg");}
+    function bd(b){var col=b==="OK"?"#3ee07a":(b==="KILL-WATCH"?"#ffcc33":"#ff5c5c");return '<b style="color:'+col+'">'+esc(b)+'</b>';}
+    function ago(s){ if(s==null) return "?"; if(s<90) return s+" s"; if(s<5400) return Math.round(s/60)+" min"; if(s<172800) return (s/3600).toFixed(1)+" h"; return (s/86400).toFixed(1)+" d"; }
+    window.__oandaPractice=function(el){
+      var d=window.__mdata; if(!d||!d.oanda){ el.innerHTML='<span class="dim">OANDA practice sleeve: loading…</span>'; return; }
+      var o=d.oanda, pos=(d.positions||[]).filter(function(p){return p.book==="OANDA";});
+      el.innerHTML='<div class="kv"><span class="dim">NAV (practice, A$)</span><span class="big">A$'+Number(o.nav_aud||0).toLocaleString("en-US",{maximumFractionDigits:2})+'</span></div>'+
+        '<div class="kv"><span class="dim">P&amp;L vs start A$'+Number(o.start_nav_aud||0).toLocaleString("en-US")+'</span><span class="'+c(o.pnl_aud)+'">'+usd(o.pnl_aud,2,true).replace("$","A$")+'</span></div>'+
+        '<div class="kv"><span class="dim">status</span><span>'+bd(o.badge)+' · '+esc(o.tfo_open)+' TFO trades open</span></div>'+
+        pos.map(function(p){return '<div class="kv"><span class="dim">'+esc(p.sym)+'</span><span class="'+c(p.pnl_aud)+'">'+usd(p.pnl_aud,2,true).replace("$","A$")+' <span class="dim">· '+(p.stop_dist_pct==null?"stop n/a":p.stop_dist_pct.toFixed(2)+"% to stop")+'</span></span></div>';}).join("")+
+        '<div class="note">OANDA PRACTICE sleeve (oanda_sleeve.py → state/oanda/snapshot.json, '+esc(o.asof_syd||"?")+' Sydney). Practice account, not desk equity. The pre-Aug-28 OANDA desk mirror was decommissioned.</div>';
+    };
+    function dsLoad(){
+      fetch("/api/m",{cache:"no-store"}).then(function(r){return r.ok?r.json():null;}).then(function(d){
+        if(!d){document.getElementById("ds-body").textContent="desk status feed unavailable";return;}
+        window.__mdata=d;
+        var m=d.main||{}, sc=d.scoreboard||{}, h=d.health||{};
+        var html='<div class="kv"><span class="dim">Main book after fees</span><span><b>'+usd(m.equity_net_usd,2)+'</b> · today <span class="'+c(m.today_change_usd)+'">'+usd(m.today_change_usd,2,true)+'</span> since 09:00 · DD '+usd(m.dd_usd,0,true)+' ('+esc(m.dd_pct)+'%) · fees to date '+usd(m.cum_fee_usd,2)+'</span></div>';
+        html+='<div class="kv"><span class="dim">Parallel desk today vs $1,000</span><span class="'+c(sc.booked_usd)+'">'+usd(sc.booked_usd,2,true)+' <span class="dim">· '+esc(sc.exits)+' exits · target w/ carry '+usd(sc.target_with_carry_usd,0)+' · running '+usd(sc.cum_booked_usd,2,true)+' vs '+usd(sc.cum_target_usd,0)+'</span></span></div>';
+        (d.sleeves||[]).forEach(function(s){
+          var v=s.name==="OANDA"?usd(s.value_aud,2,true).replace("$","A$"):(s.name==="Parallel Desk"?usd(s.value_usd,2,true):usd(s.value_usd,2));
+          html+='<div class="kv"><span class="dim">'+esc(s.name)+' · '+bd(s.badge)+'</span><span>'+v+' <span class="dim">· '+esc(s.value_label)+(s.pnl_usd!=null?' · P&amp;L '+usd(s.pnl_usd,2,true):'')+' · '+esc(s.detail)+'</span></span></div>';
+        });
+        html+='<div class="kv"><span class="dim">Feeds</span><span>'+(h.feeds||[]).map(function(f){return esc(f.label)+' '+bd(f.status);}).join(" · ")+'</span></div>';
+        (h.feeds||[]).concat(h.files||[]).forEach(function(f){ if(f.status!=="OK"||f.label==="IBKR") html+='<div class="kv"><span class="dim">'+esc(f.label)+'</span><span '+(f.status==="OK"?'':'style="color:#ff5c5c;font-weight:700"')+'>'+esc(f.status)+(f.age_s!=null&&f.label!=="IBKR"?' · '+ago(f.age_s)+' old':'')+' <span class="dim">· '+esc(f.note)+'</span></span></div>'; });
+        document.getElementById("ds-body").innerHTML=html;
+        document.getElementById("ds-meta").textContent="live · paper only · "+(d.generated_syd||"");
+        var oel=document.getElementById("oanda-panel"); if(oel && /OANDA practice sleeve: loading|OANDA desk state not found|NAV \(practice, A\$\)/.test(oel.textContent)) window.__oandaPractice(oel);
+      }).catch(function(){document.getElementById("ds-body").textContent="desk status feed unreachable";});
+    }
+    dsLoad(); setInterval(dsLoad,60000);
+  })();
+  </script>
+
+  <section class="wide">
+    <h2>&#128302; Crypto Rumour-Rider
+      <span class="meta">$20k declared forward test &middot; prereg 1b3bc7e77e2a7467 &middot; <span class="betatag">beta, not validated edge</span></span></h2>
+    <div id="crypto-rumour"><span class="dim">loading&hellip;</span></div>
+    <h2>Convexity Sleeve &middot; $150k &rarr; 21x</h2>
+    <div id="convexity"><span class="dim">loading&hellip;</span></div>
+    <h2>Dated-Event Long Book &middot; $75k</h2>
+    <div id="dated-event"><span class="dim">loading&hellip;</span></div>
+  </section>
+
+  <section class="wide">
+    <h2>&#127970; TFO Fundamental Desk
+      <span class="meta">$600k global long/short ($500k + $100k funder top-up) &middot; <span class="betatag">beta, not validated edge</span></span></h2>
+    <div id="fundamental-desk"><span class="dim">loading&hellip;</span></div>
+  </section>
+
+
+  <section class="wide">
+    <div style="display:flex;align-items:flex-end;justify-content:space-between;
+         flex-wrap:wrap;gap:14px;margin-bottom:14px">
+      <div>
+        <div id="hero-label" style="font-family:var(--sans);font-size:12px;color:var(--dim);font-weight:500">
+          Deployed · open positions</div>
+        <div id="hero-val" style="font-family:var(--sans);font-size:42px;font-weight:700;
+          letter-spacing:-.02em;line-height:1.05;font-variant-numeric:tabular-nums">—</div>
+        <span id="hero-pill" style="display:none;font-family:var(--sans);font-size:14px;
+          font-weight:600;padding:3px 12px;border-radius:999px;margin-top:6px;
+          font-variant-numeric:tabular-nums"></span>
+        <div id="pnl-chips" style="display:flex;gap:10px;margin-top:10px;flex-wrap:wrap;
+          font-family:var(--sans);font-variant-numeric:tabular-nums"></div>
+      </div>
+      <div style="text-align:right">
+        <span class="pill ok" id="stream-pill">LIVE · 60s</span>
+        <div id="pos-updated" class="dim" style="font-size:11px;margin-top:6px"></div>
+      </div>
+    </div>
+    <h2 style="display:none">Portfolio</h2>
+    <div id="desk-pnl-strip" style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px"></div>
+    <div class="scroll"><table id="portfolio">
+      <thead><tr><th>Floor</th><th>Book</th><th>Symbol</th><th>Side</th>
+        <th class="num">Units</th><th class="num">Entry</th><th class="num">Mark</th>
+        <th class="num">Value</th><th class="num">uPnL</th><th class="num">uPnL %</th>
+        <th>Feed</th></tr></thead>
+      <tbody><tr><td colspan="11" class="dim">loading…</td></tr></tbody>
+    </table></div>
+    <div class="note" id="pos-totals"></div>
+  </section>
+
+  <section class="wide">
+    <h2>Consolidated <span class="meta" id="consol-meta"></span></h2>
+    <div class="kpis" id="kpis"><span class="dim">loading…</span></div>
+  </section>
+
+  <section class="wide">
+    <h2>Firm equity curve <span class="meta" id="eq-meta"></span></h2>
+    <div id="equity-chart"><span class="dim">loading…</span></div>
+  </section>
+
+  <section>
+    <h2>Growth book <span class="meta">pre-registered · eval 2028-08-06</span></h2>
+    <div id="growth-book"><span class="dim">loading…</span></div>
+  </section>
+
+  <section>
+    <h2>Value book <span class="meta">pre-registered · benchmark VT · eval 2028-08-06</span></h2>
+    <div id="value-book"><span class="dim">loading…</span></div>
+  </section>
+
+  <section>
+    <h2>Carry executor <span class="meta">armed · fires at 4%</span></h2>
+    <div id="carry-book"><span class="dim">loading…</span></div>
+  </section>
+
+  <section>
+    <h2>Live engine book <span class="meta">:18799</span></h2>
+    <div id="engine-book"><span class="dim">loading…</span></div>
+  </section>
+
+  <section>
+    <h2>Multi-desk floor <span class="meta">forward-test</span></h2>
+    <div id="floor-book"><span class="dim">loading…</span></div>
+  </section>
+
+  <section>
+    <h2>Replica desk <span class="meta" id="replica-venue">simulation</span></h2>
+    <div id="replica-book"><span class="dim">loading…</span></div>
+  </section>
+
+  <section>
+    <h2>Engine &amp; risk state</h2>
+    <div id="risk"><span class="dim">loading…</span></div>
+  </section>
+
+  <section>
+    <h2>OANDA desk <span class="meta">external · read-only mirror</span></h2>
+    <div id="oanda-panel"><span class="dim">loading…</span></div>
+  </section>
+
+  <section>
+    <h2>Risk engine <span class="meta" id="risk-meta"></span></h2>
+    <div id="riskpanel"><span class="dim">run risk_engine.py</span></div>
+  </section>
+
+  <section>
+    <h2>Infrastructure health <span class="meta" id="health-meta"></span></h2>
+    <div id="health"><span class="dim">loading…</span></div>
+  </section>
+
+  <section>
+    <h2>Research verdicts</h2>
+    <div id="research"><span class="dim">loading…</span></div>
+  </section>
+
+  <section class="wide">
+    <h2>Cost wall — identical trades, two venues</h2>
+    <div id="costwall-chart"><span class="dim">loading…</span></div>
+  </section>
+
+  <section class="wide">
+    <h2>Strategy tournament <span class="meta" id="tourn-meta"></span></h2>
+    <div class="scroll"><table id="tournboard">
+      <thead><tr><th>#</th><th>Competitor</th><th>Kind</th><th class="num">Equity</th>
+        <th class="num">P&L %</th><th class="num">DD %</th><th class="num">Age</th>
+        <th>Evidence</th><th>Note</th></tr></thead>
+      <tbody><tr><td colspan="9" class="dim">loading…</td></tr></tbody>
+    </table></div>
+    <div class="note">Ranked by raw P&L for display only — the REGISTERED ranking metric is
+      return/maxDD at quarterly review. No verdict before 182 days; until then this board is
+      labelled noise. Rules: TOURNAMENT_PREREGISTRATION.md · first review 2026-11-06.</div>
+  </section>
+
+  <section class="wide">
+    <h2>🏇 Rally Rider <span class="meta" id="rr-meta">scale-out ladder · settled closes · pre-registered 2026-08-20</span></h2>
+    <div class="banner problem" id="rr-frozen" style="display:none;margin-bottom:10px"></div>
+    <div class="banner" id="rr-warn" style="display:none;margin-bottom:10px"></div>
+    <div id="rr-body"><span class="dim">loading…</span></div>
+    <div class="log" id="rr-events" style="margin-top:8px;max-height:120px"></div>
+    <div class="note">Rule exactly as it runs in tournament.py: scale out 1/3 of initial units at
+      entry·(1+2σ√t), another 1/3 at entry·(1+4σ√t); the remainder exits on close ≤ peak·(1−2.5σ)
+      (peak of settled CLOSES) or the 40-bar time stop. σ is frozen at entry; t = bars held at the
+      deciding settled bar — exits are never checked on the entry bar, so a 0-bar leg shows the
+      levels that govern the first check (√1). TPs are checked before the stop on the same close;
+      every fill books at that settled close. A leg entered without σ is exit-exempt: time stop only.</div>
+  </section>
+
+  <section class="wide">
+    <h2>🏇🏇 Rally Rider X <span class="meta" id="rrx-meta">$100k · 10 slots · 34-name universe · pre-registered 2026-08-21</span></h2>
+    <div class="banner problem" id="rrx-frozen" style="display:none;margin-bottom:10px"></div>
+    <div class="banner" id="rrx-warn" style="display:none;margin-bottom:10px"></div>
+    <div id="rrx-body"><span class="dim">loading…</span></div>
+    <div class="log" id="rrx-events" style="margin-top:8px;max-height:120px"></div>
+    <div class="note">Same sealed ladder as its sibling — the one registered difference is BREADTH
+      (10 concurrent slots across ~34 deep-liquid names, entries sized net-of-costs, slot priority by
+      volume-ratio). Head-to-head experiment: concentration vs breadth, judged with the tournament.</div>
+  </section>
+
+  <section class="wide">
+    <h2>🏇 Rally Rider HOLD <span class="meta" id="rrh-meta">let-it-ride twin · $10k · pre-registered 2026-08-22</span></h2>
+    <div class="banner problem" id="rrh-frozen" style="display:none;margin-bottom:10px"></div>
+    <div class="banner" id="rrh-warn" style="display:none;margin-bottom:10px"></div>
+    <div id="rrh-body"><span class="dim">loading…</span></div>
+    <div class="log" id="rrh-events" style="margin-top:8px;max-height:120px"></div>
+    <div class="note">no profit-taking by registered rule — trail &amp; time stop only. Same entries as
+      rally_rider (20d closing high on ≥1.5× volume, settled closes); the EXIT AXIS isolated — every
+      performance difference vs its bank-thirds twin is attributable to the exit rule alone. The only
+      exits: close ≤ peak·(1−2.5σ) trail and the 40-bar time stop. No TP levels are shown because the
+      registered rule has none.</div>
+  </section>
+
+  <section class="wide">
+    <h2>🎣 Dip Rider <span class="meta" id="dip-meta">mirror-entry twin · $10k · pre-registered 2026-08-22</span></h2>
+    <div class="banner problem" id="dip-frozen" style="display:none;margin-bottom:10px"></div>
+    <div class="banner" id="dip-warn" style="display:none;margin-bottom:10px"></div>
+    <div id="dip-body"><span class="dim">loading…</span></div>
+    <div class="log" id="dip-events" style="margin-top:8px;max-height:120px"></div>
+    <div class="note">The ENTRY AXIS isolated: the exact inversion of rally_rider's entry — settled
+      close equals the 20d closing LOW on ≥1.5× median volume (a volume flush on the dip) — with the
+      identical full exit ladder. Registered prior is NEGATIVE (the mean-reversion family died in
+      backtests); this sleeve is the live counter-test, judged only by the 182-day record.</div>
+  </section>
+
+  <section class="wide">
+    <h2>🧪 Capacity Probe <span class="meta" id="cap-meta">$100k · thin corner ($81k–$1.4M/day) · depth-gated fills · funder-directed 2026-08-24</span></h2>
+    <div class="banner problem" id="cap-frozen" style="display:none;margin-bottom:10px"></div>
+    <div class="banner" id="cap-warn" style="display:none;margin-bottom:10px"></div>
+    <div id="cap-body"><span class="dim">loading…</span></div>
+    <div class="note">PRIMARY output is capacity, not P&amp;L: how much this corner absorbs and at what measured cost.
+      A fill is allowed only if the clip fits 25% of measured book depth on a snapshot &lt;15 min old — otherwise it is
+      REFUSED and logged with its measured shortfall. The refusals are the dataset. Capacity/cost verdict 2026-10-19;
+      edge verdict not before 182 days.</div>
+  </section>
+
+  <section class="wide">
+    <h2>Edge map <span class="meta" id="edge-meta"></span></h2>
+    <div class="scroll"><table id="edgemap">
+      <thead><tr><th>Research stream</th><th class="num">Hypotheses</th><th>Verdict</th></tr></thead>
+      <tbody><tr><td colspan="3" class="dim">loading…</td></tr></tbody>
+    </table></div>
+  </section>
+
+  <section>
+    <h2>Traps &amp; timers <span class="meta">armed datasets</span></h2>
+    <div id="traps"><span class="dim">loading…</span></div>
+  </section>
+
+  <section>
+    <h2>Live wire <span class="meta">latest relevant headlines</span></h2>
+    <div class="log" id="wire"><span class="dim">loading…</span></div>
+  </section>
+
+  <section class="wide">
+    <h2>Trade blotter <span class="meta" id="blotter-meta"></span></h2>
+    <div class="scroll vscroll"><table id="blotter">
+      <thead><tr><th>Time</th><th>Side</th><th>Symbol</th><th class="num">Price</th>
+        <th class="num">USD</th><th class="num">Fee</th><th class="num">Realized</th>
+        <th class="num">Equity after</th></tr></thead>
+      <tbody><tr><td colspan="8" class="dim">loading…</td></tr></tbody>
+    </table></div>
+  </section>
+
+  <section class="wide">
+    <h2>Engine log</h2>
+    <div class="log" id="log"><span class="dim">loading…</span></div>
+  </section>
+</main>
+
+<script src="/static/tfo_legacy.js"></script>
+<script>
+
+/* Identical daily view on desktop and mobile. /api/all owns amounts, returns and dated records. */
+function dailyEscape(value){
+  return String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+function dailyNumber(value){return typeof value==='number'&&Number.isFinite(value);}
+function dailyDate(value){
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(String(value||''))) return 'Date unavailable';
+  const date=new Date(value+'T12:00:00+10:00');
+  return Number.isNaN(date.getTime())?'Date unavailable':date.toLocaleDateString('en-AU',{timeZone:'Australia/Sydney',day:'numeric',month:'short',year:'numeric'});
+}
+function dailyTime(value){
+  if(value==null||value==='') return 'time unavailable';
+  const date=new Date(typeof value==='number'&&value<1e12?value*1000:value);
+  return Number.isNaN(date.getTime())?'time unavailable':date.toLocaleString('en-AU',{timeZone:'Asia/Makassar',day:'numeric',month:'short',hour:'2-digit',minute:'2-digit',hour12:false})+' WITA';
+}
+function dailyMoney(value,signed=true){
+  return dailyNumber(value)?(value<0?'−':signed&&value>0?'+':'')+'US$'+Math.abs(value).toLocaleString('en-AU',{minimumFractionDigits:2,maximumFractionDigits:2}):'—';
+}
+function dailyPercent(value){
+  return dailyNumber(value)?(value<0?'−':value>0?'+':'')+Math.abs(value).toLocaleString('en-AU',{minimumFractionDigits:2,maximumFractionDigits:2})+'%':'—';
+}
+function dailyState(row){
+  const status=row&&['VERIFIED','PROXY'].includes(row.status)&&dailyNumber(row.pnl_usd)&&dailyNumber(row.pnl_pct)?row.status:'UNVERIFIED';
+  return {status,label:status==='PROXY'?'Estimated':status==='VERIFIED'?'Verified':'Unverified',className:status==='PROXY'?'estimated':status==='VERIFIED'?'':'unverified'};
+}
+function dailyMovers(row){
+  const assets=row&&row.asset_movers;
+  if(!assets||!['PROXY','VERIFIED'].includes(assets.status)||!Array.isArray(assets.top)) return [];
+  return assets.top.filter(asset=>asset&&dailyNumber(asset.pnl_usd)&&(asset.name||asset.symbol)).slice(0,5);
+}
+function dailyMoverMarkup(row,compact=false,expanded=false){
+  const movers=dailyMovers(row),assets=row&&row.asset_movers;
+  if(!movers.length) return compact?'<span class="daily-mover-detail">No current data</span>':'Top 5 asset movers — No current data';
+  const estimated=assets.status==='PROXY';
+  const list='<div class="daily-mover-column-labels" aria-hidden="true"><span>Asset</span><span>Daily P&amp;L · USD<br>Daily P&amp;L %</span></div><ol class="daily-movers" aria-label="Top five tracked assets by daily P&amp;L">'+movers.map(asset=>{
+    const color=asset.pnl_usd>0?'daily-positive':asset.pnl_usd<0?'daily-negative':'';
+    const name=asset.name||asset.symbol;
+    const symbol=asset.symbol&&asset.symbol!==name?'<span class="daily-mover-symbol">'+dailyEscape(asset.symbol)+'</span>':'';
+    return '<li><span class="daily-mover-name">'+dailyEscape(name)+symbol+'</span><span class="daily-mover-numbers"><span class="daily-mover-value '+color+'">'
+      +dailyMoney(asset.pnl_usd)+'</span><span class="daily-mover-percent '+color+'">'+dailyPercent(asset.pnl_pct)+'</span></span></li>';
+  }).join('')+'</ol>';
+  const scope='<span class="daily-mover-detail">'+dailyEscape(assets.scope_label||'Tracked assets only')+'</span>';
+  const note='<span class="daily-mover-detail">'+dailyEscape(assets.note||'Other books lack verified opening asset marks; this is not a whole-desk asset ranking.')+'</span>';
+  const definition='<span class="daily-mover-detail">Daily P&amp;L % uses opening marked exposure.</span>';
+  const updated=assets.asof?'<span class="daily-mover-detail">Asset marks · '+dailyEscape(dailyTime(assets.asof))+'</span>':'';
+  if(compact) return '<details class="daily-history-movers" data-date="'+dailyEscape(row.sydney_date)+'"'+(expanded?' open':'')+'><summary>Top 5 assets'+(estimated?' · estimated':'')+'</summary>'+scope+list+definition+note+'</details>';
+  return '<div class="daily-mover-label">TOP 5 ASSET MOVERS'+(estimated?'<span class="daily-badge estimated">Estimated</span>':'')+'</div>'+scope+list+definition+note+updated;
+}
+function renderDailyPnl(daily,unavailable=false){
+  if(!document.getElementById('daily-pnl')) return;
+  const set=(id,value)=>{document.getElementById(id).textContent=value;};
+  const state=dailyState(daily),shown=state.status!=='UNVERIFIED';
+  const status=document.getElementById('daily-status');
+  status.className='daily-badge '+state.className;
+  status.textContent=state.label;
+  const values=document.getElementById('daily-values');
+  values.className='daily-values'+(shown&&daily.pnl_usd!==0?(daily.pnl_usd>0?' daily-positive':' daily-negative'):'');
+  set('daily-amount',shown?dailyMoney(daily.pnl_usd):'—');
+  set('daily-percent',shown?dailyPercent(daily.pnl_pct):'—');
+  const moverElement=document.getElementById('daily-mover');
+  moverElement.className='daily-mover'+(dailyMovers(daily).length?'':' pending');
+  moverElement.innerHTML=dailyMoverMarkup(daily);
+  moverElement.title='';
+  set('daily-meta',daily?dailyDate(daily.sydney_date)+' · Updated '+dailyTime(daily.asof):'Daily feed unavailable');
+  set('daily-basis',daily&&dailyNumber(daily.baseline_equity_usd)
+    ?'Starting equity '+dailyMoney(daily.baseline_equity_usd,false)+(daily.baseline_at?' · '+dailyTime(daily.baseline_at):''):'');
+  set('daily-note',unavailable?'Daily feed unavailable — retrying. No fresh daily result verified.'
+    :daily&&daily.note?daily.note:!shown?'Daily return is unavailable until its starting equity and cash flows can be verified.'
+    :state.status==='PROXY'?'Estimated from the available daily baseline.':'');
+  const history=Array.isArray(daily&&daily.history)?daily.history.filter(row=>row&&typeof row==='object'&&/^\d{4}-\d{2}-\d{2}$/.test(String(row.sydney_date||''))).slice().sort((a,b)=>b.sydney_date.localeCompare(a.sydney_date)):[];
+  const rows=history.slice(0,14);
+  set('daily-history-label','Dated daily history'+(rows.length?' · '+(history.length>14?'latest 14 of '+history.length:history.length)+' day'+(history.length===1?'':'s'):''));
+  const openMoverDays=new Set(Array.from(document.querySelectorAll('#daily-history-body .daily-history-movers[open]'),el=>el.dataset.date));
+  // Preserve the main history disclosure and each expanded daily mover list on refresh.
+  document.getElementById('daily-history-body').innerHTML=rows.length
+    ?'<table aria-label="Daily firm P&amp;L by Sydney date"><thead><tr><th scope="col">Sydney date</th><th scope="col">P&amp;L · USD</th><th scope="col">Return</th></tr></thead><tbody>'+rows.map(row=>{
+      const record=dailyState(row),valid=record.status!=='UNVERIFIED';
+      const color=valid&&row.pnl_usd!==0?(row.pnl_usd>0?'daily-positive':'daily-negative'):'';
+      const badge=record.status==='VERIFIED'?'':'<span class="daily-badge '+record.className+'">'+record.label+'</span>';
+      return '<tr><td>'+dailyEscape(dailyDate(row.sydney_date))+badge+dailyMoverMarkup(row,true,openMoverDays.has(row.sydney_date))+'</td><td class="'+color+'">'+(valid?dailyMoney(row.pnl_usd):'—')+'</td><td class="'+color+'">'+(valid?dailyPercent(row.pnl_pct):'—')+'</td></tr>';
+    }).join('')+'</tbody></table>'
+    :'<p class="daily-empty">'+(unavailable?'Dated history is temporarily unavailable.':'No dated daily records are available yet.')+'</p>';
+}
+
+
+/* Identical salary view on desktop and mobile; /api/all owns every amount and payment. */
+function salaryEscape(value){
+  return String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+function salaryDate(value){
+  const raw=String(value||'');
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(raw)) return 'Date unavailable';
+  const date=new Date(raw+'T12:00:00Z');
+  if(!Number.isFinite(date.getTime())||date.toISOString().slice(0,10)!==raw) return 'Date unavailable';
+  return date.toLocaleDateString('en-AU',{day:'numeric',month:'short',year:'numeric',timeZone:'Australia/Sydney'});
+}
+function salaryMoney(amount,currency){
+  if(amount===null||amount===undefined||!Number.isFinite(Number(amount))) return '—';
+  const number=Number(amount).toLocaleString('en-AU',{minimumFractionDigits:0,maximumFractionDigits:2});
+  return (currency==='USD'||currency==='AUD'?currency+' $':'')+number;
+}
+function renderSalary(salary,unavailable=false){
+  const card=document.getElementById('salary-card');
+  if(!card) return;
+  const set=(id,text)=>{document.getElementById(id).textContent=text;};
+  const history=document.getElementById('salary-history-body');
+  const state=document.getElementById('salary-state');
+  if(!salary||salary.paper_only!==true||salary.error){
+    state.className='salary-state pending';
+    set('salary-state',unavailable?'Salary feed unavailable · retrying':'Salary record unavailable');
+    ['salary-monthly','salary-latest','salary-next','salary-total'].forEach(id=>set(id,'—'));
+    set('salary-history-label','Dated payment history');
+    history.innerHTML='<p class="salary-empty">No payment can be verified from the current feed.</p>';
+    return;
+  }
+  const confirmed=salary.currency==='USD'||salary.currency==='AUD';
+  const pending=salary.status==='PENDING_CURRENCY'||!confirmed;
+  const payments=Array.isArray(salary.payments)?salary.payments.filter(p=>p&&typeof p==='object').slice().sort((a,b)=>String(b.date||'').localeCompare(String(a.date||''))):[];
+  const paid=payments.filter(p=>p.status==='PAID_PAPER');
+  const latest=paid[0];
+  state.className='salary-state'+(pending?' pending':'');
+  set('salary-state',pending?'Awaiting currency confirmation':salary.status==='ACTIVE'?'Monthly · paper ledger':String(salary.status||'Status unavailable').replace(/_/g,' '));
+  set('salary-payee',salary.payee||'Payee unavailable');
+  set('salary-monthly',salaryMoney(salary.monthly_amount,salary.currency));
+  set('salary-next',salary.next_payment_date?salaryDate(salary.next_payment_date):'Not scheduled');
+  set('salary-total',confirmed?salaryMoney(salary.total_paid_amount,salary.currency):'—');
+  document.getElementById('salary-latest').innerHTML=latest
+    ?salaryEscape(salaryDate(latest.date))+'<span class="salary-secondary">'+salaryEscape(salaryMoney(latest.amount,latest.currency))+' · paid on paper</span>'
+    :'<span>No paid record</span>'+(salary.first_payment_date?'<span class="salary-secondary">First due '+salaryEscape(salaryDate(salary.first_payment_date))+'</span>':'');
+  set('salary-history-label','Dated payment history'+(payments.length?' · '+payments.length+' record'+(payments.length===1?'':'s'):''));
+  if(!payments.length){
+    history.innerHTML='<p class="salary-empty">'+(pending?'Currency confirmation is pending. No salary payment has been recorded.':'No salary payments have been recorded.')+'</p>';
+    return;
+  }
+  history.innerHTML='<table aria-label="Salary payment records, Sydney dates"><thead><tr><th scope="col">Date · Sydney</th><th scope="col">Amount</th><th scope="col">Status</th></tr></thead><tbody>'+payments.map(p=>{
+    const status=p.status==='PAID_PAPER'?'Paid · paper':p.status==='SCHEDULED'?'Scheduled':String(p.status||'Unknown').replace(/_/g,' ');
+    const recorded=p.paid_at_sydney?'<span class="salary-secondary">Recorded '+salaryEscape(p.paid_at_sydney)+'</span>':'';
+    const note=p.note?'<span class="salary-secondary">'+salaryEscape(p.note)+'</span>':'';
+    const currencyNote=p.currency==='USD'||p.currency==='AUD'?'':'<span class="salary-secondary">Currency pending</span>';
+    return '<tr><td>'+salaryEscape(salaryDate(p.date))+recorded+note+'</td><td>'+salaryEscape(salaryMoney(p.amount,p.currency))+currencyNote+'</td><td>'+salaryEscape(status)+'</td></tr>';
+  }).join('')+'</tbody></table>';
+}
+
+
+const $ = s => document.querySelector(s);
+async function fetchT(url, ms=9000){
+  const c = new AbortController();
+  const t = setTimeout(()=>c.abort(), ms);
+  try { const r = await fetch(url, {signal:c.signal}); return await r.json(); }
+  finally { clearTimeout(t); }
+}
+const num = (n,d=2) => (n===null||n===undefined||isNaN(n)) ? "—" : Number(n).toFixed(d);
+const money = n => (n===null||n===undefined||isNaN(n)) ? "—" : (n<0?"-$":"$")+num(Math.abs(n));
+const cls = n => (n===null||n===undefined||isNaN(n)) ? "" : (n<0?"neg":(n>0?"pos":""));
+const esc = s => String(s??"").replace(/[<>&]/g, c=>({'<':'&lt;','>':'&gt;','&':'&amp;'}[c]));
+
+/* ---------- charts (inline SVG, no libraries) ---------- */
+function lineChart(points, {w=1000,h=190,pad=30,color="var(--cyan)",baseline=null}={}){
+  if(!points || points.length<2) return '<span class="dim">not enough data</span>';
+  const ys = points.map(p=>p[1]);
+  let lo = Math.min(...ys), hi = Math.max(...ys);
+  if(baseline!==null){ lo=Math.min(lo,baseline); hi=Math.max(hi,baseline); }
+  if(hi===lo){ hi=lo+1; lo=lo-1; }
+  const span = hi-lo, padTop = span*0.08;
+  lo -= padTop; hi += padTop;
+  const X = i => pad + (i/(points.length-1))*(w-pad*2);
+  const Y = v => h-pad - ((v-lo)/(hi-lo))*(h-pad*2);
+  const d = points.map((p,i)=>`${i?"L":"M"}${X(i).toFixed(1)},${Y(p[1]).toFixed(1)}`).join("");
+  const area = d + `L${X(points.length-1).toFixed(1)},${h-pad}L${X(0).toFixed(1)},${h-pad}Z`;
+  const base = baseline!==null
+    ? `<line x1="${pad}" x2="${w-pad}" y1="${Y(baseline).toFixed(1)}" y2="${Y(baseline).toFixed(1)}"
+        stroke="var(--dim2)" stroke-dasharray="3 3" stroke-width="1"/>
+       <text x="${w-pad}" y="${Y(baseline)-5}" fill="var(--dim2)" font-size="10"
+        text-anchor="end">start ${num(baseline)}</text>` : "";
+  const grid = [0,.25,.5,.75,1].map(f=>{
+    const v = lo + (hi-lo)*f, y = Y(v);
+    return `<line x1="${pad}" x2="${w-pad}" y1="${y.toFixed(1)}" y2="${y.toFixed(1)}"
+             stroke="var(--line2)" stroke-width="1"/>
+            <text x="4" y="${(y+3).toFixed(1)}" fill="var(--dim2)" font-size="10">${num(v,0)}</text>`;
+  }).join("");
+  return `<svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" style="height:${h}px">
+    <defs><linearGradient id="g1" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="${color}" stop-opacity=".22"/>
+      <stop offset="100%" stop-color="${color}" stop-opacity="0"/></linearGradient></defs>
+    ${grid}${base}
+    <path d="${area}" fill="url(#g1)"/>
+    <path d="${d}" fill="none" stroke="${color}" stroke-width="1.6"
+      stroke-linejoin="round" stroke-linecap="round"/>
+  </svg>`;
+}
+
+function groupedBars(groups, {w=1000,h=210,pad=34}={}){
+  if(!groups.length) return '<span class="dim">no data</span>';
+  const all = groups.flatMap(g=>g.values.map(v=>v.v));
+  let hi = Math.max(...all, 0), lo = Math.min(...all, 0);
+  if(hi===lo){hi=lo+1;}
+  const Y = v => h-pad - ((v-lo)/(hi-lo))*(h-pad*2);
+  const gw = (w-pad*2)/groups.length;
+  let out = `<line x1="${pad}" x2="${w-pad}" y1="${Y(0)}" y2="${Y(0)}" stroke="var(--dim2)" stroke-width="1"/>`;
+  groups.forEach((g,gi)=>{
+    const bw = Math.min(46,(gw-18)/g.values.length);
+    g.values.forEach((v,vi)=>{
+      const x = pad + gi*gw + (gw - bw*g.values.length)/2 + vi*bw;
+      const y0 = Y(0), y1 = Y(v.v);
+      out += `<rect x="${x.toFixed(1)}" y="${Math.min(y0,y1).toFixed(1)}"
+        width="${(bw-3).toFixed(1)}" height="${Math.abs(y1-y0).toFixed(1)}"
+        fill="${v.c}" opacity=".85"/>
+        <text x="${(x+(bw-3)/2).toFixed(1)}" y="${(Math.min(y0,y1)-4).toFixed(1)}"
+         fill="var(--dim)" font-size="10" text-anchor="middle">${num(v.v,2)}%</text>`;
+    });
+    out += `<text x="${(pad+gi*gw+gw/2).toFixed(1)}" y="${h-8}" fill="var(--dim)"
+             font-size="11" text-anchor="middle">${esc(g.label)}</text>`;
+  });
+  return `<svg viewBox="0 0 ${w} ${h}" style="height:${h}px">${out}</svg>`;
+}
+
+/* ---------- renderers ---------- */
+
+function renderTfoHero(d){
+  const h = d.tfo_hero || {};
+  const m = d.coo_mandate || {};
+  const fr = d.firm_risk || {};
+  const eq = h.firm_equity_usd != null ? h.firm_equity_usd : fr.firm_equity_usd;
+  const target = h.mandate_target_usd != null ? h.mandate_target_usd : (m.target_usd || 1694524.90);
+  const peak = h.firm_peak_usd != null ? h.firm_peak_usd : fr.firm_peak_usd;
+  const vsM = h.pnl_vs_mandate_usd != null ? h.pnl_vs_mandate_usd : (eq!=null ? eq - target : null);
+  const vsP = h.pnl_vs_peak_usd != null ? h.pnl_vs_peak_usd : (eq!=null && peak!=null ? eq - peak : null);
+  const vsB = h.pnl_vs_baseline_usd;
+  const taylorSeed = h.taylor_seed_usd;
+  const green = vsM != null && vsM >= 0;
+  const hero = $("#tfo-hero");
+  if (hero) hero.className = "wide hero" + (green ? "" : " short");
+  const eqEl = $("#hero-equity");
+  if (eqEl) eqEl.innerHTML = (eq==null?"—":money(eq)) + ' <span class="tag '+(green?"pos":"neg")+'">'+(green?"RECOVERED":"SHORT")+'</span>';
+  const sub = $("#hero-sub");
+  if (sub) sub.textContent = "Taylor seed " + (taylorSeed!=null?money(taylorSeed):"—")
+    + " · Mandate " + money(target)
+    + " · level " + (h.level || fr.level || "—")
+    + " · paper only";
+  const vsSeed = h.pnl_vs_taylor_seed_usd != null ? h.pnl_vs_taylor_seed_usd : (eq!=null && taylorSeed!=null ? eq - taylorSeed : null);
+  const chips = [
+    ["Taylor seed capital", taylorSeed, h.taylor_seed_label || "sum of book funding basis"],
+    ["P&L vs Taylor seed", vsSeed, "firm equity − seed"],
+    ["P&L vs mandate", vsM, green ? "above recovery target" : "below recovery target"],
+    ["P&L vs peak", vsP, peak!=null ? ("peak "+money(peak)) : ""],
+    ["P&L vs Sep10 baseline", vsB, h.baseline_usd!=null ? ("baseline "+money(h.baseline_usd)) : ""],
+  ];
+  $("#hero-chips").innerHTML = chips.map(([l,v,s])=>{
+    const isSeed = l.indexOf("seed capital") >= 0 && l.indexOf("P&L") < 0;
+    const valCls = isSeed ? "" : cls(v);
+    const valTxt = v==null ? "—" : (isSeed ? money(v) : ((v>=0?"+":"")+money(v)));
+    return `<div class="hero-chip${isSeed?" hero-chip-seed":""}">
+    <div class="lbl">${l}</div>
+    <div class="val ${valCls}">${valTxt}</div>
+    <div class="sub2">${s||"&nbsp;"}</div></div>`;
+  }).join("");
+  const top = h.top_performers || [];
+  $("#hero-top").innerHTML = top.length ? top.map(r=>`<tr>
+    <td>${esc(r.label||r.key)}</td>
+    <td class="num">${money(r.equity_usd)}</td>
+    <td class="num pos">${r.pnl_usd==null?"—":("+"+money(r.pnl_usd))}</td>
+    <td class="num pos">${r.pnl_pct==null?"—":("+"+num(r.pnl_pct,1)+"%")}</td>
+  </tr>`).join("") : '<tr><td colspan="4" class="dim">no positive book P&L vs funding basis</td></tr>';
+  const lag = h.laggards || [];
+  $("#hero-lag").innerHTML = lag.length ? lag.map(r=>`<tr>
+    <td>${esc(r.label||r.key)}</td>
+    <td class="num neg">${money(r.pnl_usd)}</td>
+    <td class="num neg">${r.pnl_pct==null?"—":num(r.pnl_pct,1)+"%"}</td>
+  </tr>`).join("") : '<tr><td colspan="3" class="dim">none</td></tr>';
+  const g = h.gap_close || {};
+  const soxl = $("#hero-soxl");
+  if (soxl){
+    const closed = g.closed===true || (g.status||"").indexOf("CLOSED")>=0 || (g.units==null && (g.cash_usd||0)>0);
+    const lp = g.display_pnl_usd!=null ? g.display_pnl_usd : (closed && g.locked_pnl_vs_seed_usd!=null ? g.locked_pnl_vs_seed_usd : g.pnl_usd);
+    const lpct = g.display_pnl_pct!=null ? g.display_pnl_pct : g.pnl_pct;
+    const lbasis = g.display_basis==="since_deploy" ? "vs this deploy (5% rail)"
+      : (g.display_basis==="locked_vs_seed" ? "locked vs sleeve seed"
+      : "vs sleeve seed");
+    const frv = h.fundamental_recovery;
+    let fundHtml = "";
+    if (frv && frv.equity_usd!=null){
+      const fp = frv.pnl_usd;
+      fundHtml = `<div class="kpis" style="margin:12px 0 0">
+        <div class="kpi"><div class="lbl">Fund recovery SOXL</div>
+          <div class="val">${money(frv.equity_usd)}</div>
+          <div class="sub2">${frv.units!=null?num(frv.units,1)+" sh · ±5% rails":"open"}</div></div>
+        <div class="kpi"><div class="lbl">Sleeve P&L</div>
+          <div class="val ${cls(fp)}">${fp==null?"—":((fp>=0?"+":"")+money(fp))}</div>
+          <div class="sub2">${frv.pnl_pct==null?"vs entry":((frv.pnl_pct>=0?"+":"")+num(frv.pnl_pct,1)+"% vs entry")}</div></div>
+        <div class="kpi"><div class="lbl">Deployed</div><div class="val">${frv.deployed_usd==null?"—":money(frv.deployed_usd)}</div>
+          <div class="sub2">fundamental recovery basis</div></div>
+      </div>`;
+    }
+    const ccv = h.crypto_clips;
+    let clipHtml = "";
+    if (ccv && ccv.equity_usd!=null){
+      const cp = ccv.pnl_usd;
+      clipHtml = `<div class="kpis" style="margin:12px 0 0">
+        <div class="kpi"><div class="lbl">Crypto clips</div>
+          <div class="val">${money(ccv.equity_usd)}</div>
+          <div class="sub2">${(ccv.holdings && Object.keys(ccv.holdings).length)?Object.keys(ccv.holdings).map(s=>s.replace("/USD","")).join("/") : "clips"} · opportunistic beta</div></div>
+        <div class="kpi"><div class="lbl">Clip book P&L</div>
+          <div class="val ${cls(cp)}">${cp==null?"—":((cp>=0?"+":"")+money(cp))}</div>
+          <div class="sub2">${ccv.pnl_pct==null?"vs seed":((ccv.pnl_pct>=0?"+":"")+num(ccv.pnl_pct,1)+"% vs seed")} · +$5k/15% take</div></div>
+        <div class="kpi"><div class="lbl">Clip seed</div><div class="val">${ccv.seed_usd==null?"—":money(ccv.seed_usd)}</div>
+          <div class="sub2">${esc(ccv.status||"OPEN")}</div></div>
+      </div>`;
+    }
+    soxl.innerHTML = `<div class="kpis" style="margin:0">
+      <div class="kpi"><div class="lbl">${closed?"Gap-Close cash (locked)":"SOXL sleeve"}</div>
+        <div class="val">${g.equity_usd==null?"—":money(g.equity_usd)}</div>
+        <div class="sub2">${closed?"SOXL closed · profit locked":(g.units!=null?num(g.units,1)+" sh · 100% SOXL":"flat")}</div></div>
+      <div class="kpi"><div class="lbl">${closed?"Locked P&L":(g.display_basis==="since_deploy"?"Since deploy":"Sleeve P&L")}</div>
+        <div class="val ${cls(lp)}">${lp==null?"—":((lp>=0?"+":"")+money(lp))}</div>
+        <div class="sub2">${lpct==null?lbasis:((lpct>=0?"+":"")+num(lpct,1)+"% "+lbasis)}</div></div>
+      <div class="kpi"><div class="lbl">Sleeve seed</div><div class="val">${g.seed_usd==null?"—":money(g.seed_usd)}</div>
+        <div class="sub2">funding basis · cum ${g.pnl_usd==null?"—":((g.pnl_usd>=0?"+":"")+money(g.pnl_usd))}</div></div>
+    </div>` + fundHtml + clipHtml;
+  }
+  // keep header pill in sync
+  const mp = $("#p-mandate");
+  if (mp && vsM!=null){
+    mp.textContent = green ? ("GREEN +"+money(vsM)) : ("SHORT "+money(vsM));
+    mp.className = "pill " + (green ? "ok" : "bad");
+  }
+}
+
+
+function renderKpis(d){
+  const e = d.engine||{}, unreachable = e._unreachable;
+  const fr = d.firm_risk||{};
+  const m = d.coo_mandate||{};
+  const floorPnl = Object.values((d.floor||{}).desks||{})
+    .reduce((a,x)=>a+(x.realized_pnl||0)+(x.unrealized||0),0);
+  const replicaPnl = Object.values((d.replica||{}).desks||{})
+    .reduce((a,x)=>a+(x.realized_pnl||0)+(x.unrealized||0),0);
+  const life = (e.equity!=null && e.start_cash!=null) ? e.equity-e.start_cash : null;
+  const dd = (e.peak_equity && e.equity) ? (e.equity/e.peak_equity-1)*100 : null;
+  const firmEq = fr.firm_equity_usd!=null ? fr.firm_equity_usd : m.firm_equity_usd;
+  const firmPeak = fr.firm_peak_usd!=null ? fr.firm_peak_usd : m.firm_peak_usd;
+  const mandateTarget = m.target_usd!=null ? m.target_usd : 1694524.90;
+  const vsTarget = (firmEq!=null) ? (firmEq - mandateTarget) : (m.vs_target_usd!=null ? m.vs_target_usd : null);
+  const mandateGreen = vsTarget!=null && vsTarget >= 0;
+  const firmDd = (firmEq!=null && firmPeak) ? (firmEq/firmPeak - 1)*100 : null;
+  // header mandate pill
+  const mp = $("#p-mandate");
+  if (mp){
+    if (vsTarget==null){ mp.textContent = "mandate —"; mp.className = "pill"; }
+    else if (mandateGreen){ mp.textContent = "GREEN +" + money(vsTarget); mp.className = "pill ok"; }
+    else { mp.textContent = "SHORT " + money(vsTarget); mp.className = "pill bad"; }
+  }
+  const k = [
+    ["Firm equity", firmEq==null?"—":money(firmEq), (fr.level?("level "+fr.level):"PAPER") + (fr.capital_accounting_valid===false?" · UNMEASURED":""), mandateGreen?"pos":(vsTarget==null?"":"neg")],
+    ["Mandate target", money(mandateTarget), "COO recovery · 18 Sep 16:30 AEST", ""],
+    ["Vs mandate", vsTarget==null?"—":((vsTarget>=0?"+":"")+money(vsTarget)), mandateGreen?"GREEN — target cleared":"still short of target", mandateGreen?"pos":"neg"],
+    ["Firm vs peak", firmDd==null?"—":num(firmDd,2)+"%", firmPeak?("peak "+money(firmPeak)):"", cls(firmDd)],
+    ["Gap-Close SOXL", m.gap_close_soxl_equity_usd==null?"—":money(m.gap_close_soxl_equity_usd), m.gap_close_soxl_units? (num(m.gap_close_soxl_units,1)+" sh"):"100% SOXL", ""],
+    ["Engine equity", unreachable?"—":money(e.equity), e.start_cash?("start "+money(e.start_cash)):""],
+    ["Engine daily P&L", unreachable?"—":money(e.daily_pnl), "", cls(e.daily_pnl)],
+    ["Lifetime P&L", money(life), life!=null&&e.start_cash?num(life/e.start_cash*100,2)+"%":"", cls(life)],
+    ["Open positions", unreachable?"—":Object.keys(e.positions||{}).length, "max "+(e.max_positions??20)],
+    ["Floor desks P&L", money(floorPnl), "forward-test", cls(floorPnl)],
+    ["Replica desk P&L", money(replicaPnl), "venue simulation", cls(replicaPnl)],
+    ["Engine errors", unreachable?"—":(e.error_count??"—"), "streak "+(e.error_streak??0),
+      (e.error_streak>0?"amb":"")],
+  ];
+  $("#kpis").innerHTML = k.map(([l,v,s,c])=>`<div class="kpi">
+    <div class="lbl">${l}</div><div class="val ${c||""}">${v}</div>
+    <div class="sub2">${s||"&nbsp;"}</div></div>`).join("");
+  $("#consol-meta").textContent = e.engine_version ? ("engine "+e.engine_version) : "";
+}
+
+function renderEquity(d){
+  const eq = d.equity||{};
+  const eng = d.engine_equity||{};
+  if(!eq.points || eq.points.length<2){
+    $("#equity-chart").innerHTML='<span class="dim">no firm equity history yet</span>'; return; }
+  $("#equity-chart").innerHTML = lineChart(eq.points, {baseline: eq.start});
+  const scope = eq.scope==="firm" ? "Taylor firm" : (eq.label||"equity");
+  let meta = `${scope} · ${eq.n_raw} samples · low ${num(eq.min)} · high ${num(eq.max)}`;
+  if(eng.last!=null) meta += ` · engine now ${money(eng.last)} (not this chart)`;
+  $("#eq-meta").textContent = meta;
+}
+
+function renderEngineBook(d){
+  const e = d.engine||{};
+  if(e._unreachable){
+    $("#engine-book").innerHTML = '<span class="neg">engine unreachable — '+esc(e._error||"")+'</span>';
+    return; }
+  const pos = e.positions||{};
+  let html = `<div class="kv"><span class="dim">cash</span><span>${money(e.cash)}</span></div>
+    <div class="kv"><span class="dim">gross exposure</span><span>${num(e.gross_exposure,2)}x</span></div>
+    <div class="kv"><span class="dim">fees paid</span><span class="neg">${money(e.fees_paid)}</span></div>
+    <div class="kv"><span class="dim">closed trades</span><span>${(e.closed_trades||[]).length}</span></div>`;
+  if(!Object.keys(pos).length){
+    html += `<div style="padding:10px 0;color:var(--dim)">FLAT — no open positions</div>`;
+  } else {
+    html += `<div class="scroll"><table><thead><tr><th>Sym</th><th>Side</th>
+      <th class="num">Entry</th><th class="num">Mark</th><th class="num">uPnL</th></tr></thead><tbody>`;
+    for(const [s,p] of Object.entries(pos)){
+      html += `<tr><td>${esc(s)}</td><td class="dim">${esc(p.side||"")}</td>
+        <td class="num">${num(p.entry,6)}</td><td class="num">${num(p.mark,6)}</td>
+        <td class="num ${cls(p.upnl)}">${money(p.upnl)}</td></tr>`;
+    }
+    html += `</tbody></table></div>`;
+  }
+  $("#engine-book").innerHTML = html;
+}
+
+function _crUsd(v){ return (v===null||v===undefined)?"&mdash;":"$"+Number(v).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2}); }
+function _crSgn(v,dp){ if(v===null||v===undefined) return "&mdash;"; return (v>=0?"+":"")+Number(v).toFixed(dp===undefined?2:dp); }
+function _crCls(v){ return (v>=0)?"up":"down"; }
+
+
+function _cxUsd(v){ if(v==null||isNaN(v)) return '—';
+  return '$'+Number(v).toLocaleString(undefined,{minimumFractionDigits:0,maximumFractionDigits:0}); }
+function _cxCls(v){ return (v==null||isNaN(v))?'dim':(v>0?'good':(v<0?'down':'dim')); }
+function _cxSgn(v,dp){ if(v==null||isNaN(v)) return '—';
+  var n=Number(v); return (n>0?'+':'')+n.toFixed(dp==null?2:dp); }
+
+function _deUsd(v){ if(v==null||isNaN(v)) return '—'; return '$'+Number(v).toLocaleString(undefined,{minimumFractionDigits:0,maximumFractionDigits:0}); }
+function _deCls(v){ return (v==null||isNaN(v))?'dim':(v>0?'good':(v<0?'down':'dim')); }
+function _deSgn(v,dp){ if(v==null||isNaN(v)) return '—'; var n=Number(v); return (n>0?'+':'')+n.toFixed(dp==null?2:dp); }
+function datedEventPanel(de, elId){
+  var el=document.getElementById(elId); if(!el) return;
+  if(!de){ el.innerHTML='<span class="dim">not running</span>'; return; }
+  if(de.error){ el.innerHTML='<span class="down">'+de.error+'</span>'; return; }
+  var st=de.standing||{};
+  var h='<div style="display:flex;gap:24px;align-items:baseline;flex-wrap:wrap">'
+    +'<div style="font-size:30px;font-weight:700" class="'+_deCls(de.pnl)+'">'+_deUsd(de.equity)+'</div>'
+    +'<div class="'+_deCls(de.pnl)+'" style="font-size:15px">'+_deSgn(de.pnl,0)+' ('+_deSgn(de.pnl_pct,2)+'%)</div>'
+    +'<div class="dim">of '+_deUsd(de.seed)+' from the sleeve &middot; '+de.n_open+' open &middot; '+de.n_pending+' pending &middot; events '
+    +(de.events_completed||0)+'/'+(de.events_for_verdict||20)+' to verdict</div></div>';
+  h+='<div class="banner" style="display:block;margin:10px 0"><b>'+(st.headline||'')+'</b><br>'+(st.expectation||'')+'<br>'
+    +'<span class="dim">'+(st.rules||'')+'</span><br><span class="dim">'+(st.kill||'')+'</span></div>';
+  if((de.pending||[]).length){
+    h+='<div style="margin-top:6px"><b>Pending &mdash; fills at the session OPEN</b><table style="width:100%;margin-top:4px">'
+      +'<tr><th>symbol</th><th>ticket</th><th>event</th><th>fills</th></tr>';
+    de.pending.forEach(function(p){ h+='<tr><td>'+p.symbol+'</td><td>'+_deUsd(p.ticket)+'</td><td>'+(p.event_date||'')+'</td><td>'+(p.fill_session||'')+' open</td></tr>'; });
+    h+='</table></div>';
+  }
+  if((de.positions||[]).length){
+    h+='<table style="width:100%;margin-top:8px"><tr><th>symbol</th><th>units</th><th>entry</th><th>mark $</th><th>ret</th><th>event</th><th>exit</th></tr>';
+    de.positions.forEach(function(p){
+      h+='<tr><td>'+p.symbol+(p.reread?' <span class="pill problem">RE-READ</span>':'')+(p.stale?' <span class="nodata">no current data</span>':'')+'</td>'
+        +'<td>'+Number(p.units||0).toFixed(2)+'</td><td>'+p.entry+' '+(p.ccy||'')+'</td><td>'+Number(p.mark_usd||0).toFixed(4)+'</td>'
+        +'<td class="'+_deCls(p.ret_pct)+'">'+_deSgn(p.ret_pct,2)+'%</td><td>'+(p.event_date||'')+'</td><td>'+(p.exit_date||'')+'</td></tr>';
+    });
+    h+='</table>';
+  }
+  h+='<div class="dim" style="margin-top:8px;font-size:12px">PAPER ONLY &middot; charter sealed a92921ab&hellip; &middot; updated '+(de.updated_utc||'')+'</div>';
+  el.innerHTML=h;
+}
+
+function convexityPanel(cx, elId){
+  var el=document.getElementById(elId); if(!el) return;
+  if(!cx){ el.innerHTML='<span class="dim">not running</span>'; return; }
+  if(cx.error){ el.innerHTML='<span class="down">'+cx.error+'</span>'; return; }
+  var st=cx.standing||{};
+  var h='<div style="display:flex;gap:24px;align-items:baseline;flex-wrap:wrap">'
+    +'<div style="font-size:30px;font-weight:700" class="'+_cxCls(cx.pnl)+'">'+_cxUsd(cx.equity)+'</div>'
+    +'<div class="'+_cxCls(cx.pnl)+'" style="font-size:15px">'+_cxSgn(cx.pnl,0)+' ('+_cxSgn(cx.pnl_pct,2)+'%)</div>'
+    +'<div class="dim">of '+_cxUsd(cx.seed)+' seed &middot; target '+_cxUsd(cx.target_usd)
+    +' ('+Number(cx.target_multiple||0).toFixed(0)+'x) by '+(cx.target_date||'')+'</div></div>';
+  h+='<div style="margin:8px 0"><div class="dim" style="font-size:12px">progress to 21x target</div>'
+    +'<div style="background:#222;height:14px;border-radius:7px;overflow:hidden;margin-top:3px">'
+    +'<div style="background:#3a7;height:100%;width:'
+    + Math.max(0, Math.min(100, Number(cx.progress_pct||0))).toFixed(4) +'%"></div></div>'
+    +'<div class="dim" style="font-size:12px">'+Number(cx.progress_pct||0).toFixed(4)+'% of the way</div></div>';
+  h+='<div class="note" style="margin:10px 0"><span class="betatag">beta, not validated edge</span> '
+    +_noEdge(st.headline)+'<br>'+(st.why||'')+'<br>'
+    +(st.structure||'')+'<br>'+(st.if_it_fails||'')+'</div>';
+  h+='<div style="margin:8px 0"><b>Risk at this moment</b> '
+    +'<span class="dim">committed '+_cxUsd(cx.committed_risk)+' of '+_cxUsd(cx.risk_cap)
+    +' cap &middot; MAX POSSIBLE LOSS '+_cxUsd(cx.committed_risk)+' = '
+    +Number(cx.max_loss_pct_of_firm||0).toFixed(2)+'% of firm &middot; capped by construction</span></div>';
+  if((cx.positions||[]).length){
+    h+='<table style="width:100%;margin-top:6px"><tr><th>symbol</th><th>instrument</th><th>venue</th>'
+      +'<th>max loss</th><th>premium</th><th>mark</th><th>ret</th><th>upside</th><th>catalyst</th><th>P(hit)</th></tr>';
+    cx.positions.forEach(function(p){
+      h+='<tr><td>'+p.symbol+'</td><td>'+(p.instrument||'')+'</td><td>'+(p.venue||'')+'</td>'
+        +'<td>'+_cxUsd(p.max_loss_usd)+'</td><td>'+_cxUsd(p.premium_usd)+'</td><td>'+_cxUsd(p.mark_usd)+'</td>'
+        +'<td class="'+_cxCls(p.ret_pct)+'">'+_cxSgn(p.ret_pct,1)+'%</td>'
+        +'<td>'+(p.upside_multiple||'')+'</td><td>'+(p.catalyst_date||'')+'</td>'
+        +'<td class="dim">'+(p.honest_probability||'—')+'</td></tr>';
+    });
+    h+='</table>';
+  } else {
+    h+='<div class="dim" style="margin-top:8px">No positions yet — the worldwide convexity hunt '
+      +'is still running. Nothing is opened until a candidate survives adversarial refutation '
+      +'and carries a sourced, dated catalyst.</div>';
+  }
+  h+='<div class="dim" style="margin-top:8px;font-size:12px">PAPER ONLY &middot; updated '
+    +(cx.updated_utc||'')+'</div>';
+  el.innerHTML=h;
+}
+
+function cryptoRumourPanel(cr, elId){
+  const el=document.getElementById(elId); if(!el) return;
+  if(!cr){ el.innerHTML='<span class="dim">not running</span>'; return; }
+  if(cr.error){ el.innerHTML='<span class="down">'+cr.error+'</span>'; return; }
+  const v=cr.verdict||{}, k=cr.kill||{}, r=cr.rule||{};
+  let h='<div style="display:flex;gap:24px;align-items:baseline;flex-wrap:wrap">'
+    +'<div style="font-size:30px;font-weight:700" class="'+_crCls(cr.pnl)+'">'+_crUsd(cr.equity)+'</div>'
+    +'<div class="'+_crCls(cr.pnl)+'" style="font-size:15px">'+_crSgn(cr.pnl)+' ('+_crSgn(cr.pnl_pct,3)+'%)</div>'
+    +'<div class="dim">of '+_crUsd(cr.seed)+' seed &middot; trial '+(cr.closed_trades||0)+'/'+(cr.max_closed||100)
+    +' trades &middot; day '+Number(cr.days_live||0).toFixed(1)+'/'+(cr.max_days||182)+'</div></div>';
+  h+='<div class="note" style="margin:10px 0"><span class="betatag">beta, not validated edge</span> '+_noEdge(v.headline)+'<br>'
+    +(v.oos||"")+'<br>'+(v.concentration||"")+'<br>'+(v.bands||"")+'</div>';
+  (cr.bands||[]).forEach(function(b){
+    h+='<div style="margin-top:10px"><b>'+b.label+'</b>'
+      +(b.is_control?' <span class="pill">CONTROL</span>':'')
+      +(b.frozen?' <span class="pill problem">FROZEN</span>':'')
+      +' <span class="'+_crCls(b.pnl)+'">'+_crSgn(b.pnl)+' ('+_crSgn(b.pnl_pct,2)+'%)</span>'
+      +' <span class="dim">'+_crUsd(b.equity)+' of '+_crUsd(b.capital)+' &middot; '+b.n_open+' open &middot; '
+      +b.n_closed+' closed &middot; dd '+_crSgn(b.drawdown_pct,2)+'%</span>';
+    if((b.open_positions||[]).length){
+      h+='<table style="width:100%;margin-top:6px"><tr><th>symbol</th><th>vol x</th><th>drift</th>'
+        +'<th>entry</th><th>mark</th><th>ret</th></tr>';
+      b.open_positions.forEach(function(p){
+        h+='<tr><td>'+p.symbol+(p.stale?' <span class="nodata">no current data</span>':'')+'</td><td>'+p.vol_ratio+'x</td><td>'
+          +_crSgn(p.drift_pct,1)+'%</td><td>'+p.entry+'</td><td>'+p.mark+'</td>'
+          +'<td class="'+_crCls(p.ret_pct)+'">'+_crSgn(p.ret_pct,2)+'%</td></tr>';
+      });
+      h+='</table>';
+    }
+    h+='</div>';
+  });
+  h+='<div class="note" style="margin-top:10px"><b>Entry</b> '+(r.entry||"")+'<br><b>Exit</b> '+(r.exit||"")
+    +'<br><b>Kill</b> halt new entries at '+k.halt_dd_pct+'% &middot; stop at '+k.max_closed_trades
+    +' trades or '+k.max_days+'d &middot; costs '+cr.cost_bps_per_side+'bps/side (Kraken, measured)</div>';
+  el.innerHTML=h;
+}
+
+// strip the old shouty prefix; the neutral betatag carries the label now
+function _noEdge(t){ return esc(String(t||"").replace(/^\s*NO VALIDATED EDGE[.:\s\u2014-]*/i,"")); }
+
+function fundamentalPanel(fd, elId){
+  const el=document.getElementById(elId); if(!el) return;
+  if(!fd){ el.innerHTML='<span class="dim">not running</span>'; return; }
+  if(fd.error){ el.innerHTML='<span class="down">'+fd.error+'</span>'; return; }
+  const r=fd.rule||{}, sr=fd.short_risk||{}, bw=fd.borrow||{};
+  let h='<div style="display:flex;gap:24px;align-items:baseline;flex-wrap:wrap">'
+    +'<div style="font-size:30px;font-weight:700" class="'+_crCls(fd.pnl)+'">'+_crUsd(fd.equity)+'</div>'
+    +'<div class="'+_crCls(fd.pnl)+'" style="font-size:15px">'+_crSgn(fd.pnl)+' ('+_crSgn(fd.pnl_pct,3)+'%)</div>'
+    +'<div class="dim">of '+_crUsd(fd.seed)+' seed &middot; '+fd.n_long+' long / '+fd.n_short
+    +' short &middot; cash '+_crUsd(fd.cash)+'</div></div>';
+  const tr=fd.true_return||{};
+  if(tr.error){ h+='<div class="note down">true return unavailable: '+tr.error+'</div>'; }
+  else if(tr.net_contributed_usd!=null){
+    const fx=(tr.fx||{}).rate, aud=function(u){return u==null||!fx?'—':'A$'+Math.round(u/fx).toLocaleString();};
+    h+='<div class="note" style="margin:10px 0;line-height:1.6">'
+      +'<b>TOTAL BOOK VALUE</b> '+aud(tr.equity_usd)+' ('+_crUsd(tr.equity_usd)+')<br>'
+      +'<b>AVAILABLE POWDER (cash)</b> '+aud(tr.cash_usd)+' ('+_crUsd(tr.cash_usd)+')<br>'
+      +'<b>INVESTED MARKET VALUE</b> '+aud(tr.invested_mv_usd)+' ('+_crUsd(tr.invested_mv_usd)+')<br>'
+      +'<b>TRUE P&amp;L since inception 27 Aug</b> <span class="'+_crCls(tr.true_pnl_usd)+'">'+_crSgn(tr.true_pnl_aud)+' A$ ('+_crSgn(tr.true_pnl_usd)+' US$, '+_crSgn(tr.true_pnl_pct_of_opening_capital,2)+'% of US$600k)</span>'
+      +' &middot; MWR '+_crSgn(tr.mwr_period_pct,2)+'% &middot; TWR '+_crSgn(tr.twr_pct,2)+'% (indicative)<br>'
+      +'<span class="dim">vs net contributed '+_crUsd(tr.net_contributed_usd)+' (inflows − outflows). Headline figure above is REBASED since 19 Sep reset: '
+      +_crSgn((tr.rebased_view||{}).pnl_usd)+' US$ — not since inception. AUDUSD '+fx+' ('+((tr.fx||{}).source||'')+'). As of '+(tr.book_updated||'').slice(0,16).replace('T',' ')+' UTC</span></div>';
+  }
+  h+='<div class="note" style="margin:10px 0"><span class="betatag">beta, not validated edge</span> '+_noEdge(fd.standing)+'</div>';
+  const ad=fd.auto_deploy||{};   // 2026-10-28 14:10 Brett: fundamental auto-trade
+  if(ad.on){ const L=ad.last||{};
+    h+='<div class="note" style="margin:10px 0"><b>AUTO-DEPLOY ON</b> (PAPER, no funder tick) &middot; '+ad.slot_pct+'% equity/name (max '+ad.slot_max_pct+'%) &middot; cash reserve '+ad.reserve_pct+'% &middot; max '+ad.max_open+' open, '+ad.max_per_sector+'/sector &middot; &le;'+ad.max_pct_adv+'% of 20d ADV &middot; '+ad.stop_pct+'% stop &middot; tech/semis excluded<br><span class="dim">'+ad.schedule+'</span>'
+      +(L.when?'<br><b>Last plan</b> '+L.when+' ('+(L.mode||'')+'): '+((L.buys||[]).map(function(b){return b[0]+' US$'+Math.round(b[1]).toLocaleString();}).join(', ')||'none')+(L.note?' &middot; <span class="dim">'+L.note+'</span>':''):'')+'</div>'; }
+  h+='<div class="note"><b>Rule</b> exit only above '+r.gate_pct+'% NET of both fills'
+    +(r.borrow_modelled?" + borrow":"")+' &middot; '+(r.ladder||"")+'<br>'
+    +'<b>Stop</b> '+sr.stop_pct+'% adverse, SHORTS only &middot; <b>Closed</b> '
+    +((sr.closed_hard_tier||[]).join(", "))+'<br>'
+    +'<b>Borrow</b> '+_crUsd(bw.accrued_total)+' accrued &middot; tiers '+JSON.stringify(bw.tiers||{})
+    +' &middot; '+Object.keys(bw.doubtful||{}).length+' doubtful</div>';
+  const near=(sr.near_stop||[]).slice(0,5);
+  if(near.length){
+    h+='<table style="width:100%;margin-top:8px"><tr><th>closest to stop</th><th>adverse</th></tr>';
+    near.forEach(function(x){ h+='<tr><td>'+x.symbol+'</td><td>'+_crSgn(x.adverse_pct,2)+'%</td></tr>'; });
+    h+='</table>';
+  }
+  el.innerHTML=h;
+}
+
+function bookPanel(ledger, elId, opts={}){
+  const desks = (ledger||{}).desks||{};
+  if(!Object.keys(desks).length){
+    $(elId).innerHTML='<span class="dim">no ledger yet</span>'; return; }
+  let html="", total=0;
+  for(const [name,dk] of Object.entries(desks)){
+    const pnl = (dk.realized_pnl||0)+(dk.unrealized||0); total+=pnl;
+    const open = Object.keys(dk.positions||{}).length;
+    html += `<div class="kv"><span>${esc(name)}
+      <span class="dim">· ${open} open · ${(dk.closed_trades||[]).length} closed</span></span>
+      <span class="${cls(pnl)}">${money(pnl)}</span></div>`;
+    for(const [s,p] of Object.entries(dk.positions||{})){
+      html += `<div class="kv" style="padding-left:12px"><span class="dim">${esc(p.side)} ${esc(s)}
+        ${p.is_cfd?'<span class="tag cfd">CFD</span>':''}</span>
+        <span class="${cls(p.upnl)}">${money(p.upnl)}</span></div>`;
+    }
+  }
+  if(opts.costs){
+    const c = Object.values(desks).reduce((a,x)=>a+(x.costs_paid||0)+(x.financing_paid||0),0);
+    html += `<div class="kv" style="margin-top:6px"><span class="dim">costs paid</span>
+      <span class="neg">${money(c)}</span></div>`;
+  }
+  html += `<div class="kv" style="margin-top:6px"><span>combined</span>
+    <span class="${cls(total)}" style="font-size:16px">${money(total)}</span></div>`;
+  $(elId).innerHTML = html;
+}
+
+function renderGrowth(d){
+  const g = d.growth||{};
+  const el = $("#growth-book");
+  if(g.equity==null){ el.innerHTML='<span class="dim">first tick pending — run growth_book.py</span>'; return; }
+  const emptied = g.emptied || ((g.equity||0) < 100 && !(Object.keys(g.holdings||{}).length));
+  const ce = (g.capital_events||[]).slice(-1)[0];
+  if(emptied){
+    el.innerHTML = `
+      <div class="kv"><span class="dim">status</span>
+        <span class="big dim">EMPTIED · capital swept</span></div>
+      <div class="kv"><span class="dim">stub cash</span><span>${money(g.equity)}</span></div>
+      <div class="kv"><span class="dim">last transfer</span>
+        <span class="dim">${ce?esc((ce.note||ce.type||"").slice(0,90)): "see capital_events"}</span></div>
+      <div class="note">Not a −99% strategy blow-up. Funding was moved to Gap-Close SOXL
+        (funder hunt). Do not read stub equity as live book P&amp;L.</div>`;
+    return;
+  }
+  const seed = g.start!=null && g.start>0 ? g.start : 50000;
+  const pnl = g.equity - seed;
+  let html = `
+    <div class="kv"><span class="dim">equity</span>
+      <span class="big ${cls(pnl)}">${money(g.equity)}</span></div>
+    <div class="kv"><span class="dim">P&L vs funding basis</span>
+      <span class="${cls(pnl)}">${money(pnl)}</span></div>
+    <div class="kv"><span class="dim">drawdown from peak</span>
+      <span class="${g.review_flag?'neg':'dim'}">${num(g.drawdown_pct,2)}%${g.review_flag?' *** REVIEW ***':''}</span></div>`;
+  const hold = Object.keys(g.holdings||{});
+  html += `<div class="kv"><span class="dim">holding</span><span>${
+    hold.length? hold.join(" + ") : "—"}</span></div>`;
+  html += `<div class="kv"><span class="dim">rebalances</span>
+      <span>${g.rebalances||0} <span class="dim">· costs ${money(g.costs_paid||0)}</span></span></div>
+    <div class="kv"><span class="dim">last rebalance</span><span class="dim">${esc(g.last_rebalance_date||"—")}</span></div>`;
+  const ge = d.growth_equity||{};
+  if(ge.points && ge.points.length>2){
+    html += lineChart(ge.points.map(p=>[p[0],p[1]]),{h:110,baseline:seed,color:"var(--green)"});
+  }
+  html += `<div class="note">Dual momentum top-2 of 15 asset classes, monthly. Rules frozen in
+    GROWTH_BOOK_PREREGISTRATION.md — NOT an alpha claim; expected 7-12%/yr with losing
+    periods. Kill at 35% drawdown.</div>`;
+  el.innerHTML = html;
+}
+
+function renderValue(d){
+  const v = d.value||{};
+  const el = $("#value-book");
+  if(!el) return;
+  // value_book.py now legitimately writes equity:null when it REFUSES to value a
+  // holding it has no FX rate for. Reporting that as "first tick pending" turns
+  // the loudest failure this book can raise into the most reassuring line on the
+  // panel -- the exact silent degradation the FX work was built to end.
+  // Distinguish "never run" from "ran and refused".
+  if(v.equity === null || v.equity === undefined){
+    const why = v.equity_status || v.equity_unavailable_detail;
+    if(why){
+      el.innerHTML = '<span class="neg">VALUATION UNAVAILABLE</span>'
+        + '<div class="dim" style="font-size:11px;margin-top:4px">' + esc(String(why)) + '</div>'
+        + '<div class="dim" style="font-size:10px;margin-top:4px">The book refused to value a holding '
+        + 'rather than guess a rate. This is not a zero and not a pending tick.</div>';
+    } else {
+      el.innerHTML = '<span class="dim">first tick pending</span>';
+    }
+    return;
+  }
+  if(!v.equity){ el.innerHTML='<span class="dim">first tick pending</span>'; return; }
+  const pnl = v.equity - 50000;
+  let html = `<div class="kv"><span class="dim">equity</span>
+      <span class="big ${cls(pnl)}">${money(v.equity)}</span></div>
+    <div class="kv"><span class="dim">drawdown</span>
+      <span class="${v.review_flag?'neg':'dim'}">${num(v.drawdown_pct,2)}%${v.review_flag?' *** REVIEW ***':''}</span></div>`;
+  for(const p of (v.last_picks||[]))
+    html += `<div class="kv" style="padding-left:10px"><span class="dim">${esc(p.ticker)}
+      <span class="tag">${esc((p.country||"?").slice(0,12))}</span></span>
+      <span class="dim">comp ${num(p.composite,3)}</span></div>`;
+  html += `<div class="kv"><span class="dim">rebalances</span>
+      <span>${v.rebalances||0} · costs ${money(v.costs_paid||0)}</span></div>
+    <div class="note">Global value/quality top-10 ex-traps, quarterly. Company notes on the
+    <a href="/report">live desk report</a>.</div>`;
+  el.innerHTML = html;
+}
+
+function renderCarry(d){
+  const c = d.carry||{}; const b = c.book||{};
+  const el = $("#carry-book");
+  const harvest = c.verdict==="HARVESTABLE";
+  const open = Object.keys(b.positions||{}).length;
+  let html = `
+    <div class="kv"><span class="dim">monitor verdict</span>
+      <span class="${harvest?'pos':'dim'}">${esc(c.verdict||"—")}</span></div>
+    <div class="kv"><span class="dim">BTC+ETH carry</span>
+      <span>${num(c.preferred_mean_pct,2)}% <span class="dim">/ ${num(c.threshold_pct,1)}% threshold</span></span></div>`;
+  if(open){
+    for(const [base,p] of Object.entries(b.positions)){
+      html += `<div class="kv"><span>OPEN ${esc(base)} <span class="dim">$${num(p.notional_aud,0)}</span></span>
+        <span class="${cls(p.funding_accrued_aud)}">${money(p.funding_accrued_aud)} funding</span></div>`;
+    }
+  } else {
+    html += `<div class="kv"><span class="dim">book</span>
+      <span>FLAT — armed, waiting</span></div>`;
+  }
+  html += `<div class="kv"><span class="dim">lifetime realized</span>
+      <span class="${cls(b.realized_aud)}">${money(b.realized_aud||0)}</span></div>
+    <div class="note">Long spot / short perp, BTC+ETH only, A$33k sizing. Opens itself the
+    moment carry crosses the threshold; closes on 7-day negative trailing carry. The one
+    mechanism that clears its cost wall (~8x).</div>`;
+  el.innerHTML = html;
+}
+
+function renderOanda(d){
+  const o = d.oanda||{}; const el = $("#oanda-panel");
+  if(!el) return;
+  if(!(o.sleeves||[]).length){ if(window.__oandaPractice){ window.__oandaPractice(el); } else { el.innerHTML='<span class="dim">OANDA practice sleeve: loading…</span>'; } return; }
+  let html = "";
+  if(o.nav_aud) html += `<div class="kv"><span class="dim">NAV (practice)</span>
+    <span class="big">A$${Number(o.nav_aud).toLocaleString("en-US",{maximumFractionDigits:0})}</span></div>
+    <div class="kv"><span class="dim">last reconcile</span>
+    <span class="dim">${esc(o.last_reconcile||"—")} · hash ${esc((o.registry_hash||"").slice(0,8))}</span></div>`;
+  for(const s2 of o.sleeves){
+    html += `<div class="kv"><span class="dim">${esc(s2.sleeve)}</span>
+      <span class="${s2.in_season?'pos':'dim'}">${s2.in_season?"IN SEASON":"out of season"}
+      <span class="dim">· ${s2.n_ideas} ideas</span></span></div>
+      <div class="note" style="margin:2px 0 8px">${esc(s2.opinion)}</div>`;
+  }
+  for(const t of (o.tickets||[]))
+    html += `<div class="kv"><span class="dim">ticket</span>
+      <span>${esc(t.direction)} ${esc(t.instrument)} · risk A$${num(t.risk_aud,0)} · ${esc(t.status)}</span></div>`;
+  html += `<div class="note">Own pre-registered experiment since 2026-08-05 — mirrored read-only,
+    never managed from here. NAV lives on the OANDA practice server.</div>`;
+  el.innerHTML = html;
+}
+
+function renderEngineState(d){ // 2026-10-09: was a 2nd 'renderRisk', shadowed -> 'Engine & risk state' stuck on loading
+  const e = d.engine||{};
+  if(e._unreachable){ $("#risk").innerHTML='<span class="neg">unreachable</span>'; return; }
+  const flag = (v,good) => `<span class="${v===good?'pos':'neg'}">${String(v)}</span>`;
+  $("#risk").innerHTML = `
+    <div class="kv"><span class="dim">kill switch</span>${flag(!!e.kill_switch,false)}</div>
+    <div class="kv"><span class="dim">trading paused</span>${flag(!!e.trading_paused,false)}</div>
+    <div class="kv"><span class="dim">data ok</span>${flag(e.data_ok!==false,true)}</div>
+    <div class="kv"><span class="dim">error streak</span>
+      <span class="${e.error_streak>0?'amb':'pos'}">${e.error_streak??0}</span></div>
+    <div class="kv"><span class="dim">last error</span>
+      <span class="dim">${esc(e.last_error??"none")}</span></div>
+    <div class="kv"><span class="dim">max drawdown seen</span><span>${num(e.max_dd_seen*100,2)}%</span></div>
+    <div class="kv"><span class="dim">mode</span><span>${esc(e.trade_mode||e.mode||"—")}</span></div>
+    <div class="kv"><span class="dim">universe</span><span>${(e.universe||[]).length} symbols</span></div>
+    <div class="kv"><span class="dim">ticks</span><span>${e.ticks??"—"}</span></div>`;
+}
+
+function renderOanda(d){
+  const o = d.oanda||{}; const el = $("#oanda-panel");
+  if(!el) return;
+  if(!(o.sleeves||[]).length){ if(window.__oandaPractice){ window.__oandaPractice(el); } else { el.innerHTML='<span class="dim">OANDA practice sleeve: loading…</span>'; } return; }
+  let html = "";
+  if(o.nav_aud) html += `<div class="kv"><span class="dim">NAV (practice)</span>
+    <span class="big">A$${Number(o.nav_aud).toLocaleString("en-US",{maximumFractionDigits:0})}</span></div>
+    <div class="kv"><span class="dim">last reconcile</span>
+    <span class="dim">${esc(o.last_reconcile||"—")} · hash ${esc((o.registry_hash||"").slice(0,8))}</span></div>`;
+  for(const s2 of o.sleeves){
+    html += `<div class="kv"><span class="dim">${esc(s2.sleeve)}</span>
+      <span class="${s2.in_season?'pos':'dim'}">${s2.in_season?"IN SEASON":"out of season"}
+      <span class="dim">· ${s2.n_ideas} ideas</span></span></div>
+      <div class="note" style="margin:2px 0 8px">${esc(s2.opinion)}</div>`;
+  }
+  for(const t of (o.tickets||[]))
+    html += `<div class="kv"><span class="dim">ticket</span>
+      <span>${esc(t.direction)} ${esc(t.instrument)} · risk A$${num(t.risk_aud,0)} · ${esc(t.status)}</span></div>`;
+  html += `<div class="note">Own pre-registered experiment since 2026-08-05 — mirrored read-only,
+    never managed from here. NAV lives on the OANDA practice server.</div>`;
+  el.innerHTML = html;
+}
+
+function renderRisk(d){
+  const r = d.risk||{}; const el = $("#riskpanel");
+  if(!el) return;
+  if(!r.ann_vol_pct){ el.innerHTML='<span class="dim">no risk report yet</span>'; return; }
+  el.innerHTML = `
+    <div class="kv"><span class="dim">annualised vol</span>
+      <span>${num(r.ann_vol_pct,1)}% <span class="dim">(~${money(r.daily_sigma_usd)}/day 1σ)</span></span></div>
+    <div class="kv"><span class="dim">1-day VaR 95 / 99</span>
+      <span class="neg">${money(r.var95_1d_usd)} / ${money(r.var99_1d_usd)}</span></div>
+    <div class="kv"><span class="dim">hist maxDD (2y, these weights)</span>
+      <span class="neg">${num(r.hist_maxdd_pct,1)}%</span></div>
+    <div class="kv"><span class="dim">factor betas</span><span>${
+      Object.entries(r.factor_betas||{}).map(([k,v])=>k.split(" ")[0]+" "+(v>=0?"+":"")+v).join(" · ")}</span></div>
+    <div class="kv"><span class="dim">concentration</span>
+      <span>top ${num(r.top_position_pct,1)}% · ${num(r.effective_holdings,1)} effective holdings (weight concentration)</span></div>
+    <div class="kv"><span class="dim">AUD-terms vol</span>
+      <span>${num((r.aud_view||{}).ann_vol_aud_pct,1)}% <span class="dim">vs ${num(r.ann_vol_pct,1)}% USD</span></span></div>
+    <div class="kv"><span class="dim">unmeasured book</span>
+      <span class="${r.uncovered_pct>15?'neg':'amb'}">${num(r.uncovered_pct,1)}%</span></div>
+    <div class="note">Historical simulation, current weights over 2y. Unmeasured = positions
+      with no free price history — unmeasured risk, not zero risk.</div>`;
+  $("#risk-meta").textContent = r.generated||"";
+}
+
+function renderHealth(d){
+  const h = d.health||{};
+  if(!h.checked_at){ $("#health").innerHTML='<span class="dim">no health report yet — run desk_healer.py</span>'; return; }
+  const dot = ok => ok?'<span class="pos">●</span>':'<span class="neg">●</span>';
+  let html = "";
+  // post-boot report (boot_notifier.py) — shown for 24h after a reboot
+  const b = d.boot_report||{};
+  if(b.status && b.boot_epoch && (Date.now()/1000 - b.boot_epoch) < 86400){
+    const cls = b.level==="green" ? "pos" : (b.level==="red" ? "neg" : "");
+    const ago = ((Date.now()/1000 - b.boot_epoch)/3600).toFixed(1);
+    html += `<div class="kv"><span class="dim">boot report</span>
+      <span class="${cls}">${esc(b.status)} · rebooted ${ago}h ago</span></div>`;
+  }
+  html += `<div class="kv"><span class="dim">protected processes</span><span></span></div>`;
+  for(const [n,v] of Object.entries(h.protected||{}))
+    html += `<div class="kv" style="padding-left:12px"><span class="dim">${esc(n)}</span>${dot(v.alive)}</div>`;
+  html += `<div class="kv" style="margin-top:6px"><span class="dim">collectors</span><span></span></div>`;
+  for(const [n,v] of Object.entries(h.collectors||{}))
+    html += `<div class="kv" style="padding-left:12px"><span class="dim">${esc(n)}</span>${dot(v.alive)}</div>`;
+  html += `<div class="kv" style="margin-top:6px"><span class="dim">data freshness</span><span></span></div>`;
+  for(const [n,v] of Object.entries(h.data||{}))
+    html += `<div class="kv" style="padding-left:12px"><span class="dim">${esc(n)}</span>
+      <span class="${v.stale?'neg':'dim'}">${v.age_sec??"—"}s</span></div>`;
+  html += `<div class="kv" style="margin-top:6px"><span class="dim">viewers</span><span></span></div>`;
+  for(const [n,v] of Object.entries(h.viewers||{}))
+    html += `<div class="kv" style="padding-left:12px"><span class="dim">${esc(n)} :${v.port}</span>${dot(v.http_ok)}</div>`;
+  $("#health").innerHTML = html;
+  $("#health-meta").textContent = h.checked_at||"";
+}
+
+function renderResearch(d){
+  const cw = (d.cost_wall||{}).results||{}, hl = d.hold_lab||{};
+  let html = "";
+  for(const [name,r] of Object.entries(cw)){
+    if(!r.gross) continue;
+    html += `<div class="kv"><span>${esc(name)} <span class="dim">gross</span></span>
+      <span class="${cls(r.gross.expectancy_pct)}">${num(r.gross.expectancy_pct,3)}%</span></div>
+      <div class="kv" style="padding-left:12px"><span class="dim">net @ Kraken</span>
+      <span class="${cls(r.kraken.expectancy_pct)}">${num(r.kraken.expectancy_pct,3)}%</span></div>
+      <div class="kv" style="padding-left:12px"><span class="dim">net @ Robinhood</span>
+      <span class="${cls(r.venue.expectancy_pct)}">${num(r.venue.expectancy_pct,3)}%</span></div>`;
+  }
+  if(hl.best_verdict){
+    html += `<div class="note" style="margin-top:10px;color:var(--amber)">
+      <b>Holding-period sweep</b> — ${hl.combinations_tested} combinations tested<br>${esc(hl.best_verdict)}</div>`;
+  }
+  $("#research").innerHTML = html || '<span class="dim">no research output yet</span>';
+}
+
+function renderCostWall(d){
+  const cw = (d.cost_wall||{}).results||{};
+  const groups = Object.entries(cw).filter(([,r])=>r.gross).map(([name,r])=>({
+    label:name, values:[
+      {v:r.gross.expectancy_pct, c:"var(--dim)"},
+      {v:r.kraken.expectancy_pct, c:"var(--cyan)"},
+      {v:r.venue.expectancy_pct, c:"var(--red)"}]}));
+  $("#costwall-chart").innerHTML = groups.length
+    ? groupedBars(groups) + `<div class="note">
+        <span style="color:var(--dim)">■</span> gross (zero cost) &nbsp;
+        <span style="color:var(--cyan)">■</span> net @ Kraken 30bps &nbsp;
+        <span style="color:var(--red)">■</span> net @ Robinhood ~35bps &nbsp;— expectancy per trade</div>`
+    : '<span class="dim">run cost_wall.py</span>';
+}
+
+// COMPETITORS, CONTROLS and DISCRETIONARY are rendered as SEPARATE sections.
+// One flat table ranked by raw P&L put buy-and-hold ETFs among the strategies,
+// so probe_japan sat 3rd at +2.57% -- DXJ's beta scored as skill. Controls are
+// the BENCHMARK: they are shown with their P&L but are never numbered and never
+// ranked. Discretionary books have no fixed rule to replay, so they are reported
+// and not ranked either. Roles come from tournament.py, which reads them out of
+// what each sleeve's code actually does.
+function renderTournament(d){
+  const t = d.tournament||{}; const tb = $("#tournboard tbody");
+  if(!tb) return;
+  // Fall back to the flat list if the server has not been restarted onto the
+  // role-aware payload yet -- an old server must not blank the board.
+  const ranked = t.ranked || t.competitors || [];
+  const controls = t.controls || [];
+  const disc = t.discretionary || [];
+  const cb = t.control_bar || {};
+  const legacy = !t.ranked;
+
+  if(!ranked.length && !controls.length && !disc.length){
+    tb.innerHTML='<tr><td colspan="9" class="dim">run tournament.py --board</td></tr>'; return;
+  }
+
+  const cell = (r, rankLabel) => {
+    const c = r.ccy==="AUD"?"A$":"$";
+    let mark = "";
+    if(r.beats_best_control===true)  mark = ' <span class="pos" style="font-size:10px">▲ beats control</span>';
+    else if(r.beats_best_control===false) mark = ' <span class="dim" style="font-size:10px">below control</span>';
+    return `<tr>
+      <td class="dim">${rankLabel}</td>
+      <td>${esc(r.name)}${mark}</td>
+      <td class="dim">${esc(r.kind)}</td>
+      <td class="num">${c}${Number(r.equity).toLocaleString("en-US",{maximumFractionDigits:0})}</td>
+      <td class="num ${cls(r.pnl_pct)}">${(Math.abs(r.pnl_pct||0)>500 && (r.equity||0)<1000)?"— <span class=\"dim\">emptied</span>":((r.pnl_pct>=0?"+":"")+num(r.pnl_pct,2)+"%")}</td>
+      <td class="num ${cls(r.dd_pct)}">${r.dd_pct!=null?num(r.dd_pct,1)+"%":"—"}</td>
+      <td class="num dim">${r.age_days}d</td>
+      <td class="${r.evidence==="ok"?"pos":"amb"}" style="font-size:10px">${esc(r.evidence)}</td>
+      <td class="dim" style="font-size:10px">${esc(r.role_reason||r.note||"")}</td></tr>`;
+  };
+
+  const head = (title, sub) => `<tr><td colspan="9" style="padding-top:14px;
+      border-bottom:1px solid var(--line);font-size:10px;letter-spacing:.12em;
+      text-transform:uppercase;color:var(--dim)">${esc(title)}
+      <span style="text-transform:none;letter-spacing:0">— ${esc(sub)}</span></td></tr>`;
+
+  let html = "";
+  if(legacy){
+    html += head("competitors", "server not yet restarted onto the role-aware payload; roles unavailable");
+    html += ranked.map((r,i)=>cell(r, i+1)).join("");
+  } else {
+    html += head("competitors", ranked.length + " strategies with a signal — the only rows that are ranked");
+    html += ranked.map((r,i)=>cell(r, i+1)).join("");
+    if(controls.length){
+      const bar = cb.best_pnl_pct!=null
+        ? `benchmark, not entrants — best control ${cb.best_pnl_pct>=0?"+":""}${num(cb.best_pnl_pct,2)}%, median ${cb.median_pnl_pct>=0?"+":""}${num(cb.median_pnl_pct,2)}%`
+        : "benchmark, not entrants";
+      html += head("controls", bar);
+      html += controls.map(r=>cell(r, "·")).join("");
+    }
+    if(disc.length){
+      html += head("discretionary", "no fixed rule to replay — reported, never ranked");
+      html += disc.map(r=>cell(r, "·")).join("");
+    }
+  }
+
+  // tournament.py builds `unavailable` for competitors it cannot mark, precisely
+  // so the board carries its own gaps. Not rendering it put the silent
+  // disappearance straight back: a competitor with no equity simply vanished and
+  // the leaderboard looked complete.
+  const gone = t.unavailable || [];
+  if(gone.length){
+    html += head("not marked this run", gone.length + " competitor(s) could not be valued — absent from every total above");
+    html += gone.map(r=>`<tr>
+      <td class="dim">—</td>
+      <td>${esc(r.name)}</td>
+      <td class="dim">${esc(r.kind||"")}</td>
+      <td class="num neg" colspan="5">NOT MARKED</td>
+      <td class="dim" style="font-size:10px">${esc(r.reason||"no equity mark available")}</td></tr>`).join("");
+  }
+  tb.innerHTML = html;
+
+  const meta = legacy
+    ? ranked.length + " competitors · " + (t.generated||"")
+    : `${ranked.length} competitors · ${controls.length} controls · ${disc.length} discretionary`
+      + (t.n_beating_best_control!=null
+          ? ` · ${t.n_beating_best_control} of ${ranked.length} beat the best control` : "")
+      + " · " + (t.generated||"");
+  $("#tourn-meta").textContent = meta;
+}
+
+function renderWarroom(d){
+  const w = d.warroom||{};
+  const tb = $("#edgemap tbody");
+  if(w.streams && w.streams.length){
+    tb.innerHTML = w.streams.map(s=>`<tr>
+      <td>${esc(s.stream)}</td>
+      <td class="num dim">${s.n??"—"}</td>
+      <td class="dim">${esc(s.verdict)}</td></tr>`).join("");
+    $("#edge-meta").textContent = `~${w.total_hypotheses} hypotheses tested · zero validated alpha · 2 mechanisms deployed`;
+  }
+  const tr = $("#traps");
+  if(tr && w.traps){
+    tr.innerHTML = w.traps.map(t=>{
+      const pct = (t.have_days!=null && t.need_days) ?
+        Math.min(100, t.have_days/t.need_days*100) : 0;
+      return `<div class="kv"><span class="dim">${esc(t.trap)}</span>
+        <span class="${t.ready?'pos':'dim'}">${t.ready?"READY":
+          (t.have_days!=null? t.have_days+" / "+t.need_days+"d" : esc(t.note||"collecting"))}</span></div>
+        <div class="bar"><i style="width:${pct}%"></i></div>`;
+    }).join("") + (()=>{
+      const allReady = (w.traps||[]).length && (w.traps||[]).every(t=>t.ready);
+      return allReady
+        ? `<div class="note">All traps READY (≥21d). Waiting on a research ticket to open, not more calendar days.</div>`
+        : `<div class="note">Datasets accumulating toward testability. The scheduled task announces the moment one is ready.</div>`;
+    })();
+  }
+  const wr = $("#wire");
+  if(wr && w.wire){
+    wr.innerHTML = w.wire.length ? w.wire.map(h=>{
+      const c = h.sentiment>0.3?"pos":h.sentiment<-0.3?"neg":"dim";
+      return `<div><span class="${c}">${h.sentiment>=0?"+":""}${num(h.sentiment,1)}</span>
+        <span class="tag">${esc(h.tier==="retail"?"r/":"pro")}</span>
+        ${esc(h.title)}</div>`;
+    }).join("") : '<span class="dim">no headlines yet</span>';
+  }
+}
+
+function renderBlotter(d){
+  const tb = $("#blotter tbody"), rows = d.trades||[];
+  const bm = d.blotter || {};
+  const meta = $("#blotter-meta");
+  if(meta) meta.textContent = bm.label || (rows.length ? (rows.length+" engine fills") : "no fills");
+  if(!rows.length){ tb.innerHTML='<tr><td colspan="8" class="dim">no Kraken engine fills yet</td></tr>'; return; }
+  tb.innerHTML = rows.map(r=>`<tr>
+    <td class="dim">${esc(r.timestamp)}</td>
+    <td class="${r.side==="BUY"?"pos":"neg"}">${esc(r.side)}</td>
+    <td>${esc(r.symbol)}</td>
+    <td class="num">${num(r.price,6)}</td>
+    <td class="num">${num(r.usd)}</td>
+    <td class="num neg">${num(r.fee)}</td>
+    <td class="num ${cls(r.realized_pnl)}">${r.realized_pnl?money(r.realized_pnl):"—"}</td>
+    <td class="num dim">${num(r.equity_after)}</td></tr>`).join("");
+}
+
+function renderLog(d){
+  const l = (d.engine||{}).log||[];
+  $("#log").innerHTML = l.length
+    ? l.slice().reverse().map(x=>`<div>${esc(typeof x==="string"?x:JSON.stringify(x))}</div>`).join("")
+    : '<span class="dim">no log lines</span>';
+}
+
+function renderAlerts(d){
+  const h = d.health||{}, e = d.engine||{};
+  const problems = [...(h.problems||[])];
+  if(e.kill_switch) problems.push("KILL SWITCH ACTIVE");
+  const warns = [...(h.warnings||[]), ...(h.actions_taken||[])];
+  const el = $("#alerts");
+  if(el) el.style.display="none";          // Brett rule: no banners -- notes go to the header indicator
+  _HI.alerts = [...problems.map(esc), ...warns.map(esc)];
+  hiUpdate();
+}
+
+// One small neutral, clickable header indicator carries every health/data note.
+const _HI = {alerts:[], integrity:[], foot:""};
+function hiUpdate(){
+  const b=$("#p-hi"), p=$("#hi-panel"); if(!b||!p) return;
+  const all=[..._HI.alerts, ..._HI.integrity];
+  if(!all.length){ b.style.display="none"; p.style.display="none"; p.innerHTML=""; return; }
+  b.style.display=""; b.textContent=all.length+" note"+(all.length>1?"s":"");
+  p.innerHTML=all.map(m=>"<div style='margin:2px 0'>"+m+"</div>").join("")+_HI.foot;
+}
+function hiToggle(){ const p=$("#hi-panel"); if(p) p.style.display = p.style.display==="none" ? "block" : "none"; }
+
+function renderPills(d){
+  const h = d.health||{}, e = d.engine||{};
+  const hp = $("#p-health");
+  hp.textContent = "health " + (h.status||"—").toLowerCase();
+  hp.className = "pill " + (h.status==="OK"?"ok":h.status==="PROBLEM"?"bad":h.status?"warn":"");
+  const ep = $("#p-engine");
+  const up = !e._unreachable, stale = up && e._stale;
+  ep.textContent = !up ? "engine down" : stale ? (e._age_s==null ? "engine STALE (no ticks)" : "engine STALE " + Math.round(e._age_s/60) + "m") : "engine live";
+  ep.className = "pill " + (!up||stale?"bad":"ok");
+  $("#p-updated").textContent = new Date().toLocaleTimeString();
+}
+
+const floorColor = f => ({"Growth Book":"var(--green)","Value Book":"var(--violet)","Worldwide Gap Sleeve":"#22e9ef","Gap-Close Levered Sleeve":"#f4bd4e",
+  "Kraken Floor":"var(--cyan)","Venue Replica":"var(--amber)",
+  "Kraken Engine":"var(--red)","Carry Executor":"var(--fg)"}[f]||"var(--dim)");
+
+// 🏇 Rally Rider — the sleeve's scale-out ladder leg by leg. All levels are
+// computed SERVER-SIDE with tournament.py's exact frozen semantics (σ frozen
+// at entry, t = bars held at the deciding settled bar, no exit on the entry
+// bar); this function only renders what the payload says. Rides the 5s
+// /api/positions feed. No silent states: missing block, block error, frozen
+// sleeve and empty book each say so in words.
+// ---- mark-age honesty: a mark that is not live must carry a visible age ----
+// (funder directive 2026-08-22: last-good marks are DISPLAY ONLY and must
+// carry a visible age; they never price a fill.)
+function bizAgeSec(sec){
+  // age with weekend (Sat/Sun UTC) time excluded — "1 trading day" for ETFs
+  let end = Date.now()/1000, t = end - sec, biz = 0, guard = 0;
+  while(t < end && guard++ < 800){
+    const next = Math.min(end, t + (86400 - (t % 86400)));
+    const dow = new Date(t*1000).getUTCDay();
+    if(dow !== 0 && dow !== 6) biz += next - t;
+    if(next <= t) break;
+    t = next;
+  }
+  return biz;
+}
+function ageHuman(s){
+  if(s < 90) return Math.round(s)+"s";
+  if(s < 5400) return Math.round(s/60)+"m";
+  if(s < 129600) return (s/3600).toFixed(s < 36000 ? 1 : 0)+"h";
+  return (s/86400).toFixed(1)+"d";
+}
+function markAgeTag(sym, src, ageSec, floor){
+  const s = (src||"").toLowerCase();
+  // live/engine/desk-snapshot rows are not served from the last-good store
+  if(s.indexOf("live") === 0 || s === "engine" || s.indexOf("desk snapshot") === 0) return "";
+  if(ageSec == null){
+    // ledger mark with no stored timestamp: age honestly unknown — say so
+    return s.indexOf("ledger") >= 0
+      ? ' <span class="agetag amber">mark age unknown</span>' : "";
+  }
+  const crypto = (sym||"").indexOf("/") >= 0
+    || (floor||"").toLowerCase().indexOf("coinspot") >= 0;
+  const amber = crypto ? ageSec > 900 : bizAgeSec(ageSec) > 86400;
+  return ' <span class="agetag'+(amber ? ' amber' : '')+'">mark '
+    + ageHuman(ageSec) + ' old</span>';
+}
+
+function renderRallyRider(d){
+  renderRiderInto(d.rally_rider,   "rr",  "rally_rider");
+  renderRiderInto(d.rally_rider_x, "rrx", "rally_rider_x");
+  // 2026-08-22 addendum sleeves. HOLD is trail-only by registered rule (the
+  // server sends ladder:"trail_only" and null TPs — never invent a ladder);
+  // dip_rider reuses the full-ladder rendering with its own empty text.
+  renderRiderInto(d.rally_rider_hold, "rrh", "rally_rider_hold",
+    {trailOnly:true,
+     note:"no profit-taking by registered rule — trail & time stop only"});
+  renderRiderInto(d.dip_rider, "dip", "dip_rider",
+    {emptyText:"no open positions - waiting for a 20d closing low on 1.5x "
+               +"volume (nothing is flushing in this tape)"});
+}
+function renderRiderInto(rr, pre, name, opts){
+  opts = opts || {};
+  const trailOnly = opts.trailOnly || (rr && rr.ladder === "trail_only");
+  const body = $("#"+pre+"-body"), fz = $("#"+pre+"-frozen"), warn = $("#"+pre+"-warn"),
+        meta = $("#"+pre+"-meta"), ev = $("#"+pre+"-events");
+  if(!body) return;
+  fz.style.display = "none"; warn.style.display = "none";
+  if(!rr){
+    body.innerHTML = '<span class="amb">server predates this panel — the payload has no '
+      + esc(name) + ' block. Restart command_server.py (desk_healer relaunches it).</span>';
+    ev.innerHTML = "";
+  } else if(rr.error){
+    body.innerHTML = '<span class="neg"><b>RALLY RIDER BLOCK FAILED</b> — '+esc(rr.error)+'</span>';
+    ev.innerHTML = "";
+  } else {
+    if(rr.frozen){
+      fz.style.display = "block";
+      fz.innerHTML = "<b>⛔ RALLY RIDER FROZEN</b> — " + esc(rr.frozen_reason||"kill rule");
+    }
+    const warns = [];
+    if(rr.data_error)  warns.push("<b>DATA ERROR</b> — "+esc(rr.data_error.msg||"")+" ("+esc(rr.data_error.at_utc||"")+")");
+    if(rr.state_error) warns.push("<b>STATE ERROR</b> — "+esc(rr.state_error.msg||""));
+    if(rr.state_gap && rr.state_gap.length)
+      warns.push("<b>HELD WITHOUT EXIT STATE</b> — "+rr.state_gap.map(esc).join(", ")
+        +" (tournament.py rebuilds these loudly; ladder unknown until then)");
+    if(warns.length){ warn.style.display="block";
+      warn.innerHTML = warns.map(m=>"<div style='margin:2px 0'>"+m+"</div>").join(""); }
+
+    if(rr.empty){
+      body.innerHTML = '<span class="dim">'
+        + (opts.emptyText ? esc(opts.emptyText)
+           : 'no open rides - scanning ' + (rr.universe_n||17) + ' names daily')
+        + '</span>';
+    } else {
+      const p = x => num(x, x>100?2:4);
+      const tpCell = (l, lvl, taken) => {
+        if(taken) return '<td class="pos" style="font-size:11px">✓ taken</td>';
+        if(lvl==null) return '<td class="amb" style="font-size:11px">no σ — time stop only</td>';
+        const away = l.mark ? (lvl/l.mark-1)*100 : null;
+        return '<td class="num">'+p(lvl)+' <span class="dim">('
+          + (away!=null ? (away>=0?"+":"")+num(away,2)+"% away" : "mark unknown") + ')</span></td>';
+      };
+      body.innerHTML = '<div class="scroll"><table><thead><tr>'
+        + '<th>Leg</th><th class="num">Units</th><th class="num">Value $</th><th class="num">Entry</th>'
+        + '<th class="num">Mark</th><th class="num">uPnL %</th>'
+        + (trailOnly ? ''
+           : '<th class="num">TP1 +2σ√t</th><th class="num">TP2 +4σ√t</th>'
+             + '<th style="min-width:110px">Ladder → next TP</th>')
+        + '<th class="num">Trail 2.5σ off peak</th>'
+        + (trailOnly ? '' : '<th>Scaled</th>')
+        + '<th class="num">Bars</th><th>Feed</th></tr></thead><tbody>'
+        + rr.legs.map(l=>{
+          const prog = (l.next_tp!=null && l.mark!=null && l.next_tp!==l.entry_px)
+            ? Math.max(0, Math.min(100, (l.mark-l.entry_px)/(l.next_tp-l.entry_px)*100)) : null;
+          const ladder = l.next_tp!=null
+            ? '<div class="bar" title="progress from entry to '+esc(l.next_tp_label||"next TP")+'">'
+              + '<i style="width:'+num(prog,0)+'%"></i></div>'
+              + '<span class="dim" style="font-size:10px">'+esc(l.next_tp_label||"")+' '
+              + (l.pct_to_tp_next!=null ? ((l.pct_to_tp_next>=0?"+":"")+num(l.pct_to_tp_next,2)+"% away") : "—")+'</span>'
+            : (l.entry_sigma==null
+                ? '<span class="amb" style="font-size:10px">exit-exempt: '+esc(l.sigma_note||"no σ at entry — time stop only")+'</span>'
+                : '<span class="dim" style="font-size:10px">2/3 taken — riding trail / time stop</span>');
+          const trail = l.trail!=null
+            ? p(l.trail)+' <span class="'+((l.trail_gap_pct??0)<2?"amb":"dim")+'">('
+              + num(l.trail_gap_pct,2)+'% below · peak '+p(l.peak_close)+')</span>'
+            : '<span class="amb">no σ — no trail</span>';
+          return '<tr>'
+            + '<td><b>'+esc(l.symbol)+'</b> <span class="dim" style="font-size:10px">'+esc(l.entry_date||"")+'</span></td>'
+            + '<td class="num dim">'+num(l.units,4)+'</td>'
+            + '<td class="num">'+((l.units!=null&&l.mark!=null)?'$'+Number(l.units*l.mark).toLocaleString("en-US",{maximumFractionDigits:0}):"—")+'</td>'
+            + '<td class="num">'+p(l.entry_px)+'</td>'
+            + '<td class="num">'+p(l.mark)+'</td>'
+            + '<td class="num '+cls(l.upnl_pct)+'">'+(l.upnl_pct!=null?((l.upnl_pct>=0?"+":"")+num(l.upnl_pct,2)+"%"):"—")+'</td>'
+            + (trailOnly ? ''
+               : tpCell(l, l.tp1, l.scaled_thirds>=1)
+                 + tpCell(l, l.tp2, l.scaled_thirds>=2)
+                 + '<td>'+ladder+'</td>')
+            + '<td class="num">'+trail+'</td>'
+            + (trailOnly ? '' : '<td>'+l.scaled_thirds+'/3 taken</td>')
+            + '<td class="num">'+l.bars_held+'/'+ (l.time_stop_bars||40)
+              + (l.entry_bar ? ' <span class="dim" style="font-size:10px">entry bar — exits from next settled bar</span>' : '')+'</td>'
+            + '<td class="dim" style="font-size:10px">'+esc(l.mark_src)
+              + markAgeTag(l.symbol, l.mark_src, l.mark_age_sec)+'</td></tr>';
+        }).join("") + '</tbody></table></div>'
+        + (trailOnly ? '<div class="dim" style="font-size:10px;margin-top:4px">'
+           + esc(opts.note || "no profit-taking by registered rule — trail & time stop only")
+           + '</div>' : '');
+    }
+    ev.innerHTML = (rr.events && rr.events.length)
+      ? rr.events.slice().reverse().map(e=>'<div><span class="'
+          + (e.side==="buy"?"pos":"neg")+'">'+esc((e.side||"").toUpperCase())+'</span> '
+          + esc(e.sym)+' @ '+num(e.fill_close, e.fill_close>100?2:4)
+          + ' <span class="dim">('+esc(e.bar_date||"")+' · '+esc(e.reason||"")+')</span></div>').join("")
+      : '<span class="dim">no fills yet</span>';
+    if(meta && !rr.error){
+      meta.textContent = (rr.legs||[]).length + " legs · eq " + money(rr.equity)
+        + " · cash " + money(rr.cash) + " · costs " + money(rr.costs)
+        + " · dd " + (rr.dd_pct!=null?num(rr.dd_pct,2)+"%":"—")
+        + " · " + (rr.n_events||0) + " events · started " + (rr.started||"—")
+        + " · eval " + (rr.last_eval_utc||"—");
+    }
+  }
+}
+
+
+// 🧪 Capacity Probe — deployment, the per-symbol capacity scan, and the REFUSALS
+// (the actual product of this experiment). All figures are server-computed from
+// the sleeve's own measured state; this only renders what the payload says.
+function renderCapacityProbe(d){
+  const cp = d.capacity_probe;
+  const body = $("#cap-body"), fz = $("#cap-frozen"), warn = $("#cap-warn"), meta = $("#cap-meta");
+  if(!body) return;
+  fz.style.display = "none"; warn.style.display = "none";
+  if(!cp){
+    body.innerHTML = '<span class="amb">server predates this panel — no capacity_probe block. Restart command_server.py.</span>';
+  } else if(cp.error){
+    body.innerHTML = '<span class="neg"><b>CAPACITY PROBE BLOCK FAILED</b> — '+esc(cp.error)+'</span>';
+  } else {
+    if(cp.frozen){ fz.style.display="block";
+      fz.innerHTML = "<b>⛔ CAPACITY PROBE FROZEN</b> — " + esc(cp.frozen_reason||"kill rule"); }
+    if(cp.breadth_error){ warn.style.display="block";
+      warn.innerHTML = "<b>NO RANKING THIS BAR</b> — " + esc(cp.breadth_error); }
+    const m = cp.summary || {};
+    const dep = cp.deployed_usd || 0, start = cp.start || 100000;
+    const depPct = start ? (dep/start*100) : 0;
+    let h = '';
+    // deployment gauge — the headline
+    h += '<div style="margin-bottom:10px"><b>Deployed '+money(dep)+'</b> of '+money(start)
+       + ' <span class="dim">('+num(depPct,2)+'% — the cash is the finding, not a failure)</span>'
+       + '<div class="bar" style="margin-top:4px"><i style="width:'+num(Math.min(100,depPct),1)+'%"></i></div></div>';
+    // capacity summary strip
+    h += '<div class="scroll" style="margin-bottom:10px"><table><thead><tr>'
+       + '<th>roster</th><th class="num">fresh books</th><th class="num">clip fits</th>'
+       + '<th class="num">sum max fillable</th><th class="num">median spread</th>'
+       + '<th class="num">median depth</th><th class="num">signal breadth</th></tr></thead><tbody><tr>'
+       + '<td>'+(cp.roster_n||0)+'</td>'
+       + '<td class="num">'+(m.with_fresh_book||0)+'/'+(m.roster_n||0)+'</td>'
+       + '<td class="num '+((m.clip_fits_n||0)>0?"pos":"amb")+'">'+(m.clip_fits_n||0)+'/'+(m.roster_n||0)
+       + ' <span class="dim">@ '+money(m.target_clip_usd)+'</span></td>'
+       + '<td class="num pos">'+money(m.sum_max_fillable_usd)+'</td>'
+       + '<td class="num">'+num(m.median_spread_bps,1)+' bps</td>'
+       + '<td class="num">'+money(m.median_depth10_usd)+'</td>'
+       + '<td class="num">'+(cp.signal_breadth||0)+'</td>'
+       + '</tr></tbody></table></div>';
+    // open legs
+    if((cp.legs||[]).length){
+      h += '<div class="dim" style="font-size:11px;margin:6px 0 2px">OPEN</div><div class="scroll"><table><thead><tr>'
+         + '<th>Leg</th><th class="num">Units</th><th class="num">Value $</th><th class="num">Entry</th>'
+         + '<th class="num">σ</th><th class="num">CVD slope</th><th class="num">Bars</th></tr></thead><tbody>'
+         + cp.legs.map(l=>'<tr><td><b>'+esc(l.symbol)+'</b> <span class="dim" style="font-size:10px">'+esc(l.entry_date||"")+'</span></td>'
+           + '<td class="num dim">'+num(l.units,4)+'</td><td class="num">'+money(l.value_usd)+'</td>'
+           + '<td class="num">'+num(l.entry_px,2)+'</td><td class="num dim">'+num(l.entry_sigma,4)+'</td>'
+           + '<td class="num">'+num(l.entry_cvd_slope,3)+'</td><td class="num">'+(l.bars_held||0)+'/40</td></tr>').join("")
+         + '</tbody></table></div>';
+    }
+    // REFUSALS — the product
+    h += '<div class="dim" style="font-size:11px;margin:10px 0 2px">REFUSALS — the measured capacity limit</div>';
+    if((cp.refusals||[]).length){
+      h += '<div class="scroll"><table><thead><tr><th>Symbol</th><th>Reason</th>'
+         + '<th class="num">Wanted</th><th class="num">Actually fillable</th><th class="num">Shortfall</th>'
+         + '<th class="num">Book depth</th><th class="num">Spread</th><th class="num">Snap age</th></tr></thead><tbody>'
+         + cp.refusals.map(r=>'<tr><td><b>'+esc(r.symbol)+'</b></td><td class="amb">'+esc(r.reason||"")+'</td>'
+           + '<td class="num dim">'+money(r.intended_usd)+'</td>'
+           + '<td class="num '+((r.fillable_usd||0)>1000?"":"neg")+'">'+money(r.fillable_usd)+'</td>'
+           + '<td class="num neg">'+money(r.shortfall_usd)+'</td>'
+           + '<td class="num">'+money(r.depth10_usd)+'</td>'
+           + '<td class="num">'+num(r.spread_bps,1)+' bps</td>'
+           + '<td class="num dim">'+num(r.snapshot_age_s,0)+'s</td></tr>').join("")
+         + '</tbody></table></div>';
+    } else {
+      h += '<span class="dim">no refusals logged this bar</span>';
+    }
+    // capacity scan (thinnest first)
+    if((cp.scan||[]).length){
+      h += '<div class="dim" style="font-size:11px;margin:10px 0 2px">CAPACITY SCAN — what each name could absorb right now (thinnest first)</div>'
+         + '<div class="scroll"><table><thead><tr><th>Symbol</th><th class="num">Max fillable</th>'
+         + '<th class="num">Book depth</th><th class="num">Top of book</th><th class="num">Spread</th>'
+         + '<th>Clip fits?</th><th class="num">Snap age</th></tr></thead><tbody>'
+         + cp.scan.map(x=>'<tr><td>'+esc(x.symbol)+'</td>'
+           + '<td class="num">'+money(x.max_fillable_usd)+'</td>'
+           + '<td class="num dim">'+money(x.depth10_usd)+'</td>'
+           + '<td class="num dim">'+money(x.top_of_book_usd)+'</td>'
+           + '<td class="num">'+num(x.spread_bps,1)+'</td>'
+           + '<td class="'+(x.clip_fits?"pos":"amb")+'">'+(x.clip_fits?"fits":"too thin")+'</td>'
+           + '<td class="num dim">'+num(x.snapshot_age_s,0)+'s</td></tr>').join("")
+         + '</tbody></table></div>';
+    }
+    // fills
+    if((cp.fills||[]).length){
+      h += '<div class="dim" style="font-size:11px;margin:10px 0 2px">FILLS — realized cost measured, never assumed</div>'
+         + cp.fills.slice().reverse().map(f=>'<div><span class="pos">'+esc((f.side||"").toUpperCase())+'</span> '
+           + esc(f.sym)+' @ '+num(f.fill_close,2)+' — filled '+money(f.filled_usd)
+           + ' of '+money(f.intended_usd)
+           + ' <span class="dim">(realized '+num(f.realized_cost_bps,1)+' bps · '+esc(f.bar_date||"")+')</span></div>').join("");
+    }
+    body.innerHTML = h;
+    if(meta){
+      meta.textContent = "$" + Number(cp.start||100000).toLocaleString("en-US")
+        + " · deployed " + money(dep) + " (" + num(depPct,1) + "%)"
+        + " · capacity verdict " + (cp.capacity_verdict_due||"—")
+        + " · edge \u2265" + (cp.edge_verdict_min_days||182) + "d"
+        + " · eval " + (cp.last_eval_utc||"—");
+    }
+  }
+}
+
+async function refreshPositions(){
+  let d;
+  try{ d = await fetchT("/api/positions", 9000); }
+  catch(e){ $("#pos-updated").textContent = "feed slow — retrying"; return; }
+  const tb = $("#portfolio tbody");
+  const rows = d.rows||[];
+  if(!rows.length){ tb.innerHTML='<tr><td colspan="11" class="dim">no open positions anywhere — all books flat</td></tr>'; }
+  else tb.innerHTML = rows.map(r=>`<tr>
+    <td><span style="color:${floorColor(r.floor)}">●</span> ${esc(r.floor)}</td>
+    <td class="dim">${esc(r.book||"")}</td>
+    <td>${esc(r.symbol)}</td>
+    <td class="dim">${esc(r.side||"")}</td>
+    <td class="num dim">${r.units??"—"}</td>
+    <td class="num">${num(r.entry, r.entry>100?2:4)}</td>
+    <td class="num">${num(r.mark, r.mark>100?2:4)}</td>
+    <td class="num">${r.ccy==="AUD"?"A":""}${money(r.value)}</td>
+    <td class="num ${cls(r.upnl)}">${r.ccy==="AUD"?"A":""}${money(r.upnl)}</td>
+    <td class="num ${cls(r.upnl_pct)}">${r.upnl_pct!=null?num(r.upnl_pct,2)+"%":"—"}</td>
+    <td class="dim" style="font-size:10px">${esc(r.src)}${markAgeTag(r.symbol,r.src,r.mark_age_sec,r.floor)}</td></tr>`).join("");
+  const usd=(d.totals||{}).USD||{value:0,upnl:0,n:0};
+  const aud=(d.totals||{}).AUD;
+  // NO `|| usd` FALLBACK. When the AUD book cannot be converted, the firm total
+  // does not exist — and the old code silently presented the USD-only subtotal
+  // in its place, dropping the entire AUD book from the headline without a word.
+  const comb=d.combined_usd;
+  const pn=d.pnl||{};
+  const hv=$("#hero-val"), hp=$("#hero-pill");
+  const allN=(d.rows||[]).length;
+  if(hv){
+    if(comb){
+      hv.textContent = money(comb.value);
+      hv.style.color = "";
+      hv.title = "USD "+money(usd.value)+" + AUD "+(aud?money(aud.value):"0")
+                 +" @ "+num(comb.audusd,4)+" ("+(comb.fx_status||"?")+")";
+    } else {
+      // say it, don't paper over it
+      hv.textContent = "unavailable";
+      hv.style.color = "var(--amber)";
+      hv.title = d.combined_unavailable || "firm total cannot be computed";
+    }
+    const parts=[];
+    if(pn.all_time_usd!=null){
+      let s=(pn.all_time_usd>=0?"▲ ":"▼ ")+money(pn.all_time_usd);
+      // return on CAPITAL, not on deployed value, and the base is named.
+      if(pn.return_on_capital_pct!=null)
+        s+="  ("+num(pn.return_on_capital_pct,2)+"% on "+money(pn.capital_usd)
+           +" capital"+(pn.capital_n_books?", "+pn.capital_n_books+" books":"")+")";
+      else
+        s+="  (return % unavailable — "+(pn.return_unavailable||"no capital base")+")";
+      parts.push(s+" all-time");
+    } else {
+      parts.push("all-time unavailable — "+(pn.all_time_unavailable||"see banner"));
+    }
+    parts.push("Legacy desk subtotal "+(pn.today_usd!=null
+      ? ((pn.today_usd>=0?"+":"")+money(pn.today_usd))
+      : "unavailable"));
+    parts.push("open "+(comb
+      ? ((comb.upnl>=0?"+":"")+money(comb.upnl))
+      : "unavailable"));
+    parts.push(allN+" positions");
+    if(comb&&comb.audusd)
+      parts.push("A$ @ "+num(comb.audusd,4)
+        +(comb.fx_status==="cached" ? " CACHED "+(comb.fx_age_human||"age unknown")
+          : comb.fx_status==="live" ? " live"
+          : " provenance unknown (pre-fix server)"));
+    else
+      parts.push("A$ rate unavailable");
+    if(!comb && aud)
+      parts.push("EXCLUDES "+aud.n+" AUD positions (A"+money(aud.value)+")");
+    if(d.oanda_nav)
+      parts.push("OANDA NAV A$"+Number(d.oanda_nav).toLocaleString("en-US",{maximumFractionDigits:0}));
+    const up = pn.all_time_usd!=null ? pn.all_time_usd>=0 : null;
+    hp.style.display="inline-block";
+    hp.style.color = up===null?"var(--amber)":(up?"var(--green)":"var(--red)");
+    hp.style.background = up===null?"rgba(240,180,41,.12)"
+                          :(up?"rgba(49,208,124,.12)":"rgba(246,70,93,.12)");
+    hp.textContent = parts.join("  ·  ");
+  }
+  // when there is no firm total, show the USD subtotal LABELLED as a subtotal
+  const heroLbl=$("#hero-label");
+  if(heroLbl) heroLbl.textContent = comb
+    ? "Deployed · open positions · firm-wide (USD + AUD converted)"
+    : "USD BOOK ONLY — firm total unavailable";
+  const chips=$("#pnl-chips");
+  if(chips && pn){
+    // A chip with no number says UNAVAILABLE and why. It never shows a blank,
+    // a zero, or a figure computed on a guessed input.
+    const chip=(lbl,v,extra,why)=>`<div style="border:1px solid ${v==null?"var(--amber)":"var(--line)"};
+      background:var(--panel);border-radius:8px;padding:6px 14px">
+      <div style="font-size:9px;letter-spacing:.12em;color:var(--dim);text-transform:uppercase">${lbl}</div>
+      ${v==null
+        ? `<div style="font-size:16px;font-weight:600;color:var(--amber)">unavailable</div>`
+        : `<div class="${cls(v)}" style="font-size:16px;font-weight:600">${v>=0?"+":""}${money(v)}</div>`}
+      <div style="font-size:9px;color:var(--dim2);max-width:230px">${esc(v==null?(why||"cannot be computed"):extra)}</div></div>`;
+    chips.innerHTML =
+      chip("Firm vs mandate", pn.firm_vs_mandate_usd, "same as GREEN pill / hero",
+           "firm equity unavailable")
+      + chip("Firm vs seed", pn.firm_vs_seed_usd, "firm equity − Taylor seed",
+           "Taylor seed unavailable")
+      + chip("Open P&L", pn.open_upnl_usd, "unrealized, live positions",
+           pn.open_upnl_unavailable)
+      + chip("Legacy desk subtotal", pn.today_usd, "today · desk sum",
+             pn.today_unavailable)
+      + chip("All-time (desks)", pn.all_time_usd,
+             pn.all_time_note || "desk-sum trading P&L — not firm vs seed",
+             pn.all_time_unavailable)
+      + chip("Return on capital",
+             pn.return_on_capital_pct==null?null:pn.return_on_capital_pct,
+             "all-time P&L ÷ "+money(pn.capital_usd)+" registered starting capital"
+             +(pn.capital_n_books?" ("+pn.capital_n_books+" books)":""),
+             pn.return_unavailable);
+    // the return chip is a percentage, not dollars — restate it correctly
+    const rc=chips.lastElementChild;
+    if(rc && pn.return_on_capital_pct!=null){
+      const v=rc.querySelector("div:nth-child(2)");
+      if(v){ v.textContent=(pn.return_on_capital_pct>=0?"+":"")
+                           +num(pn.return_on_capital_pct,2)+"%";
+             v.className=cls(pn.return_on_capital_pct); }
+    }
+  }
+  const strip = $("#desk-pnl-strip");
+  if(strip && d.pnl_by_desk){
+    // realized/unrealized/total may legitimately be null (the desk did not
+    // publish them). Render that as "n/a", never as 0.
+    const amt=(v,c)=> v==null ? `<span style="color:var(--amber)">n/a</span>`
+                              : `${v<0?"-":""}${c}${num(Math.abs(v))}`;
+    strip.innerHTML = d.pnl_by_desk.map(k=>{
+      const c = k.ccy==="AUD"?"A$":"$";
+      return `<div class="kpi" style="min-width:138px;border-left:3px solid ${floorColor(k.floor)}"
+              title="${esc(k.note||"")}">
+        <div class="lbl">${esc(k.floor)}${k.book&&k.book!==k.floor?" · "+esc(k.book):""}</div>
+        <div class="val ${cls(k.total)}">${amt(k.total,c)}</div>
+        <div class="sub2"><b style="color:var(--fg)">${k.open??0} open</b> ·
+          real ${amt(k.realized,c)} ·
+          live ${amt(k.unrealized,c)} · ${esc(k.extra||"")}
+          ${k.note?`<span style="color:var(--amber)"> · ${esc(k.note)}</span>`:""}</div>
+      </div>`;
+    }).join("");
+  }
+  renderIntegrity(d);
+  renderRallyRider(d);
+  renderCapacityProbe(d);
+
+  const tt = d.totals||{};
+  const mk = d.marks||{};
+  $("#pos-totals").innerHTML = Object.entries(tt).map(([c,t])=>
+    `<b>${c}</b>: ${t.n} positions · value ${c==="AUD"?"A":""}${money(t.value)} · uPnL
+     <span class="${cls(t.upnl)}">${c==="AUD"?"A":""}${money(t.upnl)}</span>`).join(" &nbsp;·&nbsp; ")
+    + (d.marks
+       ? ` &nbsp;·&nbsp; <span class='dim'>marks: <b style="color:var(--fg)">${mk.live}</b> live ·
+          ${mk.snapshot} snapshot · ${mk.closed??0} market-shut (last close) · <b style="color:var(--dim)">${mk.stale}</b>
+          frozen/ledger of ${mk.rows}</span>`
+       : ` &nbsp;·&nbsp; <span style="color:var(--amber)">mark staleness unknown — server predates this board</span>`)
+    + " &nbsp;·&nbsp; <span class='dim'>crypto marks: Kraken public ticker (15s) · equity marks: quote cache (60s) · engine: its own /state</span>"
+    + ` &nbsp;·&nbsp; <span class='dim'>served by ${esc((d.served_by||{}).label||"unidentified process (pre-fix)")}</span>`;
+  $("#pos-updated").textContent = "tick " + (d.generated||"");
+}
+
+// Declares every figure the desk could not compute, and every figure it
+// computed on a degraded input. Silence here means the board is clean.
+function renderIntegrity(d){
+  const el=$("#data-integrity"); if(!el) return;
+  const mk=d.marks||{}, fx=d.fx||{}, pn=d.pnl||{}, sb=d.served_by||{};
+  const msgs=[];
+  // The page is read from disk every request, so this board can be newer than
+  // the process serving it. Say so — a pre-fix payload still carries the
+  // hardcoded-0.70 all-time figure and cannot report its own staleness.
+  if(!d.fx && !d.marks)
+    msgs.push("<b>SERVER PREDATES THIS BOARD</b> — the process answering has "
+      +"not been restarted since the accounting fix. It cannot report mark "
+      +"staleness or FX provenance, and its all-time P&amp;L may still use the "
+      +"hardcoded 0.70 AUDUSD fallback. Figures below are the OLD basis.");
+  if(d.quote_ccy && d.quote_ccy.warning)
+    msgs.push("<b>NON-USD QUOTES SUMMED AS USD</b> — "+esc(d.quote_ccy.warning));
+  if(mk.warning)
+    msgs.push("<b>STALE MARKS</b> — "+esc(mk.warning));
+  if(fx.status==="cached" && fx.fresh!==true)
+    msgs.push("<b>FX CACHED, NOT LIVE</b> — AUDUSD "+num(fx.rate,6)+" from "
+      +esc(fx.source)+", "+esc(fx.age_human)+". Every AUD figure below is "
+      +"converted at a stale rate.");
+  if(fx.status==="unavailable")
+    msgs.push("<b>FX UNAVAILABLE</b> — "+esc(fx.note)
+      +". No AUD figure can be converted; the firm total does not exist.");
+  if(d.combined_unavailable)
+    msgs.push("<b>FIRM TOTAL UNAVAILABLE</b> — "+esc(d.combined_unavailable));
+  if(pn.all_time_unavailable)
+    msgs.push("<b>ALL-TIME P&amp;L UNAVAILABLE</b> — "+esc(pn.all_time_unavailable));
+  if(pn.today_unavailable)
+    msgs.push("<b>LEGACY DESK SUBTOTAL UNAVAILABLE</b> — "+esc(pn.today_unavailable));
+  if(pn.return_unavailable)
+    msgs.push("<b>RETURN % UNAVAILABLE</b> — "+esc(pn.return_unavailable)
+      +". Dollar P&amp;L is shown without a percentage rather than against a wrong base.");
+  if(pn.error)
+    msgs.push("<b>P&amp;L BLOCK FAILED</b> — "+esc(pn.error));
+  const cap=d.capital||{};
+  if(cap.unregistered && cap.unregistered.length)
+    msgs.push("<b>OUTSIDE THE CAPITAL BASE</b> — "
+      +cap.unregistered.map(u=>esc(u.floor+" / "+u.book+": "+u.reason)).join("; ")
+      +". Their P&amp;L is counted; their capital is not.");
+  if(pn.open_split_excluded_aud_rows)
+    msgs.push("<b>LIQUIDITY SPLIT INCOMPLETE</b> — "+pn.open_split_excluded_aud_rows
+      +" AUD row(s) excluded, no FX rate.");
+  el.style.display="none";                  // Brett rule: no banners -- notes go to the header indicator
+  _HI.integrity = msgs;
+  _HI.foot = "<div style='opacity:.65;font-size:10px;margin-top:5px'>served by "+esc(sb.label||"?")
+    +" · marks "+(mk.live??"?")+" live / "+(mk.snapshot??0)+" snapshot / "+(mk.closed??0)+" market-shut / "
+    +(mk.stale??"?")+" frozen of "+(mk.rows??"?")+"</div>";
+  hiUpdate();
+}
+
+async function refresh(){
+  let d;
+  try{ d = await fetchT("/api/all", 12000); }
+  catch(err){ renderSalary(null,true); renderDailyPnl(null,true); $("#p-updated").textContent = "slow — retrying"; return; }
+  renderSalary(d.salary);
+  renderDailyPnl(d.daily_pnl);
+  renderPills(d); renderAlerts(d); renderTfoHero(d); renderKpis(d); renderEquity(d);
+  renderGrowth(d); renderValue(d); renderCarry(d); renderEngineState(d); renderRisk(d); renderOanda(d);
+  cryptoRumourPanel(d.crypto_rumour,"crypto-rumour");
+  convexityPanel(d.convexity,"convexity");
+  datedEventPanel(d.dated_event,"dated-event");
+  fundamentalPanel(d.fundamental_desk,"fundamental-desk");
+  renderEngineBook(d); bookPanel(d.floor,"#floor-book");
+  bookPanel(d.replica,"#replica-book",{costs:true});
+  renderRisk(d); renderHealth(d); renderResearch(d); renderCostWall(d);
+  renderTournament(d);
+  renderWarroom(d);
+  renderBlotter(d); renderLog(d);
+}
+refresh(); refreshPositions();
+// 2026-10-03: 60 s polling (was 10 s / 5 s full redraws); tfo_legacy.js also refreshes when the tab becomes visible.
+setInterval(refresh, 60000);
+setInterval(refreshPositions, 60000);
+</script>
+<nav id="mtabs"><a href="#plan">Plan</a><a href="#positions">Positions</a><a href="#pnl">P&amp;L</a><a href="#risk">Risk</a></nav>
+<script>(function(){
+function lab(){document.querySelectorAll('table').forEach(function(t){var h=[].map.call(t.querySelectorAll('thead th, tr:first-child th'),function(x){return x.textContent.trim()});t.querySelectorAll('tr').forEach(function(r){[].forEach.call(r.children,function(c,i){if(c.tagName=='TD'&&!c.dataset.label)c.dataset.label=h[i]||''})})})}
+lab();new MutationObserver(lab).observe(document.body,{childList:true,subtree:true});
+var m={plan:/plan|hunt/i,positions:/position/i,pnl:/p&l|pnl|p\/l/i,risk:/risk/i};
+document.querySelectorAll('#mtabs a').forEach(function(a){a.onclick=function(e){var k=a.hash.slice(1),t=document.getElementById({plan:'h48',positions:'pos-totals',pnl:'pnl-chips',risk:'riskpanel'}[k])||document.getElementById(k);if(!t){t=[].slice.call(document.querySelectorAll('h1,h2,h3,h4')).find(function(x){return m[k].test(x.textContent)})}if(t){e.preventDefault();t.scrollIntoView({behavior:'smooth'})}}})})();</script>
+<script src="static/veteran_desk_card.js"></script>
+</body>
+</html>

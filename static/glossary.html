@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>TFO Glossary</title>
+<style>
+:root{--bg:#f4f5f6;--text:#202427;--muted:#535c62;--line:#d4dadd;--green:#126044;--blue:#225a87}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:16px/1.5 system-ui,sans-serif}
+header,main{max-width:960px;margin:auto;padding:20px 24px}header{border-bottom:1px solid var(--line)}h1{font-size:26px;margin:4px 0}.eyebrow{font-size:12px;font-weight:700;color:var(--muted)}
+input{font:inherit;width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:8px;margin:12px 0;min-height:44px}
+h2{font-size:13px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin:24px 0 6px}dl{margin:0;background:#fff;border:1px solid var(--line);border-radius:8px;padding:4px 16px 12px}
+dt{font-weight:650;margin-top:12px}dt small{color:var(--muted);font-weight:400}dd{margin:2px 0 0;color:var(--muted)}a{color:var(--blue)}
+</style></head><body>
+<header><div class="eyebrow">TAYLOR FAMILY OFFICE · PAPER</div><h1>Glossary</h1><div><a href="/">← Back to the dashboard</a></div>
+<input type="search" id="q" placeholder="Search (e.g. NAV, drawdown, trail, funder fee)" aria-label="Search glossary"></header>
+<main id="out"><p>Loading…</p></main>
+<script>
+const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+let G=[];
+function draw(q){q=(q||'').toLowerCase();const by={};G.filter(t=>!q||(t.term+' '+t.short+' '+(t.long||'')+' '+(t.aliases||[]).join(' ')).toLowerCase().includes(q)).forEach(t=>(by[t.category]=by[t.category]||[]).push(t));
+ document.getElementById('out').innerHTML=Object.keys(by).sort().map(c=>`<h2>${esc(c)}</h2><dl>${by[c].sort((a,b)=>a.term.localeCompare(b.term)).map(t=>`<dt id="${esc(t.id)}">${esc(t.term)}${t.aliases&&t.aliases.length?` <small>(${esc(t.aliases.slice(0,5).join(', '))})</small>`:''}</dt><dd>${esc(t.short)}${t.long?' '+esc(t.long):''}</dd>`).join('')}</dl>`).join('')||'<p>No matching terms.</p>'}
+fetch('/static/glossary.json',{cache:'no-store'}).then(r=>r.json()).then(g=>{G=g.terms||[];draw('');if(location.hash){const e=document.getElementById(location.hash.slice(1));if(e)e.scrollIntoView()}}).catch(()=>{document.getElementById('out').innerHTML='<p>Glossary unavailable.</p>'});
+document.getElementById('q').oninput=e=>draw(e.target.value);
+</script></body></html>

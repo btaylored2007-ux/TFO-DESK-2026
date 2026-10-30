@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- 2026-10-28 Brett 14:58 WITA (pt1624u): Trend18 trail+mark own job (PAPER).
+     Does NOT fund/stage/execute the 30 Oct second half (other worker).
+     deep18-fwd remains on com.tfo.deep18-fwd. desk_tick still calls these too. -->
+<plist version="1.0"><dict>
+  <key>Label</key><string>com.tfo.trend18-mark</string>
+  <key>ProgramArguments</key><array>
+    <string>/Library/Frameworks/Python.framework/Versions/3.14/bin/python3</string>
+    <string>/Users/test/Applications/MultiVenueDesk/trend18_tick.py</string>
+  </array>
+  <key>WorkingDirectory</key><string>/Users/test/Applications/MultiVenueDesk</string>
+  <key>StartInterval</key><integer>300</integer>
+  <key>RunAtLoad</key><true/>
+  <key>EnvironmentVariables</key><dict>
+    <key>PATH</key><string>/Library/Frameworks/Python.framework/Versions/3.14/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+    <key>PYTHONUNBUFFERED</key><string>1</string>
+  </dict>
+  <key>StandardOutPath</key><string>/Users/test/Applications/MultiVenueDesk/logs/trend18-tick.log</string>
+  <key>StandardErrorPath</key><string>/Users/test/Applications/MultiVenueDesk/logs/trend18-tick.err.log</string>
+</dict></plist>

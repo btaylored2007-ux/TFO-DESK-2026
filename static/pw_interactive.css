@@ -1,0 +1,39 @@
+/* pw_interactive.css: interactive layer for the TFO Private Wealth dashboard (read-only, PAPER). 2026-10-03 */
+.gi{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;min-height:22px;padding:0;margin:0 0 0 4px;border:0;border-radius:50%;background:none;color:var(--blue);font-size:14px;line-height:1;cursor:help;vertical-align:middle;border-bottom:0 !important}
+.gi:hover{background:#e3ecf4}.gi:focus-visible{outline:2px solid var(--blue);outline-offset:1px}
+th .gi{width:20px;height:20px;min-height:20px;font-size:13px}
+#gpop{position:fixed;z-index:1000;max-width:340px;max-height:60vh;overflow:auto;background:#1f2a33;color:#f4f6f8;border-radius:8px;padding:10px 12px;font-size:13px;line-height:1.45;box-shadow:0 6px 24px rgba(0,0,0,.25);display:none}
+#gpop b{display:block;font-size:14px;margin-bottom:2px}#gpop .gcat{opacity:.7;font-size:11px;text-transform:uppercase;letter-spacing:.04em}#gpop p{margin:6px 0 0}#gpop a{color:#9fd0ff}
+#gdlg{border:0;border-radius:10px;padding:0;width:min(860px,94vw);max-height:86vh;box-shadow:0 12px 48px rgba(0,0,0,.3)}#gdlg::backdrop{background:rgba(20,25,30,.45)}
+#gdlg .ghead{position:sticky;top:0;background:#fff;padding:16px 20px;border-bottom:1px solid var(--line);display:flex;gap:12px;align-items:center}
+#gdlg .ghead input{flex:1;font:inherit;padding:8px 10px;border:1px solid var(--line);border-radius:6px;min-height:40px}#gdlg .gbody{padding:8px 20px 20px;overflow:auto;max-height:calc(86vh - 80px)}
+#gdlg dl{margin:0}#gdlg dt{font-weight:650;margin-top:12px}#gdlg dd{margin:2px 0 0;color:var(--muted);font-size:14px}#gdlg h3{margin:18px 0 4px;font-size:13px;text-transform:uppercase;color:var(--muted);letter-spacing:.05em}
+.hbtn{font:inherit;font-size:13px;border:1px solid var(--line);border-radius:999px;padding:3px 12px;min-height:30px;color:var(--text);background:#fff;margin-top:6px}
+.upd{font-size:12px;color:var(--muted);font-weight:400;white-space:nowrap;margin-left:8px}.upd.stale{color:var(--red)}.upd.lag{color:var(--amber)}
+#alertstrip{margin:0 0 16px}#alertstrip .astrip{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.al{display:inline-flex;gap:6px;align-items:center;font-size:13px;border-radius:6px;padding:4px 10px;border:1px solid;max-width:100%;overflow-wrap:anywhere}
+.al.bad{background:#fff1f1;border-color:#e3b3b7}.al.warn{background:#fff8e6;border-color:#e8d39d;color:#5c4100}.al.info{background:#eef4fa;border-color:#c5d6e6;color:#1e4466}.al.good{background:#edf7f2;border-color:#b5dbc6}
+.al small{color:inherit;opacity:.75}.alist{margin-top:8px;border:1px solid var(--line);border-radius:8px;background:#fff;max-height:320px;overflow:auto}.alist div{padding:8px 12px;border-bottom:1px solid var(--line);font-size:13px}
+.linkbtn{font:inherit;font-size:13px;color:var(--blue);background:none;border:0;padding:4px 6px;min-height:28px;text-decoration:underline;cursor:pointer}
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px;margin:12px 0}
+.card{background:#fff;border:1px solid var(--line);border-radius:8px;padding:12px 14px;cursor:pointer;text-align:left;font:inherit;color:inherit;min-height:auto;border-bottom:1px solid var(--line)}
+.card:hover{border-color:#9bb3c7;background:#fbfcfd}.card[aria-expanded=true]{border-color:var(--green);box-shadow:0 0 0 1px var(--green) inset}
+.card .cv{font-size:22px;font-weight:650;font-variant-numeric:tabular-nums}.card .cn{font-size:13px;color:var(--muted)}.card .ct{display:flex;justify-content:space-between;gap:8px;font-weight:600}
+.xpanel{background:#fff;border:1px solid var(--line);border-radius:8px;padding:12px 16px;margin:8px 0 16px}
+.toolbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:8px 0 12px}.toolbar label{font-size:13px;color:var(--muted);display:flex;gap:6px;align-items:center}
+.toolbar select,.toolbar input[type=search]{font:inherit;font-size:14px;padding:6px 8px;border:1px solid var(--line);border-radius:6px;min-height:36px;background:#fff}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:6px;overflow:hidden}.seg button{min-height:34px;padding:4px 12px;border:0;border-right:1px solid var(--line);font-size:13px;color:var(--text);background:#fff}.seg button:last-child{border-right:0}
+.seg button[aria-pressed=true]{background:var(--green);color:#fff;font-weight:600}
+.tog{display:inline-flex;gap:4px;align-items:center;font-size:13px}
+.chartwrap{position:relative;background:#fff;border:1px solid var(--line);border-radius:8px;padding:8px 8px 4px;touch-action:pan-y}
+.chartwrap svg{display:block;width:100%;height:auto}.chartwrap .tip{position:absolute;pointer-events:none;background:#1f2a33;color:#fff;font-size:12px;border-radius:6px;padding:6px 8px;white-space:nowrap;display:none;z-index:5;font-variant-numeric:tabular-nums}
+.legend{display:flex;flex-wrap:wrap;gap:14px;font-size:12px;color:var(--muted);margin:6px 4px}.legend i{display:inline-block;width:18px;height:0;border-top:2px solid;vertical-align:middle;margin-right:4px}
+.stats{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin:10px 0}.stats div{border-top:2px solid var(--line);padding-top:6px}.stats b{display:block;font-size:17px;font-variant-numeric:tabular-nums}.stats span{font-size:12px;color:var(--muted)}
+table.xt tbody tr.row{cursor:pointer}table.xt tbody tr.row:hover{background:#f6f9fb}table.xt tbody tr.row[aria-expanded=true]{background:#eef5f1}
+table.xt td.num,table.xt th.num{text-align:right;font-variant-numeric:tabular-nums}table.xt td{min-width:0}table.xt td:first-child{min-width:0}
+table.xt tr.detail td{background:#fafbfc;padding:12px 16px}th.sortable{cursor:pointer;user-select:none}th.sortable:hover{color:var(--text)}th .sarr{font-size:11px;margin-left:3px;opacity:.8}
+.kv{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:6px 18px;font-size:13px}.kv div{overflow-wrap:anywhere}.kv span{color:var(--muted);display:block;font-size:12px}
+.pill{display:inline-block;font-size:11px;font-weight:700;border:1px solid currentColor;border-radius:4px;padding:1px 6px}
+.chev{display:inline-block;width:14px;color:var(--muted)}
+.sum td{font-weight:650;background:#f7f8f9}
+@media(max-width:540px){.cards{grid-template-columns:1fr}.stats{grid-template-columns:repeat(2,1fr)}.toolbar{gap:6px}#gpop{max-width:calc(100vw - 24px)}}

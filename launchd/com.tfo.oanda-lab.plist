@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- 2026-10-27 OANDA STRATEGY LAB (research/oanda_deep_20261027/code/lab_job.py tick), every 15 min. SHADOW ONLY: HTTP GET market data,
+     marks shadow hunt picks + survivor forward tests, runs the daily FX hunt once per new complete OANDA daily candle (17:00 New York, DST-safe),
+     writes state/oanda_lab/lab.json for the War Room card. NEVER places/modifies/closes OANDA orders or trades.
+     Remove: launchctl bootout gui/$(id -u)/com.tfo.oanda-lab && rm ~/Library/LaunchAgents/com.tfo.oanda-lab.plist -->
+<plist version="1.0"><dict>
+<key>Label</key><string>com.tfo.oanda-lab</string>
+<key>ProgramArguments</key><array><string>/Users/test/Applications/MultiVenueDesk/research/oanda_deep_20261027/venv/bin/python</string><string>lab_job.py</string><string>tick</string></array>
+<key>WorkingDirectory</key><string>/Users/test/Applications/MultiVenueDesk/research/oanda_deep_20261027/code</string>
+<key>StartInterval</key><integer>900</integer>
+<key>RunAtLoad</key><true/>
+<key>EnvironmentVariables</key><dict><key>PATH</key><string>/usr/bin:/bin:/usr/sbin:/sbin</string><key>PYTHONUNBUFFERED</key><string>1</string></dict>
+<key>StandardOutPath</key><string>/Users/test/Applications/MultiVenueDesk/logs/oanda-lab.log</string>
+<key>StandardErrorPath</key><string>/Users/test/Applications/MultiVenueDesk/logs/oanda-lab.err.log</string>
+</dict></plist>

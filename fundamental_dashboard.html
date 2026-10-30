@@ -1,0 +1,590 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>TFO Fundamental Desk</title>
+<style>
+:root{
+  /* neutral ramp — near-black dominant, per Robinhood's calm dark surface */
+  --n-0:#000000; --n-1:#0b0e11; --n-2:#141a1f; --n-3:#1e262d;
+  --n-4:#2b353e; --n-5:#5b6b78; --n-6:#8fa0ad; --n-7:#c6d0d8; --n-8:#ffffff;
+  /* one accent + two semantic signals. Green/red carry meaning ONLY with a
+     glyph or label beside them — never colour alone (colourblind users). */
+  --up:#00d16c; --up-dim:#0a4a30; --down:#ff5b4a; --down-dim:#521c18;
+  --accent:#4da3ff; --warn:#ffb020;
+  --bg:var(--n-0); --surface:var(--n-1); --surface-2:var(--n-2);
+  --border:var(--n-3); --text:var(--n-8); --muted:var(--n-6); --faint:var(--n-5);
+  --s-1:4px; --s-2:8px; --s-3:12px; --s-4:16px; --s-5:24px; --s-6:32px;
+  --s-8:48px; --s-10:64px;
+  --t-xs:12px; --t-sm:14px; --t-base:16px; --t-lg:20px; --t-xl:24px;
+  --t-2xl:32px; --t-hero:clamp(40px,9vw,68px);
+  --r-sm:6px; --r-md:10px; --r-lg:16px;
+  --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,monospace;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{
+  background:var(--bg); color:var(--text);
+  font:400 var(--t-base)/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Inter,system-ui,sans-serif;
+  -webkit-font-smoothing:antialiased;
+  padding-bottom:var(--s-10);
+}
+.wrap{max-width:1120px;margin:0 auto;padding:0 var(--s-4)}
+
+/* ---------- top bar ---------- */
+header{
+  position:sticky;top:0;z-index:20;background:rgba(0,0,0,.86);
+  backdrop-filter:saturate(140%) blur(12px);
+  border-bottom:1px solid var(--border);
+}
+.bar{display:flex;align-items:center;gap:var(--s-4);height:56px}
+.brand{font-size:var(--t-sm);font-weight:600;letter-spacing:.14em;text-transform:uppercase}
+.brand span{color:var(--muted);font-weight:400}
+.pill{
+  margin-left:auto;display:inline-flex;align-items:center;gap:var(--s-2);
+  font-size:var(--t-xs);color:var(--muted);border:1px solid var(--border);
+  padding:5px 10px;border-radius:var(--r-sm);
+}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--up);flex:none}
+.dot.stale{background:var(--warn)}
+
+/* ---------- catalyst-expiry alert: the one thing that must not be missed ---- */
+.alert{border:1px solid var(--warn);border-radius:10px;padding:var(--s-4);
+       margin-bottom:var(--s-5);background:color-mix(in srgb,var(--warn) 8%,transparent)}
+.alert h3{margin:0 0 var(--s-2);font-size:var(--t-sm);color:var(--warn);
+          text-transform:uppercase;letter-spacing:.06em}
+.alert .arow{font-size:var(--t-sm);padding:var(--s-2) 0;border-top:1px solid var(--line)}
+.alert .arow:first-of-type{border-top:0}
+.alert .asym{font-weight:600}
+.alert .awhy{color:var(--muted);font-size:var(--t-xs);line-height:1.5;margin-top:2px}
+
+/* ---------- speculative sleeve: a SEPARATE book, shown on the same page ----
+   Given its own bordered band and a distinct accent so no reader can mistake a
+   15%-gate penny position for a main-book line. One place to look, never one
+   set of numbers. */
+.sleeve{margin-top:var(--s-8);padding:var(--s-5);border:1px solid var(--line);
+        border-radius:12px;background:var(--card)}
+.sleeve-hdr{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;
+            gap:var(--s-3);margin-bottom:var(--s-2)}
+.sleeve-hdr h2{margin:0;border:0;padding:0}
+.sleeve .tag{font-size:var(--t-xs);font-weight:500;color:var(--muted);
+             border:1px solid var(--line);border-radius:999px;padding:2px 8px;
+             margin-left:var(--s-2);vertical-align:middle}
+.sleeve-eq{font-variant-numeric:tabular-nums;font-size:var(--t-lg);font-weight:600}
+.sleeve-delta{font-size:var(--t-sm);font-weight:500;margin-left:var(--s-2)}
+.sleeve-rule{margin:0 0 var(--s-4);color:var(--muted);font-size:var(--t-xs);
+             line-height:1.5;max-width:70ch}
+.queued{margin-top:var(--s-4);border-top:1px solid var(--line);padding-top:var(--s-3)}
+.queued h3{margin:0 0 var(--s-2);font-size:var(--t-xs);text-transform:uppercase;
+           letter-spacing:.06em;color:var(--muted)}
+.qrow{display:flex;flex-wrap:wrap;gap:var(--s-2);align-items:baseline;
+      padding:var(--s-2) 0;border-bottom:1px solid var(--line);font-size:var(--t-sm)}
+.qrow:last-child{border-bottom:0}
+.qrow .qsym{font-weight:600;min-width:5.5rem}
+.qrow .qwhy{color:var(--muted);font-size:var(--t-xs)}
+
+/* ---------- standing banner: this is NOT a validated track record ---------- */
+.standing{
+  margin-top:var(--s-4);border:1px solid var(--border);
+  border-left:3px solid var(--warn);background:var(--surface);
+  border-radius:var(--r-md);padding:var(--s-3) var(--s-4);
+  font-size:var(--t-sm);color:var(--n-7);
+}
+.standing b{color:var(--warn);font-weight:600}
+.standing .sub{color:var(--muted);font-size:var(--t-xs);margin-top:var(--s-1)}
+
+/* ---------- hero ---------- */
+.hero{padding:var(--s-8) 0 var(--s-5)}
+.hero .label{font-size:var(--t-sm);color:var(--muted);letter-spacing:.02em}
+.equity{
+  font-size:var(--t-hero);font-weight:300;letter-spacing:-.025em;
+  line-height:1.05;margin:var(--s-2) 0 var(--s-3);font-variant-numeric:tabular-nums;
+}
+.delta{display:flex;align-items:baseline;gap:var(--s-3);flex-wrap:wrap;
+  font-size:var(--t-lg);font-variant-numeric:tabular-nums}
+.delta .amt{font-weight:500}
+.delta .since{font-size:var(--t-sm);color:var(--muted)}
+.up{color:var(--up)} .down{color:var(--down)} .flat{color:var(--muted)}
+/* glyph carries the sign for anyone who cannot see the hue */
+.arrow{font-size:.8em}
+
+/* ---------- chart ---------- */
+.chartwrap{position:relative;margin:var(--s-5) 0 var(--s-6)}
+svg.chart{display:block;width:100%;height:210px;overflow:visible}
+.chart path.line{fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.chart path.area{stroke:none;opacity:.13}
+.chart line.base{stroke:var(--n-4);stroke-width:1;stroke-dasharray:3 4}
+.chart-empty{
+  height:210px;display:flex;flex-direction:column;align-items:center;
+  justify-content:center;gap:var(--s-2);border:1px dashed var(--border);
+  border-radius:var(--r-md);color:var(--muted);font-size:var(--t-sm);text-align:center;
+}
+
+/* ---------- stat strip ---------- */
+.stats{
+  display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));
+  gap:1px;background:var(--border);border:1px solid var(--border);
+  border-radius:var(--r-md);overflow:hidden;margin-bottom:var(--s-6);
+}
+.stat{background:var(--surface);padding:var(--s-4)}
+.stat dt{font-size:var(--t-xs);color:var(--muted);margin:0 0 var(--s-1);
+  text-transform:uppercase;letter-spacing:.08em}
+.stat dd{margin:0;font-size:var(--t-lg);font-weight:500;font-variant-numeric:tabular-nums}
+.stat dd .u{font-size:var(--t-xs);color:var(--faint);font-weight:400}
+
+/* ---------- position list ---------- */
+h2{font-size:var(--t-sm);text-transform:uppercase;letter-spacing:.1em;
+  color:var(--muted);font-weight:600;margin:var(--s-6) 0 var(--s-3)}
+h2 .count{color:var(--faint);font-weight:400;letter-spacing:0;text-transform:none}
+.rows{border:1px solid var(--border);border-radius:var(--r-md);overflow:hidden}
+.row{
+  display:grid;grid-template-columns:minmax(0,1fr) 92px 104px;
+  align-items:center;gap:var(--s-3);
+  padding:var(--s-3) var(--s-4);background:var(--surface);
+  border-bottom:1px solid var(--border);
+  transition:background .15s ease;
+}
+.row:last-child{border-bottom:none}
+.row:hover,.row:focus-within{background:var(--surface-2)}
+.sym{font-weight:600;font-size:var(--t-base);letter-spacing:-.01em}
+.meta{font-size:var(--t-xs);color:var(--muted);margin-top:2px;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tag{
+  display:inline-block;font-size:10px;font-weight:700;letter-spacing:.08em;
+  padding:2px 5px;border-radius:4px;vertical-align:1px;margin-right:6px;
+}
+.tag.long{background:var(--up-dim);color:var(--up)}
+.tag.short{background:var(--down-dim);color:var(--down)}
+.tag.warn{background:#4a3a10;color:var(--warn)}
+.num{text-align:right;font-variant-numeric:tabular-nums;font-size:var(--t-sm)}
+.pnl{text-align:right;font-variant-numeric:tabular-nums;font-weight:500}
+.pnl .pct{display:block;font-size:var(--t-xs);font-weight:400;opacity:.85}
+.pnl .netg{color:var(--muted);opacity:1;font-variant-numeric:tabular-nums}
+
+/* ---------- held / notes ---------- */
+.note{
+  border:1px solid var(--border);border-radius:var(--r-md);
+  background:var(--surface);padding:var(--s-4);margin-top:var(--s-3);
+  font-size:var(--t-sm);color:var(--n-7);
+}
+.note h3{margin:0 0 var(--s-2);font-size:var(--t-sm);color:var(--text)}
+.note ul{margin:0;padding-left:1.1em;color:var(--muted)}
+.note li{margin-bottom:var(--s-2)}
+.note li b{color:var(--n-7);font-weight:600}
+
+footer{margin-top:var(--s-8);padding-top:var(--s-4);border-top:1px solid var(--border);
+  font-size:var(--t-xs);color:var(--faint);line-height:1.7}
+
+/* skeleton while first paint loads */
+.skel{background:linear-gradient(90deg,var(--n-2) 25%,var(--n-3) 37%,var(--n-2) 63%);
+  background-size:400% 100%;animation:sh 1.3s ease infinite;border-radius:var(--r-sm);
+  color:transparent!important}
+@keyframes sh{0%{background-position:100% 0}100%{background-position:0 0}}
+@media (prefers-reduced-motion:reduce){
+  *{animation-duration:.001ms!important;transition-duration:.001ms!important}
+}
+@media (max-width:560px){
+  .row{grid-template-columns:minmax(0,1fr) 88px}
+  .row .num{display:none}
+}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:var(--r-sm)}
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap bar">
+    <div class="brand">TFO <span>Fundamental Desk</span></div>
+    <div class="pill" id="freshness"><span class="dot" id="dot"></span><span id="fresh">loading…</span></div>
+  </div>
+</header>
+
+<main class="wrap">
+  <div class="standing" role="note">
+    <b>Paper only · no validated edge.</b>
+    Cross-sectional fundamental screen with a dated catalyst overlay. No backtest,
+    no search-deflation, no cross-validation, no kill-tests.
+    <div class="sub">
+      Search count travels with every claim: <b>4,306 screened / 46 undervalued</b> across
+      22 desks. A search that large raises the deflation bar for every future claim.
+      Borrow <b>is</b> modelled and charged inside the exit gate (0.50 / 3.00 / 15.00% tiers,
+      modelled not quoted). Funder-directed exception, 2026-08-27.
+    </div>
+  </div>
+
+  <div id="alertBanner"></div>
+
+  <section class="hero" aria-labelledby="eqlabel">
+    <div class="label" id="eqlabel">Book equity</div>
+    <div class="equity skel" id="equity">$000,000.00</div>
+    <div class="delta">
+      <span class="amt flat" id="delta">—</span>
+      <span class="since" id="since">since inception</span>
+    </div>
+  </section>
+
+  <div class="chartwrap" id="chartwrap" aria-label="Equity since inception">
+    <div class="chart-empty" id="chartEmpty">
+      <strong>No equity history yet</strong>
+      <span>The series starts at the first tick. Nothing is back-filled — an empty
+      chart means no history exists, not that data is missing.</span>
+    </div>
+  </div>
+
+  <dl class="stats" id="stats"></dl>
+
+  <h2>Long <span class="count" id="nlong"></span></h2>
+  <div class="rows" id="longs"></div>
+
+  <h2>Short <span class="count" id="nshort"></span></h2>
+  <div class="rows" id="shorts"></div>
+
+  <section class="sleeve" id="sleeveSection" aria-labelledby="sleeveHdr">
+    <div class="sleeve-hdr">
+      <h2 id="sleeveHdr">Speculative Sleeve <span class="tag">10% · separate capital</span></h2>
+      <div class="sleeve-eq"><span id="specEquity">—</span>
+        <span class="sleeve-delta" id="specDelta"></span></div>
+    </div>
+    <p class="sleeve-rule" id="specRule"></p>
+    <dl class="stats" id="specStats"></dl>
+    <div class="rows" id="specRows"></div>
+    <div id="specQueue"></div>
+  </section>
+
+  <section class="sleeve" id="postExitSection" style="display:none">
+    <div class="sleeve-hdr">
+      <h2>After we sold <span class="tag">measurement, not a signal</span></h2>
+      <div class="sleeve-eq"><span id="peForgone">—</span></div>
+    </div>
+    <p class="sleeve-rule" id="peNote"></p>
+    <div id="peRows"></div>
+  </section>
+
+  <div id="notes"></div>
+
+  <footer>
+    Registration: <code>reports/research_global_value_screen_2026-08-27.md</code> ·
+    Ledger: <code>reports/fundamental_book.json</code> ·
+    Kill rule imported from <code>book_kill.py</code> (never copied) — a frozen book
+    opens no new position and still exits normally.<br>
+    PAPER ONLY. No broker is connected anywhere and none may be added.
+    Nothing here is investment advice.
+  </footer>
+</main>
+
+<script>
+const $ = id => document.getElementById(id);
+const money = n => (n<0?"-$":"$") + Math.abs(n).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});
+const money0 = n => (n<0?"-$":"$") + Math.abs(n).toLocaleString(undefined,{maximumFractionDigits:0});
+const cls = n => n > 0.0001 ? "up" : (n < -0.0001 ? "down" : "flat");
+const arrow = n => n > 0.0001 ? "▲" : (n < -0.0001 ? "▼" : "■");
+
+let RULE = {};      // symbol -> the trading rule's live decision
+function nextRung(net){
+  for (const r of [5,10,15]) if (net < r) return r;
+  return null;        // ladder complete; the runner trails instead
+}
+function quoteTag(p){
+  const labels={pre:'PRE-MARKET',post:'AFTER HOURS',closed:'MARKET CLOSED'};
+  const label=labels[p.mark_session]||(p.mark_stale?'DELAYED / UNVERIFIED':'');
+  if(!label) return '';
+  const note=String(p.mark_note||p.mark_error||p.mark_failure||'Quote unavailable').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  return '<span class="tag warn" title="'+note+'">'+label+'</span>';
+}
+function row(sym, p){
+  const d = RULE[sym] || {};
+  const pnl = p.unrealised_usd || 0;
+  const pct = p.notional_usd ? (pnl / p.notional_usd) * 100 : 0;
+  const c = cls(pnl);
+  const stale = quoteTag(p);
+  return `<div class="row" tabindex="0">
+    <div>
+      <div class="sym">${stale}${sym}</div>
+      <div class="meta">${p.units.toLocaleString(undefined,{maximumFractionDigits:2})} u
+        @ ${p.entry_px.toLocaleString(undefined,{maximumFractionDigits:2})} ${p.entry_ccy||""}
+        · ${money0(p.notional_usd)}</div>
+    </div>
+    <div class="num">${(p.mark||0).toLocaleString(undefined,{maximumFractionDigits:2})}</div>
+    <div class="pnl ${c}"><span class="arrow">${arrow(pnl)}</span> ${money(pnl)}
+      <span class="pct">${pct>=0?"+":""}${pct.toFixed(2)}% gross</span>
+      ${netLine(d)}</div>
+  </div>`;
+}
+
+// The rule trades NET of round trip and borrow; the P&L column is GROSS.
+// Showing only gross invites the question "why has the rung not fired" when a
+// position reads +10.2% and is 9.95% net -- so the net figure and the distance
+// to the next rung are stated on every row.
+function netLine(d){
+  if (d.net_gain_pct === undefined || d.net_gain_pct === null) return "";
+  const n = d.net_gain_pct;
+  const rung = nextRung(n);
+  const rel = (d.released_fraction || 0) * 100;
+  let tail;
+  if (rung === null) tail = "runner trailing";
+  else if (n < 5) tail = `${(5 - n).toFixed(2)}pp to gate`;
+  else tail = `${(rung - n).toFixed(2)}pp to +${rung}%`;
+  return `<span class="pct netg">${n >= 0 ? "+" : ""}${n.toFixed(2)}% net`
+       + `${rel ? " · " + rel.toFixed(0) + "% out" : ""} · ${tail}</span>`;
+}
+
+function chart(points){
+  if(!points || points.length < 2) return;
+  const w = 1000, h = 210, pad = 6;
+  const vals = points.map(p => p[1]);
+  const lo = Math.min(...vals), hi = Math.max(...vals);
+  const span = (hi - lo) || 1;
+  const x = i => (i/(points.length-1)) * w;
+  const y = v => pad + (1 - (v - lo)/span) * (h - pad*2);
+  const d = points.map((p,i) => (i?"L":"M") + x(i).toFixed(1) + " " + y(p[1]).toFixed(1)).join(" ");
+  const base = points[0][1];
+  const rising = vals[vals.length-1] >= base;
+  const col = rising ? "var(--up)" : "var(--down)";
+  $("chartwrap").innerHTML = `<svg class="chart" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" role="img" aria-label="Book equity since inception">
+    <line class="base" x1="0" x2="${w}" y1="${y(base)}" y2="${y(base)}"></line>
+    <path class="area" d="${d} L ${w} ${h} L 0 ${h} Z" fill="${col}"></path>
+    <path class="line" d="${d}" stroke="${col}"></path>
+  </svg>`;
+}
+
+function stat(dt, dd, u){
+  return `<div class="stat"><dt>${dt}</dt><dd>${dd}${u?' <span class="u">'+u+'</span>':''}</dd></div>`;
+}
+
+/* ---- SPECULATIVE SLEEVE ---------------------------------------------------
+   Rendered from its OWN ledger with its OWN arithmetic. The main book's netLine()
+   is deliberately not reused: it hardcodes a 30bps round trip and a 5% gate, and
+   applying those to a penny position would understate its cost by 12x and show a
+   rung as imminent when it is nowhere near. Different book, different maths. */
+const SPEC_ROUND_TRIP = 3.5;      // 350bps, in percent
+const SPEC_GATE = 15;             // net
+const SPEC_RUNGS = [15, 30];
+function specNextRung(net){ for (const r of SPEC_RUNGS) if (net < r) return r; return null; }
+
+function specRow(sym, p){
+  const pnl = p.unrealised_usd || 0;
+  const gross = p.entry_px_usd ? ((p.mark_usd - p.entry_px_usd) / p.entry_px_usd) * 100 : 0;
+  const net = gross - SPEC_ROUND_TRIP;
+  const c = cls(pnl);
+  const rung = specNextRung(net);
+  const rel = ((p.exit_state && p.exit_state.released) || 0) * 100;
+  let tail;
+  if (rung === null) tail = "runner trailing 15pp";
+  else if (net < SPEC_GATE) tail = `${(SPEC_GATE - net).toFixed(2)}pp to gate`;
+  else tail = `${(rung - net).toFixed(2)}pp to +${rung}%`;
+  const stale = quoteTag(p);
+  const cat = p.catalyst_date ? ` · catalyst ${p.catalyst_date}` : "";
+  return `<div class="row" tabindex="0">
+    <div>
+      <div class="sym">${stale}${sym}</div>
+      <div class="meta">${p.units.toLocaleString(undefined,{maximumFractionDigits:0})} u
+        @ ${p.entry_px.toLocaleString(undefined,{maximumFractionDigits:3})} ${p.entry_ccy||""}
+        · ${money0(p.notional_usd)}${cat}</div>
+    </div>
+    <div class="num">${(p.mark||0).toLocaleString(undefined,{maximumFractionDigits:3})}</div>
+    <div class="pnl ${c}"><span class="arrow">${arrow(pnl)}</span> ${money(pnl)}
+      <span class="pct">${gross>=0?"+":""}${gross.toFixed(2)}% gross</span>
+      <span class="pct netg">${net>=0?"+":""}${net.toFixed(2)}% net${rel?" · "+rel.toFixed(0)+"% out":""} · ${tail}</span>
+    </div>
+  </div>`;
+}
+
+async function renderAlerts(){
+  // Catalyst-expiry fills. Rendered at the TOP because the whole point of the
+  // rule is that a resolved position must not pass unnoticed.
+  let a=[];
+  try{ const r=await fetch("/api/alerts",{cache:"no-store"}); if(r.ok) a=await r.json(); }
+  catch(e){ return; }
+  const el=$("alertBanner"); if(!el) return;
+  if(!a.length){ el.innerHTML=""; return; }
+  el.innerHTML = `<div class="alert"><h3>Catalyst expiry — position closed (${a.length})</h3>` +
+    a.slice().reverse().map(x=>`<div class="arow">
+      <span class="asym">${x.sym}</span> · ${x.book} · catalyst ${x.catalyst_date||"—"}
+      · realised ${x.realised_usd==null?"—":money(x.realised_usd)}
+      <div class="awhy">${(x.reason||"").replace(/</g,"&lt;")}</div>
+    </div>`).join("") + `</div>`;
+}
+
+async function renderPostExit(){
+  let d;
+  try{ const r=await fetch("/api/postexit",{cache:"no-store"}); if(!r.ok) return; d=await r.json(); }
+  catch(e){ return; }
+  const sec=$("postExitSection"); if(!sec||!d||!d.n_exits) return;
+  sec.style.display="";
+  const f=d.total_forgone_usd||0;
+  $("peForgone").innerHTML = `<span class="${f>0?'down':'up'}">${money(f)}</span>`;
+  $("peNote").innerHTML =
+    `<b>Forgone across ${d.n_exits} exits</b> — what the sold units would be worth today,
+     minus what we took. <b>Positive = we exited EARLY</b> (it kept going our way);
+     negative = we exited well. ${d.n_exited_early} early / ${d.n_exited_well} well,
+     against ${money(d.realised_taken_usd||0)} actually banked.
+     <b>This is a measurement for the 2027-02-25 review, NOT a live signal</b> — the rule
+     may only change before a result is known, and this IS a result.`;
+  $("peRows").innerHTML = (d.exits||[]).slice(0,10).map(x=>`<div class="qrow">
+      <span class="qsym">${x.sym}</span>
+      <span>${x.side} · ${(x.action||"").replace(/_/g," ")}</span>
+      <span class="${(x.forgone_usd||0)>0?'down':'up'}">${x.forgone_usd==null?"not priced":money(x.forgone_usd)}</span>
+      <span class="qwhy">exit $${(x.exit_px_usd||0).toFixed(4)} → now ${x.current_px_usd==null?"n/a":"$"+x.current_px_usd.toFixed(4)}</span>
+    </div>`).join("");
+}
+
+async function renderSpec(){
+  let d;
+  try{
+    const r = await fetch("/api/spec",{cache:"no-store"});
+    if(!r.ok){ $("sleeveSection").style.display = "none"; return; }
+    d = await r.json();
+  }catch(err){ $("sleeveSection").style.display = "none"; return; }
+
+  const eq = d.equity ?? d.seed_usd;
+  const chg = eq - d.seed_usd, pct = (chg / d.seed_usd) * 100;
+  $("specEquity").textContent = money(eq);
+  $("specDelta").className = "sleeve-delta " + cls(chg);
+  $("specDelta").innerHTML = `<span class="arrow">${arrow(chg)}</span> ${money(chg)} (${pct>=0?"+":""}${pct.toFixed(2)}%)`;
+
+  const pos = d.positions || {}, n = Object.keys(pos).length;
+  // Read the LIVE rule from the ledger. This was hardcoded to 12 and would have
+  // kept saying "of 12" after any sizing change — a view that quietly stops
+  // describing the rule it names is worse than one that shows nothing.
+  const sr = d.sizing_rule || {};
+  const minDeploy = sr.min_positions_for_full_deploy ?? 12;
+  const maxPos = sr.max_positions ?? 20;
+  const maxName = sr.max_position_usd ?? 2500;
+  $("specRule").innerHTML =
+    `<b>Separate capital, separate rules.</b> $${(d.seed_usd||0).toLocaleString()} of NEW capital —
+     the main book was not touched. LONG ONLY, $${maxName.toLocaleString()} max per name, ${maxPos} max.
+     Exit gate is <b>15% NET</b> against a <b>350bps</b> round trip (the main book's is 5% on 30bps):
+     a penny position up 5% gross <em>loses money</em>. Ladder +15%/+30%, runner trails 15pp.
+     Entry accepts a <b>dated, sourced</b> tech/news catalyst instead of intrinsic value — the KIND
+     of evidence is loosened, never whether evidence exists. Hard gates unchanged:
+     ADV, runway &ge;12mo, dilution &le;25%/yr.
+     <b>Registered as expected to lose money.</b>` +
+    (n < minDeploy ? ` <b>${n} of ${minDeploy}</b> positions, so the remaining
+     ${money0(d.cash||0)} stays CASH by rule — a thin list is not padded into a full deployment.` : "");
+
+  $("specStats").innerHTML =
+    stat("Cash", money0(d.cash||0)) +
+    stat("Deployed", money0((d.long_mv_usd)||0)) +
+    stat("Positions", n + " / " + maxPos) +
+    stat("Realised", money(d.realised_usd||0)) +
+    stat("Costs paid", money(d.costs_paid_usd||0)) +
+    stat("Drawdown", ((d.sleeve_risk&&d.sleeve_risk.drawdown_pct)||0).toFixed(2)+"%",
+         "kill −40%");
+
+  $("specRows").innerHTML = n
+    ? Object.entries(pos).map(([k,p]) => specRow(k,p)).join("")
+    : `<div class="chart-empty"><p>No sleeve positions open.</p></div>`;
+
+  const q = d.queued || {}, qn = Object.keys(q).length;
+  $("specQueue").innerHTML = qn ? `<div class="queued">
+      <h3>Queued — awaiting their own market open (${qn})</h3>
+      ${Object.entries(q).map(([k,v]) => `<div class="qrow">
+        <span class="qsym">${k}</span>
+        <span>${v.venue||""}</span>
+        <span class="qwhy">catalyst ${v.catalyst_date||"—"} · re-measured live at the open;
+          a name whose spread has widened past 4% does not open, however good the catalyst</span>
+      </div>`).join("")}
+    </div>` : "";
+}
+
+async function load(){
+  let b, e;
+  try{
+    [b, e] = await Promise.all([
+      fetch("/api/book",{cache:"no-store"}).then(r=>r.json()),
+      fetch("/api/equity",{cache:"no-store"}).then(r=>r.json())
+    ]);
+  }catch(err){
+    $("equity").classList.remove("skel");
+    $("equity").textContent = "—";
+    $("fresh").textContent = "server unreachable";
+    $("dot").classList.add("stale");
+    $("notes").innerHTML = `<div class="note"><h3>Cannot reach the book server</h3>
+      <p style="margin:0;color:var(--muted)">The dashboard is read-only and holds no
+      copy of the ledger. Start it with
+      <code>python3 fundamental_server.py --port 18820</code>.</p></div>`;
+    return;
+  }
+
+  const eq = b.equity ?? b.seed_usd;
+  // RETURN DENOMINATOR: contributed capital, NEVER seed_usd.
+  // A $100,000 injection landed 2026-08-28. Measured against the original
+  // $500,000 seed it would render as +$100,216 (+20.04%) — a fifth of the book
+  // in pure fictional performance. `contributed_capital_usd` rises with every
+  // injection, so a capital event produces EXACTLY ZERO measured return.
+  // (Registration Amendment 1, 2026-08-28: "If any future report shows a ~20%
+  //  gain dated 2026-08-28, it is this injection mis-stated, and it is wrong.")
+  const contributed = b.contributed_capital_usd ?? b.seed_usd;
+  const capEvents = b.capital_events || [];
+  $("equity").classList.remove("skel");
+  $("equity").textContent = money(eq);
+
+  const chg = eq - contributed, pct = (chg / contributed) * 100;
+  const c = cls(chg);
+  $("delta").className = "amt " + c;
+  $("delta").innerHTML = `<span class="arrow">${arrow(chg)}</span> ${money(chg)} (${pct>=0?"+":""}${pct.toFixed(2)}%)`;
+  $("since").textContent = "since inception · " + (b.opened_utc || "").replace("T"," ").replace("Z"," UTC")
+    + (capEvents.length ? "  ·  net of " + money0(capEvents.reduce((a,e)=>a+(e.amount_usd||0),0))
+        + " capital added (" + capEvents.length + " event" + (capEvents.length>1?"s":"") + ")" : "");
+
+  const age = b.epoch ? (Date.now()/1000 - b.epoch) : null;
+  const stale = age === null || age > 6*3600;
+  $("dot").classList.toggle("stale", stale);
+  $("fresh").textContent = age === null ? "never marked"
+    : (age < 90 ? "live" : Math.round(age/60) + "m ago");
+
+  const br = b.book_risk || {};
+  $("stats").innerHTML =
+    stat("Cash", money0(b.cash)) +
+    stat("Long MV", money0(b.long_mv_usd||0), (b.n_long||0)+" pos") +
+    stat("Short notional", money0(b.short_notional_usd||0), (b.n_short||0)+" pos") +
+    stat("Unrealised", money0(b.unrealised_usd||0)) +
+    stat("Drawdown", (br.drawdown_pct!=null? br.drawdown_pct.toFixed(2)+"%" : "—"),
+         "kill -30%") +
+    stat("Trade gate", (b.trade_rule && b.trade_rule.min_net_gain_pct
+          ? b.trade_rule.min_net_gain_pct.toFixed(0) + "%" : "—"),
+         "net of " + ((b.trade_rule && b.trade_rule.round_trip_bps) || 0) + "bps + borrow") +
+    stat("Unmarked", (b.n_unmarked||0), b.n_unmarked? money0(b.unmarked_usd)+" notional":"all live");
+
+  RULE = {};
+  for (const d of (b.trade_decisions || [])) RULE[d.symbol] = d;
+  const pos = b.positions || {};
+  const longs = Object.entries(pos).filter(([,p])=>p.side==="long")
+    .sort((a,b2)=>(b2[1].unrealised_usd||0)-(a[1].unrealised_usd||0));
+  const shorts = Object.entries(pos).filter(([,p])=>p.side==="short")
+    .sort((a,b2)=>(b2[1].unrealised_usd||0)-(a[1].unrealised_usd||0));
+  $("nlong").textContent = longs.length + " positions";
+  $("nshort").textContent = shorts.length + " positions";
+  $("longs").innerHTML = longs.length ? longs.map(([s,p])=>row(s,p)).join("")
+    : '<div class="row"><div class="meta">No long positions open.</div></div>';
+  $("shorts").innerHTML = shorts.length ? shorts.map(([s,p])=>row(s,p)).join("")
+    : '<div class="row"><div class="meta">No short positions open.</div></div>';
+
+  let notes = "";
+  if(br.frozen){
+    notes += `<div class="note" style="border-left:3px solid var(--down)">
+      <h3 style="color:var(--down)">Book frozen — new entries refused</h3>
+      <p style="margin:0;color:var(--muted)">${br.frozen_reason||""}.
+      Exits continue normally. Unfreezing is a funder decision, never automatic.</p></div>`;
+  }
+  const un = b.unopened || {};
+  if(Object.keys(un).length){
+    notes += `<div class="note"><h3>Held / not opened (${Object.keys(un).length})</h3><ul>` +
+      Object.entries(un).map(([s,v])=>`<li><b>${s}</b> — ${money0(v.notional)} ${v.side}. ${v.reason}</li>`).join("") +
+      `</ul></div>`;
+  }
+  $("notes").innerHTML = notes;
+
+  if(e && e.points && e.points.length > 1){ $("chartEmpty").remove?.(); chart(e.points); }
+}
+// The sleeve renders independently of the main book: if one ledger is missing
+// or unreadable the other must still draw. A dashboard that blanks entirely
+// because a secondary book is absent is worse than one that shows what it has.
+load();
+renderSpec();
+renderAlerts();
+renderPostExit();
+setInterval(() => { load(); renderSpec(); renderAlerts(); renderPostExit(); }, 60000);
+</script>
+</body>
+</html>

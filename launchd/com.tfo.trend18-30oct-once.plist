@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0"><dict>
+ <key>Label</key><string>com.tfo.trend18-30oct-once</string>
+ <key>ProgramArguments</key><array><string>/bin/bash</string><string>/Users/test/Applications/MultiVenueDesk/ops/trend18_30oct_once.sh</string></array>
+ <key>WorkingDirectory</key><string>/Users/test/Applications/MultiVenueDesk</string>
+ <key>EnvironmentVariables</key><dict><key>PYTHONUNBUFFERED</key><string>1</string><key>PATH</key><string>/Library/Frameworks/Python.framework/Versions/3.14/bin:/usr/bin:/bin:/usr/sbin:/sbin</string></dict>
+ <key>StartCalendarInterval</key><dict><key>Month</key><integer>10</integer><key>Day</key><integer>31</integer><key>Hour</key><integer>3</integer><key>Minute</key><integer>50</integer></dict>
+ <key>StandardOutPath</key><string>/Users/test/Applications/MultiVenueDesk/logs/trend18-30oct-once.log</string>
+ <key>StandardErrorPath</key><string>/Users/test/Applications/MultiVenueDesk/logs/trend18-30oct-once.err.log</string>
+</dict></plist>

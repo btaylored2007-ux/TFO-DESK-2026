@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- 2026-10-03 DEEP19 near-miss PAPER SHADOWS NS7/NS1 (deep19_fwd.py run). DID NOT PASS, $0 desk capital: no orders, not a desk
+     book, not in firm equity / firm_risk / funder fee; trend18 and deep18_fwd state are read-only. Writes only state/deep19_fwd/*shadow*.
+     Sydney local times, 10 min after the deep18-fwd slots (deep18's r2ref is the NS7 benchmark): 07:50 / 08:50 / 10:50 / 12:50 after
+     the US close, plus at load. Idempotent under a file lock.
+     Remove: launchctl bootout gui/$(id -u)/com.tfo.deep19-fwd && rm ~/Library/LaunchAgents/com.tfo.deep19-fwd.plist -->
+<plist version="1.0"><dict>
+<key>Label</key><string>com.tfo.deep19-fwd</string>
+<key>ProgramArguments</key><array><string>/Library/Frameworks/Python.framework/Versions/3.14/bin/python3</string><string>deep19_fwd.py</string><string>run</string></array>
+<key>WorkingDirectory</key><string>/Users/test/Applications/MultiVenueDesk</string>
+<key>StartCalendarInterval</key><array>
+ <dict><key>Hour</key><integer>7</integer><key>Minute</key><integer>50</integer></dict>
+ <dict><key>Hour</key><integer>8</integer><key>Minute</key><integer>50</integer></dict>
+ <dict><key>Hour</key><integer>10</integer><key>Minute</key><integer>50</integer></dict>
+ <dict><key>Hour</key><integer>12</integer><key>Minute</key><integer>50</integer></dict>
+</array>
+<key>RunAtLoad</key><true/>
+<key>EnvironmentVariables</key><dict><key>PATH</key><string>/Library/Frameworks/Python.framework/Versions/3.14/bin:/usr/bin:/bin:/usr/sbin:/sbin</string><key>PYTHONUNBUFFERED</key><string>1</string></dict>
+<key>StandardOutPath</key><string>/Users/test/Applications/MultiVenueDesk/logs/deep19-fwd.log</string>
+<key>StandardErrorPath</key><string>/Users/test/Applications/MultiVenueDesk/logs/deep19-fwd.err.log</string>
+</dict></plist>

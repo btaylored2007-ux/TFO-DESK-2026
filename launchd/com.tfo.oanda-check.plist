@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- 2026-10-04 OANDA PRACTICE sleeve 15-min check (oanda_sleeve.py check): snapshot for the PAPER dashboard panel, restore any missing broker stop
+     on TFO trades, place queued entries once spreads are normal. Never touches non-TFO trades.
+     Remove: launchctl bootout gui/$(id -u)/com.tfo.oanda-check && rm ~/Library/LaunchAgents/com.tfo.oanda-check.plist -->
+<plist version="1.0"><dict>
+<key>Label</key><string>com.tfo.oanda-check</string>
+<key>ProgramArguments</key><array><string>/Library/Frameworks/Python.framework/Versions/3.14/bin/python3</string><string>oanda_sleeve.py</string><string>check</string></array>
+<key>WorkingDirectory</key><string>/Users/test/Applications/MultiVenueDesk</string>
+<key>StartInterval</key><integer>900</integer>
+<key>RunAtLoad</key><true/>
+<key>EnvironmentVariables</key><dict><key>PATH</key><string>/Library/Frameworks/Python.framework/Versions/3.14/bin:/usr/bin:/bin:/usr/sbin:/sbin</string><key>PYTHONUNBUFFERED</key><string>1</string></dict>
+<key>StandardOutPath</key><string>/Users/test/Applications/MultiVenueDesk/logs/oanda-check.log</string>
+<key>StandardErrorPath</key><string>/Users/test/Applications/MultiVenueDesk/logs/oanda-check.err.log</string>
+</dict></plist>

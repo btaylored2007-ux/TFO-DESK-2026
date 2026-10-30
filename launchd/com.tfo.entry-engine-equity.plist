@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- 2026-10-09 TFO entry engine, US equities S&P 1500 (research/entry_engine/equity_engine.py scan). PAPER ONLY, MONITOR ONLY: watch
+     alerts with paper tickets, NO orders, NO ledger writes. Fires every 15 min; the script itself exits with zero data calls outside
+     US regular hours (09:30-16:00 ET = 00:30-07:00 AEDT) except one premarket news pass from 08:00 ET.
+     EODHD key read at run time from ~/.tfo_secrets/eodhd.env (never logged). Writes only state/entry_engine/equity_*, alerts.jsonl,
+     static/entry_engine.json and logs/entry-engine-equity*.log. ~27k EODHD calls per trading day (plan: 100k/day).
+     Remove: launchctl bootout gui/$(id -u)/com.tfo.entry-engine-equity && rm ~/Library/LaunchAgents/com.tfo.entry-engine-equity.plist -->
+<plist version="1.0"><dict>
+<key>Label</key><string>com.tfo.entry-engine-equity</string>
+<key>ProgramArguments</key><array><string>/Library/Frameworks/Python.framework/Versions/3.14/bin/python3</string><string>research/entry_engine/equity_engine.py</string><string>scan</string></array>
+<key>WorkingDirectory</key><string>/Users/test/Applications/MultiVenueDesk</string>
+<key>StartInterval</key><integer>900</integer>
+<key>RunAtLoad</key><true/>
+<key>EnvironmentVariables</key><dict><key>PATH</key><string>/Library/Frameworks/Python.framework/Versions/3.14/bin:/usr/bin:/bin:/usr/sbin:/sbin</string><key>PYTHONUNBUFFERED</key><string>1</string></dict>
+<key>StandardOutPath</key><string>/Users/test/Applications/MultiVenueDesk/logs/entry-engine-equity.log</string>
+<key>StandardErrorPath</key><string>/Users/test/Applications/MultiVenueDesk/logs/entry-engine-equity.err.log</string>
+</dict></plist>

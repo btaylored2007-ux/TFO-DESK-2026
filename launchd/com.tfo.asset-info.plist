@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0"><dict>
+<key>Label</key><string>com.tfo.asset-info</string>
+<key>ProgramArguments</key><array><string>/Library/Frameworks/Python.framework/Versions/3.14/bin/python3</string><string>/Users/test/Applications/MultiVenueDesk/asset_info_refresh.py</string></array>
+<key>StartInterval</key><integer>600</integer><key>RunAtLoad</key><true/>
+<key>StandardOutPath</key><string>/Users/test/Applications/MultiVenueDesk/logs/asset_info.log</string>
+<key>StandardErrorPath</key><string>/Users/test/Applications/MultiVenueDesk/logs/asset_info.log</string>
+</dict></plist>

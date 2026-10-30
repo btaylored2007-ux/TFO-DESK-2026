@@ -1,0 +1,160 @@
+#!/usr/bin/env python3
+"""ASX UNIVERSE for the 48-72h hunt + event calendar (PAPER ONLY). Brett 2026-10-27 04:2x WITA: all ASX stocks incl. small caps,
+liquidity floor A$5m 20d average daily traded value (same floor applied to US via AUDUSD in event_calendar.gate).
+Same ranker (run_scan.ind/score/weights) as US/Kraken/OANDA. No keys, no brokers, no orders.
+Sources (public): ASX company directory (asx.api.markitdigital.com), Yahoo '.AX' daily bars, ASX prev/today announcements pages
+(price-sensitive flag), ASIC daily aggregated short positions (T+4) as PROXY for the ASX approved short-sell list
+(asx.com.au/data/shortsell.txt is Incapsula-blocked for scripts), yfinance earnings dates for names with events.
+Costs: A$10/side brokerage + 10bp/side slippage + half-tick/side (ASX tick ladder).
+Writes only: state/calendar/inputs/ranked_asx.csv, ranked_asx_report.json, asx_events.json, state/calendar/asx/* cache."""
+import sys, os, io, re, json, time, datetime as dt, html as _html, warnings
+import numpy as np, pandas as pd, requests, yfinance as yf
+from zoneinfo import ZoneInfo
+warnings.filterwarnings("ignore")
+BASE = os.environ.get("DESK_BASE", os.path.dirname(os.path.abspath(__file__)))
+CD = os.path.join(BASE, "state", "calendar"); IN = os.path.join(CD, "inputs"); CACHE = os.path.join(CD, "asx")
+sys.path.insert(0, os.environ.get("RANKER_DIR", os.path.join(CD, "ranker"))); import run_scan as RS
+UA = {"User-Agent": "Mozilla/5.0 (Macintosh) AppleWebKit/537.36 Chrome/128 Safari/537.36"}
+SYD = ZoneInfo("Australia/Sydney"); UTC = dt.timezone.utc
+MIN_ADV_AUD = 2e6; BROKER_AUD_SIDE = 10.0; SLIP_BP_SIDE = 10.0; HOLD_DAYS = 3   # MIN_ADV_AUD: Brett 27 Oct 04:50 WITA ASX-only floor A$2m 20d ADV (US stays A$5m in event_calendar.GATES)
+EXCL_WORDS = ("INDONESIA", "JAKARTA")
+HALT_RE = re.compile(r"trading halt|suspension from (official )?quotation|voluntary suspension", re.I)
+def tick(p): return 0.001 if p < 0.10 else (0.005 if p < 2.0 else 0.01)
+def directory():
+    t = requests.get("https://asx.api.markitdigital.com/asx-research/1.0/companies/directory/file", headers=UA, timeout=40).text
+    d = pd.read_csv(io.StringIO(t)); d.columns = [c.strip() for c in d.columns]
+    d = d.rename(columns={"ASX code": "code", "Company name": "name", "GICs industry group": "gics", "Market Cap": "mcap"})
+    return d[["code", "name", "gics", "mcap"]].dropna(subset=["code"])
+def asic_shorts(maxback=12):
+    """latest ASIC daily aggregated short positions (published T+4). Returns (set(codes), report_date)."""
+    d = dt.date.today()
+    for i in range(maxback):
+        x = d - dt.timedelta(days=i)
+        if x.weekday() >= 5: continue
+        try:
+            r = requests.get(f"https://download.asic.gov.au/short-selling/RR{x:%Y%m%d}-001-SSDailyAggShortPos.csv", headers=UA, timeout=20)
+            if r.status_code == 200 and r.text.startswith("Product"):
+                df = pd.read_csv(io.StringIO(r.text)); return set(df.iloc[:, 1].astype(str).str.strip()), str(x)
+        except Exception: pass
+    return None, None
+def announcements():
+    """ASX prev + today announcement pages -> list of dicts (code, when_utc, price_sensitive, headline)."""
+    out = []
+    for u in ("https://www.asx.com.au/asx/v2/statistics/prevBusDayAnns.do", "https://www.asx.com.au/asx/v2/statistics/todayAnns.do"):
+        try: s = requests.get(u, headers=UA, timeout=40).text
+        except Exception: continue
+        for tr in re.findall(r"<tr[^>]*>(.*?)</tr>", s, re.S):
+            tds = re.findall(r"<td[^>]*>(.*?)</td>", tr, re.S)
+            if len(tds) < 3: continue
+            code = re.sub(r"<[^>]+>", "", tds[0]).strip()
+            if not re.fullmatch(r"[A-Z0-9]{3,6}", code): continue
+            m = re.search(r"(\d{2}/\d{2}/\d{4}).*?(\d{1,2}:\d{2}\s*[ap]m)", re.sub(r"<[^>]+>", " ", tds[1]), re.S)
+            if not m: continue
+            t = dt.datetime.strptime(m.group(1) + " " + m.group(2).replace(" ", ""), "%d/%m/%Y %I:%M%p").replace(tzinfo=SYD).astimezone(UTC)
+            ps = "price-sensitive" in tr or "price sensitive" in tr
+            a = re.search(r"<a[^>]*>(.*?)</a>", tr, re.S); head = _html.unescape(re.sub(r"<[^>]+>|\s+", " ", a.group(1) if a else tds[-1])).strip()
+            head = re.sub(r"\s*(PDF\s*-->|\d+\s*pages?).*$", "", head).strip()[:140]
+            out.append(dict(code=code, when_utc=t.isoformat(), price_sensitive=ps, headline=head))
+    seen, ded = set(), []
+    for a in out:
+        k = (a["code"], a["when_utc"], a["headline"])
+        if k not in seen: seen.add(k); ded.append(a)
+    return ded
+def earnings_dates(codes):
+    out = {}
+    from concurrent.futures import ThreadPoolExecutor
+    def one(c):
+        try:
+            t = yf.Ticker(c + ".AX")
+            try:   # 2026-10-28 Brett: next scheduled report (calendar often holds only the last report)
+                df = t.get_earnings_dates(limit=12); today = dt.datetime.now(UTC).date()
+                fut = sorted(str(x)[:10] for x in (df.index if df is not None else []) if str(x)[:10] >= today.isoformat())
+                if fut: return c, fut[0]
+            except Exception: pass
+            cal = t.calendar or {}
+            ed = cal.get("Earnings Date") if isinstance(cal, dict) else None
+            if ed: return c, str(ed[0])[:10]
+        except Exception: pass
+        return c, None
+    with ThreadPoolExecutor(8) as ex:
+        for c, d in ex.map(one, codes):
+            if d: out[c] = d
+    return out
+def _refill_missing(d, syms):
+    """2026-10-29 gate overlord: yf.download in 300-name threaded chunks silently returns all-NaN for ~600 names
+    (incl. CSL/MQG/QBE/STO/RMD), so they fell out of the universe and pending hunt trades were disarmed 'not in universe'.
+    Retry the empty names in 50-name unthreaded chunks (tested: recovered 598/625). Yahoo stays the source; data only, no gate change."""
+    try:
+        C = d["Close"]; miss = [s for s in syms if s not in C.columns or C[s].notna().sum() < 60]
+        if not miss: return d
+        got = []
+        for i in range(0, len(miss), 50):
+            try:
+                x = yf.download(miss[i:i + 50], period="1y", progress=False, auto_adjust=True, threads=False, group_by="column")
+                if len(x):
+                    if not isinstance(x.columns, pd.MultiIndex): x.columns = pd.MultiIndex.from_product([x.columns, miss[i:i + 50]])
+                    ok = [s for s in x["Close"].columns if x["Close"][s].notna().sum() >= 60]
+                    if ok: got.append(x.loc[:, x.columns.get_level_values(1).isin(ok)])
+            except Exception as e: print("refill err", e)
+            time.sleep(1)
+        if not got: return d
+        g = pd.concat(got, axis=1).reindex(d.index)    # keep the main download's dates (no extra partial-day row)
+        g = g.loc[:, g.columns.get_level_values(0).isin(set(d.columns.get_level_values(0)))]; fixed = set(g.columns.get_level_values(1))
+        d = d.loc[:, ~d.columns.get_level_values(1).isin(fixed)]
+        d = pd.concat([d, g], axis=1); print("refill: recovered %d of %d empty names" % (len(fixed), len(miss)))
+        return d.loc[:, ~d.columns.duplicated()]
+    except Exception as e:
+        print("refill skipped", e); return d
+def main():
+    t0 = time.time(); os.makedirs(CACHE, exist_ok=True); rep = dict(feeds={})
+    D = directory(); rep["feeds"]["asx_directory"] = len(D)
+    D = D[~D.name.str.upper().str.contains("|".join(EXCL_WORDS))]
+    syms = [c + ".AX" for c in D.code]
+    pk = os.path.join(CACHE, f"ohlcv_{dt.date.today()}.pkl")
+    if os.path.exists(pk) and time.time() - os.path.getmtime(pk) < 6 * 3600: d = pd.read_pickle(pk)
+    else: d = RS.dl(syms + ["^AXJO"], "1y", chunk=300); d = _refill_missing(d, syms); d.to_pickle(pk)
+    C, H, L, O, V = d["Close"], d["High"], d["Low"], d["Open"], d["Volume"]
+    adv = (C * V).iloc[-20:].mean(); px = C.ffill().iloc[-1]
+    have = [s for s in syms if s in C.columns and C[s].notna().sum() >= 60]
+    keep = [s for s in have if adv.get(s, 0) >= MIN_ADV_AUD and px.get(s, 0) > 0]
+    rep.update(listed=len(D), with_bars=len(have), adv_ge_2m_aud=len(keep), adv_ge_5m_aud=int(sum(adv.get(s, 0) >= 5e6 for s in keep)), adv_ge_20m_aud=int(sum(adv.get(s, 0) >= 20e6 for s in have)))
+    xjo = C["^AXJO"].dropna(); reg = "long" if xjo.iloc[-1] > xjo.iloc[-50:].mean() else "short"
+    shortable, asic_date = asic_shorts(); rep["feeds"]["asic_short_positions"] = asic_date
+    anns = announcements(); rep["feeds"]["asx_announcements"] = len(anns)
+    halted = {a["code"] for a in anns if HALT_RE.search(a["headline"])}
+    gics = D.set_index("code").gics.to_dict(); names = D.set_index("code").name.to_dict()
+    rows = []
+    for s in keep:
+        try:
+            m = pd.concat([O[s], H[s], L[s], C[s], V[s]], axis=1, keys=list("ohlcv")).dropna(); m = m[(m.h >= m.l) & (m.c > 0)]
+            if len(m) < 60 or m.index[-1].date() < dt.date.today() - dt.timedelta(days=5): continue
+            r = RS.ind(m.o, m.h, m.l, m.c, m.v); mir = RS.ind(1 / m.o, 1 / m.l, 1 / m.h, 1 / m.c, m.v)
+            code = s[:-3]; p = float(r["px"])
+            r["rs20"] = r["roc20"] - (xjo.iloc[-1] / xjo.iloc[-21] - 1) * 100; mir["rs20"] = -r["rs20"]
+            # round-trip cost % (A$ notional assumed ~A$50k typical ticket; refined per ticket in event_calendar.stage_levels)
+            cost = 2 * SLIP_BP_SIDE / 100 + 100 * tick(p) / p + 2 * BROKER_AUD_SIDE / 50000 * 100
+            adv_aud = float(r["adv_usd"])  # bars are AUD -> this is AUD
+            r["adv_usd"] = adv_aud; mir["adv_usd"] = adv_aud   # liq penalty in score() uses 2e7 as in US
+            sl = RS.score(pd.Series(r), cost)[0]; ss = RS.score(pd.Series(mir), cost)[0]
+            can_short = bool(shortable and code in shortable)
+            r.update(sym=s, venue="asx", etf=False, cls="asx_equity", country="Australia", sector=gics.get(code, ""), name=names.get(code, ""),
+                     adv_aud=adv_aud, adv_usd=np.nan, score=sl, short_score=ss, dir=reg, rank_score=(sl if reg == "long" else ss), cost_pct=cost,
+                     tick=tick(p), asx_shortable=can_short, asx_short_src=f"ASIC agg short positions {asic_date} (proxy for ASX approved list)",
+                     excluded=("trading halt/suspension announced" if code in halted else False))
+            rows.append(r)
+        except Exception: pass
+    R = pd.DataFrame(rows)
+    ix = dict(sym="^AXJO", venue="asx", cls="index_ref", px=float(xjo.iloc[-1]), m50=float(xjo.iloc[-50:].mean()), excluded="index reference only", country="Australia")
+    R = pd.concat([R, pd.DataFrame([ix])], ignore_index=True)
+    R.to_csv(os.path.join(IN, "ranked_asx.csv"), index=False)
+    ucodes = {r["sym"][:-3] for r in rows}
+    ev_codes = sorted({a["code"] for a in anns if a["code"] in ucodes and a["price_sensitive"]} | set(R.nlargest(60, "rank_score").sym.str[:-3]) & ucodes)
+    earn = earnings_dates(ev_codes); rep["feeds"]["yf_earnings_dates"] = len(earn)
+    json.dump(dict(generated_utc=dt.datetime.now(UTC).isoformat(), announcements=[a for a in anns if a["code"] in ucodes], earnings=earn,
+                   halted=sorted(halted & ucodes)), open(os.path.join(IN, "asx_events.json"), "w"), indent=1)
+    rep.update(run_at=dt.datetime.now(UTC).isoformat(), scored=len(rows), regime_asx=reg, axjo=float(xjo.iloc[-1]), axjo_50dma=float(xjo.iloc[-50:].mean()),
+               shortable_in_universe=int(sum(r["asx_shortable"] for r in rows)), price_sensitive_anns=int(sum(a["price_sensitive"] and a["code"] in ucodes for a in anns)),
+               halted=sorted(halted & ucodes), runtime_s=round(time.time() - t0, 1), excluded_words=EXCL_WORDS)
+    json.dump(rep, open(os.path.join(IN, "ranked_asx_report.json"), "w"), indent=1, default=str)
+    print(json.dumps({k: v for k, v in rep.items() if k != "halted"}, default=str))
+if __name__ == "__main__": main()

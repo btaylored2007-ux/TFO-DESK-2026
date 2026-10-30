@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- 2026-10-28 Brett 14:58 WITA (pt1624u): ESSENTIALS own mark/fill-staged job (PAPER).
+     Was only inside hourly desk_tick; staged ~A$488k needs next-open fills without waiting
+     an hour. Alarms via state/essentials_alarms.json if ledger >90 min stale.
+     Remove: launchctl bootout gui/$(id -u)/com.tfo.essentials && rm ~/Library/LaunchAgents/com.tfo.essentials.plist -->
+<plist version="1.0"><dict>
+  <key>Label</key><string>com.tfo.essentials</string>
+  <key>ProgramArguments</key><array>
+    <string>/Library/Frameworks/Python.framework/Versions/3.14/bin/python3</string>
+    <string>/Users/test/Applications/MultiVenueDesk/essentials_tick.py</string>
+  </array>
+  <key>WorkingDirectory</key><string>/Users/test/Applications/MultiVenueDesk</string>
+  <key>StartInterval</key><integer>300</integer>
+  <key>RunAtLoad</key><true/>
+  <key>EnvironmentVariables</key><dict>
+    <key>PATH</key><string>/Library/Frameworks/Python.framework/Versions/3.14/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+    <key>PYTHONUNBUFFERED</key><string>1</string>
+  </dict>
+  <key>StandardOutPath</key><string>/Users/test/Applications/MultiVenueDesk/logs/essentials-tick.log</string>
+  <key>StandardErrorPath</key><string>/Users/test/Applications/MultiVenueDesk/logs/essentials-tick.err.log</string>
+</dict></plist>

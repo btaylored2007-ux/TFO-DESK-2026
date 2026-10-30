@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Venue Paper Replica · Trading Desk</title>
+<style>
+  :root{
+    --bg:#0a0710; --panel:#140d1c; --panel2:#1a1124; --line:#2f1f45; --line2:#241733;
+    --fg:#e8dcf7; --dim:#9a86b8; --dim2:#6b5a85; --accent:#a78bfa; --cyan:#22e0d6;
+    --amber:#f0b429; --red:#ff5c6c; --green:#35e08b;
+    --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--mono);font-size:13px;line-height:1.5}
+  header{border-bottom:1px solid var(--line);padding:12px 18px;display:flex;align-items:center;
+         gap:14px;flex-wrap:wrap;position:sticky;top:0;background:var(--bg);z-index:10}
+  h1{font-size:14px;letter-spacing:.18em;margin:0;text-transform:uppercase}
+  .sub{color:var(--dim);font-size:10px;letter-spacing:.1em}
+  .pill{border:1px solid var(--line);border-radius:3px;padding:3px 9px;font-size:10px;
+        letter-spacing:.12em;text-transform:uppercase;color:var(--dim);white-space:nowrap}
+  .pill.ok{border-color:var(--green);color:var(--green)}
+  .pill.warn{border-color:var(--amber);color:var(--amber)}
+  .pill.bad{border-color:var(--red);color:var(--red)}
+  .spacer{flex:1}
+  main{padding:14px 18px 50px;display:grid;gap:14px;grid-template-columns:repeat(auto-fit,minmax(340px,1fr))}
+  section{border:1px solid var(--line);background:var(--panel);border-radius:4px;padding:13px 15px;min-width:0}
+  section.wide{grid-column:1/-1}
+  h2{font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--accent);
+     margin:0 0 11px;font-weight:600;display:flex;justify-content:space-between;align-items:center;gap:8px}
+  h2 .meta{color:var(--dim2);letter-spacing:.06em;text-transform:none;font-weight:400;text-align:right}
+  .kpis{display:grid;gap:10px;grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}
+  .kpi{border:1px solid var(--line2);background:var(--panel2);border-radius:3px;padding:9px 11px}
+  .kpi .lbl{color:var(--dim);font-size:9px;letter-spacing:.13em;text-transform:uppercase}
+  .kpi .val{font-size:19px;margin-top:3px;font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+  .kpi .sub2{color:var(--dim2);font-size:10px}
+  table{width:100%;border-collapse:collapse;font-size:12px}
+  th,td{text-align:left;padding:4px 7px;border-bottom:1px solid var(--line2);white-space:nowrap}
+  th{color:var(--dim);font-weight:500;font-size:9px;letter-spacing:.1em;text-transform:uppercase}
+  td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
+  .neg{color:var(--red)} .pos{color:var(--green)} .dim{color:var(--dim)} .amb{color:var(--amber)}
+  .scroll{overflow-x:auto} .vscroll{max-height:300px;overflow-y:auto}
+  .kv{display:flex;justify-content:space-between;gap:10px;padding:3px 0;border-bottom:1px solid var(--line2)}
+  .kv:last-child{border-bottom:none}
+  .kv span:last-child{font-variant-numeric:tabular-nums}
+  .tag{display:inline-block;border:1px solid var(--line);border-radius:2px;padding:0 5px;
+       font-size:9px;color:var(--dim);margin:1px 3px 1px 0}
+  .tag.cfd{border-color:var(--amber);color:var(--amber)}
+  .tag.blocked{border-color:var(--red);color:var(--red);opacity:.75}
+  .note{color:var(--dim2);font-size:10px;margin-top:9px;line-height:1.6}
+  svg{display:block;width:100%;height:auto}
+  .banner{grid-column:1/-1;border:1px solid var(--amber);border-left-width:3px;
+          background:rgba(240,180,41,.05);padding:10px 14px;border-radius:3px;font-size:11px}
+  .banner b{color:var(--amber);letter-spacing:.09em}
+  .banner p{margin:5px 0 0;color:var(--dim)}
+  .legend{font-size:10px;color:var(--dim);margin-top:8px}
+  .legend i{font-style:normal;margin-right:12px}
+  .empty{color:var(--dim2);padding:14px 0;text-align:center;font-size:11px}
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1 id="hdr-title">Venue Paper Replica</h1>
+    <div class="sub" id="hdr-sub">same strategies · venue costs · simulation only</div>
+  </div>
+  <span class="pill warn" id="p-conn">no broker connection</span>
+  <span class="pill" id="p-costs">costs —</span>
+  <span class="pill" id="p-univ">universe —</span>
+  <span class="pill" id="p-elig">eligibility —</span>
+  <span class="spacer"></span>
+  <span class="pill" id="p-updated">—</span>
+</header>
+
+<main>
+  <div class="banner">
+    <b>SIMULATION — PLACES NO ORDERS, HOLDS NO CREDENTIALS</b>
+    <div class="note" id="banner-api" style="margin-top:4px"></div>
+    <p id="banner-body">No broker account is connected and no authenticated broker call is made —
+       the entire outbound surface is public Kraken market data plus localhost. This desk answers
+       one question: <em>what would these strategies do at the target venue's costs?</em> Cost and
+       listing figures are modelled until replaced with your account's real rates via
+       <code>venue_costs.json</code> / <code>venue_universe.json</code>.</p>
+  </div>
+
+  <section class="wide">
+    <h2>Replica book <span class="meta" id="book-meta"></span></h2>
+    <div class="kpis" id="kpis"><span class="dim">loading…</span></div>
+  </section>
+
+  <section class="wide">
+    <h2>Equity <span class="meta" id="eq-meta"></span></h2>
+    <div id="equity-chart"><span class="dim">loading…</span></div>
+  </section>
+
+  <section>
+    <h2>Where the money goes <span class="meta">cost anatomy</span></h2>
+    <div id="anatomy"><span class="dim">loading…</span></div>
+  </section>
+
+  <section>
+    <h2>Break-even hurdle <span class="meta">gross move needed</span></h2>
+    <div id="hurdle-chart"><span class="dim">loading…</span></div>
+  </section>
+
+  <section class="wide">
+    <h2>Desks &amp; open positions</h2>
+    <div id="desks"><span class="dim">loading…</span></div>
+  </section>
+
+  <section class="wide">
+    <h2>Same strategies, both venues <span class="meta">expectancy per trade</span></h2>
+    <div id="venue-chart"><span class="dim">loading…</span></div>
+  </section>
+
+  <section>
+    <h2>Cost schedule <span class="meta" id="sched-meta"></span></h2>
+    <div class="scroll"><table id="sched">
+      <thead><tr><th>Class</th><th class="num">Round trip</th><th class="num">O/night</th>
+        <th class="num">Max lev</th><th class="num">Min</th></tr></thead>
+      <tbody><tr><td colspan="5" class="dim">loading…</td></tr></tbody>
+    </table></div>
+    <div class="note" id="sched-note">Financing applies only where the venue treats a position as
+      margin/CFD. Spot longs accrue none.</div>
+  </section>
+
+  <section>
+    <h2>Universe coverage <span class="meta" id="cov-meta">what the venue can't trade</span></h2>
+    <div id="coverage"><span class="dim">loading…</span></div>
+  </section>
+
+  <section class="wide">
+    <h2>Closed trades <span class="meta" id="blotter-meta"></span></h2>
+    <div class="scroll vscroll"><table id="blotter">
+      <thead><tr><th>Time</th><th>Desk</th><th>Side</th><th>Symbol</th>
+        <th class="num">Held</th><th class="num">Return</th><th class="num">Gross</th>
+        <th class="num">Costs</th><th class="num">Net</th><th>Reason</th></tr></thead>
+      <tbody><tr><td colspan="10" class="dim">loading…</td></tr></tbody>
+    </table></div>
+  </section>
+</main>
+
+<script>
+const $ = s => document.querySelector(s);
+const num = (n,d=2) => (n===null||n===undefined||isNaN(n)) ? "—" : Number(n).toFixed(d);
+const money = n => (n===null||n===undefined||isNaN(n)) ? "—" : (n<0?"-$":"$")+num(Math.abs(n));
+const cls = n => (n===null||n===undefined||isNaN(n)) ? "" : (n<0?"neg":(n>0?"pos":""));
+const esc = s => String(s??"").replace(/[<>&]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;'}[c]));
+
+async function get(p){ try{ const r=await fetch(p); return r.ok?await r.json():null; }
+                       catch(e){ return null; } }
+
+/* ---------- charts ---------- */
+function lineChart(points,{w=1000,h=180,pad=34,color="var(--accent)",baseline=null}={}){
+  if(!points||points.length<2) return null;
+  const ys=points.map(p=>p[1]);
+  let lo=Math.min(...ys),hi=Math.max(...ys);
+  if(baseline!==null){lo=Math.min(lo,baseline);hi=Math.max(hi,baseline);}
+  if(hi===lo){hi=lo+1;lo=lo-1;}
+  const sp=hi-lo; lo-=sp*.08; hi+=sp*.08;
+  const X=i=>pad+(i/(points.length-1))*(w-pad*2);
+  const Y=v=>h-pad-((v-lo)/(hi-lo))*(h-pad*2);
+  const d=points.map((p,i)=>`${i?"L":"M"}${X(i).toFixed(1)},${Y(p[1]).toFixed(1)}`).join("");
+  const area=d+`L${X(points.length-1).toFixed(1)},${h-pad}L${X(0).toFixed(1)},${h-pad}Z`;
+  const grid=[0,.5,1].map(f=>{const v=lo+(hi-lo)*f,y=Y(v);
+    return `<line x1="${pad}" x2="${w-pad}" y1="${y.toFixed(1)}" y2="${y.toFixed(1)}" stroke="var(--line2)"/>
+      <text x="4" y="${(y+3).toFixed(1)}" fill="var(--dim2)" font-size="10">${num(v,0)}</text>`;}).join("");
+  const base=baseline!==null?`<line x1="${pad}" x2="${w-pad}" y1="${Y(baseline).toFixed(1)}"
+    y2="${Y(baseline).toFixed(1)}" stroke="var(--dim2)" stroke-dasharray="3 3"/>
+    <text x="${w-pad}" y="${(Y(baseline)-5).toFixed(1)}" fill="var(--dim2)" font-size="10"
+     text-anchor="end">start ${num(baseline,0)}</text>`:"";
+  return `<svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" style="height:${h}px">
+    <defs><linearGradient id="ge" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="${color}" stop-opacity=".25"/>
+      <stop offset="100%" stop-color="${color}" stop-opacity="0"/></linearGradient></defs>
+    ${grid}${base}<path d="${area}" fill="url(#ge)"/>
+    <path d="${d}" fill="none" stroke="${color}" stroke-width="1.7" stroke-linejoin="round"/></svg>`;
+}
+
+function stackedBar(parts,{h=26}={}){
+  const tot=parts.reduce((a,p)=>a+Math.abs(p.v),0);
+  if(!tot) return '<div class="empty">nothing paid yet</div>';
+  let x=0,out="";
+  parts.forEach(p=>{ const wpc=Math.abs(p.v)/tot*100;
+    out+=`<rect x="${x}%" y="0" width="${wpc}%" height="${h}" fill="${p.c}" opacity=".85"/>`; x+=wpc; });
+  return `<svg viewBox="0 0 100 ${h}" preserveAspectRatio="none" style="height:${h}px;width:100%">${out}</svg>`;
+}
+
+function hbars(rows,{w=1000,rowH=24,pad=118}={}){
+  if(!rows.length) return '<div class="empty">no data</div>';
+  const hi=Math.max(...rows.map(r=>r.v),0.0001);
+  const h=rows.length*rowH+10;
+  let out="";
+  rows.forEach((r,i)=>{
+    const bw=(r.v/hi)*(w-pad-90), y=i*rowH+4;
+    out+=`<text x="0" y="${y+13}" fill="var(--dim)" font-size="11">${esc(r.label)}</text>
+      <rect x="${pad}" y="${y+3}" width="${Math.max(1,bw).toFixed(1)}" height="${rowH-11}"
+       fill="${r.c||'var(--accent)'}" opacity=".8" rx="1"/>
+      <text x="${(pad+bw+7).toFixed(1)}" y="${y+13}" fill="var(--fg)" font-size="11">${r.txt}</text>`;
+  });
+  return `<svg viewBox="0 0 ${w} ${h}" style="height:${h}px">${out}</svg>`;
+}
+
+function groupedBars(groups,{w=1000,h=200,pad=34}={}){
+  if(!groups.length) return '<div class="empty">no data</div>';
+  const all=groups.flatMap(g=>g.values.map(v=>v.v));
+  let hi=Math.max(...all,0),lo=Math.min(...all,0);
+  if(hi===lo)hi=lo+1;
+  const Y=v=>h-pad-((v-lo)/(hi-lo))*(h-pad*2);
+  const gw=(w-pad*2)/groups.length;
+  let out=`<line x1="${pad}" x2="${w-pad}" y1="${Y(0)}" y2="${Y(0)}" stroke="var(--dim2)"/>`;
+  groups.forEach((g,gi)=>{
+    const bw=Math.min(48,(gw-20)/g.values.length);
+    g.values.forEach((v,vi)=>{
+      const x=pad+gi*gw+(gw-bw*g.values.length)/2+vi*bw, y0=Y(0), y1=Y(v.v);
+      out+=`<rect x="${x.toFixed(1)}" y="${Math.min(y0,y1).toFixed(1)}" width="${(bw-3).toFixed(1)}"
+        height="${Math.abs(y1-y0).toFixed(1)}" fill="${v.c}" opacity=".85"/>
+        <text x="${(x+(bw-3)/2).toFixed(1)}" y="${(v.v>=0?Math.min(y0,y1)-4:Math.max(y0,y1)+13).toFixed(1)}"
+         fill="var(--dim)" font-size="10" text-anchor="middle">${num(v.v,2)}%</text>`;
+    });
+    out+=`<text x="${(pad+gi*gw+gw/2).toFixed(1)}" y="${h-8}" fill="var(--dim)" font-size="11"
+      text-anchor="middle">${esc(g.label)}</text>`;
+  });
+  return `<svg viewBox="0 0 ${w} ${h}" style="height:${h}px">${out}</svg>`;
+}
+
+/* ---------- renderers ---------- */
+const START = 40000*3;   // three desks, 40k each
+
+function renderKpis(led){
+  const desks=Object.values((led||{}).desks||{});
+  if(!desks.length){ $("#kpis").innerHTML='<span class="dim">no ledger — run replica_floor.py</span>'; return; }
+  const realized=desks.reduce((a,d)=>a+(d.realized_pnl||0),0);
+  const unreal=desks.reduce((a,d)=>a+(d.unrealized||0),0);
+  const costs=desks.reduce((a,d)=>a+(d.costs_paid||0),0);
+  const fin=desks.reduce((a,d)=>a+(d.financing_paid||0),0);
+  const open=desks.reduce((a,d)=>a+Object.keys(d.positions||{}).length,0);
+  const closed=desks.reduce((a,d)=>a+(d.closed_trades||[]).length,0);
+  const equity=desks.reduce((a,d)=>a+(d.cash||0)+Object.values(d.positions||{})
+    .reduce((s,p)=>s+(p.cost||0),0),0)+unreal;
+  const total=realized+unreal;
+  const k=[
+    ["Combined equity",money(equity),"start "+money(START)],
+    ["Total P&L",money(total),"net of all venue costs",cls(total)],
+    ["Realized",money(realized),closed+" closed",cls(realized)],
+    ["Unrealized",money(unreal),open+" open",cls(unreal)],
+    ["Costs paid",money(costs),"spread + commission","neg"],
+    ["Financing paid",money(fin),"CFD shorts only","neg"],
+    ["Cost as % of P&L", total!==0?num(Math.abs((costs+fin)/total)*100,0)+"%":"—","drag ratio","amb"],
+    ["Blocked symbols",desks.reduce((a,d)=>Math.max(a,d.rejected_not_listed||0),0),"not listed at venue"],
+  ];
+  $("#kpis").innerHTML=k.map(([l,v,s,c])=>`<div class="kpi"><div class="lbl">${l}</div>
+    <div class="val ${c||""}">${v}</div><div class="sub2">${s||"&nbsp;"}</div></div>`).join("");
+  $("#book-meta").textContent=(led.updated||"");
+}
+
+function renderEquity(eq){
+  const el=$("#equity-chart");
+  if(!eq||!eq.points||eq.points.length<2){
+    el.innerHTML=`<div class="empty">Equity history starts from the first tick — nothing is
+      backfilled, so this fills in as the replica runs.<br>
+      Tick it with <code>python3 replica_floor.py</code>.
+      ${eq&&eq.points&&eq.points.length===1?"<br><br>1 snapshot so far.":""}</div>`;
+    $("#eq-meta").textContent = eq&&eq.points ? eq.points.length+" snapshot(s)" : "";
+    return;
+  }
+  el.innerHTML=lineChart(eq.points,{baseline:START});
+  $("#eq-meta").textContent=`${eq.points.length} snapshots · low ${num(eq.min)} · high ${num(eq.max)}`;
+}
+
+function renderAnatomy(led){
+  const desks=Object.values((led||{}).desks||{});
+  const spread=desks.reduce((a,d)=>a+(d.spread_paid||0),0);
+  const comm=desks.reduce((a,d)=>a+(d.commission_paid||0),0);
+  const fin=desks.reduce((a,d)=>a+(d.financing_paid||0),0);
+  const tot=spread+comm+fin;
+  const parts=[{v:spread,c:"var(--cyan)"},{v:comm,c:"var(--red)"},{v:fin,c:"var(--amber)"}];
+  const pct=v=>tot?num(v/tot*100,1)+"%":"—";
+  $("#anatomy").innerHTML = stackedBar(parts) + `
+    <div class="kv" style="margin-top:10px"><span><i style="color:var(--cyan)">■</i> spread</span>
+      <span>${money(spread)} <span class="dim">${pct(spread)}</span></span></div>
+    <div class="kv"><span><i style="color:var(--red)">■</i> commission</span>
+      <span>${money(comm)} <span class="dim">${pct(comm)}</span></span></div>
+    <div class="kv"><span><i style="color:var(--amber)">■</i> overnight financing</span>
+      <span>${money(fin)} <span class="dim">${pct(fin)}</span></span></div>
+    <div class="kv" style="margin-top:6px"><span>total paid to venue</span>
+      <span class="neg" style="font-size:16px">${money(tot)}</span></div>
+    <div class="note" id="anatomy-note"></div>`;
+}
+
+function renderHurdle(costs){
+  if(!costs||!costs.instrument_classes){ $("#hurdle-chart").innerHTML='<div class="empty">unavailable</div>'; return; }
+  const rows=Object.entries(costs.instrument_classes).map(([n,c])=>{
+    const rt=((c.spread_pct||0)+2*(c.commission_pct||0))*100;
+    return {label:n,v:rt,txt:num(rt,2)+"%",
+            c:rt>2?"var(--red)":rt>0.5?"var(--amber)":"var(--green)"};
+  }).sort((a,b)=>b.v-a.v);
+  $("#hurdle-chart").innerHTML=hbars(rows)+
+    `<div class="note">Gross move a position must capture just to break even, before any
+     financing.</div>`;
+}
+
+function renderDesks(led){
+  const desks=(led||{}).desks||{};
+  if(!Object.keys(desks).length){ $("#desks").innerHTML='<div class="empty">no ledger yet</div>'; return; }
+  let html="";
+  for(const [name,d] of Object.entries(desks)){
+    const pnl=(d.realized_pnl||0)+(d.unrealized||0);
+    const pos=Object.entries(d.positions||{});
+    html+=`<div class="kv" style="margin-top:8px"><span><b>${esc(name)}</b>
+      <span class="dim">· ${d.strat} · ${pos.length} open · ${(d.closed_trades||[]).length} closed
+      · costs ${money((d.costs_paid||0)+(d.financing_paid||0))}</span></span>
+      <span class="${cls(pnl)}" style="font-size:15px">${money(pnl)}</span></div>`;
+    if(pos.length){
+      html+=`<div class="scroll"><table><thead><tr><th>Symbol</th><th>Side</th><th>Class</th>
+        <th class="num">Entry</th><th class="num">Mark</th><th class="num">Gross</th>
+        <th class="num">Financing</th><th class="num">Net uPnL</th></tr></thead><tbody>`;
+      for(const [s,p] of pos){
+        html+=`<tr><td>${esc(s)}${p.is_cfd?'<span class="tag cfd">CFD</span>':''}</td>
+          <td class="dim">${esc(p.side)}</td><td class="dim">${esc(p.instrument_class||"")}</td>
+          <td class="num">${num(p.entry,6)}</td><td class="num">${num(p.mark,6)}</td>
+          <td class="num ${cls(p.gross_upnl)}">${money(p.gross_upnl)}</td>
+          <td class="num neg">${p.accrued_financing?("-"+money(p.accrued_financing).replace("-","")):"$0.00"}</td>
+          <td class="num ${cls(p.upnl)}">${money(p.upnl)}</td></tr>`;
+      }
+      html+=`</tbody></table></div>`;
+    } else html+=`<div class="empty">flat</div>`;
+  }
+  $("#desks").innerHTML=html;
+}
+
+function renderVenue(wall){
+  const res=(wall||{}).results||{};
+  const groups=Object.entries(res).filter(([,r])=>r.gross).map(([n,r])=>({
+    label:n,values:[
+      {v:r.gross.expectancy_pct,c:"var(--dim)"},
+      {v:r.kraken.expectancy_pct,c:"var(--cyan)"},
+      {v:r.venue.expectancy_pct,c:"var(--red)"}]}));
+  $("#venue-chart").innerHTML = groups.length
+    ? groupedBars(groups)+`<div class="legend">
+        <i style="color:var(--dim)">■ gross (zero cost)</i>
+        <i style="color:var(--cyan)">■ net @ Kraken ~30bps</i>
+        <i style="color:var(--red)" id="legend-venue">■ net @ target venue</i></div>
+      <div class="note">Identical trades, identical signals — the only variable is the venue's
+        cost schedule. ${(wall.symbols||[]).length} symbols, ${wall.bars} daily bars.</div>`
+    : '<div class="empty">run <code>python3 cost_wall.py</code></div>';
+}
+
+function applyVenueIdentity(costs){
+  if(!costs) return;
+  const label = costs.venue_label || "target venue";
+  document.title = label + " Paper Replica · Trading Desk";
+  const t=$("#hdr-title"); if(t) t.textContent = label + " Paper Replica";
+  const sub=$("#hdr-sub"); if(sub) sub.textContent =
+    "same strategies · " + label + " costs · simulation only";
+  const conn=$("#p-conn"); if(conn) conn.textContent = "no " + label + " connection";
+  const cov=$("#cov-meta"); if(cov) cov.textContent = "what " + label + " can't trade";
+  const lg=$("#legend-venue"); if(lg) lg.textContent = "■ net @ " + label;
+  const api=$("#banner-api");
+  if(api) api.textContent = costs.venue_api || "";
+  // eligibility is the constraint that actually decides usability
+  const el = costs.eligibility||{}; const parts=[];
+  for(const [j,v] of Object.entries(el))
+    parts.push(j+": "+(v.available===true?"available":v.available===false?"NOT available":v.available));
+  const eg=$("#p-elig");
+  if(eg && parts.length){ eg.textContent = parts.join(" · ");
+    eg.className = "pill " + (Object.values(el).some(v=>v.available===true)?"ok":"warn"); }
+}
+
+function renderSchedule(costs){
+  const tb=$("#sched tbody");
+  if(!costs||!costs.instrument_classes){ tb.innerHTML='<tr><td colspan="5" class="dim">unavailable</td></tr>'; return; }
+  tb.innerHTML=Object.entries(costs.instrument_classes).map(([n,c])=>{
+    const rt=((c.spread_pct||0)+2*(c.commission_pct||0))*100;
+    return `<tr><td>${esc(n)}</td><td class="num neg">${num(rt,2)}%</td>
+      <td class="num">${num(c.overnight_bps_day,1)}bp</td>
+      <td class="num dim">${num(c.max_leverage,0)}x</td>
+      <td class="num dim">$${num(c.min_trade_usd,0)}</td></tr>`;}).join("");
+  const af=costs.account_fees||{};
+  $("#sched-meta").textContent = af.fx_conversion_pct
+    ? `AUD→USD ${num(af.fx_conversion_pct*100,2)}% each way` : "";
+  const v=(costs.verification||"").includes("OPERATOR-VERIFIED");
+  $("#p-costs").textContent=v?"costs verified":"costs modelled";
+  $("#p-costs").className="pill "+(v?"ok":"warn");
+  const u=(costs.universe_verification||"").includes("OPERATOR-VERIFIED");
+  $("#p-univ").textContent=u?"universe verified":"universe estimated";
+  $("#p-univ").className="pill "+(u?"ok":"warn");
+}
+
+function renderCoverage(led){
+  const cov=(led||{}).coverage;
+  if(!cov){ $("#coverage").innerHTML='<div class="empty">no coverage data</div>'; return; }
+  let html="";
+  for(const [pool,c] of Object.entries(cov)){
+    const blocked=Object.keys(c.blocked||{});
+    const pct=c.kraken?Math.round(c.venue/c.kraken*100):0;
+    html+=`<div class="kv"><span>${esc(pool)} pool</span>
+      <span>${c.venue}/${c.kraken} <span class="dim">${pct}%</span></span></div>`;
+    if(blocked.length) html+=`<div style="padding:6px 0 10px">`+
+      blocked.map(s=>`<span class="tag blocked">${esc(s)}</span>`).join("")+`</div>`;
+  }
+  $("#coverage").innerHTML=html+`<div class="note">Symbols the live Kraken engine ranks but
+    the target venue does not list. These strategies cannot be replicated on names that
+    don't exist there.</div>`;
+}
+
+function renderBlotter(led){
+  const tb=$("#blotter tbody"), rows=[];
+  for(const [name,d] of Object.entries((led||{}).desks||{}))
+    for(const t of (d.closed_trades||[])) rows.push({...t,desk:name});
+  rows.sort((a,b)=>String(b.t).localeCompare(String(a.t)));
+  if(!rows.length){ tb.innerHTML='<tr><td colspan="10" class="dim">no closed trades yet — '
+    +'positions are still open or the desk has not ticked</td></tr>'; $("#blotter-meta").textContent=""; return; }
+  tb.innerHTML=rows.slice(0,200).map(r=>`<tr>
+    <td class="dim">${esc(r.t)}</td><td class="dim">${esc(r.desk)}</td>
+    <td class="${r.side==="long"?"pos":"neg"}">${esc(r.side)}</td><td>${esc(r.sym)}</td>
+    <td class="num dim">${num(r.held_days,1)}d</td>
+    <td class="num ${cls(r.ret_pct)}">${num(r.ret_pct,2)}%</td>
+    <td class="num ${cls(r.gross_pnl)}">${money(r.gross_pnl)}</td>
+    <td class="num neg">${money(r.costs)}</td>
+    <td class="num ${cls(r.pnl)}">${money(r.pnl)}</td>
+    <td class="dim">${esc(r.reason)}</td></tr>`).join("");
+  $("#blotter-meta").textContent=rows.length+" trades";
+}
+
+async function refresh(){
+  const [led,wall,costs,eq]=await Promise.all(
+    [get("/ledger"),get("/costwall"),get("/costs"),get("/equity")]);
+  renderKpis(led); renderEquity(eq); renderAnatomy(led); renderHurdle(costs);
+  applyVenueIdentity(costs);
+  renderDesks(led); renderVenue(wall); renderSchedule(costs);
+  renderCoverage(led); renderBlotter(led);
+  $("#p-updated").textContent=new Date().toLocaleTimeString();
+}
+refresh();
+setInterval(refresh,15000);
+</script>
+</body>
+</html>

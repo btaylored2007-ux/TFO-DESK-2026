@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- 2026-10-29 TFO fix (c) 11:41 WITA: universe-rescan hang watchdog (PAPER). Alerts in static/rescan_watchdog_health.json + logs/rescan_watchdog.log;
+     kills only a rescan step with no CPU progress for 10 min (never an engine mid-tick); removes only orphan rescan locks.
+     Remove: launchctl bootout gui/$(id -u)/com.tfo.rescan-watchdog && rm ~/Library/LaunchAgents/com.tfo.rescan-watchdog.plist -->
+<plist version="1.0"><dict>
+  <key>Label</key><string>com.tfo.rescan-watchdog</string>
+  <key>ProgramArguments</key><array>
+    <string>/Library/Frameworks/Python.framework/Versions/3.14/bin/python3</string>
+    <string>/Users/test/Applications/MultiVenueDesk/rescan_watchdog.py</string>
+  </array>
+  <key>WorkingDirectory</key><string>/Users/test/Applications/MultiVenueDesk</string>
+  <key>StartInterval</key><integer>60</integer>
+  <key>RunAtLoad</key><true/>
+  <key>EnvironmentVariables</key><dict><key>PATH</key><string>/Library/Frameworks/Python.framework/Versions/3.14/bin:/usr/bin:/bin:/usr/sbin:/sbin</string></dict>
+  <key>StandardOutPath</key><string>/dev/null</string>
+  <key>StandardErrorPath</key><string>/Users/test/Applications/MultiVenueDesk/logs/rescan_watchdog.err.log</string>
+</dict></plist>

@@ -1,0 +1,59 @@
+/* WAR ROOM ALL MARKETS v1 2026-10-27 (PAPER) - mobile first, one column, big numbers.
+   Beats legacy "body *{font-size:17px!important}" with !important sizes. */
+#h48.wm-top{padding:10px 12px 6px;border-bottom:3px solid #ffd400;max-width:760px;margin:0 auto}
+#h48.wm-top .line{font-size:19px!important}
+#h48.wm-top .sub{font-size:13px!important;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+#h48.wm-top #h48cards,#h48.wm-top details{display:none!important}
+#wc .wm-firm{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin:12px 0 4px}
+#wc .wm-firm>div{background:#161b22;border:1px solid #2a313a;border-radius:14px;padding:10px 12px;min-width:0}
+#wc .wm-firm span,#wc .wm-k span,#wc .wm-k3 span,#wc .wm-gk span{display:block;color:#c9d1d9;font-size:14px!important;font-weight:600}
+#wc .wm-firm b{display:block;font-size:28px!important;font-weight:900;font-variant-numeric:tabular-nums;line-height:1.15;white-space:nowrap;overflow-wrap:normal!important;word-break:normal!important}
+#wc .wm-sm{color:#9aa4af;font-size:13px!important}#wc .wm-sm2{color:#9aa4af;font-size:14px!important;margin:6px 0}
+#wc .wm-groups{display:grid;grid-template-columns:1fr;gap:8px;margin:8px 0}
+#wc .wm-gc{background:#0f1318;border:1px solid #2a313a;border-radius:14px;padding:12px}
+#wc .wm-gn{font-size:18px!important;font-weight:900;margin-bottom:6px;color:#ffd400}
+#wc .wm-gk{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+#wc .wm-gk>div{background:#161b22;border-radius:10px;padding:8px 10px;min-width:0}
+#wc .wm-gk b{display:block;font-size:24px!important;font-weight:900;font-variant-numeric:tabular-nums;white-space:nowrap;overflow-wrap:normal!important;word-break:normal!important}
+#wc .wm-strip{display:flex;gap:6px;overflow-x:auto;padding:8px 0 4px;-webkit-overflow-scrolling:touch;max-width:100%}
+#wc .wm-strip a{flex:0 0 auto;display:flex;align-items:center;gap:6px;background:#161b22;border:1px solid #2a313a;border-radius:999px;padding:7px 12px;color:#f4f6f8;text-decoration:none;font-size:15px!important;font-weight:700}
+#wc .wm-strip i{width:8px;height:8px;border-radius:50%;background:#555}#wc .wm-strip i.on{background:#3d8bff}
+#wc .wm-dot{display:inline-block;width:12px;height:12px;border-radius:50%;vertical-align:middle;flex:0 0 auto}
+#wc .wm-dot.green{background:#3ddc84}#wc .wm-dot.amber{background:#ffb020}#wc .wm-dot.red{background:#ff5c5c}
+#wc .wm-m{padding:14px}
+#wc .wm-h{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+#wc .wm-n{font-size:22px!important;font-weight:900}
+#wc .wm-f{margin-left:auto;display:flex;align-items:center;gap:5px}
+#wc .wm-ch{font-size:14px!important;font-weight:900;padding:4px 12px;border-radius:999px;letter-spacing:.3px}
+#wc .wm-ch.on{background:#3d8bff;color:#fff}#wc .wm-ch.off{background:#30363d;color:#c9d1d9}
+#wc .wm-k{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:10px}
+#wc .wm-k>div,#wc .wm-k3>div{background:#0f1318;border-radius:10px;padding:8px 10px;min-width:0}
+#wc .wm-k b{display:block;font-size:24px!important;font-weight:900;font-variant-numeric:tabular-nums;white-space:nowrap;overflow-wrap:normal!important;word-break:normal!important}
+#wc .wm-k.asia{margin-top:8px}
+#wc .wm-k3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;margin-top:8px}
+#wc .wm-k3 b{display:block;font-size:19px!important;font-weight:900;font-variant-numeric:tabular-nums;white-space:nowrap;overflow-wrap:normal!important;word-break:normal!important}
+#wc .wm-k3 span{font-size:13px!important}
+#wc .wm-line{font-size:17px!important;margin-top:10px}
+#wc .wm-sub{font-size:14px!important;font-weight:800;color:#ffd400;margin:12px 0 4px;text-transform:uppercase;letter-spacing:.4px}
+#wc .wm-arm{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;padding:8px 0;border-top:1px solid #222a33;font-size:17px!important;font-variant-numeric:tabular-nums}
+#wc .wm-arm b{font-size:18px!important;white-space:nowrap}
+#wc .wm-mk{color:#8ab4ff;font-size:14px!important;font-weight:700;margin-top:2px}
+#wc .wm-ro{font-size:12px!important;font-weight:900;background:#30363d;color:#ffd400;border-radius:6px;padding:2px 6px}
+#wc .wm-plr{background:#161b22;border:1px solid #2a313a;border-radius:14px;padding:12px;margin:0 0 8px}
+/* restore WC v1 sizes flattened by legacy mobile rule */
+#wc h1{font-size:24px!important}#wc h2{font-size:21px!important}
+#wc .tk{font-size:26px!important}#wc .pl{font-size:24px!important;white-space:nowrap;overflow-wrap:normal!important;word-break:normal!important}
+#wc .tot .v{font-size:20px!important;white-space:nowrap}#wc .tot .n{font-size:15px!important}#wc .tot .s{font-size:13px!important}
+#wc .g div,#wc .g span,#wc .g b{font-size:16px!important}#wc .g span{font-size:14px!important}#wc .g b{white-space:nowrap;overflow-wrap:normal!important;word-break:normal!important}
+#wc .muted{font-size:14px!important}#wc .bd{font-size:13px!important}#wc .book{font-size:19px!important}
+#wctabs button{font-size:16px!important}
+@media(max-width:360px){#wc .wm-firm b{font-size:23px!important}#wc .wm-k b,#wc .wm-gk b{font-size:20px!important}#wc .wm-k3 b{font-size:16px!important}#wc .tk{font-size:22px!important}#wc .tot .v{font-size:17px!important}}
+
+#wc .wm-hrsline{margin-top:8px;font-size:15px!important;color:#c9d1d9}
+#wc .wm-hrsline b{font-size:18px!important;color:#f4f6f8;font-weight:800;white-space:nowrap}
+#wc .wm-prior{opacity:.7;font-size:12px!important;margin-top:2px}
+/* OANDA STRATEGY LAB card (2026-10-27) */
+#wc .wm-lab .wm-lr{border-top:1px solid rgba(127,127,127,.25);padding:10px 0 6px}
+#wc .wm-lab .wm-ln{display:flex;flex-wrap:wrap;gap:8px;align-items:baseline;font-size:20px!important}
+#wc .wm-lab .wm-ln span{font-size:15px!important;opacity:.8}
+#wc .wm-lab .wm-verdict{font-size:18px!important;font-weight:600;margin:8px 0;line-height:1.35}

@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0"><dict>
+<!-- PAPER ONLY. Daily all-market hunt orchestrator (Brett 2026-10-27 19:38 WITA pt1525u). Every 5 min: spawn due pre-open hunts
+     (times computed per market via zoneinfo, DST-safe), US backup re-slot, plans + War Room status. No live orders, no keys. -->
+<key>Label</key><string>com.tfo.hunt-orch</string>
+<key>ProgramArguments</key><array><string>/Library/Frameworks/Python.framework/Versions/3.14/bin/python3</string><string>-W</string><string>ignore</string><string>hunt_orchestrator.py</string><string>cron</string></array>
+<key>WorkingDirectory</key><string>/Users/test/Applications/MultiVenueDesk</string>
+<key>EnvironmentVariables</key><dict><key>PATH</key><string>/Library/Frameworks/Python.framework/Versions/3.14/bin:/usr/bin:/bin:/usr/sbin:/sbin:/Users/test/.local/bin</string><key>PYTHONUNBUFFERED</key><string>1</string></dict>
+<key>StartInterval</key><integer>300</integer>
+<key>RunAtLoad</key><true/>
+<key>AbandonProcessGroup</key><true/>
+<key>StandardOutPath</key><string>/Users/test/Applications/MultiVenueDesk/state/hunt_orch/launchd.log</string>
+<key>StandardErrorPath</key><string>/Users/test/Applications/MultiVenueDesk/state/hunt_orch/launchd.err</string>
+</dict></plist>

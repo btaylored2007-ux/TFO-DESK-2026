@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0"><dict>
+ <key>Label</key><string>com.tfo.fundamental-rank-rebuild</string>
+ <key>ProgramArguments</key><array>
+  <string>/Library/Frameworks/Python.framework/Versions/3.14/bin/python3</string><string>-W</string><string>ignore</string>
+  <string>/Users/test/Applications/MultiVenueDesk/tools/fundamental_rank_rebuild.py</string></array>
+ <key>WorkingDirectory</key><string>/Users/test/Applications/MultiVenueDesk</string>
+ <key>StartCalendarInterval</key><dict><key>Hour</key><integer>5</integer><key>Minute</key><integer>43</integer></dict>
+ <key>RunAtLoad</key><false/>
+ <key>StandardOutPath</key><string>/Users/test/Applications/MultiVenueDesk/logs/fundamental_rank_rebuild.log</string>
+ <key>StandardErrorPath</key><string>/Users/test/Applications/MultiVenueDesk/logs/fundamental_rank_rebuild.log</string>
+</dict></plist>

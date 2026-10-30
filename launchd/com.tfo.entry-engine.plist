@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- 2026-10-09 TFO entry engine, crypto (research/entry_engine/entry_engine.py scan). PAPER ONLY: Kraken public GET only, NO orders,
+     NO fills, NO ledger writes; desk ledgers are read-only. Writes only state/entry_engine/*, static/entry_engine.json and
+     logs/entry-engine*.log. Every 5 minutes plus at load (~40 paced Kraken public requests, ~20 s); overlapping runs skip under a lock.
+     Thresholds: research/entry_engine/config.json. Docs: research/entry_engine/README.md.
+     Remove: launchctl bootout gui/$(id -u)/com.tfo.entry-engine && rm ~/Library/LaunchAgents/com.tfo.entry-engine.plist -->
+<plist version="1.0"><dict>
+<key>Label</key><string>com.tfo.entry-engine</string>
+<key>ProgramArguments</key><array><string>/Library/Frameworks/Python.framework/Versions/3.14/bin/python3</string><string>research/entry_engine/entry_engine.py</string><string>scan</string></array>
+<key>WorkingDirectory</key><string>/Users/test/Applications/MultiVenueDesk</string>
+<key>StartInterval</key><integer>300</integer>
+<key>RunAtLoad</key><true/>
+<key>EnvironmentVariables</key><dict><key>PATH</key><string>/Library/Frameworks/Python.framework/Versions/3.14/bin:/usr/bin:/bin:/usr/sbin:/sbin</string><key>PYTHONUNBUFFERED</key><string>1</string></dict>
+<key>StandardOutPath</key><string>/Users/test/Applications/MultiVenueDesk/logs/entry-engine.log</string>
+<key>StandardErrorPath</key><string>/Users/test/Applications/MultiVenueDesk/logs/entry-engine.err.log</string>
+</dict></plist>

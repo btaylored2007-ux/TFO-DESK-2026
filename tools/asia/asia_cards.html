@@ -1,0 +1,14 @@
+ <!-- ASIA BOOKS v1 (2026-10-27, PAPER, additive): 5 separate A$1m books jp/hk/sg/kr/tw, read /static/hunt48_<mkt>_status.json only -->
+ <div id="asiabooks" style="max-width:100vw;overflow-x:hidden"><h2>Asia books · A$1m paper each (separate)</h2><div id="asia_cards"></div></div>
+ <script>(function(){const E=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+ const M=[['jp','Japan TSE'],['hk','Hong Kong HKEX'],['sg','Singapore SGX'],['kr','Korea KRX'],['tw','Taiwan TWSE/TPEx']];
+ const box='background:#161b22;border-radius:12px;padding:10px 12px;margin:6px 0;font-size:16px;overflow-wrap:anywhere';
+ const row=t=>`<div style="${box}"><b>${E(t.sym)}</b> ${E(t.name||'')} <span class="tag">${E(t.status)}</span><br>${E(t.direction)} · ${E(t.sector)}<br>trigger ${t.trigger} (max ${t.max_fill}) · stop ${t.stop}<br>T1 ${t.t1} · T2 ${t.t2} · ${t.shares} sh · risk A$${Math.round(t.risk_aud_actual||0)} · cost ${t.cost_R}R${t.bench_note?'<br><span class="lbl">'+E(t.bench_note)+'</span>':''}</div>`;
+ document.getElementById('asia_cards').innerHTML=M.map(([m,n])=>`<div style="${box};border:1px solid #30363d"><div style="font-size:18px;font-weight:600">${n}</div><div class="lbl" id="as_${m}_sum">Loading…</div><div id="as_${m}_arm"></div><details><summary style="font-size:16px;cursor:pointer;margin:8px 0">Bench</summary><div id="as_${m}_bench"></div></details></div>`).join('');
+ function r(){M.forEach(([m,n])=>fetch(`/static/hunt48_${m}_status.json?t=`+Date.now()).then(x=>x.json()).then(s=>{const c=s.counts||{},u=s.universe||{},cl=s.clearance||{};
+  document.getElementById(`as_${m}_sum`).innerHTML=[`${s.long_only?'LONG-ONLY':'long/short (confirmed borrow)'} · ${E(s.hours_wita)}`,`Universe ${u.listed??'-'} listed · ${u.passing_floor??'-'} pass ${E(s.liquidity_floor_label)}`,
+   `Clearance ${E(cl.date_wita||'-')}: ${(cl.desk_pass||[]).length} PASS / ${(cl.desk_fail||[]).length} FAIL (GPT/Claude pending)`,`Equity A$${Math.round(s.equity_aud).toLocaleString('en-AU')} · ${s.slots_used}/${s.max_open} slots · ${c.FILLED||0} in trade · ${c.ARMED||0} armed · ${c.BENCH||0} bench · ${c.CLOSED||0} closed (net A$${s.net_aud_closed})`,
+   `${E(s.index)} regime ${E(s.regime)} · updated ${E(s.updated_wita)}`].map(E2=>`<div>${E2}</div>`).join('');
+  document.getElementById(`as_${m}_arm`).innerHTML=(s.armed||[]).map(row).join('')||'<div class="lbl">Nothing armed (flat).</div>';
+  document.getElementById(`as_${m}_bench`).innerHTML=(s.bench||[]).map(row).join('')||'<div class="lbl">Bench empty.</div>';
+ }).catch(e=>{document.getElementById(`as_${m}_sum`).textContent=n+' book not built yet / unavailable'}))}r();setInterval(r,120000)})();</script>

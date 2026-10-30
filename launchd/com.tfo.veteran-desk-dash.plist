@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>KeepAlive</key>
+	<true/>
+	<key>Label</key>
+	<string>com.tfo.veteran-desk-dash</string>
+	<key>ProgramArguments</key>
+	<array>
+		<string>/Library/Frameworks/Python.framework/Versions/3.14/bin/python3</string>
+		<string>/Users/test/Applications/MultiVenueDesk/veteran_desk/dash_server.py</string>
+	</array>
+	<key>RunAtLoad</key>
+	<true/>
+	<key>StandardErrorPath</key>
+	<string>/Users/test/Applications/MultiVenueDesk/logs/veteran_desk_dash.log</string>
+	<key>StandardOutPath</key>
+	<string>/Users/test/Applications/MultiVenueDesk/logs/veteran_desk_dash.log</string>
+	<key>WorkingDirectory</key>
+	<string>/Users/test/Applications/MultiVenueDesk</string>
+</dict>
+</plist>

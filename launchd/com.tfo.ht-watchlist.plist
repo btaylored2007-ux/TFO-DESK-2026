@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>Label</key>
+	<string>com.tfo.ht-watchlist</string>
+	<!-- com.tfo.ht-equity-rails plist was not in the V1 source tarball, so python is /usr/bin/env python3.
+	     PATH puts the desk's python.org 3.14 first (same PATH as the com.tfo.v2-* plists) so env resolves to
+	     the interpreter that has yfinance, not the bare /usr/bin/python3 stub. -->
+	<key>ProgramArguments</key>
+	<array>
+		<string>/usr/bin/env</string>
+		<string>python3</string>
+		<string>/Users/test/Applications/MultiVenueDesk/tfo_watchlist.py</string>
+		<string>tick</string>
+	</array>
+	<key>EnvironmentVariables</key>
+	<dict>
+		<key>PATH</key>
+		<string>/Library/Frameworks/Python.framework/Versions/3.14/bin:/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+		<key>PYTHONUNBUFFERED</key>
+		<string>1</string>
+	</dict>
+	<key>WorkingDirectory</key>
+	<string>/Users/test/Applications/MultiVenueDesk</string>
+	<key>StartInterval</key>
+	<integer>300</integer>
+	<key>RunAtLoad</key>
+	<true/>
+	<key>ProcessType</key>
+	<string>Background</string>
+	<key>StandardOutPath</key>
+	<string>/Users/test/Applications/MultiVenueDesk/reports/logs/ht_watchlist.log</string>
+	<key>StandardErrorPath</key>
+	<string>/Users/test/Applications/MultiVenueDesk/reports/logs/ht_watchlist.log</string>
+</dict>
+</plist>

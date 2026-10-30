@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key><string>com.tfo.dot-feed</string>
+  <key>ProgramArguments</key><array><string>/Library/Frameworks/Python.framework/Versions/3.14/bin/python3</string><string>/Users/test/Applications/MultiVenueDesk/handover/dot_feed.py</string></array>
+  <key>WorkingDirectory</key><string>/Users/test/Applications/MultiVenueDesk</string>
+  <key>WatchPaths</key><array><string>/Users/test/Applications/MultiVenueDesk/state/entry_engine/latest.md</string></array>
+  <key>StartInterval</key><integer>300</integer>
+  <key>RunAtLoad</key><true/>
+  <key>StandardOutPath</key><string>/Users/test/Applications/MultiVenueDesk/handover/dot_feed/dot_feed.log</string>
+  <key>StandardErrorPath</key><string>/Users/test/Applications/MultiVenueDesk/handover/dot_feed/dot_feed.log</string>
+</dict>
+</plist>

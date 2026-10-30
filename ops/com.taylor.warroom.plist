@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  ATLAS-authored, 2026-08-16. Supervises the Taylor Family Office war room.
+
+  WHY THIS EXISTS
+  ---------------
+  The war room was served by TWO hand-started, unsupervised processes on port
+  18812, both orphaned to PID 1 with no launchd job:
+
+      pid 48870  Python 3.14 (yfinance present)  --host 100.127.19.45
+      pid 66025  Python 3.9  (NO yfinance)       --host 127.0.0.1
+
+  They rendered DIFFERENT HEADLINES AT THE SAME INSTANT -- $318,943.38 against
+  $314,504.01 -- because each holds its own in-memory price cache, and the 3.9
+  interpreter cannot import yfinance at all, so that process served 58 of 99 rows
+  from marks frozen at its own start time and had no way to know. Which URL you
+  opened decided what the desk was worth.
+
+  Neither was supervised: an orphan that dies stays dead until someone notices.
+
+  This job replaces both with ONE supervised process:
+    * a single interpreter (3.14) that can actually fetch prices
+    * a single in-memory cache, so there is only one answer at any instant
+    * bound to 0.0.0.0, serving loopback and tailscale from the same process
+    * KeepAlive, so it comes back if it dies
+
+  NETWORK EXPOSURE -- READ THIS
+  -----------------------------
+  0.0.0.0 binds EVERY interface, including the local network, and the board has
+  no authentication. It is read-only and paper-only, so the exposure is
+  disclosure of positions and P&L, not control of the desk. This was an explicit
+  operator decision on 2026-08-16. To narrow it back to loopback + tailscale
+  only, change --host to a specific address (the server takes one --host) or run
+  two jobs on distinct labels.
+
+  BLAST RADIUS
+  ------------
+  This machine runs other production desks under com.betfairquant.*,
+  com.local.oanda-*, com.taylor.*, com.tfo.*, com.lsbh.* and
+  com.localskipbinhire.*. This label is com.taylor.warroom and collides with
+  none of them (existing com.taylor.* are familyoffice, tbqdv2.dashboard,
+  tbqdv2.worker).
+
+  It does NOT touch the hourly tick job (com.taylor.familyoffice ->
+  desk_tick.sh), the Kraken engine, the collectors, or anything under
+  autonomous_deploy.py / AUTONOMY_ARMED. It serves a read-only dashboard.
+
+  MANAGE
+  ------
+    launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.taylor.warroom.plist
+    launchctl print     gui/$(id -u)/com.taylor.warroom
+    launchctl bootout   gui/$(id -u)/com.taylor.warroom
+-->
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.taylor.warroom</string>
+
+  <key>ProgramArguments</key>
+  <array>
+    <string>/Library/Frameworks/Python.framework/Versions/3.14/bin/python3</string>
+    <string>command_server.py</string>
+    <string>--port</string>
+    <string>18812</string>
+    <string>--host</string>
+    <string>0.0.0.0</string>
+  </array>
+
+  <key>WorkingDirectory</key>
+  <string>/Users/test/Applications/MultiVenueDesk</string>
+
+  <key>RunAtLoad</key>
+  <true/>
+
+  <key>KeepAlive</key>
+  <true/>
+
+  <!-- Do not hammer the machine if it crashes on start: back off between respawns. -->
+  <key>ThrottleInterval</key>
+  <integer>10</integer>
+
+  <key>StandardOutPath</key>
+  <string>/Users/test/Applications/MultiVenueDesk/logs/warroom.out.log</string>
+  <key>StandardErrorPath</key>
+  <string>/Users/test/Applications/MultiVenueDesk/logs/warroom.err.log</string>
+
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>PYTHONUNBUFFERED</key>
+    <string>1</string>
+    <key>PATH</key>
+    <string>/Library/Frameworks/Python.framework/Versions/3.14/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+  </dict>
+</dict>
+</plist>

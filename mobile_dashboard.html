@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#000000">
+<title>TFO · phone</title>
+<!-- 2026-10-09 phone page rebuilt (dashboard audit). One column, read-only, PAPER ONLY.
+     Feed: /api/m (mobile_api.py) — every figure read from its source file; IBKR is a live TCP probe of the Mac gateway.
+     Previous page: backups/dash_audit_20261009_*/mobile_dashboard.html -->
+<style>
+  :root{--bg:#000;--fg:#fff;--dim:#b8b8b8;--line:#333;--card:#0f0f0f;--up:#3ee07a;--dn:#ff5c5c;--warn:#ffcc33}
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--bg);color:var(--fg);font:18px/1.35 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;-webkit-text-size-adjust:100%}
+  body{max-width:100vw;overflow-x:hidden;overflow-wrap:anywhere;padding:12px 12px calc(24px + env(safe-area-inset-bottom))}
+  header{display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap;margin-bottom:10px}
+  header h1{font-size:20px;margin:0;letter-spacing:.02em}
+  .tag{font-size:13px;font-weight:700;padding:2px 8px;border-radius:6px;background:#222;color:var(--dim)}
+  section{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px;margin:0 0 12px}
+  h2{font-size:14px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--dim);margin:0 0 8px}
+  .big{font-size:34px;font-weight:800;line-height:1.1;word-break:break-word}
+  .mid{font-size:24px;font-weight:800}
+  .row{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:8px 0;border-top:1px solid var(--line)}
+  .row:first-of-type{border-top:0}
+  .row>div:first-child{flex:1 1 auto;min-width:0}
+  .row>.val{flex:0 0 auto}
+  .lbl{font-size:17px;font-weight:700}
+  .sub{font-size:14px;color:var(--dim);overflow-wrap:anywhere}
+  .val{font-size:20px;font-weight:800;text-align:right;white-space:nowrap}
+  .up{color:var(--up)} .dn{color:var(--dn)} .warn{color:var(--warn)}
+  .badge{display:inline-block;font-size:13px;font-weight:800;padding:3px 8px;border-radius:6px;margin-left:6px;vertical-align:middle}
+  .b-OK{background:#0d3d1f;color:var(--up)} .b-HALTED{background:#5a0f0f;color:#fff} .b-KILL-WATCH{background:#5a4a00;color:var(--warn)}
+  .b-STALE,.b-DOWN,.b-UNKNOWN{background:#5a0f0f;color:#fff}
+  .stale{color:var(--dn)!important;font-weight:800}
+  .kv{display:grid;grid-template-columns:1fr auto;gap:4px 10px;font-size:17px;margin-top:8px}
+  .kv span:nth-child(even){text-align:right;font-weight:800;white-space:nowrap}
+  .alert{padding:8px 0;border-top:1px solid var(--line);font-size:15px}
+  .alert:first-child{border-top:0}
+  .err{background:#5a0f0f;color:#fff;padding:10px;border-radius:8px;font-weight:700;margin-bottom:12px;display:none}
+  footer{font-size:13px;color:var(--dim);text-align:center;margin-top:8px}
+</style>
+</head>
+<body>
+<header><h1>TFO desk</h1><span class="tag">PAPER · read-only</span><span class="sub" id="upd">loading…</span></header>
+<div class="err" id="err"></div>
+
+<section id="s-main"><h2>1 · Main book (after fees)</h2><div class="sub">loading…</div></section>
+<section id="s-score"><h2>2 · Today's booked vs $1,000</h2><div class="sub">loading…</div></section>
+<section id="s-sleeves"><h2>3 · Sleeves</h2><div class="sub">loading…</div></section>
+<section id="s-pos"><h2>4 · Open positions</h2><div class="sub">loading…</div></section>
+<section id="s-ee"><h2>5 · Entry engine</h2><div class="sub">loading…</div></section>
+<section id="s-health"><h2>6 · Health</h2><div class="sub">loading…</div></section>
+<footer>Auto-refresh 60 s · dollars vs the desk's own history only · <a href="/warroom" style="color:var(--dim)">War Room</a></footer>
+
+<script>
+(function(){
+  "use strict";
+  function $(id){return document.getElementById(id);}
+  function esc(s){return String(s==null?"":s).replace(/[&<>"]/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c];});}
+  function usd(v,dp,sign){ if(v==null||isNaN(v)) return "—"; dp=dp==null?0:dp;
+    var s=Math.abs(v).toLocaleString("en-US",{minimumFractionDigits:dp,maximumFractionDigits:dp});
+    return (v<0?"−":(sign&&v>0?"+":""))+"$"+s; }
+  function aud(v,dp,sign){ return usd(v,dp,sign).replace("$","A$"); }
+  function cls(v){ return v==null?"":(v>=0?"up":"dn"); }
+  function badge(b){ b=b||"UNKNOWN"; return '<span class="badge b-'+esc(b)+'">'+esc(b)+'</span>'; }
+  function ago(s){ if(s==null) return "?"; if(s<90) return s+" s ago"; if(s<5400) return Math.round(s/60)+" min ago"; if(s<172800) return (s/3600).toFixed(1)+" h ago"; return (s/86400).toFixed(1)+" d ago"; }
+  function sydNow(){ return new Date().toLocaleString("en-AU",{timeZone:"Australia/Sydney",weekday:"short",day:"2-digit",month:"short",hour:"2-digit",minute:"2-digit",second:"2-digit",hour12:false}); }
+
+  function render(d){
+    var m=d.main||{}, sc=d.scoreboard||{}, files=(d.health||{}).files||[];
+    function fstat(lbl){ for(var i=0;i<files.length;i++) if(files[i].label===lbl) return files[i]; return {}; }
+    var fr=fstat("Firm equity / drawdown");
+    $("s-main").innerHTML='<h2>1 · Main book (after fees)</h2>'+
+      '<div class="big">'+usd(m.equity_net_usd,0)+'</div>'+
+      '<div class="kv">'+
+      '<span>Today (since 09:00)</span><span class="'+cls(m.today_change_usd)+'">'+usd(m.today_change_usd,0,true)+'</span>'+
+      '<span>Drawdown from peak</span><span class="'+cls(m.dd_usd)+'">'+usd(m.dd_usd,0,true)+' ('+(m.dd_pct==null?"—":m.dd_pct+"%")+')</span>'+
+      '<span>Peak</span><span>'+usd(m.peak_usd,0)+'</span>'+
+      '<span>Fees charged to date</span><span>'+usd(m.cum_fee_usd,2)+'</span>'+
+      '<span>Gross equity</span><span>'+usd(m.equity_gross_usd,0)+'</span>'+
+      '</div><div class="sub '+(fr.status==="OK"?"":"stale")+'" style="margin-top:6px">Equity mark '+esc(m.asof_syd||"?")+' Sydney · '+ago(fr.age_s)+(fr.status==="OK"?"":" · STALE")+'</div>';
+
+    $("s-score").innerHTML='<h2>2 · Today\'s booked vs $1,000</h2>'+
+      '<div class="big '+cls(sc.booked_usd)+'">'+usd(sc.booked_usd,0,true)+'</div>'+
+      '<div class="kv">'+
+      '<span>Target today</span><span>$1,000</span>'+
+      '<span>With carry-in</span><span>'+usd(sc.target_with_carry_usd,0)+'</span>'+
+      '<span>Exits today</span><span>'+esc(sc.exits)+' · '+esc(sc.result||"")+'</span>'+
+      '<span>Running total</span><span class="'+cls(sc.cum_booked_usd)+'">'+usd(sc.cum_booked_usd,0,true)+'</span>'+
+      '<span>Running target ('+esc(sc.days)+' days)</span><span>'+usd(sc.cum_target_usd,0)+'</span>'+
+      '</div><div class="sub" style="margin-top:6px">Parallel desk, booked after fees, Sydney day '+esc(sc.syd_day||"")+'</div>';
+
+    $("s-sleeves").innerHTML='<h2>3 · Sleeves</h2>'+(d.sleeves||[]).map(function(s){
+      var v = s.name==="OANDA" ? aud(s.value_aud,0,true) : (s.name==="Parallel Desk" ? usd(s.value_usd,0,true) : usd(s.value_usd,0));
+      var vc = (s.name==="OANDA"||s.name==="Parallel Desk") ? cls(s.name==="OANDA"?s.value_aud:s.value_usd) : "";
+      var extra = s.pnl_usd!=null ? ' · <span class="'+cls(s.pnl_usd)+'">'+usd(s.pnl_usd,0,true)+'</span>' : '';
+      return '<div class="row"><div><div class="lbl">'+esc(s.name)+badge(s.badge)+'</div><div class="sub">'+esc(s.value_label)+extra+' · '+esc(s.detail)+'</div></div><div class="val '+vc+'">'+v+'</div></div>';
+    }).join("");
+
+    var pos=d.positions||[];
+    $("s-pos").innerHTML='<h2>4 · Open positions ('+pos.length+')</h2>'+(pos.length?pos.map(function(p){
+      var pnl = p.book==="OANDA" ? aud(p.pnl_aud,0,true) : usd(p.pnl_usd,0,true);
+      var pv = p.book==="OANDA" ? p.pnl_aud : p.pnl_usd;
+      var st = p.stop_dist_pct==null ? esc(p.stop_note||"no stop") : (p.stop_dist_pct.toFixed(1)+'% to stop');
+      var near = p.stop_dist_pct!=null && p.stop_dist_pct<1.5;
+      return '<div class="row"><div><div class="lbl">'+esc(p.sym)+'</div><div class="sub">'+esc(p.book)+' · <span class="'+(near?"warn":"")+'">'+st+'</span></div></div><div class="val '+cls(pv)+'">'+pnl+'</div></div>';
+    }).join(""):'<div class="sub">No open positions</div>');
+
+    var ee=d.entry_engine||{}, eeF=fstat("Entry engine scan");
+    var pick = ee.pick ? '<div class="mid up">PICK: '+esc(ee.pick.name)+(ee.pick.grade?' ['+esc(ee.pick.grade)+']':'')+'</div><div class="sub">'+esc(ee.pick.text||"")+'</div>'
+                       : '<div class="mid">No pick</div><div class="sub">'+esc(ee.no_pick_reason||"")+'</div>';
+    var al=(ee.alerts||[]);
+    var afl=(ee.auto_fire||{}), afOn=String(afl.state||"").indexOf("ON")===0;  /* 2026-10-09 auto_fire.py status line */
+    pick='<div class="sub" style="margin:0 0 6px"><b style="color:'+(afOn?"#3ee07a":"#ff5c5c")+'">'+esc(afl.line||"Auto-fire: status unavailable")+'</b></div>'+pick;
+    $("s-ee").innerHTML='<h2>5 · Entry engine</h2>'+pick+
+      '<div class="sub '+(eeF.status==="OK"?"":"stale")+'" style="margin:4px 0 8px">Scan '+esc(ee.scan_syd||"?")+' Sydney · '+ago(eeF.age_s)+'</div>'+
+      '<div class="lbl" style="font-size:15px">Last '+Math.min(3,al.length)+' alert'+(al.length===1?"":"s")+' (of '+esc(ee.alerts_total)+')</div>'+
+      (al.length?al.map(function(a){return '<div class="alert"><span class="badge b-KILL-WATCH" style="margin:0 6px 0 0">'+esc(a.grade||"?")+'</span><b>'+esc(a.name)+'</b> · '+esc(a.syd||"")+'<div class="sub">'+esc(a.text)+'</div></div>';}).join(""):'<div class="sub">No alerts</div>');
+
+    var h=d.health||{};
+    function hrow(f){ var bad=f.status!=="OK"; return '<div class="row"><div><div class="lbl '+(bad?"stale":"")+'">'+esc(f.label)+'</div><div class="sub '+(bad?"stale":"")+'">'+
+      [f.asof_syd?esc(f.asof_syd)+' · '+ago(f.age_s):'', esc(f.note||"")].filter(Boolean).join(' · ')+'</div></div><div class="val">'+badge(f.status)+'</div></div>'; }
+    $("s-health").innerHTML='<h2>6 · Health</h2>'+(h.feeds||[]).map(hrow).join("")+
+      '<div class="lbl" style="font-size:14px;color:var(--dim);margin-top:10px">Source files</div>'+(h.files||[]).map(hrow).join("")+
+      '<div class="sub" style="margin-top:8px">Last update '+esc(d.generated_syd||"")+'</div>';
+    $("upd").textContent="updated "+sydNow()+" Sydney";
+    $("err").style.display="none";
+  }
+
+  function load(){
+    var c=new AbortController(); var t=setTimeout(function(){c.abort();},20000);
+    fetch("/api/m",{cache:"no-store",signal:c.signal}).then(function(r){return r.json();}).then(function(d){
+      clearTimeout(t);
+      if(!d||d.status==="UNAVAILABLE"){throw new Error((d&&d.error)||"feed unavailable");}
+      render(d);
+    }).catch(function(e){ clearTimeout(t); var el=$("err"); el.textContent="Feed unreachable ("+(e&&e.message||e)+") — showing last good data; retrying in 60 s"; el.style.display="block"; });
+  }
+  load(); setInterval(load,60000);
+})();
+</script>
+</body>
+</html>

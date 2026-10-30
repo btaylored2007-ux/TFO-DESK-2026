@@ -1,0 +1,74 @@
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Taylor Hedge Fund</title><style>
+body{font-family:-apple-system,system-ui,sans-serif;background:#0d1117;color:#e6edf3;margin:0;padding:12px;max-width:1100px;margin:auto}
+h1{font-size:22px;margin:4px 0}.sub{color:#8b949e;font-size:13px}.big{font-size:46px;font-weight:700}
+.card{background:#161b22;border-radius:12px;padding:14px;margin:10px 0;border-left:6px solid #30363d}
+.green{border-color:#2ea043}.amber{border-color:#d29922}.red{border-color:#f85149}.grey{border-color:#30363d}
+.pos{color:#3fb950}.neg{color:#f85149}.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(310px,1fr));gap:10px}
+.dot{display:inline-block;width:12px;height:12px;border-radius:6px;margin-right:6px}.dot.green{background:#2ea043}.dot.amber{background:#d29922}.dot.red{background:#f85149}.dot.grey{background:#6e7681}
+details summary{cursor:pointer;color:#58a6ff;margin-top:6px}table{border-collapse:collapse;width:100%;font-size:12px}td,th{padding:3px 5px;border-bottom:1px solid #30363d;text-align:left}
+a{color:#58a6ff}.one{font-size:15px;margin:4px 0 0}
+/* tfo_dashaudit_20261030: mobile overflow + leaderboard */
+.card{overflow-wrap:anywhere;min-width:0}.grid{grid-template-columns:repeat(auto-fill,minmax(min(310px,100%),1fr))}details{overflow-x:auto}table{display:block;overflow-x:auto}pre{white-space:pre-wrap}</style></head><body>
+<h1>🏦 Taylor Hedge Fund <span class="sub">PAPER · engine thf-v0 · all times WITA</span></h1>
+<div class="sub" id="links"></div><div id="app">loading…</div>
+<script>
+const W=u=>u?new Date(u).toLocaleString('en-AU',{timeZone:'Asia/Makassar',hour12:false,month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'}):'—';
+const A=v=>v==null?'—':(v<0?'-':'')+'A$'+Math.abs(v).toLocaleString('en-AU',{maximumFractionDigits:0});
+const N=(v,d)=>v==null?d:v;
+const AR=v=>Array.isArray(v)?v:(v==null?[]:(typeof v=='object'?Object.keys(v):[v]));
+const C=v=>v==null?'':v>=0?'pos':'neg';
+const F=(v,d)=>v==null||isNaN(v)?'—':Number(v).toLocaleString('en-AU',{maximumFractionDigits:d==null?2:d});
+const AGE=h=>h==null?'—':(h<24?h.toFixed(1)+'h':(h/24).toFixed(1)+'d');
+function liveTxt(l){if(!l||!l.src)return '';let x=[];if(l.day_pct!=null)x.push('day '+F(l.day_pct,2)+'%');if(l.vol_vs_avg!=null)x.push('day vol so far '+F(l.vol_vs_avg,2)+'× 20d avg');if(l.vol_note)x.push('vol '+l.vol_note);
+if(l.imbalance!=null)x.push('bid/ask imb '+F(l.imbalance,2));if(l.aggressor_buy_pct!=null)x.push('buy aggr '+l.aggressor_buy_pct+'%');if(l.spread_bps!=null)x.push('spread '+F(l.spread_bps,1)+'bp');
+if(l.news&&l.news.n24h==null)x.push('Benzinga: feed gave no answer');else if(l.news)x.push(l.news.n24h?'<b>📰 '+l.news.n24h+' Benzinga 24h</b>: '+(l.news.latest||''):'no Benzinga news 24h');
+if(l.funding_pct!=null)x.push('funding '+F(l.funding_pct,4)+'%');if(l.oi_chg_24h_pct!=null)x.push('OI 24h '+F(l.oi_chg_24h_pct,2)+'%');if(l.liq_24h_usd)x.push('liqs 24h L $'+F(l.liq_24h_usd.longs,0)+' / S $'+F(l.liq_24h_usd.shorts,0));
+if(l.deriv_src&&l.funding_pct==null)x.push(l.deriv_src);return '<div class="sub">live ['+l.src+(l.fetched_utc?' '+W(l.fetched_utc):'')+']: '+(x.join(' · ')||'no fields')+'</div>'}
+function posBlock(v){let o='';const P=v.positions||[],Ar=v.armed||[],Cl=v.closed_today||[];
+o+='<div class="sub" style="margin-top:6px"><b>Open positions ('+P.length+')</b></div>';
+for(const p of P){o+=`<div class="pos-row" style="border-top:1px solid #30363d;padding:4px 0;font-size:13px"><b>${p.ticker}</b> ${p.name?'<span class="sub">'+p.name+'</span>':''} <b class="${p.side=='SHORT'?'neg':'pos'}">${p.side}</b> · ${F(p.units,4)} units · ${A(p.notional_aud)}<br>
+entry ${F(p.entry,4)} → live ${F(p.live,4)} <span class="sub">(${W(p.mark_utc)})</span> · stop ${F(p.stop,4)} · target ${F(p.target,4)}<br>
+<span class="${C(p.upnl_net_aud)}"><b>${A(p.upnl_net_aud)}</b> after fees (${F(p.pct,2)}%, ${F(p.R,2)}R)</span> · in trade ${AGE(p.hours_in)}${p.rail?' · rail '+p.rail:''}${liveTxt(p.live_data)}</div>`}
+if(!P.length)o+='<div class="sub">none</div>';
+if(Ar.length)o+='<div class="sub"><b>Armed orders ('+Ar.length+')</b>: '+Ar.map(a=>a.ticker+' '+a.side+' '+F(a.units,4)+' @ '+F(a.limit,4)+' stop '+F(a.stop,4)+' tgt '+F(a.target,4)+' risk '+A(a.risk_aud)).join('; ')+'</div>';
+o+='<div class="sub"><b>Closed today ('+Cl.length+')</b>'+(Cl.length?': '+Cl.map(c=>c.ticker+' '+c.side+' '+(c.status||'')+' '+(c.pnl_aud!=null?A(c.pnl_aud):'')+(c.R!=null?' '+F(c.R,2)+'R':'')+(c.why?' ('+c.why+')':'')).join('; '):'')+'</div>';
+if(v.error)o+='<div class="sub neg">positions panel error: '+v.error+'</div>';return o}
+function tbl(rows,cols){return '<table><tr>'+cols.map(c=>'<th>'+c[0]+'</th>').join('')+'</tr>'+rows.map(r=>'<tr>'+cols.map(c=>'<td>'+(N(c[1](r),''))+'</td>').join('')+'</tr>').join('')+'</table>'}
+async function go(){try{await go2()}catch(e){document.getElementById('app').innerHTML='<div class="card red">Dashboard render error: '+String(e&&e.message||e)+'</div>'}}
+async function go2(){let s;try{s=await (await fetch('/api/state')).json()}catch(e){document.getElementById('app').innerHTML='<div class="card red">Dashboard cannot reach its data: '+e+'</div>';return}
+document.getElementById('links').innerHTML=`<a href="${s.links.vd_dash}">Veteran Desk dash / leaderboard</a> · <a href="${s.links.war_room}">War Room</a> · built ${W(s.built_utc)}`;
+const t=s.today, h=s.health, br=s.broken||[];
+const hcol=(N(h.engine_age_min,99))>5?'red':(br.some(b=>b.sev=='red')?'amber':'green');
+let o=`<div class="card ${t.today_pnl_aud>=0?'green':'red'}"><div>How are we doing today?</div><div class="big ${C(t.today_pnl_aud)}">${A(t.today_pnl_aud)}</div>
+<p class="one">The whole paper book is ${t.today_pnl_aud>=0?'up':'down'} ${A(Math.abs(t.today_pnl_aud||0))} today; total value ${A(t.equity_aud)} (${A(t.pnl_since_inception_aud)} since start).</p>
+<details><summary>details</summary>THF own fresh paper book (${t.book_id||'?'}: ${t.book_path||''}, seed ${A(t.seed_aud)}, separate from the old Veteran Desk book) · Cash ${A(t.cash_aud)} · book day ${t.day} · book updated ${W(t.book_updated)}</details></div>`;
+o+=`<div class="card ${hcol}"><span class="dot ${hcol}"></span><b>Engine health</b><p class="one">${hcol=='green'?'The engine is running and watching every market.':hcol=='amber'?'The engine is running but something needs a look (see below).':'The engine has stopped checking in — the watchdog should restart it.'}</p>
+<details><summary>details</summary>Engine heartbeat ${h.engine_age_min} min ago, ${N(h.engine.cycles,'-')} cycles since boot, last good cycle ${W(h.engine.last_cycle_ok_utc)}, fails ${N(h.engine.fails,0)}, ${N(h.engine.scored,'-')} scored of ${N((s.coverage.totals||{}).universe,'-')} · watchdog ${h.deadman.state||'?'} (${h.deadman_age_min} min ago) · dash overlord ${h.overlord.state||'?'} (${h.overlord_age_min} min ago)<br>Wakes today ${s.wake_counts.total||0}/${s.caps.total} (max ${s.caps.per_seat}/seat)</details></div>`;
+const lb=s.leaderboard||{};const lr=(lb.rows||[]).slice().sort((a,b)=>(a.rank||99)-(b.rank||99));
+o+=`<div class="card grey" id="leaderboard"><b>Leaderboard</b> <span class="sub">day window from ${lb.window_start_wita||'-'} · as of ${W(lb.asof_utc)}</span>${lr.length?tbl(lr,[['#',r=>r.rank],['seat',r=>r.seat],['day P/L',r=>'<span class="'+C(r.day_pnl_aud)+'">'+A(r.day_pnl_aud)+'</span>'],['WTD',r=>A(r.wtd_pnl_aud)],['since start',r=>A(r.pnl_since_inception_aud)],['equity',r=>A(r.equity_aud)],['open',r=>r.open_trades],['marks',r=>(r.mark_missing||[]).length?'missing '+r.mark_missing.join(','):'ok']]):'<p class="one">No leaderboard rows yet.</p>'}</div>`;
+o+='<h2>Traders</h2><div class="grid">';
+for(const c of s.cards){const b=c.best||{};const st={green:'Has a trade-ready idea',amber:'Has strong ideas, waiting for a safe moment',grey:'Nothing good right now — sitting tight'}[c.status];
+o+=`<div class="card ${c.status}"><b>${c.rank?'#'+c.rank+' ':''}${c.trader}</b> <span class="sub">${c.seat}</span>
+<div class="big ${C(c.day_pnl_aud)}" style="font-size:30px">${A(c.day_pnl_aud)}</div>
+<p class="one"><span class="dot ${c.status}"></span>${st}. Best idea: <b>${b.sym||'—'} ${b.side||''}</b> (${b.grade||'-'}, ${N(b.score,'-')}).</p>
+${posBlock(c.book_view||{})}<details><summary>top 10 · wakes · second looks</summary>${tbl(c.top10||[],[['#',r=>r.rank],['sym',r=>r.sym],['side',r=>r.side],['gr',r=>r.grade],['score',r=>r.score],['exp R',r=>(r.history||{}).exp_R],['size%',r=>(r.history||{}).natural_pct],['open',r=>r.market_open?'✓':'·'],['wake',r=>r.wake_ok?'✓':(r.why_no_wake||'')]])}
+<div class="sub">scanned ${N(c.scanned,'-')} · A ${N(c.n_A,0)} · A+ ${N(c.n_Aplus,0)} · wakes today ${c.wakes_today} · updated ${W(c.updated)}</div>
+${c.open_positions.length?'<div class="sub">book: '+c.open_positions.map(p=>p.ticker+' '+p.side+' '+p.status).join(', ')+'</div>':''}
+${c.last_wake?'<div class="sub">last wake '+c.last_wake.wake_id+' '+(c.last_wake.status||'')+' '+W(c.last_wake.utc)+'</div>':''}
+${c.gpt?'<div class="sub">GPT: '+(c.gpt.status||'')+' — '+JSON.stringify(c.gpt.notes||c.gpt.raw||'').slice(0,400)+'</div>':''}${c.grok?'<div class="sub">Grok: '+(c.grok.status||'')+' — '+JSON.stringify(c.grok.notes||'').slice(0,400)+'</div>':''}</details></div>`}
+o+='</div>';
+o+=`<div class="card ${br.some(b=>b.sev=='red')?'red':br.length?'amber':'green'}"><b>What's broken</b><p class="one">${br.length?br.length+' thing(s) need attention; red ones first.':'Nothing is broken.'}</p>
+<ul>${br.sort((a,b)=>a.sev=='red'?-1:1).map(b=>`<li><span class="dot ${b.sev}"></span>${b.what||b.gap||JSON.stringify(b)}</li>`).join('')}</ul></div>`;
+const cv=s.coverage||{};const bm=cv.by_market||{};
+o+=`<div class="card green"><b>Coverage</b><p class="one">We scan ${N((cv.totals||{}).scored,'-')} of ${Object.values(bm).reduce((a,v)=>a+(v.available||0),0)} instruments across ${Object.keys(bm).length} markets.</p><details><summary>by market</summary>${tbl(Object.entries(bm).map(([k,v])=>({k,...v})),[['market',r=>r.k],['available',r=>r.available],['≥A$500k',r=>r.cleared_A500k],['scored',r=>r.scored],['no data',r=>r.no_data],['stale',r=>r.stale],['no vol',r=>r.no_volume],['filtered',r=>Object.entries(r.filtered||{}).map(([a,b])=>a+':'+b).join(', ')]])}</details></div>`;
+o+=`<div class="card grey"><b>Wakes</b><p class="one">${s.wakes.length} recent engine wakes sent traders an idea to review.</p><details><summary>list</summary>${tbl(s.wakes,[['id',r=>r.wake_id],['seats',r=>AR(r.seats).join(',')],['status',r=>r.status],['when',r=>W(r.utc)],['ideas',r=>[].concat.apply([],Object.values(r.cands||{}).map(AR)).map(x=>Array.isArray(x)?x[0]+' '+x[2]:String(x)).join(', ')]])}</details></div>`;
+o+=`<div class="card grey"><b>Gate overlord</b><p class="one">${(s.gate_overlord.stuck||[]).length} armed orders look stuck; ${(s.gate_overlord.restage||[]).length} flagged for restage.</p><details><summary>details</summary><pre>${JSON.stringify(s.gate_overlord,null,1).slice(0,3000)}</pre></details></div>`;
+document.getElementById('app').innerHTML=o}
+go();setInterval(go,30000);
+
+/* tfo_thfreview_20261030: seat accountability panel */
+setTimeout(function acc(){fetch('/api/state').then(r=>r.json()).then(S=>{var a=S.accountability||{},R=a.rounds||{},P=a.plans||{};var h='<div class="card" id="acc"><h3>Seat accountability (red → stern review + recovery plan to Marcus; red 3 rounds → half risk)</h3>';var ks=Object.keys(R);if(!ks.length)h+='<p>No rounds yet on the fresh THF book.</p>';ks.forEach(function(k){var r=R[k],p=P[k];h+='<div class="sub"><b>'+k+'</b> since start A$'+Math.round(r.inc_aud||0)+' · WTD A$'+Math.round(r.wtd_aud||0)+' · red streak '+(r.red_streak||0)+(r.half_risk?' · <b style="color:#c00">HALF RISK</b>':'')+(p?' · plan '+p.wita+': '+(p.status)+(p.plan?' — '+String(p.plan.mitigation||'').slice(0,160)+' / clawback: '+String(p.plan.clawback_within_rails||'').slice(0,160):''):'')+'</div>'});h+='</div>';var o=document.getElementById('acc');if(o)o.outerHTML=h;else{var d=document.createElement('div');d.innerHTML=h;document.body.appendChild(d.firstChild)}}).catch(function(){});setTimeout(acc,30000)},1500);
+</script><script>/* tfo_review_20261030: per-seat learning stats */
+setTimeout(function ss(){fetch('/api/state',{cache:'no-store'}).then(r=>r.json()).then(S=>{var T=(S.seat_stats||{}).seats||{},ks=Object.keys(T);var h='<section class="card wide" id="seatstats"><h2>Seat learning stats (auto-lesson on every close)</h2>';if(!ks.length)h+='<div class="mut">No closed trades with lessons yet.</div>';else{h+='<div class="tw"><table><tr><th>Seat</th><th class="n">Trades</th><th class="n">Win rate</th><th class="n">Avg R</th><th class="n">Giveback</th><th class="n">Avg slip (bps)</th><th class="n">Fee drag (% gross)</th><th class="n">Net A$</th><th class="n">Overrides</th></tr>';ks.forEach(function(k){var r=T[k];if(!r.trades)return;h+='<tr><td>'+k+'</td><td class="n">'+r.trades+'</td><td class="n">'+Math.round(r.win_rate*100)+'%</td><td class="n">'+r.avg_R+'</td><td class="n">'+Math.round(r.giveback_ratio*100)+'%</td><td class="n">'+r.avg_slippage_bps+'</td><td class="n">'+(r.fee_drag_pct_of_gross==null?'n/a':r.fee_drag_pct_of_gross+'%')+'</td><td class="n">'+Math.round(r.net_aud)+'</td><td class="n">'+r.overrides+'</td></tr>'});h+='</table></div>'}h+='<div class="mut">Updated '+((S.seat_stats||{}).updated_wita||'-')+'</div></section>';var o=document.getElementById('seatstats');if(o)o.outerHTML=h;else{var d=document.createElement('div');d.innerHTML=h;document.body.appendChild(d.firstChild)}}).catch(function(){});setTimeout(ss,30000)},1800);
+</script></body></html>

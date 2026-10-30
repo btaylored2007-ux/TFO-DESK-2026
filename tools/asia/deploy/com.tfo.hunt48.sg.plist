@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0"><dict>
+<key>Label</key><string>com.tfo.hunt48.sg</string>
+<key>ProgramArguments</key><array><string>/bin/bash</string><string>/Users/test/Applications/MultiVenueDesk/state/hunt48_sg/run_sg.sh</string></array>
+<key>StartInterval</key><integer>120</integer><key>RunAtLoad</key><true/>
+<key>StandardOutPath</key><string>/Users/test/Applications/MultiVenueDesk/state/hunt48_sg/tick.log</string>
+<key>StandardErrorPath</key><string>/Users/test/Applications/MultiVenueDesk/state/hunt48_sg/tick.err</string>
+</dict></plist>

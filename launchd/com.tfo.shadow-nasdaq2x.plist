@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- 2026-10-02 SHADOW ledger for avenues candidate #1 "2x Nasdaq combo" (shadow_nasdaq2x.py run). PAPER SHADOW ONLY:
+     no orders, not a desk book, not in firm equity / firm_risk / funder fee. Writes only state/shadow_nasdaq2x.json + _history.csv.
+     Runs after the US close: 06:30, 07:30, 08:30 and 10:30 Sydney (covers AEST/AEDT and US DST shifts; the job is idempotent and
+     only marks sessions whose daily bar is final, i.e. after 16:20 ET), plus at load.
+     Remove: launchctl bootout gui/$(id -u)/com.tfo.shadow-nasdaq2x && rm ~/Library/LaunchAgents/com.tfo.shadow-nasdaq2x.plist -->
+<plist version="1.0"><dict>
+<key>Label</key><string>com.tfo.shadow-nasdaq2x</string>
+<key>ProgramArguments</key><array><string>/Library/Frameworks/Python.framework/Versions/3.14/bin/python3</string><string>shadow_nasdaq2x.py</string><string>run</string></array>
+<key>WorkingDirectory</key><string>/Users/test/Applications/MultiVenueDesk</string>
+<key>StartCalendarInterval</key><array>
+ <dict><key>Hour</key><integer>6</integer><key>Minute</key><integer>30</integer></dict>
+ <dict><key>Hour</key><integer>7</integer><key>Minute</key><integer>30</integer></dict>
+ <dict><key>Hour</key><integer>8</integer><key>Minute</key><integer>30</integer></dict>
+ <dict><key>Hour</key><integer>10</integer><key>Minute</key><integer>30</integer></dict>
+</array>
+<key>RunAtLoad</key><true/>
+<key>StandardOutPath</key><string>/Users/test/Applications/MultiVenueDesk/logs/shadow-nasdaq2x.log</string>
+<key>StandardErrorPath</key><string>/Users/test/Applications/MultiVenueDesk/logs/shadow-nasdaq2x.err.log</string>
+</dict></plist>

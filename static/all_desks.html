@@ -1,0 +1,27 @@
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>TFO · All desks</title>
+<style>body{background:#0d1117;color:#e6edf3;font-family:-apple-system,system-ui,sans-serif;margin:0;padding:10px;font-size:18px;overflow-x:hidden}
+.top{background:#161b22;border-radius:14px;padding:14px;margin-bottom:12px}.big{font-size:20px;font-weight:700;white-space:nowrap}.lbl{color:#8b949e;font-size:15px}
+.row3{display:flex;gap:8px;justify-content:space-between}.row3>div{flex:1;min-width:0}.card{background:#161b22;border-radius:14px;padding:12px;margin:10px 0;border-left:8px solid #8b949e}
+.green{border-left-color:#3fb950}.amber{border-left-color:#d29922}.red{border-left-color:#f85149}.nm{font-size:20px;font-weight:600}.pos{color:#3fb950}.neg{color:#f85149}
+.v{font-size:19px;font-weight:600;white-space:nowrap}.dot{display:inline-block;width:14px;height:14px;border-radius:7px;margin-right:6px}</style></head><body>
+<div class="top"><div class="lbl">FIRM TOTAL · all TFO desks excl. Veteran Desk · PAPER</div>
+<div class="row3" style="margin-top:6px"><div><div class="lbl">Today</div><div class="big" id="tt">—</div></div><div><div class="lbl">Week</div><div class="big" id="tw">—</div></div><div><div class="lbl">Since start</div><div class="big" id="ts">—</div></div></div>
+<div class="lbl" id="meta" style="margin-top:8px">Loading…</div></div><div id="cards"></div>
+<script>
+const E=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const A=x=>x==null||isNaN(x)?'—':(Math.round(x)==0?'':x<0?'−':'+')+'A$'+Math.abs(Math.round(x)).toLocaleString('en-AU');
+const K=x=>x==null||Math.round(x)==0?'':(x<0?'neg':'pos'); const N=x=>x==null?'—':x; const COL={green:'#3fb950',amber:'#d29922',red:'#f85149'};
+function now(){return new Date().toLocaleString('en-AU',{timeZone:'Asia/Makassar',hour:'2-digit',minute:'2-digit',second:'2-digit',day:'2-digit',month:'short'})+' WITA'}
+function set(id,v){const e=document.getElementById(id);e.textContent=A(v);e.className='big '+K(v)}
+function r(){fetch('/api/all_desks?t='+Date.now()).then(x=>x.json()).then(d=>{
+ if(!d.cards){document.getElementById('meta').textContent='Data unavailable';return}
+ set('tt',d.total.pnl_today_aud);set('tw',d.total.pnl_week_aud);set('ts',d.total.pnl_since_start_aud);const m=d.total_missing;
+ document.getElementById('meta').textContent=`${d.total_books} books summed · missing figures today/week/since: ${m.pnl_today_aud}/${m.pnl_week_aud}/${m.pnl_since_start_aud} (not counted) · data ${d.generated_wita||'—'} · page ${now()}`;
+ document.getElementById('cards').innerHTML=d.cards.map(c=>`<div class="card ${c.light}"><div class="nm">${E(c.name)}</div>
+ <div class="lbl"><span class="dot" style="background:${COL[c.light]}"></span>${E(c.why)}${c.in_total?'':' · not in firm total'}</div>
+ <div class="row3" style="margin-top:6px"><div><div class="lbl">Today</div><div class="v ${K(c.today)}">${A(c.today)}</div></div><div><div class="lbl">Week</div><div class="v ${K(c.week)}">${A(c.week)}</div></div><div><div class="lbl">Since start</div><div class="v ${K(c.since)}">${A(c.since)}</div></div></div>
+ <div class="lbl" style="margin-top:4px">Open ${N(c.open)} · Armed ${N(c.armed)}</div></div>`).join('')
+}).catch(e=>{document.getElementById('meta').textContent='Data unavailable · '+now()})}
+r();setInterval(r,60000);
+</script></body></html>

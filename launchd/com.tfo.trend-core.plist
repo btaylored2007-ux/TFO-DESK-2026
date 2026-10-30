@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- 2026-10-28 Brett 14:58 WITA (pt1624u): TREND-CORE own mark/health job (PAPER, path B).
+     Ensures every run writes trend_core_log + health; alarms if >90 min stale; probes
+     rebalance-if-due (2 Nov monthly path + tonight's US-open global reweight after rebook).
+     Existing com.tfo.trend-core-global / trend-core-rebook calendar jobs stay. -->
+<plist version="1.0"><dict>
+  <key>Label</key><string>com.tfo.trend-core</string>
+  <key>ProgramArguments</key><array>
+    <string>/Library/Frameworks/Python.framework/Versions/3.14/bin/python3</string>
+    <string>/Users/test/Applications/MultiVenueDesk/trend_core_tick.py</string>
+  </array>
+  <key>WorkingDirectory</key><string>/Users/test/Applications/MultiVenueDesk</string>
+  <key>StartInterval</key><integer>300</integer>
+  <key>RunAtLoad</key><true/>
+  <key>EnvironmentVariables</key><dict>
+    <key>PATH</key><string>/Library/Frameworks/Python.framework/Versions/3.14/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+    <key>PYTHONUNBUFFERED</key><string>1</string>
+  </dict>
+  <key>StandardOutPath</key><string>/Users/test/Applications/MultiVenueDesk/reports/trend_core_tick.log</string>
+  <key>StandardErrorPath</key><string>/Users/test/Applications/MultiVenueDesk/reports/trend_core_tick.err.log</string>
+</dict></plist>

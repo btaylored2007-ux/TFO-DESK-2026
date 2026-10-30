@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- 2026-10-03 DEEP18 round-3 PAPER forward tests FT1-FT5 (deep18_fwd.py run). SHADOW ONLY: no orders, not a desk book,
+     not in firm equity / firm_risk / funder fee; trend18's ledger is read-only. Writes only state/deep18_fwd/*shadow*.
+     Times are Sydney local (launchd follows the Mac clock, so AEDT from Sun 4 Oct 2026 is automatic):
+       07:40 / 08:40 / 10:40 / 12:40  after the US close (16:00 ET = 07:00 AEDT until US DST ends Sun 1 Nov, then 08:00 AEDT;
+                                      bars count as final from 16:20 ET), the later slots are catch-ups
+       16:45 / 17:45                  after the ASX close (16:00 Sydney; ASX bars final from 16:30) for FT5
+     plus at load. Idempotent: only sessions after each test's last mark are processed, under a file lock.
+     Remove: launchctl bootout gui/$(id -u)/com.tfo.deep18-fwd && rm ~/Library/LaunchAgents/com.tfo.deep18-fwd.plist -->
+<plist version="1.0"><dict>
+<key>Label</key><string>com.tfo.deep18-fwd</string>
+<key>ProgramArguments</key><array><string>/Library/Frameworks/Python.framework/Versions/3.14/bin/python3</string><string>deep18_fwd.py</string><string>run</string></array>
+<key>WorkingDirectory</key><string>/Users/test/Applications/MultiVenueDesk</string>
+<key>StartCalendarInterval</key><array>
+ <dict><key>Hour</key><integer>7</integer><key>Minute</key><integer>40</integer></dict>
+ <dict><key>Hour</key><integer>8</integer><key>Minute</key><integer>40</integer></dict>
+ <dict><key>Hour</key><integer>10</integer><key>Minute</key><integer>40</integer></dict>
+ <dict><key>Hour</key><integer>12</integer><key>Minute</key><integer>40</integer></dict>
+ <dict><key>Hour</key><integer>16</integer><key>Minute</key><integer>45</integer></dict>
+ <dict><key>Hour</key><integer>17</integer><key>Minute</key><integer>45</integer></dict>
+</array>
+<key>RunAtLoad</key><true/>
+<key>EnvironmentVariables</key><dict><key>PATH</key><string>/Library/Frameworks/Python.framework/Versions/3.14/bin:/usr/bin:/bin:/usr/sbin:/sbin</string><key>PYTHONUNBUFFERED</key><string>1</string></dict>
+<key>StandardOutPath</key><string>/Users/test/Applications/MultiVenueDesk/logs/deep18-fwd.log</string>
+<key>StandardErrorPath</key><string>/Users/test/Applications/MultiVenueDesk/logs/deep18-fwd.err.log</string>
+</dict></plist>
