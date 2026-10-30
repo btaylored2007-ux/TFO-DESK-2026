@@ -8,6 +8,6 @@ Clean code-only snapshot for speed work. No ledgers, state, reports, logs, data,
 - `veteran_desk/vd_engine.py` — engine loop
 - `veteran_desk/desk.py` — desk orchestration
 - `veteran_desk/pit.py` — pit / data layer
-- the data build (see `veteran_desk/` data/build modules)
+- `veteran_desk/data_layer.py` — data build
 
 `staging/` and `staged_fixes/` hold in-flight variants of the same files. Original README: `README_ORIGINAL.md`.
