@@ -5,6 +5,7 @@ import datetime as dt, json, os, sys, tempfile
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 from veteran_desk import book as BK
 U = dt.timezone.utc
+_REAL_SESSION = BK.session_open   # captured at import, before other tests replace BK.session_open
 SEED = 500000.0
 
 def _old_gross(p, x, h, au):
@@ -93,30 +94,38 @@ def _tick(path, q, when, bar, au=0.65):
 
 def test_in_session_half_still_books_the_2r_price():
     open_us = dt.datetime(2026, 10, 30, 15, 0, tzinfo=U)   # 11:00 EDT, NYSE open
-    assert BK.session_open("US", open_us)
-    path, q = _book(_veev((open_us - dt.timedelta(hours=2)).isoformat()))
-    D = _tick(path, q, open_us, dict(last=313.0, hi=313.0, lo=312.0))
-    half = [c for c in D["seats"]["healthcare"]["closed"] if c["id"] == "VEEV1-T1"]
-    assert half and half[0]["exit"] == 311.0 and half[0]["exit_reason"] == "rail_2R_scale_out"
-    assert "exit_queued" not in D["seats"]["healthcare"]["positions"]["VEEV1"]
+    saved = BK.session_open; BK.session_open = _REAL_SESSION
+    try:
+        assert BK.session_open("US", open_us)
+        path, q = _book(_veev((open_us - dt.timedelta(hours=2)).isoformat()))
+        D = _tick(path, q, open_us, dict(last=313.0, hi=313.0, lo=312.0))
+        half = [c for c in D["seats"]["healthcare"]["closed"] if c["id"] == "VEEV1-T1"]
+        assert half and half[0]["exit"] == 311.0 and half[0]["exit_reason"] == "rail_2R_scale_out"
+        assert "exit_queued" not in D["seats"]["healthcare"]["positions"]["VEEV1"]
+    finally:
+        BK.session_open = saved
 
 def test_after_close_half_is_queued_and_books_the_next_opens_last():
     shut = dt.datetime(2026, 10, 30, 21, 30, tzinfo=U)   # 17:30 EDT, after the NYSE close
     nxt = dt.datetime(2026, 11, 2, 15, 0, tzinfo=U)      # 10:00 EST Monday
-    assert not BK.session_open("US", shut) and BK.session_open("US", nxt)
-    assert BK._session_closed_for_exit(dict(ticker="VEEV", venue="US"), shut)
-    assert not BK._session_closed_for_exit(dict(ticker="BTC-USD", venue="CRYPTO"), shut)
-    assert not BK._session_closed_for_exit(dict(ticker="EURUSD=X", venue="FX"), shut)
-    path, q = _book(_veev((shut - dt.timedelta(hours=8)).isoformat()))
-    D = _tick(path, q, shut, dict(last=313.0, hi=313.0, lo=312.0))
-    p = D["seats"]["healthcare"]["positions"]["VEEV1"]
-    assert p["status"] == "open" and p["shares"] == 100 and not D["seats"]["healthcare"]["closed"]
-    assert p["exit_queued"]["reason"] == "rail_2R_scale_out" and p["exit_queued"]["px"] == 311.0 and p["exit_queued"]["kind"] == "partial"
-    D = _tick(path, q, nxt, dict(last=313.0, hi=313.2, lo=312.5), au=0.66)
-    half = [c for c in D["seats"]["healthcare"]["closed"] if str(c["id"]).startswith("VEEV1")]
-    assert half and half[0]["exit"] == 313.0 and half[0]["exit"] != 311.0
-    assert D["seats"]["healthcare"]["positions"]["VEEV1"]["shares"] == 50
-    assert D["fx_identity_ok"] is True
-    for B in D["seats"].values():
-        gap = abs(B["fx_identity"]["equity_aud"] - B["fx_identity"]["identity_aud"])
-        assert gap <= 1.0
+    saved = BK.session_open; BK.session_open = _REAL_SESSION
+    try:
+        assert not BK.session_open("US", shut) and BK.session_open("US", nxt)
+        assert BK._session_closed_for_exit(dict(ticker="VEEV", venue="US"), shut)
+        assert not BK._session_closed_for_exit(dict(ticker="BTC-USD", venue="CRYPTO"), shut)
+        assert not BK._session_closed_for_exit(dict(ticker="EURUSD=X", venue="FX"), shut)
+        path, q = _book(_veev((shut - dt.timedelta(hours=8)).isoformat()))
+        D = _tick(path, q, shut, dict(last=313.0, hi=313.0, lo=312.0))
+        p = D["seats"]["healthcare"]["positions"]["VEEV1"]
+        assert p["status"] == "open" and p["shares"] == 100 and not D["seats"]["healthcare"]["closed"]
+        assert p["exit_queued"]["reason"] == "rail_2R_scale_out" and p["exit_queued"]["px"] == 311.0 and p["exit_queued"]["kind"] == "partial"
+        D = _tick(path, q, nxt, dict(last=313.0, hi=313.2, lo=312.5), au=0.66)
+        half = [c for c in D["seats"]["healthcare"]["closed"] if str(c["id"]).startswith("VEEV1")]
+        assert half and half[0]["exit"] == 313.0 and half[0]["exit"] != 311.0
+        assert D["seats"]["healthcare"]["positions"]["VEEV1"]["shares"] == 50
+        assert D["fx_identity_ok"] is True
+        for B in D["seats"].values():
+            gap = abs(B["fx_identity"]["equity_aud"] - B["fx_identity"]["identity_aud"])
+            assert gap <= 1.0
+    finally:
+        BK.session_open = saved

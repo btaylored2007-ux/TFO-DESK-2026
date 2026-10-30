@@ -3,6 +3,7 @@ import datetime as dt, json, os, sys, tempfile
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 from veteran_desk import book as BK, seat_cli as SC
 U = dt.timezone.utc
+_REAL_SESSION = BK.session_open   # captured at import, before other tests replace BK.session_open
 SEED = 500000.0
 SHUT = dt.datetime(2026, 10, 30, 21, 30, tzinfo=U)   # 17:30 EDT, NYSE closed
 OPEN = dt.datetime(2026, 11, 2, 15, 0, tzinfo=U)     # 10:00 EST Monday
@@ -87,16 +88,20 @@ def _tick(path, q, when, bar, au=0.65):
 _BAR = dict(last=103.15, hi=105.2, lo=103.0)
 
 def test_rail_stop_after_the_close_is_queued_for_the_next_open():
-    assert not BK.session_open("US", SHUT) and BK.session_open("US", OPEN)
-    path, q = _book(_rail())
-    D = _tick(path, q, SHUT, _BAR)
-    p = D["seats"]["healthcare"]["positions"]["VEEV1"]
-    assert p["status"] == "open" and p["shares"] == 50 and not D["seats"]["healthcare"]["closed"]
-    assert p["exit_queued"]["reason"] == "rail_stop" and p["exit_queued"]["kind"] == "full"
-    D = _tick(path, q, OPEN, dict(last=104.0, hi=104.2, lo=103.8))
-    assert "VEEV1" not in D["seats"]["healthcare"]["positions"]
-    c = D["seats"]["healthcare"]["closed"][-1]
-    assert c["exit_reason"] == "rail_stop" and c["exit"] == 104.0 and c["exit"] != 103.15
+    saved = BK.session_open; BK.session_open = _REAL_SESSION
+    try:
+        assert not BK.session_open("US", SHUT) and BK.session_open("US", OPEN)
+        path, q = _book(_rail())
+        D = _tick(path, q, SHUT, _BAR)
+        p = D["seats"]["healthcare"]["positions"]["VEEV1"]
+        assert p["status"] == "open" and p["shares"] == 50 and not D["seats"]["healthcare"]["closed"]
+        assert p["exit_queued"]["reason"] == "rail_stop" and p["exit_queued"]["kind"] == "full"
+        D = _tick(path, q, OPEN, dict(last=104.0, hi=104.2, lo=103.8))
+        assert "VEEV1" not in D["seats"]["healthcare"]["positions"]
+        c = D["seats"]["healthcare"]["closed"][-1]
+        assert c["exit_reason"] == "rail_stop" and c["exit"] == 104.0 and c["exit"] != 103.15
+    finally:
+        BK.session_open = saved
 
 def test_crypto_rail_stop_still_books_when_us_is_closed():
     path, q = _book(_rail("CRYPTO", "BTC-USD"), "crypto")
@@ -115,6 +120,30 @@ def test_kill_switch_still_flattens_a_closed_us_name():
     assert D["kill_switch"]["state"] == "FLAT"
     c = D["seats"]["healthcare"]["closed"][-1]
     assert c["exit_reason"] == "kill_switch_flat" and c["exit"] == 100.0 and "VEEV1" not in D["seats"]["healthcare"]["positions"]
+
+def test_hard_stop_and_backstop_book_while_the_venue_is_closed():
+    shut = dt.datetime(2026, 10, 28, 12, 0, tzinfo=U)   # 08:00 New York
+    saved = BK.session_open; BK.session_open = _REAL_SESSION
+    try:
+        assert not BK.session_open("US", shut)
+        filled = (dt.datetime(2026, 10, 28, 18, 45, tzinfo=U) - dt.timedelta(hours=1)).isoformat()
+        def pos(r):
+            return dict(id="P1", seat="energy", ticker="XLE", side="LONG", entry=100.0, fill=100.0, stop=100.0 - r,
+                        initial_stop=100.0 - r, target=100.0 + 5 * r, shares=100, status="open", venue="US", sleeve="core",
+                        cost_aud=0.0, scale_t1=True, off_hours_checked=True, filled_utc=filled, fill_audusd=0.70,
+                        fill_notional_aud=100.0 / 0.70 * 100)
+        path, q = _book(pos(10.0), "energy")
+        D = _tick(path, q, shut, dict(last=94.5, hi=94.6, lo=94.4), au=0.70)
+        c = D["seats"]["energy"]["closed"][-1]
+        assert c["exit_reason"] == "hard_backstop_5pct" and "P1" not in D["seats"]["energy"]["positions"]
+        assert not c.get("exit_queued")
+        path, q = _book(pos(2.0), "energy")
+        D = _tick(path, q, shut, dict(last=97.5, hi=98.5, lo=97.5), au=0.70)
+        c = D["seats"]["energy"]["closed"][-1]
+        assert c["exit_reason"] == "stop" and any(e[1] == "stop" for e in D["last_events"])
+        assert "P1" not in D["seats"]["energy"]["positions"]
+    finally:
+        BK.session_open = saved
 
 def test_legacy_close_without_a_stored_rate_matches_the_old_gross():
     p = dict(ticker="VEEV", side="LONG", fill=10.0, shares=10, venue="US", cost_aud=0.0)

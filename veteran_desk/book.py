@@ -209,7 +209,8 @@ def adv_refresh(p, t, au):
     if v: p["adv_aud"] = v
     p.update(adv_day=dk, adv_try_utc=t.isoformat())
 def _session_closed_for_exit(p, t):
-    """Equities/ETFs/futures do not book exits outside the venue session. Crypto and FX keep trading."""
+    """Equities/ETFs/futures queue heartbeat exits outside the venue session. Crypto and FX keep trading.
+    The hard stop and the -5% hard backstop are not deferred: they still book on this tick."""
     if _is_crypto(p) or is_fx(p): return False
     v = p.get("venue") or P.venue_of(p.get("ticker") or "")
     try: return not session_open(v, t)
@@ -967,7 +968,7 @@ def mark_half_banked(p, t, x, h, why):
     p.update(t1_done=True, t1_utc=t.isoformat(), rail_state="t1_done"); _rlog(p, t, "half_bank", px=x, shares=h, reason=why)
     return p
 RULE_LOG.append(dict(id="tfo_partial_cut_20261030", utc="2026-10-30T21:22:00+00:00", rule="partial_cut is not a half-bank",
-                     text="PAPER. A partial whose exit is not yet at BE+fees in the trade's favour logs partial_cut, keeps the stop and r0, sets shares_orig, and does not set t1_done or move the target to T2. At or beyond BE, the half-bank state still applies. Rail-stop and other heartbeat exits while the venue is closed stay queued for the next open's mark. Crypto, FX, and the kill switch still book immediately. Closed rows are not rewritten."))
+                     text="PAPER. A partial whose exit is not yet at BE+fees in the trade's favour logs partial_cut, keeps the stop and r0, sets shares_orig, and does not set t1_done or move the target to T2. At or beyond BE, the half-bank state still applies. A tightened trail (rail_stop) and other heartbeat exits while the venue is closed stay queued for the next open's mark. The hard stop and the -5% hard backstop still book immediately, as do crypto, FX, and the kill switch. Closed rows are not rewritten."))
 RULE_LOG.append(dict(id="brett_override_20261029_1917", utc="2026-10-29T11:17:00+00:00", wita="19:17 WITA 29 Oct 2026", approved_by="Brett", relayed_by="TFO",
                      words="Arm the grade A's", scope="trim-only: lifts ONLY the soft trim (A+-only new arms) for grade-A setups; every other rail still applies (A$500k liquidity, 5% ADV, 5% cap / A at 2%, stop on every trade, desk + correlated heat, US net beta <= ~US$750k, no levered ETFs, no chase >1% / price not through stop)"))
 RULE_LOG.append(dict(id="tfo_stalefill_20261029_1921", utc="2026-10-29T11:21:00+00:00", wita="19:21 WITA 29 Oct 2026", approved_by="TFO ruling",
@@ -1481,9 +1482,8 @@ def tick(price_fn=None, au=None, queue_path=None):
                 gross, cc = realise(B, p, x, p["shares"], au, marks)
                 p.update(status="closed", exit=x, exit_reason=qe["reason"], closed_utc=t.isoformat(), **_close_pnl(p, gross, cc))
                 B["closed"].append(dict(p)); ev.append((k, qe["reason"], x)); continue
-            if hs:   # rail rule 5: the hard stop wins if hit first (stop as it stood before this bar)
+            if hs:   # rail rule 5: the hard stop wins if hit first (stop as it stood before this bar). Acts while the venue is closed; not queued.
                 x = gap_stop_px(p, _xo, m.get("last"))   # tfo_review_20261030 (GPT HIGH): a gap through the stop fills at the gap price, not the stop
-                if _session_closed_for_exit(p, t): _defer_exit(p, t, k, ev, "stop", x); continue
                 if x != float(p["stop"]):   # gapguard 30 Oct: flag gap-through fills honestly (exit_reason unchanged for consumers)
                     try: _gx = abs(float(p["stop"]) - x) * aud_per_unit(p["ticker"], au) * float(p["shares"])
                     except Exception: _gx = None
@@ -1498,7 +1498,7 @@ def tick(price_fn=None, au=None, queue_path=None):
             if _rg: revguard_emit(seat, k, p, t, _rg); revguard_webhook(seat, k, p, t, _rg); ev.append((k, "revguard_alert", m.get("last")))
             if ff:
                 x = m["last"]
-                if _session_closed_for_exit(p, t): _defer_exit(p, t, k, ev, ff, x); continue
+                if ff != "hard_backstop_5pct" and _session_closed_for_exit(p, t): _defer_exit(p, t, k, ev, ff, x); continue   # -5% backstop still books while closed
                 gross, cc = realise(B, p, x, p["shares"], au, marks); _rlog(p, t, ff, px=x)
                 p.update(status="closed", exit=x, exit_reason=ff, closed_utc=t.isoformat(), **_close_pnl(p, gross, cc))
                 B["closed"].append(dict(p)); ev.append((k, ff, x)); continue
