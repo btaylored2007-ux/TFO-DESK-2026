@@ -208,6 +208,19 @@ def adv_refresh(p, t, au):
     except Exception: v = None
     if v: p["adv_aud"] = v
     p.update(adv_day=dk, adv_try_utc=t.isoformat())
+def _session_closed_for_exit(p, t):
+    """Equities/ETFs/futures do not book exits outside the venue session. Crypto and FX keep trading."""
+    if _is_crypto(p) or is_fx(p): return False
+    v = p.get("venue") or P.venue_of(p.get("ticker") or "")
+    try: return not session_open(v, t)
+    except Exception: return False
+def _defer_exit(p, t, k, ev, reason, px, kind="full", shares=None, post=None):
+    """Remember an exit the heartbeat would have booked after the close. Filled at the next open's mark, not this print."""
+    if p.get("exit_queued"): return True
+    p["exit_queued"] = dict(reason=reason, px=px, kind=kind, shares=shares, post=post, queued_utc=t.isoformat(),
+                            note="session closed — queued for the next open, not booked at the after-hours print")
+    p["exec_note"] = "%s (%s @ %s)" % (p["exit_queued"]["note"], reason, px)
+    ev.append((k, "exit_queued", reason)); return True
 def trigger_hold(p, t):
     """Reason str when profit-side triggers must hold: market closed or mark stale (px_age_min > venue stale limit). None = act."""
     v = p.get("venue")
@@ -988,17 +1001,88 @@ def _initial_stop(p):
     am = p.get("amends") or []
     return float(((am[0].get("old") or {}).get("stop")) if am and (am[0].get("old") or {}).get("stop") is not None else p["stop"])
 def realise(B, p, x, h, au, marks=None):
-    """Book closing h units of p at x into seat cash (FX: P&L only). Returns (gross_aud, exit_cost_aud)."""
+    """Book closing h units of p at x into seat cash (FX: P&L only). Returns (gross_aud, exit_cost_aud).
+    Non-FX gross is the cash result: exit notional at today's AUDUSD minus the AUD fill cost cash was debited
+    (fill_notional_aud, else fill_audusd). price_pnl_aud is the price move at the fill rate; fx_translation_aud
+    is the rest (AUDUSD move on the exit value). No stored fill rate, or a rate that still matches, keeps the old gross exactly."""
     sg = 1 if p["side"] == "LONG" else -1; cc = leg_cost_aud(p, x, h, au, marks, "exit")   # tfo_costmodel_20261030
-    if is_fx(p): qa = quote_to_aud(p["ticker"], au, marks); n = x * h / qa; gross = sg * (x - p["fill"]) * h / qa; B["cash_aud"] += gross - cc
-    else: n = aud(p["ticker"], x, au) * h; B["cash_aud"] += sg * n - cc; gross = sg * (aud(p["ticker"], x, au) - aud(p["ticker"], p["fill"], au)) * h
+    h = float(h)
+    if is_fx(p):
+        qa = quote_to_aud(p["ticker"], au, marks); n = x * h / qa; gross = sg * (x - p["fill"]) * h / qa; B["cash_aud"] += gross - cc
+        price, fx = gross, 0.0
+    else:
+        exit_px = aud(p["ticker"], x, au); fill_px = aud(p["ticker"], p["fill"], au); old_gross = sg * (exit_px - fill_px) * h; exit_n = exit_px * h
+        au_f = p.get("fill_audusd"); sh = float(p.get("shares") or h) or h
+        if p.get("fill_notional_aud") not in (None, ""): fill_n = float(p["fill_notional_aud"]) * h / sh
+        elif au_f not in (None, ""): fill_n = aud(p["ticker"], p["fill"], float(au_f)) * h
+        else: fill_n = old_fill_n
+        true_gross = sg * (exit_n - fill_n)
+        if abs(true_gross - old_gross) < 1e-6: gross, price, fx = old_gross, old_gross, 0.0
+        else:
+            rate = float(au_f) if au_f not in (None, "") else au
+            price = sg * (aud(p["ticker"], x, rate) - aud(p["ticker"], p["fill"], rate)) * h; gross = true_gross; fx = gross - price
+        B["cash_aud"] += sg * exit_n - cc
+    p["_price_pnl_aud"], p["_fx_translation_aud"] = price, fx
     return gross, cc
+def _close_pnl(p, gross, cc, cost=None):
+    """gross/net plus the price vs FX split. Pops the scratch keys so a residual open lot does not keep them."""
+    price = p.pop("_price_pnl_aud", None); fx = p.pop("_fx_translation_aud", None)
+    if cost is None: cost = p.get("cost_aud") or 0
+    d = dict(gross_aud=round(gross, 2), net_aud=round(gross - cost - cc, 2))
+    if price is not None: d["price_pnl_aud"] = round(price, 2); d["fx_translation_aud"] = round(fx or 0.0, 2)
+    return d
 def partial_close(B, p, k, x, h, au, t, reason, suffix, marks=None):
     """Close h of p's shares at x; residual stays open. Appends the closed slice to B['closed']. Returns the slice."""
     gross, cc = realise(B, p, x, h, au, marks); ca = round((p.get("cost_aud") or 0) * h / p["shares"], 2)
-    part = dict(p, id=k + suffix, shares=h, status="closed", exit=x, exit_reason=reason, closed_utc=t.isoformat(), gross_aud=round(gross, 2), net_aud=round(gross - ca - cc, 2), cost_aud=ca)
-    part.pop("rail_log", None); B["closed"].append(part)
+    fn = None
+    if p.get("fill_notional_aud") not in (None, ""):
+        fn = round(float(p["fill_notional_aud"]) * h / p["shares"], 2)
+        p["fill_notional_aud"] = round(float(p["fill_notional_aud"]) - fn, 2)
+    pnl = _close_pnl(p, gross, cc, ca)
+    part = dict(p, id=k + suffix, shares=h, status="closed", exit=x, exit_reason=reason, closed_utc=t.isoformat(), cost_aud=ca, **pnl)
+    if fn is not None: part["fill_notional_aud"] = fn
+    part.pop("rail_log", None); part.pop("exit_queued", None); B["closed"].append(part)
     p.update(shares=(crypto_units(_qty(p) - h) if _is_crypto(p) else int(p["shares"]) - h), cost_aud=round((p.get("cost_aud") or 0) - ca, 2)); return part
+def _signed_fill_basis(p, au):
+    """AUD cash tied up in an open non-FX lot (long positive). FX notional never left cash."""
+    if is_fx(p): return 0.0
+    sg = 1.0 if p.get("side") == "LONG" else -1.0
+    fn = p.get("fill_notional_aud")
+    if fn not in (None, ""): return sg * float(fn)
+    try:
+        au_f = au if p.get("fill_audusd") in (None, "") else float(p["fill_audusd"])
+        return sg * aud(p["ticker"], float(p["fill"]), au_f) * float(p["shares"])
+    except Exception: return 0.0
+def seat_pnl_identity(B, marks, au, equity=None):
+    """Reporting identity. Does not rewrite closed net_aud.
+    seed + sum(closed net) + open MTM + flows + fx restatement == equity within A$1.
+    MTM is mark value minus the AUD actually tied up (fill basis + entry cost still open).
+    Flows are cash that is not trade net and not already inside seed: commission, forfeit, borrow.
+    The restatement plugs legacy closes that translated the fill at the exit AUDUSD."""
+    if equity is None: equity = equity_aud(B, marks or {}, au)
+    seed = float(B.get("seed_aud") or 0); nets = 0.0
+    for c in B.get("closed") or []:
+        if c.get("net_aud") is None or c.get("status") not in (None, "closed"): continue
+        nets += float(c["net_aud"])
+    mtm = borrow = min_b = 0.0
+    for p in (B.get("positions") or {}).values():
+        if p.get("status") != "open": continue
+        px = ((marks or {}).get(p.get("ticker")) or {}).get("last") or p.get("mark") or p.get("fill")
+        mtm += pos_value_aud(p, px, au, marks) - _signed_fill_basis(p, au) - float(p.get("cost_aud") or 0)
+        borrow += float(p.get("borrow_accrued_aud") or 0); min_b += float(p.get("borrow_min_charge_aud_est") or 0)
+    for c in B.get("closed") or []:
+        borrow += float(c.get("borrow_accrued_aud") or 0); min_b += float(c.get("borrow_min_charge_aud_est") or 0)
+    flows = -(float(B.get("commission_expense_aud") or 0) - float(B.get("commission_forfeit_credit_aud") or 0)) - borrow - min_b
+    gap = equity - (seed + nets + mtm + flows); adj = []
+    if abs(gap) >= 0.005:
+        adj.append(dict(kind="fx_translation_restatement", amount_aud=round(gap, 2),
+                        note="reporting only — closed net_aud rows are not rewritten; plugs legacy fills translated at the exit AUDUSD"))
+    after = seed + nets + mtm + flows + sum(a["amount_aud"] for a in adj)
+    return dict(ok=abs(equity - after) <= 1.0, equity_aud=round(equity, 2), seed_aud=round(seed, 2), closed_net_aud=round(nets, 2),
+                mtm_aud=round(mtm, 2), flows_aud=round(flows, 2), fx_translation_gap_aud=round(gap, 2), adjustments=adj,
+                identity_aud=round(after, 2), tolerance_aud=1.0)
+RULE_LOG.append(dict(id="tfo_fx_translation_20261030", utc="2026-10-30T20:53:00+00:00", rule="fx translation + session exit queue",
+                     text="PAPER. Close gross uses the AUD fill cost (fill_notional_aud / fill_audusd), split into price_pnl_aud and fx_translation_aud. Same AUDUSD matches the old gross. Closed rows are not rewritten; seat_pnl_identity adds a reporting fx_translation_restatement so seed + sum(net) + MTM + flows + restatement = equity within A$1 (fx_identity_ok). Heartbeat exits outside the venue session are queued and booked at the next open's mark."))
 def _rlog(p, t, ev, **k):
     p.setdefault("rail_log", []).append(dict(utc=t.isoformat(), ev=ev, **k)); p["rail_log"] = p["rail_log"][-40:]
 def rail_update(p, m, t, atr=None):
@@ -1320,7 +1404,7 @@ def tick(price_fn=None, au=None, queue_path=None):
                 if not is_fx(p) and B["cash_aud"] - (sg * n + n * c) < 0:   # 2026-10-29 cashcheck: off-hours booking already unwound above; reject rebook, never resize
                     p.update(status="cancelled", why="insufficient_cash", rebook_pending=False, exec_note="rebook rejected: insufficient_cash"); B.setdefault("closed", []).append(dict(p, closed_utc=t.isoformat(), exit_reason="insufficient_cash")); ev.append((k, "blocked", "insufficient_cash")); continue
                 B["cash_aud"] -= (n * c) if is_fx(p) else (sg * n + n * c)   # ... and rebook at the first post-open print, costs included
-                p.update(fill=f, filled_utc=t.isoformat(), first_print_asof=fp["asof"], shares=q, cost_aud=round(n * c, 2), fill_notional_aud=n, risk_aud=round(per * q, 2), risk_pct_actual=round(per * q / eqx, 5) if eqx > 0 else None,
+                p.update(fill=f, filled_utc=t.isoformat(), fill_audusd=au, first_print_asof=fp["asof"], shares=q, cost_aud=round(n * c, 2), fill_notional_aud=n, risk_aud=round(per * q, 2), risk_pct_actual=round(per * q / eqx, 5) if eqx > 0 else None,
                          slippage_bps=round((f / p["entry"] - 1) * (1 if L else -1) * 1e4, 1), rebook_pending=False, rebooked_utc=t.isoformat(), rebook_note=rnote, exec_note="rebooked at first print after open")
                 ev.append((k, "rebooked_after_open", f))
             if p["status"] == "armed":
@@ -1361,7 +1445,7 @@ def tick(price_fn=None, au=None, queue_path=None):
                         p.update(status="cancelled", why="insufficient_cash", exec_note=f"{EXEC_TRADER}: insufficient_cash at fill - rejected, not resized"); B.setdefault("closed", []).append(dict(p, closed_utc=t.isoformat(), exit_reason="insufficient_cash")); ev.append((k, "blocked", "insufficient_cash")); continue
                     _pb = (p.get("pre_trade") or {}); _bw = (_pb.get("borrow") or {}) if _pb.get("borrow_estimated") and not L else {}   # borrow 2026-10-29 (TFO 19:31): non-US short, ESTIMATED
                     if _bw: _bc = n * max(float(_bw.get("fee_pa") or 0), .03) * int(_bw.get("min_charge_days") or 3) / 360.0; B["cash_aud"] -= _bc; p.update(borrow_estimated=True, borrow_fee_pa_est=_bw.get("fee_pa"), borrow_min_charge_days=int(_bw.get("min_charge_days") or 3), borrow_min_charge_aud_est=round(_bc, 2))
-                    B["cash_aud"] -= (n * c) if is_fx(p) else (sg * n + n * c); p.update(status="open", fill=f, filled_utc=t.isoformat(), cost_aud=round(n * c, 2), fill_notional_aud=n, slippage_bps=slip, order=ot, order_type=ot, exec_by=EXEC_TRADER, venue_delay_min=venue_delay_min(p.get("venue")), fill_px_age_min=round(_age, 1) if _age is not None else None, stale_limit_min=_lim); ev.append((k, "filled", f))
+                    B["cash_aud"] -= (n * c) if is_fx(p) else (sg * n + n * c); p.update(status="open", fill=f, filled_utc=t.isoformat(), fill_audusd=au, cost_aud=round(n * c, 2), fill_notional_aud=n, slippage_bps=slip, order=ot, order_type=ot, exec_by=EXEC_TRADER, venue_delay_min=venue_delay_min(p.get("venue")), fill_px_age_min=round(_age, 1) if _age is not None else None, stale_limit_min=_lim); ev.append((k, "filled", f))
                     try:   # railfix 2026-10-29 (GC=F): mark + exit-rail state initialised on the fill tick (no stop/target action this bar)
                         s0 = _initial_stop(p); p.update(mark=m["last"], initial_stop=s0, r0=abs(float(f) - s0), peak_fav_R=0.0, rail_state="initial", rail_hwp=float(f), scale_t1=p.get("scale_t1", True)); _rlog(p, t, "state", old=None, new="initial")
                     except Exception: pass
@@ -1377,14 +1461,30 @@ def tick(price_fn=None, au=None, queue_path=None):
             _hold = trigger_hold(p, t)   # stale mark / market closed -> giveback, full-flat (not backstop), revguard held
             _xh, _xl, _xo = post_extremes(m, p.get("filled_utc"))   # tfo_review_20261030 (GPT HIGH): exits only on bars after the fill
             hs = (L and _xl <= p["stop"]) or (not L and _xh >= p["stop"])
+            if p.get("exit_queued") and not _session_closed_for_exit(p, t):
+                qe = p.pop("exit_queued"); x = m.get("last"); post = qe.get("post") or ("half" if qe.get("kind") == "partial" else "full")
+                if qe.get("kind") == "partial":
+                    h = qe.get("shares") or _half(p)
+                    if post == "half": p.setdefault("shares_orig", _qty(p))
+                    partial_close(B, p, k, x, h, au, t, qe["reason"], "-Q", marks)
+                    if post == "quarter":
+                        p.update(t2_done=True, t2_utc=t.isoformat(), rail_state="t2_done"); _rlog(p, t, "quarter_bank", px=x, shares=h, reason=qe["reason"])
+                    elif post == "dex":
+                        p.setdefault("shares_orig", _qty(p) + h); p.update(dex_halfcut_done=True, dex_halfcut_utc=t.isoformat()); _rlog(p, t, "dex_halfcut", px=x, shares=h)
+                    else: mark_half_banked(p, t, x, h, qe["reason"])
+                    ev.append((k, qe["reason"], x)); continue
+                gross, cc = realise(B, p, x, p["shares"], au, marks)
+                p.update(status="closed", exit=x, exit_reason=qe["reason"], closed_utc=t.isoformat(), **_close_pnl(p, gross, cc))
+                B["closed"].append(dict(p)); ev.append((k, qe["reason"], x)); continue
             if hs:   # rail rule 5: the hard stop wins if hit first (stop as it stood before this bar)
                 x = gap_stop_px(p, _xo, m.get("last"))   # tfo_review_20261030 (GPT HIGH): a gap through the stop fills at the gap price, not the stop
+                if _session_closed_for_exit(p, t): _defer_exit(p, t, k, ev, "stop", x); continue
                 if x != float(p["stop"]):   # gapguard 30 Oct: flag gap-through fills honestly (exit_reason unchanged for consumers)
                     try: _gx = abs(float(p["stop"]) - x) * aud_per_unit(p["ticker"], au) * float(p["shares"])
                     except Exception: _gx = None
                     p.update(gap_through=True, stop_level=float(p["stop"]), gap_open=x, gap_extra_loss_aud=round(_gx, 2) if _gx is not None else None); ev.append((k, "stop_gap_through", x))
                 gross, cc = realise(B, p, x, p["shares"], au, marks)
-                p.update(status="closed", exit=x, exit_reason="stop", closed_utc=t.isoformat(), gross_aud=round(gross, 2), net_aud=round(gross - p["cost_aud"] - cc, 2))
+                p.update(status="closed", exit=x, exit_reason="stop", closed_utc=t.isoformat(), **_close_pnl(p, gross, cc))
                 B["closed"].append(dict(p)); ev.append((k, "stop", x)); continue
             if m.get("last") is not None and shadow_old5(p, m["last"], au, marks): p.update(shadow_old5_px=m["last"], shadow_old5_utc=t.isoformat())   # exitC shadow
             ff = full_flat_trigger(p, m.get("last"), au, marks)
@@ -1392,8 +1492,10 @@ def tick(price_fn=None, au=None, queue_path=None):
             _rg = revguard_check(p, m.get("last"), au, marks) if not (ff or _hold) else None   # REVERSAL GUARD alert-only (no order/stop/size change)
             if _rg: revguard_emit(seat, k, p, t, _rg); revguard_webhook(seat, k, p, t, _rg); ev.append((k, "revguard_alert", m.get("last")))
             if ff:
-                x = m["last"]; gross, cc = realise(B, p, x, p["shares"], au, marks); _rlog(p, t, ff, px=x)
-                p.update(status="closed", exit=x, exit_reason=ff, closed_utc=t.isoformat(), gross_aud=round(gross, 2), net_aud=round(gross - p["cost_aud"] - cc, 2))
+                x = m["last"]
+                if _session_closed_for_exit(p, t): _defer_exit(p, t, k, ev, ff, x); continue
+                gross, cc = realise(B, p, x, p["shares"], au, marks); _rlog(p, t, ff, px=x)
+                p.update(status="closed", exit=x, exit_reason=ff, closed_utc=t.isoformat(), **_close_pnl(p, gross, cc))
                 B["closed"].append(dict(p)); ev.append((k, ff, x)); continue
             atr = m.get("atr14")
             if atr is None:   # cached once per WITA day per position
@@ -1412,6 +1514,7 @@ def tick(price_fn=None, au=None, queue_path=None):
                 at2 = r0 and p["peak_fav_R"] >= RAIL_HALF_R and (not ht or (L and x2 < p["target"]) or (not L and x2 > p["target"]))
                 x = round(x2, 6) if at2 else p["target"]; h = _half(p); rsn = "rail_2R_scale_out" if at2 else "target1_scale_out"
                 if bt: x = m["last"]; rsn = bt
+                if _session_closed_for_exit(p, t): _defer_exit(p, t, k, ev, rsn, x, "partial", _half(p), "half"); continue
                 if bt: audit_early_bank(seat, k, p, t, rsn, x, _half(p), p["stop"], round(x2, 6) if not ht else p["target"])
                 p.setdefault("shares_orig", _qty(p)); partial_close(B, p, k, x, h, au, t, rsn, "-T1", marks); t2 = p["fill"] + 2 * (p["target"] - p["fill"])
                 be = p["fill"] + (1 if L else -1) * p["fill"] * rt_rate(p)
@@ -1420,30 +1523,40 @@ def tick(price_fn=None, au=None, queue_path=None):
                 ev.append((k, rsn, x)); half = True
             q2 = None if half else t2_trigger(p, m["last"], au, marks)
             if q2:   # exitC: quarter of ORIGINAL size at net 2R; final quarter keeps trailing (stop tighten-only via rail_update)
-                h2 = crypto_units(orig_shares(p) / 4.0) if _is_crypto(p) else orig_shares(p) // 4; partial_close(B, p, k, m["last"], h2, au, t, q2, "-T2", marks)
+                h2 = crypto_units(orig_shares(p) / 4.0) if _is_crypto(p) else orig_shares(p) // 4
+                if _session_closed_for_exit(p, t): _defer_exit(p, t, k, ev, q2, m["last"], "partial", h2, "quarter"); continue
+                partial_close(B, p, k, m["last"], h2, au, t, q2, "-T2", marks)
                 p.update(t2_done=True, t2_utc=t.isoformat(), rail_state="t2_done"); _rlog(p, t, "quarter_bank", px=m["last"], shares=h2, reason=q2); ev.append((k, q2, m["last"])); half = True
             cur = open_R(p, m["last"])
             gb = r0 and p["peak_fav_R"] >= RAIL_GB_PEAK_R and cur <= RAIL_GB_KEEP * p["peak_fav_R"]
             if gb or thru:   # rail rule 4 giveback flatten / tightened stop already through the last price -> exit residual at the last price
-                x = m["last"]; gross, cc = realise(B, p, x, p["shares"], au, marks); rsn = "giveback" if gb else "rail_stop"
+                x = m["last"]; rsn = "giveback" if gb else "rail_stop"
+                if _session_closed_for_exit(p, t): _defer_exit(p, t, k, ev, rsn, x); continue
+                gross, cc = realise(B, p, x, p["shares"], au, marks)
                 _rlog(p, t, rsn, px=x, open_R=round(cur, 3), peak_fav_R=p["peak_fav_R"])
-                p.update(status="closed", exit=x, exit_reason=rsn, closed_utc=t.isoformat(), gross_aud=round(gross, 2), net_aud=round(gross - p["cost_aud"] - cc, 2))
+                p.update(status="closed", exit=x, exit_reason=rsn, closed_utc=t.isoformat(), **_close_pnl(p, gross, cc))
                 B["closed"].append(dict(p)); ev.append((k, rsn, x)); continue
             if half: continue
             if seat in DEX_SEATS and not p.get("dex_halfcut_done") and not p.get("t1_done") and m.get("last") is not None and not _hold:   # tfo_review_20261030 Dex: < +0.5R net within 2 sessions -> cut to half (once)
                 _nr = net_R(p, float(m["last"]), au, marks); p["dex_peak_net_R"] = round(max(float(p.get("dex_peak_net_R") or -99), _nr), 4)
                 if sessions_since(p.get("filled_utc"), t) >= DEX_HALFCUT_SESSIONS and p["dex_peak_net_R"] < DEX_HALFCUT_R and _can_half(p):
-                    h3 = _half(p); partial_close(B, p, k, m["last"], h3, au, t, "dex_2session_halfcut", "-DXH", marks); p.setdefault("shares_orig", _qty(p) + h3)
+                    h3 = _half(p)
+                    if _session_closed_for_exit(p, t): _defer_exit(p, t, k, ev, "dex_2session_halfcut", m["last"], "partial", h3, "dex"); continue
+                    partial_close(B, p, k, m["last"], h3, au, t, "dex_2session_halfcut", "-DXH", marks); p.setdefault("shares_orig", _qty(p) + h3)
                     p.update(dex_halfcut_done=True, dex_halfcut_utc=t.isoformat()); _rlog(p, t, "dex_halfcut", px=m["last"], shares=h3, peak_net_R=p["dex_peak_net_R"]); ev.append((k, "dex_2session_halfcut", m["last"])); continue
             if time_stop_trigger(p, m, t, au, marks, seat) == "rail_time_stop":   # TIME STOP (Brett 17:44 WITA 29 Oct 'Yes go ahead')
-                x = m["last"]; cf = p["stop"]; audit_early_bank(seat, k, p, t, "rail_time_stop", x, int(p["shares"]), cf, p.get("target"))
+                x = m["last"]; cf = p["stop"]
+                if _session_closed_for_exit(p, t): _defer_exit(p, t, k, ev, "rail_time_stop", x); continue
+                audit_early_bank(seat, k, p, t, "rail_time_stop", x, int(p["shares"]), cf, p.get("target"))
                 gross, cc = realise(B, p, x, p["shares"], au, marks)
                 _rlog(p, t, "rail_time_stop", px=x, ts_peak_net_R=p.get("ts_peak_net_R"), deadline=p.get("time_stop_deadline_utc"))
-                p.update(status="closed", exit=x, exit_reason="rail_time_stop", closed_utc=t.isoformat(), gross_aud=round(gross, 2), net_aud=round(gross - p["cost_aud"] - cc, 2))
+                p.update(status="closed", exit=x, exit_reason="rail_time_stop", closed_utc=t.isoformat(), **_close_pnl(p, gross, cc))
                 B["closed"].append(dict(p)); ev.append((k, "rail_time_stop", x)); continue
             if ht and not p.get("t1_done"):   # exitC: after the half-bank the residual is not closed at T2 price target
-                x = p["target"]; gross, cc = realise(B, p, x, p["shares"], au, marks)
-                p.update(status="closed", exit=x, exit_reason="target", closed_utc=t.isoformat(), gross_aud=round(gross, 2), net_aud=round(gross - p["cost_aud"] - cc, 2))
+                x = p["target"]
+                if _session_closed_for_exit(p, t): _defer_exit(p, t, k, ev, "target", x); continue
+                gross, cc = realise(B, p, x, p["shares"], au, marks)
+                p.update(status="closed", exit=x, exit_reason="target", closed_utc=t.isoformat(), **_close_pnl(p, gross, cc))
                 B["closed"].append(dict(p)); ev.append((k, "target", x))
         for _p in B["positions"].values():
             if _p.get("status") == "closed" and _p.get("closed_utc") == t.isoformat() and _p.get("fill") is not None:
@@ -1459,9 +1572,8 @@ def tick(price_fn=None, au=None, queue_path=None):
             for k, p in list(B["positions"].items()):
                 if p["status"] == "open":
                     m = marks.get(p["ticker"]) or {}; x = m.get("last") or p.get("mark") or p["fill"]; sg = 1 if p["side"] == "LONG" else -1
-                    if is_fx(p): qa = quote_to_aud(p["ticker"], au, marks); n = x * p["shares"] / qa; cc = leg_cost_aud(p, x, p["shares"], au, marks, "exit"); gross = sg * (x - p["fill"]) * p["shares"] / qa; B["cash_aud"] += gross - cc
-                    else: n = aud(p["ticker"], x, au) * p["shares"]; cc = leg_cost_aud(p, x, p["shares"], au, marks, "exit"); B["cash_aud"] += sg * n - cc; gross = sg * (aud(p["ticker"], x, au) - aud(p["ticker"], p["fill"], au)) * p["shares"]
-                    p.update(status="closed", exit=x, exit_reason="kill_switch_flat", closed_utc=t.isoformat(), gross_aud=round(gross, 2), net_aud=round(gross - p["cost_aud"] - cc, 2)); B["closed"].append(dict(p))
+                    gross, cc = realise(B, p, x, p["shares"], au, marks)
+                    p.update(status="closed", exit=x, exit_reason="kill_switch_flat", closed_utc=t.isoformat(), **_close_pnl(p, gross, cc)); B["closed"].append(dict(p))
                 elif p["status"] == "armed": p["status"] = "expired"
             B["positions"] = {k: p for k, p in B["positions"].items() if p["status"] in ("armed", "open")}
         ks = dict(state="FLAT", at_utc=t.isoformat(), dd_pct=round(dd * 100, 2)); ka = KILL_ALERT_PATH or os.path.join(_state_dir(), "KILL_ALERT.json"); os.makedirs(os.path.dirname(ka), exist_ok=True)
@@ -1530,7 +1642,9 @@ def tick(price_fn=None, au=None, queue_path=None):
         B.update(spec_pnl_aud=round(spec, 2), spec_sleeve_aud=SEAT_SEED * SPEC_SLEEVE_PCT, avg_slippage_bps=round(sum(sl) / len(sl), 1) if sl else None)
         B.update(equity_aud=round(eq, 2), invested_aud=round(inv, 2), pnl_since_inception_aud=round(eq - B["seed_aud"], 2), today_pnl_aud=round(eq - B["day_start_equity_aud"], 2))
         B["pnl_hwm_aud"] = round(max(0.0, B.get("pnl_hwm_aud") or 0.0, B["pnl_since_inception_aud"]), 2)   # TFO HT 23:13: floor 0.00 (starting P/L)   # seat P/L high-water mark ex capital events (weekly prize guard, Brett 20:23 WITA)
+        B["fx_identity"] = seat_pnl_identity(B, marks, au, eq); B["fx_adjustments"] = B["fx_identity"]["adjustments"]   # reporting restatement only; closed net_aud is not rewritten
         for k in tot: tot[k] += B.get(k, 0) or 0
+    D["fx_identity_ok"] = all((B.get("fx_identity") or {}).get("ok") for B in D["seats"].values())
     tot["equity_aud"] += (D.get("hedge") or {}).get("pnl_aud", 0) or 0
     tot["equity_aud"] += D.get("hedge_realised_aud") or 0.0   # realised hedge P&L (incl. real costs) stays in desk equity - never made to disappear
     tot["equity_aud"] += D.get("hedge_error_reversal_aud") or 0.0   # Brett 06:44 WITA 29 Oct: unauthorised VIX hedge reversed to TFO error account (dated adjustment, see archive/error_account.json)

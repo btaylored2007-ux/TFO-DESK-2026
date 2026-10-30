@@ -94,8 +94,8 @@ def close(seat, pid, reason, price_fn=None, shares=None, pct=None):
             BK._wj(BK.BOOK, D_)
             _audit(_path=_apath(), cmd="close_partial", seat=seat, id=pid, reason=reason, exit=x, shares=h, residual=p["shares"], net_aud=part["net_aud"])
             return dict(ok=True, closed=part["id"], exit=x, closed_shares=h, residual_shares=p["shares"], net_aud=part["net_aud"])
-        gross, cc = BK.realise(B, p, x, tot, au)   # FX-aware (P&L only for FX pairs)
-        p.update(status="closed", exit=x, exit_reason="seat_close: " + str(reason)[:120], closed_utc=t.isoformat(), gross_aud=round(gross, 2), net_aud=round(gross - p.get("cost_aud", 0) - cc, 2))
+        gross, cc = BK.realise(B, p, x, tot, au)   # FX-aware (P&L only for FX pairs); gross uses fill_audusd for the entry leg
+        p.update(status="closed", exit=x, exit_reason="seat_close: " + str(reason)[:120], closed_utc=t.isoformat(), **BK._close_pnl(p, gross, cc))
         B["closed"].append(dict(p)); del B["positions"][pid]; BK._wj(BK.BOOK, D_); return dict(ok=True, closed=pid, exit=x, net_aud=p["net_aud"])
 AUDIT = os.path.join(D.SD, "seat_cli_audit.jsonl")
 def _audit(_path=None, **k):
