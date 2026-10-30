@@ -180,18 +180,45 @@ FEEDS["paid_pack"] = _paid_pack
 NOT_WIRED = {"binance_okx_public": "blocked by ISP DNS sinkhole on current Wi-Fi (connection refused)", "eia": "needs a free EIA API key from Brett (not provisioned; not requested - no keys in prompts)",
              "google_trends": "no stable free API (pytrends rate-limited) - planned", "alfred_vintages": "planned phase 2", "earnings_calendar": "planned (Nasdaq JSON needs scraping)",
              "onchain_flows": "no reliable free keyless source found - planned"}
+_FETCH_LOCK = __import__("threading").Lock()
+_NAME_LOCKS = {}
+_ROUND = None   # name -> result, set for one desk round so 11 seats share one paid-pack fetch
+def _name_lock(n):
+    with _FETCH_LOCK:
+        lk = _NAME_LOCKS.get(n)
+        if lk is None: lk = __import__("threading").Lock(); _NAME_LOCKS[n] = lk
+        return lk
+class round_cache:
+    def __enter__(self):
+        global _ROUND
+        self._prev = _ROUND
+        if _ROUND is None: _ROUND = {}
+        return _ROUND
+    def __exit__(self, *a):
+        global _ROUND
+        _ROUND = self._prev
 def fetch(names):
     H = {}
-    try: H = json.load(open(FH))
-    except Exception: pass
+    with _FETCH_LOCK:
+        try: H = json.load(open(FH))
+        except Exception: pass
     out = {}
     for n in names:
-        h = H.setdefault(n, dict(fails=0)); dropped = h["fails"] >= 3 and h.get("last_try", "")[:10] == now().isoformat()[:10]
-        if dropped: out[n] = dict(source=n, dropped=True, why="unreliable: 3+ consecutive failures"); continue
-        h["last_try"] = now().isoformat()
-        try: out[n] = dict(source=n, available_at_utc=now().isoformat(), data=FEEDS[n]()); h.update(fails=0, last_ok=now().isoformat()); h.pop("last_err", None)   # fix 6/7: no stale error after a success
-        except Exception as e: h["fails"] += 1; h["last_err"] = str(e)[:120]; out[n] = dict(source=n, error=str(e)[:120])
-    H["_not_wired"] = NOT_WIRED; os.makedirs(os.path.dirname(FH), exist_ok=True); json.dump(H, open(FH, "w"), indent=1); return out
+        if _ROUND is not None and n in _ROUND:
+            out[n] = _ROUND[n]; continue
+        with _name_lock(n):
+            if _ROUND is not None and n in _ROUND:
+                out[n] = _ROUND[n]; continue
+            h = H.setdefault(n, dict(fails=0)); dropped = h["fails"] >= 3 and h.get("last_try", "")[:10] == now().isoformat()[:10]
+            if dropped: out[n] = dict(source=n, dropped=True, why="unreliable: 3+ consecutive failures")
+            else:
+                h["last_try"] = now().isoformat()
+                try: out[n] = dict(source=n, available_at_utc=now().isoformat(), data=FEEDS[n]()); h.update(fails=0, last_ok=now().isoformat()); h.pop("last_err", None)   # fix 6/7: no stale error after a success
+                except Exception as e: h["fails"] += 1; h["last_err"] = str(e)[:120]; out[n] = dict(source=n, error=str(e)[:120])
+            if _ROUND is not None: _ROUND[n] = out[n]
+    with _FETCH_LOCK:
+        H["_not_wired"] = NOT_WIRED; os.makedirs(os.path.dirname(FH), exist_ok=True); json.dump(H, open(FH, "w"), indent=1)
+    return out
 if __name__ == "__main__":
     r = fetch(list(FEEDS)); print({k: ("OK" if "data" in v else v.get("error") or "dropped") for k, v in r.items()})
 # ---- live VIX (Brett follow-up 2026-10-28 20:35 WITA): Yahoo chart API ^VIX (free, no key) -> CBOE delayed quote fallback; every quote time-stamped.

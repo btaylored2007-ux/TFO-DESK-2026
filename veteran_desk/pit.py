@@ -33,12 +33,15 @@ try:
     except Exception: pass
 except Exception: pass
 def con(path=None):
-    os.makedirs(os.path.dirname(path or DB), exist_ok=True); c = sqlite3.connect(path or DB)
+    os.makedirs(os.path.dirname(path or DB), exist_ok=True); c = sqlite3.connect(path or DB, timeout=30)
     c.executescript("""CREATE TABLE IF NOT EXISTS bars(sym TEXT,date TEXT,o REAL,h REAL,l REAL,c REAL,v REAL,knowable_utc TEXT,src TEXT,PRIMARY KEY(sym,date));
     CREATE TABLE IF NOT EXISTS macro(series TEXT,date TEXT,value REAL,knowable_utc TEXT,src TEXT,PRIMARY KEY(series,date));
     CREATE TABLE IF NOT EXISTS filings(cik TEXT,sym TEXT,form TEXT,filed_utc TEXT,accession TEXT PRIMARY KEY,src TEXT);
     CREATE TABLE IF NOT EXISTS universe(sym TEXT PRIMARY KEY,venue TEXT,status TEXT,delisted_date TEXT,src TEXT);
-    CREATE TABLE IF NOT EXISTS venues(venue TEXT PRIMARY KEY,bias_flag TEXT,why TEXT);"""); c.execute(REVIEW_DDL); return c
+    CREATE TABLE IF NOT EXISTS venues(venue TEXT PRIMARY KEY,bias_flag TEXT,why TEXT);
+    CREATE INDEX IF NOT EXISTS ix_bars_sym_know ON bars(sym, knowable_utc);
+    CREATE INDEX IF NOT EXISTS ix_macro_series_know ON macro(series, knowable_utc);
+    CREATE INDEX IF NOT EXISTS ix_filings_sym_filed ON filings(sym, filed_utc);"""); c.execute(REVIEW_DDL); c.execute("PRAGMA busy_timeout=30000"); return c
 # 2026-10-29 stale-bar fix: non-US listings (.T/.HK/.L/.PA ...) were stamped with the US 20:30 UTC close (8411.T). Local close + 30 min, DST-aware.
 LOCAL_CLOSE = {"L": ("Europe/London", 16, 35), "DE": ("Europe/Berlin", 17, 35), "PA": ("Europe/Paris", 17, 35), "AS": ("Europe/Amsterdam", 17, 35), "BR": ("Europe/Brussels", 17, 35),
     "LS": ("Europe/Lisbon", 16, 35), "SW": ("Europe/Zurich", 17, 31), "ST": ("Europe/Stockholm", 17, 30), "CO": ("Europe/Copenhagen", 17, 0), "HE": ("Europe/Helsinki", 18, 30),
@@ -47,12 +50,18 @@ LOCAL_CLOSE = {"L": ("Europe/London", 16, 35), "DE": ("Europe/Berlin", 17, 35), 
     "SI": ("Asia/Singapore", 17, 16), "NS": ("Asia/Kolkata", 15, 30), "BO": ("Asia/Kolkata", 15, 30), "NZ": ("Pacific/Auckland", 16, 45), "SS": ("Asia/Shanghai", 15, 0), "SZ": ("Asia/Shanghai", 15, 0)}
 def local_suffix(sym):
     return sym.rsplit(".", 1)[-1].upper() if "." in sym and not sym.startswith("KRAKEN:") and sym.rsplit(".", 1)[-1].upper() in LOCAL_CLOSE else None
+_TZ = {}
+def _zone(name):
+    z = _TZ.get(name)
+    if z is None:
+        from zoneinfo import ZoneInfo
+        z = ZoneInfo(name); _TZ[name] = z
+    return z
 def knowable(date_str, venue, sym=None):
     suf = local_suffix(sym) if sym else None
     if suf:
-        from zoneinfo import ZoneInfo
         tz, hh, mm = LOCAL_CLOSE[suf]; D = dt.date.fromisoformat(date_str)
-        return (dt.datetime(D.year, D.month, D.day, hh, mm, tzinfo=ZoneInfo(tz)) + dt.timedelta(minutes=30)).astimezone(UTC).isoformat()
+        return (dt.datetime(D.year, D.month, D.day, hh, mm, tzinfo=_zone(tz)) + dt.timedelta(minutes=30)).astimezone(UTC).isoformat()
     h, m, d = CLOSE_UTC.get(venue, (23, 59, 1)); D = dt.date.fromisoformat(date_str) + dt.timedelta(days=d)
     return dt.datetime(D.year, D.month, D.day, h, m, tzinfo=UTC).isoformat()
 def venue_of(sym):
@@ -73,11 +82,18 @@ def hl_check(o, h, l, cl, atr, k=HL_ATR_K, rel=HL_MIN_REL):
         if h > max(o, cl) + max(k * atr, rel * max(o, cl)): fl.append("high %.4g > body %.4g + %gxATR %.4g" % (h, max(o, cl), k, atr)); h = max(o, cl)
         if l < min(o, cl) - max(k * atr, rel * min(o, cl)): fl.append("low %.4g < body %.4g - %gxATR %.4g" % (l, min(o, cl), k, atr)); l = min(o, cl)
     return h, l, fl
-def _atr_before(c, sym, date, n=14):
-    b = c.execute("SELECT h,l,c FROM bars WHERE sym=? AND date<? ORDER BY date DESC LIMIT ?", (sym, date, n + 1)).fetchall()[::-1]
+def _atr_of(b):
+    """Mean true range of an ascending (h,l,c) window. Same formula as the per-bar SQL path. None until 6 bars."""
     if len(b) < 6: return None
     tr = [max(b[i][0] - b[i][1], abs(b[i][0] - b[i - 1][2]), abs(b[i][1] - b[i - 1][2])) for i in range(1, len(b))]
     return sum(tr) / len(tr)
+def _atr_before(c, sym, date, n=14):
+    b = c.execute("SELECT h,l,c FROM bars WHERE sym=? AND date<? ORDER BY date DESC LIMIT ?", (sym, date, n + 1)).fetchall()[::-1]
+    return _atr_of(b)
+def _atr_from_prior(prior, date, n=14):
+    """prior is ascending (date,h,l,c) already stored. ATR uses only bars strictly before `date` (the ingest batch is not visible yet)."""
+    b = [r[1:] for r in prior if r[0] < date][-(n + 1):]
+    return _atr_of(b)
 HL_REJECTS = []   # (sym, date, flags) for every bar the filter flags (flag mode) or clips (legacy clip mode)
 HL_REAPPLIED = []   # (sym, date) where a stored IBKR-confirmed fix was re-applied to a re-downloaded raw bar
 # 2026-10-29 flagmode (Brett): the ingest filter no longer clips blindly. It stores the RAW bar and writes the flag to bar_review.
@@ -98,6 +114,7 @@ def _review_flag(c, sym, r, atr, fl, src, prev):
 def sane_rows(c, sym, rows, src=None):
     if ":" in sym or venue_of(sym) == "CRYPTO": return rows   # real crypto wicks are kept; filter is for equity/ETF bad prints (LSE 15 Oct etc.)
     out = []
+    prior = c.execute("SELECT date,h,l,c FROM bars WHERE sym=? ORDER BY date", (sym,)).fetchall()   # one read; ATR matches the old per-bar query (batch not yet inserted)
     for r in rows:
         try:
             prev = _review_get(c, sym, r[0])
@@ -107,7 +124,7 @@ def sane_rows(c, sym, rows, src=None):
                 if prev[4] is not None and l < prev[4]: l = prev[4]
                 if (h, l) != (r[2], r[3]): HL_REAPPLIED.append((sym, r[0])); r = (r[0], r[1], h, l, *r[4:])
                 out.append(r); continue
-            atr = _atr_before(c, sym, r[0]); h, l, fl = hl_check(r[1], r[2], r[3], r[4], atr)
+            atr = _atr_from_prior(prior, r[0]); h, l, fl = hl_check(r[1], r[2], r[3], r[4], atr)
             if fl:
                 HL_REJECTS.append((sym, r[0], fl))
                 if HL_MODE == "clip": r = (r[0], r[1], h, l, *r[4:])   # legacy blind clamp (rollback switch only)
@@ -155,8 +172,8 @@ def yahoo_rows(sym, period="10y"):
             if ch and (not rows or ch[-1][0] > rows[-1][0]): rows, src = ch, "yahoo_chart_v8"
         except Exception: pass
     return rows, nan, src
-def ingest_yahoo(c, sym, period="10y"):
-    rows, nan, ysrc = yahoo_rows(sym, period)
+def ingest_yahoo(c, sym, period="10y", fetched=None):
+    rows, nan, ysrc = fetched if fetched is not None else yahoo_rows(sym, period)
     if venue_of(sym) == "FUT":   # 2026-10-28: raw -> bars_fut_raw, adjusted -> bars (see fut_roll.py)
         sys.path.insert(0, BASE); from veteran_desk import fut_roll as FR
         FR.ensure(c); FR.seed_raw_from_bars(c, sym)
@@ -206,10 +223,33 @@ def ingest_edgar(c, sym, cik):
         c.execute("INSERT OR REPLACE INTO filings VALUES(?,?,?,?,?,?)", (str(cik), sym, form, ts, acc, "sec_edgar")); n += 1
     return n
 # ---- point-in-time reads (the only API seats use) ----
+import threading
+_BAR_CACHE = None; _BAR_LOCK = threading.Lock()
+class bar_cache:
+    """Process-local read cache for bars_asof. Off by default so a raw SQL write cannot serve a stale row. desk/engine turns it on for one round."""
+    def __enter__(self):
+        global _BAR_CACHE
+        self._prev = _BAR_CACHE
+        if _BAR_CACHE is None: _BAR_CACHE = {}
+        return _BAR_CACHE
+    def __exit__(self, *a):
+        global _BAR_CACHE
+        _BAR_CACHE = self._prev
+def _asof_iso(asof):
+    return asof.astimezone(UTC).isoformat() if isinstance(asof, dt.datetime) else asof
 def bars_asof(c, sym, asof, n=260):
-    a = asof.astimezone(UTC).isoformat() if isinstance(asof, dt.datetime) else asof
-    q = c.execute("SELECT date,o,h,l,c,v,knowable_utc FROM bars WHERE sym=? AND knowable_utc<=? ORDER BY date DESC LIMIT ?", (sym, a, n)).fetchall()
-    return list(reversed(q))
+    a = _asof_iso(asof); key = (sym, a, int(n))
+    if _BAR_CACHE is not None:
+        with _BAR_LOCK:
+            hit = _BAR_CACHE.get(key)
+        if hit is not None: return hit
+    q = list(reversed(c.execute("SELECT date,o,h,l,c,v,knowable_utc FROM bars WHERE sym=? AND knowable_utc<=? ORDER BY date DESC LIMIT ?", (sym, a, n)).fetchall()))
+    if _BAR_CACHE is not None:
+        with _BAR_LOCK: _BAR_CACHE[key] = q
+    return q
+def bars_asof_many(c, syms, asof, n=260):
+    """Same rows as bars_asof, using the (sym, date) primary key and the round cache. A window scan over every bar was slower than LIMIT."""
+    return {s: bars_asof(c, s, asof, n) for s in dict.fromkeys(syms)}
 def macro_asof(c, series, asof, n=60):
     a = asof.astimezone(UTC).isoformat() if isinstance(asof, dt.datetime) else asof
     return list(reversed(c.execute("SELECT date,value,knowable_utc FROM macro WHERE series=? AND knowable_utc<=? ORDER BY date DESC LIMIT ?", (series, a, n)).fetchall()))
@@ -257,14 +297,25 @@ def is_stale(c, sym, now=None, slack_days=2):
         d += dt.timedelta(days=1)
         if d.weekday() < 5 or venue_of(sym) == "CRYPTO": n += 1
     return n > slack_days - 1 if slack_days else n > 0
-def refresh_symbols(syms, period="1mo", c=None):
+def _fetch_yahoo(sym, period):
+    try: return sym, yahoo_rows(sym, period), None
+    except Exception as e: return sym, None, str(e)[:120]
+def refresh_symbols(syms, period="1mo", c=None, workers=8):
     """Top up any symbols (Yahoo primary -> chart endpoint -> IBKR gaps). Used by refresh_stale + gate_v2 on-demand freshness.
-    2026-10-29: empty Yahoo (delisted / 404) recorded in fail so refresh_stale can skip them next pass; never raises to caller."""
-    c = c or con(); ok, fail = {}, {}
-    for s in syms:
-        if s.startswith("KRAKEN:") or banned(s): continue
+    2026-10-29: empty Yahoo (delisted / 404) recorded in fail so refresh_stale can skip them next pass; never raises to caller.
+    Downloads run in parallel; bars are applied in the caller's symbol order so the stored rows match a serial ingest."""
+    c = c or con(); ok, fail = {}, {}; todo = [s for s in syms if not s.startswith("KRAKEN:") and not banned(s)]
+    got = {}
+    if todo:
+        import concurrent.futures
+        with concurrent.futures.ThreadPoolExecutor(min(max(int(workers or 1), 1), 8)) as ex:
+            for sym, payload, err in ex.map(lambda s: _fetch_yahoo(s, period), todo):
+                got[sym] = (payload, err)
+    for s in todo:
+        payload, err = got[s]
+        if err: fail[s] = err; continue
         try:
-            n = ingest_yahoo(c, s, period)
+            n = ingest_yahoo(c, s, period, fetched=payload)
             if n: ok[s] = n
             else: fail[s] = "yahoo empty (delisted or no data)"
         except Exception as e: fail[s] = str(e)[:120]
@@ -294,8 +345,16 @@ def refresh_stale(period="1mo", limit=None):
 def refresh(period="10y"):
     c = con(); rep = dict(ok={}, fail={}, started=dt.datetime.now(UTC).isoformat())
     for v, (f, w) in VENUE_BIAS.items(): c.execute("INSERT OR REPLACE INTO venues VALUES(?,?,?)", (v, f, w))
-    for s in sorted({x for L in UNIVERSE.values() for x in L if not x.startswith("KRAKEN:")} | set(REFRESH_EXTRA)):
-        try: rep["ok"][s] = ingest_yahoo(c, s, period)
+    syms = sorted({x for L in UNIVERSE.values() for x in L if not x.startswith("KRAKEN:")} | set(REFRESH_EXTRA))
+    import concurrent.futures
+    got = {}
+    with concurrent.futures.ThreadPoolExecutor(8) as ex:
+        for sym, payload, err in ex.map(lambda s: _fetch_yahoo(s, period), syms): got[sym] = (payload, err)
+    for s in syms:
+        payload, err = got[s]
+        try:
+            if err: raise RuntimeError(err)
+            rep["ok"][s] = ingest_yahoo(c, s, period, fetched=payload)
         except Exception as e: rep["fail"][s] = str(e)[:120]
         c.commit()
     for s in FRED:

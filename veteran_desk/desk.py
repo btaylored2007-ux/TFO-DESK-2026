@@ -459,7 +459,17 @@ def _open_run(asof, t=None):
 def run(use_llm=True, queue=True, asof=None, queue_path=None, only=None):
     t0 = time.time(); asof = asof or now(); c = P.con(); S = seats(); au = audusd(c, asof); runid = asof.strftime("%Y%m%d-%H%M")
     props = [s for s in S.values() if s["role"] == "proposer" and (not only or s["seat"] in only)]; log = dict(run_id=runid, asof_utc=asof.isoformat(), paper_only=True, seats={}, proposals=[])
-    packs = {s["seat"]: pack(c, s, asof) for s in props}
+    def _pack_one(s):
+        c2 = P.con()
+        try: return s["seat"], pack(c2, s, asof)
+        finally:
+            try: c2.close()
+            except Exception: pass
+    from veteran_desk import feeds as _FDROUND
+    with P.bar_cache(), _FDROUND.round_cache():
+        if len(props) > 1:
+            with cf.ThreadPoolExecutor(min(4, len(props))) as ex: packs = dict(ex.map(_pack_one, props))
+        else: packs = dict([_pack_one(s) for s in props])
     def go(s):
         if not use_llm: return s["seat"], None, "llm disabled"
         txt = llm(s["engine"], prop_prompt(s, packs[s["seat"]])); return s["seat"], parse_json(txt), (txt or "")[:400]
@@ -552,8 +562,10 @@ def run(use_llm=True, queue=True, asof=None, queue_path=None, only=None):
                    challenger=dict(engine=other, trader=name(S, "blind_challenger"), view=chal), devils_advocate=da, gate=g, sizing=sz, features=f or dict(sym=p["ticker"], venue=P.venue_of(p["ticker"]), pit_missing=True),
                    universe_bias=P.VENUE_BIAS.get(P.venue_of(p["ticker"]), ("?",))[0], created_utc=now().isoformat(), info_only=True, seat_reply_ok=True)
         rec["hash"] = hashlib.sha256(json.dumps([p, sz], sort_keys=True, default=str).encode()).hexdigest()[:16]; out.append(rec)
-    log["proposals"] = out; log["head_of_desk"] = head_of_desk(S, out, use_llm)
+    log["proposals"] = out
+    apply_marcus_limits(S, out)   # code caps only; the Marcus note LLM must not sit in front of the queue (a timeout there used to drop passed proposals)
     if queue: log["queued"] = enqueue([r for r in out if r["gate"]["passed"]], au, queue_path, ack_required=not os.environ.get("PYTEST_CURRENT_TEST"))   # tfo_deskrun_ack_20261031: desk-run proposals (ghost-arm ABBV-1521/ISRG) arm only after seat_cli confirm
+    log["head_of_desk"] = head_of_desk(S, out, use_llm)
     if use_llm and os.environ.get("VET_SOUNDING_BOARD", "1") == "1":   # 2026-10-28 20:47 WITA Brett "trim the advisory": critique AFTER enqueue, detached, 1 model/trade, 60s cap; never blocks
         try:
             from veteran_desk import learning as LRN; log["sounding_board"] = LRN.critique_async([r for r in out if r["gate"]["passed"]], runid)
@@ -615,17 +627,24 @@ def refresh_note():
     C = _rj(CARD, None)
     if isinstance(C, dict) and "head_of_desk" in C: C["head_of_desk"] = H; _wj(CARD, C)
     return H
-def head_of_desk(S, out, use_llm):
-    """Marcus Hale: ranks passed setups, kills dupes/correlated bets (code), enforces caps (code), writes a plain-English note. Cannot arm."""
+def apply_marcus_limits(S, out):
+    """Code-only Marcus caps (max 2 per venue+side, top 5). Idempotent. Runs before the queue write so a slow note cannot drop a passed proposal."""
     P_ = sorted([r for r in out if r["gate"]["passed"]], key=lambda r: (r["proposal"].get("grade") != "A+", -(r["gate"].get("rr") or 0)))
     keep, groups = [], {}
     for r in P_:   # correlated-bet kill: max 2 per venue+side, 1 per seat
         k = (r["features"]["venue"], r["proposal"]["side"])
-        if groups.get(k, 0) >= 2: r["gate"]["passed"] = False; r["gate"]["reasons"].append("head of desk: correlated with 2 other picks same market+side"); continue
+        if groups.get(k, 0) >= 2:
+            if "head of desk: correlated with 2 other picks same market+side" not in r["gate"]["reasons"]:
+                r["gate"]["passed"] = False; r["gate"]["reasons"].append("head of desk: correlated with 2 other picks same market+side")
+            continue
         groups[k] = groups.get(k, 0) + 1; keep.append(r)
     keep = keep[:5]
     for r in P_[5:]:
         if r not in keep and r["gate"]["passed"]: r["gate"]["passed"] = False; r["gate"]["reasons"].append("head of desk: outside today's top 5")
+    return keep
+def head_of_desk(S, out, use_llm):
+    """Marcus Hale: ranks passed setups, kills dupes/correlated bets (code), enforces caps (code), writes a plain-English note. Cannot arm."""
+    keep = apply_marcus_limits(S, out)
     sc = _rj(SCORE, {}).get("seats", {})
     cuts = [k for k, v in sc.items() if str(v.get("verdict", "")).startswith("CUT")]; promos = [k for k, v in sc.items() if str(v.get("verdict", "")).startswith("PROMOTE")]
     summary = dict(picks=[(r["trader"], r["proposal"]["side"], r["proposal"]["ticker"], r["proposal"].get("grade")) for r in keep],

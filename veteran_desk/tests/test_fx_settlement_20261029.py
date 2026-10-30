@@ -31,5 +31,10 @@ def test_round_trip_cash_via_tick():
         assert p["status"] == "open" and abs(S["cash_aud"] - (500000 - n * c)) < 0.01   # only the cost left cash
         D = BK.tick(price_fn=lambda s: dict(last=1.0965, hi=1.0970, lo=1.0955, asof="x"), au=0.70, queue_path=q); S = D["seats"]["macro"]
         g = (1.1174 - 1.0960) * 1e6 / 0.70; n2 = 1.0960 * 1e6 / 0.70
-        assert not S["positions"] and abs(S["cash_aud"] + S.get("commission_expense_aud", 0) - S.get("commission_forfeit_credit_aud", 0) - (500000 - n * c + g - n2 * c)) < 0.01 and abs(S["closed"][-1]["gross_aud"] - g) < 0.01
+        row = S["closed"][-1]
+        # FX cash credit is the pip P&L only. fill_audusd is not applied (the notional never left cash), so gross stays the old formula and fx_translation is 0.
+        # The old expression omitted the short borrow that borrow_accrue takes out of cash when the WITA date is ahead of the UTC fill date.
+        borrow = float(row.get("borrow_accrued_aud") or 0) + float(row.get("borrow_min_charge_aud_est") or 0)
+        assert not S["positions"] and abs(row["gross_aud"] - g) < 0.01 and row.get("fx_translation_aud", 0) == 0.0
+        assert abs(S["cash_aud"] + S.get("commission_expense_aud", 0) - S.get("commission_forfeit_credit_aud", 0) - (500000 - n * c + g - n2 * c - borrow)) < 0.01
     finally: BK.BOOK, BK.firm_ok, BK.session_open, BK.in_open_window, BK.posture = old

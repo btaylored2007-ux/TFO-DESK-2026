@@ -39,7 +39,7 @@ async function go(){try{await go2()}catch(e){document.getElementById('app').inne
 async function go2(){let s;try{s=await (await fetch('/api/state')).json()}catch(e){document.getElementById('app').innerHTML='<div class="card red">Dashboard cannot reach its data: '+e+'</div>';return}
 document.getElementById('links').innerHTML=`<a href="${s.links.vd_dash}">Veteran Desk dash / leaderboard</a> · <a href="${s.links.war_room}">War Room</a> · built ${W(s.built_utc)}`;
 const t=s.today, h=s.health, br=s.broken||[];
-const hcol=(N(h.engine_age_min,99))>5?'red':(br.some(b=>b.sev=='red')?'amber':'green');
+const hcol=(h.engine_age_min==null||h.engine_age_min>5)?'red':(br.some(b=>b.sev=='red')?'amber':'green');
 let o=`<div class="card ${t.today_pnl_aud>=0?'green':'red'}"><div>How are we doing today?</div><div class="big ${C(t.today_pnl_aud)}">${A(t.today_pnl_aud)}</div>
 <p class="one">The whole paper book is ${t.today_pnl_aud>=0?'up':'down'} ${A(Math.abs(t.today_pnl_aud||0))} today; total value ${A(t.equity_aud)} (${A(t.pnl_since_inception_aud)} since start).</p>
 <details><summary>details</summary>THF own fresh paper book (${t.book_id||'?'}: ${t.book_path||''}, seed ${A(t.seed_aud)}, separate from the old Veteran Desk book) · Cash ${A(t.cash_aud)} · book day ${t.day} · book updated ${W(t.book_updated)}</details></div>`;
@@ -48,15 +48,16 @@ o+=`<div class="card ${hcol}"><span class="dot ${hcol}"></span><b>Engine health<
 const lb=s.leaderboard||{};const lr=(lb.rows||[]).slice().sort((a,b)=>(a.rank||99)-(b.rank||99));
 o+=`<div class="card grey" id="leaderboard"><b>Leaderboard</b> <span class="sub">day window from ${lb.window_start_wita||'-'} · as of ${W(lb.asof_utc)}</span>${lr.length?tbl(lr,[['#',r=>r.rank],['seat',r=>r.seat],['day P/L',r=>'<span class="'+C(r.day_pnl_aud)+'">'+A(r.day_pnl_aud)+'</span>'],['WTD',r=>A(r.wtd_pnl_aud)],['since start',r=>A(r.pnl_since_inception_aud)],['equity',r=>A(r.equity_aud)],['open',r=>r.open_trades],['marks',r=>(r.mark_missing||[]).length?'missing '+r.mark_missing.join(','):'ok']]):'<p class="one">No leaderboard rows yet.</p>'}</div>`;
 o+='<h2>Traders</h2><div class="grid">';
-for(const c of s.cards){const b=c.best||{};const st={green:'Has a trade-ready idea',amber:'Has strong ideas, waiting for a safe moment',grey:'Nothing good right now — sitting tight',red:'MODEL CALL FAILED — '+(c.model_fails_today||0)+' failed call(s), '+(c.failed_wakes_today||0)+' failed wake(s) today'}[c.status];
+for(const c of s.cards){const b=c.best||{};const hold=b.why_no_wake?(' — '+b.why_no_wake):'';
+const st={green:'Has a trade-ready idea',amber:'Has strong ideas, waiting for a safe moment'+hold,grey:'Nothing good right now — sitting tight',red:'MODEL CALL FAILED — '+(c.model_fails_today||0)+' failed call(s), '+(c.failed_wakes_today||0)+' failed wake(s) today'}[c.status];
 o+=`<div class="card ${c.status}"><b>${c.rank?'#'+c.rank+' ':''}${c.trader}</b> <span class="sub">${c.seat}</span>
 <div class="big ${C(c.day_pnl_aud)}" style="font-size:30px">${A(c.day_pnl_aud)}</div>
 <p class="one"><span class="dot ${c.status}"></span>${st}. Best idea: <b>${b.sym||'—'} ${b.side||''}</b> (${b.grade||'-'}, ${N(b.score,'-')}).</p>
-${posBlock(c.book_view||{})}<details><summary>top 10 · wakes · second looks</summary>${tbl(c.top10||[],[['#',r=>r.rank],['sym',r=>r.sym],['side',r=>r.side],['gr',r=>r.grade],['score',r=>r.score],['exp R',r=>(r.history||{}).exp_R],['size%',r=>(r.history||{}).natural_pct],['open',r=>r.market_open?'✓':'·'],['wake',r=>r.wake_ok?'✓':(r.why_no_wake||'')]])}
+${posBlock(c.book_view||{})}<details><summary>top 10 · wakes · second looks</summary>${tbl(c.top10||[],[['#',r=>r.rank],['sym',r=>r.sym],['side',r=>r.side],['gr',r=>r.grade],['score',r=>r.score],['exp R',r=>(r.history||{}).exp_R],['size%',r=>(r.history||{}).natural_pct],['open',r=>r.market_open?'✓':'·'],['wake',r=>r.why_no_wake||(r.wake_ok?'✓':'')]])}
 <div class="sub">scanned ${N(c.scanned,'-')} · A ${N(c.n_A,0)} · A+ ${N(c.n_Aplus,0)} · wakes today ${c.wakes_today} · model fails ${c.model_fails_today||0} · updated ${W(c.updated)}</div>
 ${c.open_positions.length?'<div class="sub">book: '+c.open_positions.map(p=>p.ticker+' '+p.side+' '+p.status).join(', ')+'</div>':''}
 ${c.last_wake?'<div class="sub">last wake '+c.last_wake.wake_id+' '+(c.last_wake.status||'')+' '+W(c.last_wake.utc)+'</div>':''}
-${c.gpt?'<div class="sub">GPT: '+(c.gpt.status||'')+' — '+JSON.stringify(c.gpt.notes||c.gpt.raw||'').slice(0,400)+'</div>':''}${c.grok?'<div class="sub">Grok: '+(c.grok.status||'')+' — '+JSON.stringify(c.grok.notes||'').slice(0,400)+'</div>':''}</details></div>`}
+${c.gpt?'<div class="sub">Grok second look (advisory, does not block the entry): '+(c.gpt.status||'')+' — '+JSON.stringify(c.gpt.notes||c.gpt.raw||'').slice(0,400)+'</div>':''}${c.grok?'<div class="sub">Grok: '+(c.grok.status||'')+' — '+JSON.stringify(c.grok.notes||'').slice(0,400)+'</div>':''}</details></div>`}
 o+='</div>';
 o+=`<div class="card ${br.some(b=>b.sev=='red')?'red':br.length?'amber':'green'}"><b>What's broken</b><p class="one">${br.length?br.length+' thing(s) need attention; red ones first.':'Nothing is broken.'}</p>
 <ul>${br.sort((a,b)=>a.sev=='red'?-1:1).map(b=>`<li><span class="dot ${b.sev}"></span>${b.what||b.gap||JSON.stringify(b)}</li>`).join('')}</ul></div>`;
