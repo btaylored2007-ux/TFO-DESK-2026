@@ -1138,7 +1138,9 @@ def tick(price_fn=None, au=None, queue_path=None):
         if e.get("state") == "withdrawn":
             for S_ in D["seats"].values():
                 p_ = S_["positions"].get(e["id"])
-                if p_ and p_.get("status") == "armed": p_.update(status="cancelled", why="queue withdrawn"); S_.setdefault("closed", []).append(dict(p_, closed_utc=t.isoformat(), exit_reason="withdrawn")); S_["positions"].pop(e["id"], None); ev.append((e["id"], "cancelled", None))
+                if p_ and p_.get("status") == "armed":
+                    _why = e.get("why") or "queue withdrawn (no reason on the queue entry)"
+                    p_.update(status="cancelled", why=_why); S_.setdefault("closed", []).append(dict(p_, closed_utc=t.isoformat(), exit_reason="withdrawn")); S_["positions"].pop(e["id"], None); ev.append((e["id"], "cancelled", _why))
     for e in vet:   # 1. funder ticks -> arm in the PROPOSING seat's own book (only ticked, only gate-passed veteran entries)
         if e.get("state") != FG.WAIT: continue
         if e.get("decision") == "reject": upd[e["id"]] = dict(state="rejected"); continue
@@ -1511,7 +1513,9 @@ def tick(price_fn=None, au=None, queue_path=None):
         for i in withdrawn_mid_tick:   # withdraw landed between our queue read and write: cancel the arm we just made
             for S_ in D["seats"].values():
                 p_ = S_["positions"].get(i)
-                if p_ and p_.get("status") == "armed": p_.update(status="cancelled", why="queue withdrawn mid-tick"); S_.setdefault("closed", []).append(dict(p_, closed_utc=t.isoformat(), exit_reason="withdrawn")); S_["positions"].pop(i, None)
+                if p_ and p_.get("status") == "armed":
+                    _why = (Q.get("entries") or {}).get(i, {}).get("why") or "queue withdrawn mid-tick (no reason on the queue entry)"
+                    p_.update(status="cancelled", why=_why); S_.setdefault("closed", []).append(dict(p_, closed_utc=t.isoformat(), exit_reason="withdrawn")); S_["positions"].pop(i, None)
     try:   # daily leaderboard prizes (Brett 2026-10-28 20:13 WITA): credited as CAPITAL events, never P&L; idempotent by award id
         from veteran_desk import leaderboard as LB
         if os.path.abspath(BOOK) == os.path.abspath(_REAL_BOOK): LB.apply_prizes(D, au, t)

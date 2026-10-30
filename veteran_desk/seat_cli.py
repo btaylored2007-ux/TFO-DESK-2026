@@ -131,7 +131,7 @@ def withdraw(seat, pid, reason):
             q_ = out.get("queue"); out = close(seat, pid, "withdrawn: " + str(reason)); out["queue"] = "withdrawn+armed->cancelled" if q_ else "armed->cancelled"
             def g(Q):
                 e = Q["entries"].get(pid)
-                if e and e.get("book") == "veteran": e.update(state="withdrawn", withdrawn_utc=e.get("withdrawn_utc") or D.now().isoformat())
+                if e and e.get("book") == "veteran": e.update(state="withdrawn", why=e.get("why") or ("seat_cli withdraw by %s: %s" % (seat, str(reason)[:160])), withdrawn_utc=e.get("withdrawn_utc") or D.now().isoformat())
             FG.update(g)
     if not out: return dict(ok=False, error="nothing pending for %s in seat %s" % (pid, seat))
     _audit(cmd="withdraw", seat=seat, id=pid, reason=reason, result=out.get("queue")); return dict(ok=True, id=pid, **{k: v for k, v in out.items() if k != "ok"})

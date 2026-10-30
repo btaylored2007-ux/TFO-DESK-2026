@@ -213,8 +213,9 @@ def rank_candidates(c, syms, asof, n=120, extra_news=None, mode="default"):
     if mode in ("trend", "price_action"): return rank_dex(c, syms, asof, n, mode)
     """Score every liquid seat name; return (top n syms, rows, scored count). Candidate list only - never touches the gate."""
     FR = _factor_rank(); NW = _news_syms() | set(extra_news or ()); rows = []; ES = essentials_tags()
+    got = P.bars_asof_many(c, syms, asof, 210)
     for s in syms:
-        r = P.bars_asof(c, s, asof, 210)
+        r = got.get(s) or []
         if len(r) < 64: continue
         cl = [x[4] for x in r]; vo = [x[5] or 0 for x in r]; last = cl[-1]
         if not last or not cl[-22] or not cl[-64]: continue
@@ -253,9 +254,9 @@ def fill_intl_sectors(limit=400, pause=0.3):
 
 # ---- tfo_seatpipe_dexsplit_20261030 (TFO 18:20 WITA): Dex seats rank differently. Candidate list only - gate untouched. ----
 def rank_dex(c, syms, asof, n=120, mode="trend"):
-    rows = []
+    rows = []; got = P.bars_asof_many(c, syms, asof, 260)
     for s in syms:
-        r = P.bars_asof(c, s, asof, 260)
+        r = got.get(s) or []
         if len(r) < 200: continue
         cl = [x[4] for x in r]; hi = [x[2] for x in r]; lo = [x[3] for x in r]; vo = [x[5] or 0 for x in r]; last = cl[-1]
         if not last or not all(cl[-k] for k in (22, 127, min(253, len(cl)))): continue

@@ -359,7 +359,12 @@ def gate(p, f, chal, da, asof, run_risk_used=0, others=None, au=0.65, th=None, h
         if r2 < risk - 0.5: warn.append("crypto clip capped at A$%.0fk notional: risk A$%.0f -> A$%.0f" % (BK.crypto_clip_cap(p.get("grade")) / 1000, risk, r2)); risk = round(r2)
         if rj: hard.append("below_crypto_floor: A$%.0fk-notional clip risks A$%.0f < 0.5%% of seat equity" % (BK.crypto_clip_cap(p.get("grade")) / 1000, r2))
     if RP.get("reject") == "below_crypto_floor": hard.append("below_crypto_floor: natural size %.2f%% of seat equity < 0.5%%" % (RP["wanted_pct"] * 100))
-    elif RP.get("wanted_pct") is not None and not (venue == "CRYPTO" and atr_cut[0] < 1): H_(RP["wanted_pct"] >= FLOOR - 1e-9, "below risk floor: natural size %.2f%% of seat equity < %.1f%% - rejected, not lifted (Brett rule; Marcus 2026-10-29 13:08 WITA, was: lift unless n>=40 and <1%%)" % (RP["wanted_pct"] * 100, FLOOR * 100))
+    elif RP.get("wanted_pct") is not None and not (venue == "CRYPTO" and atr_cut[0] < 1):
+        # Size that will actually be used. risk_plan lifts a cut grade-A back to 1% (pct);
+        # a raw 1% x 0.25 min-mult (= 0.25% of seat equity) must not veto that A. Non-A rejects still have pct 0.
+        sized = RP["pct"] if RP.get("pct") is not None else RP["wanted_pct"]
+        shown = RP["wanted_pct"] if sized < FLOOR - 1e-9 else sized
+        H_(sized >= FLOOR - 1e-9, "below risk floor: natural size %.2f%% of seat equity < %.1f%% - rejected, not lifted (Brett rule; Marcus 2026-10-29 13:08 WITA, was: lift unless n>=40 and <1%%)" % (shown * 100, FLOOR * 100))
     if RP["warning"]: warn.append(RP["warning"])
     # 2026-10-29 infra: attach live quote as-of so seats/stale checks can judge freshness (never blocks)
     q_asof = q_last = q_src = None

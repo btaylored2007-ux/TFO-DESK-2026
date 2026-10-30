@@ -24,6 +24,9 @@ def clean(o):
     return o
 # Fields the HTML table / best-idea line actually reads (cuts ~60KB of unused pillars/signals/news).
 _TOP_KEEP = ("rank", "sym", "side", "grade", "score", "market_open", "wake_ok", "why_no_wake")
+def stale_min(age_min, limit):
+    """True when a timestamp is missing or older than limit minutes. 0.0 is a fresh heartbeat — `age or 99` treats 0.0 as missing and flags a live engine as broken."""
+    return age_min is None or age_min > limit
 def slim_row(x):
     if not isinstance(x, dict): return x
     o = {k: x.get(k) for k in _TOP_KEEP if k in x}
@@ -91,7 +94,7 @@ def build():
         raw_top = v.get("top10", []) or []
         slim_top = [slim_row(x) for x in raw_top]
         best = next((x for x in slim_top if x.get("grade") in ("A+", "A")), (slim_top or [None])[0])
-        st = "green" if any(x.get("wake_ok") for x in raw_top) else "amber" if any(x.get("grade") in ("A", "A+") for x in raw_top) else "grey"
+        st = "green" if any(x.get("wake_ok") and not x.get("why_no_wake") for x in raw_top) else "amber" if any(x.get("grade") in ("A", "A+") for x in raw_top) else "grey"
         bk = (book.get("seats") or {}).get(seat) or {}
         sf = fails_by_seat.get(seat, []); swf = [w for w in failed_wakes.values() if seat in str(w.get("wake_id", ""))]
         if sf or next((w.get("wake_id") in failed_wakes for w in sw if w.get("status") == "finished"), False): st = "red"
@@ -106,9 +109,10 @@ def build():
         try: return round((now - dt.datetime.fromisoformat(u)).total_seconds() / 60, 1)
         except Exception: return None
     broken = []
-    if (age(hb.get("utc")) or 99) > 5: broken.append(dict(sev="red", what="Engine heartbeat is %s min old" % age(hb.get("utc"))))
+    hb_age, dm_age = age(hb.get("utc")), age(dm.get("utc"))
+    if stale_min(hb_age, 5): broken.append(dict(sev="red", what="Engine heartbeat is %s min old" % hb_age))
     if hb.get("fails"): broken.append(dict(sev="amber", what="Engine had %s failed cycle(s) in a row" % hb.get("fails")))
-    if (age(dm.get("utc")) or 99) > 6: broken.append(dict(sev="red", what="Dead-man watchdog has not checked in for %s min" % age(dm.get("utc"))))
+    if stale_min(dm_age, 6): broken.append(dict(sev="red", what="Dead-man watchdog has not checked in for %s min" % dm_age))
     if dm.get("state") == "DEGRADED": broken.append(dict(sev="red", what="Watchdog says DEGRADED: " + str(dm.get("why"))))
     for g in cov.get("gaps", []): broken.append(g)
     for m in ov.get("mismatches", []): broken.append(dict(sev="red", what="Dash check: " + m))

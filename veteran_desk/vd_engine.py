@@ -367,6 +367,14 @@ STORE = dict(F={}, U={}, avail={}, rejects={}, built_utc=None, secs=None, feat_e
 def build_store():
     t0 = time.time(); t = now(); c = P.con()
     U, avail = build_universe(); B = bench_rets(c, t); F = {}; rej = {}; err = {}
+    with P.bar_cache():
+        P.bars_asof_many(c, list(U), t, 300)
+        _build_feats(c, U, t, B, F, rej, err)
+    STORE.update(F=F, U=U, avail=avail, rejects=rej, feat_errors=dict(list(err.items())[:200]), n_err=len(err), built_utc=t.isoformat(), secs=round(time.time() - t0, 1), ctx=context(c, t))
+    try: c.close()
+    except Exception: pass
+    log("feature store built: %d scored-ready of %d universe (%d filtered, %d errors) in %.0fs" % (len(F), len(U), len(rej), len(err), time.time() - t0))
+def _build_feats(c, U, t, B, F, rej, err):
     for s, u in U.items():
         try:
             f, why = feats(c, u, t, B)
@@ -375,11 +383,20 @@ def build_store():
             if pr: rej[s] = pr; continue
             F[s] = f
         except Exception as e: err[s] = "%s: %s" % (type(e).__name__, str(e)[:80])
-    STORE.update(F=F, U=U, avail=avail, rejects=rej, feat_errors=dict(list(err.items())[:200]), n_err=len(err), built_utc=t.isoformat(), secs=round(time.time() - t0, 1), ctx=context(c, t))
-    try: c.close()
-    except Exception: pass
-    log("feature store built: %d scored-ready of %d universe (%d filtered, %d errors) in %.0fs" % (len(F), len(U), len(rej), len(err), time.time() - t0))
 # ---------------- scoring ----------------
+def _wake_why(x):
+    """Why an A/A+ row is not wake_ok. exp R >= 0 passes; a small positive exp (0.06) is not the hold. Market closed / hysteresis / sample count are."""
+    if x.get("wake_block"): return x["wake_block"]
+    if x.get("wake_ok"): return None
+    if x.get("grade") not in ("A", "A+"): return None
+    h = x.get("history") or {}; bits = []
+    if not h.get("wake_ok"):
+        bits.append("history exp R %s needs >=0 with n>=%s (got %s), size %s%%" % (h.get("exp_R"), h.get("n_min"), h.get("n"), h.get("natural_pct")))
+    if x.get("earnings_block"): bits.append("earnings in window")
+    if x.get("market_open") is False: bits.append("market closed")
+    lim = 2 if x.get("market") == "CRYPTO" else 4
+    if x.get("bar_age_d") is not None and x["bar_age_d"] > lim: bits.append("stale bar %sd" % x["bar_age_d"])
+    return "; ".join(bits) if bits else "wake gate"
 def score_all():
     t = now(); F, U, ctx = STORE["F"], STORE["U"], STORE["ctx"]; out = {}
     for seat, cfg in SEATS.items():
@@ -404,6 +421,7 @@ def score_all():
                 x["history"] = history_check(seat, F[x["sym"]]); x["earnings_block"] = earnings_block(x["sym"])
                 x["market_open"] = market_open(x["market"], t)
                 x["wake_ok"] = bool(x["history"].get("wake_ok")) and not x["earnings_block"] and x["market_open"] and x["bar_age_d"] <= (2 if x["market"] == "CRYPTO" else 4)
+                x["why_no_wake"] = _wake_why(x)
         out[seat] = dict(seat=seat, trader=cfg["name"], weights=dict(zip(PILLARS, cfg["w"])), scanned=len(syms), top10=res[:10],
                          n_A=sum(1 for x in res if x["grade"] == "A"), n_Aplus=sum(1 for x in res if x["grade"] == "A+"), n_B=sum(1 for x in res if x["grade"] == "B"),
                          grades={x["sym"].upper(): x["grade"] for x in res}, utc=t.isoformat(), version=VERSION)
@@ -485,7 +503,6 @@ def release_slot():
     for s, c in chosen.items():
         for x in c: jl(os.path.join(BASE, "state", "veteran_desk", "engine_contrib.jsonl"), dict(utc=W["utc"], wita=W["wita"], engine="thf-" + s, seat=s, kind="wake_" + x["grade"], ticker=x["sym"], score=x["score"], grade=x["grade"], wake_id=wid))
     log("WAKE %s seats=%s caps day total %d/%d" % (wid, ",".join(chosen), C["total"], CAP_TOTAL))
-    second_looks(W)
     return W
 # ---------------- wake runner (one at a time; never takes the batch pipeline lock; defers while it runs) ----------------
 RUNNER = dict(proc=None, wid=None, t0=None)
@@ -532,6 +549,8 @@ def _finish(wid, st):
                 B = rj(STATE_P, {}) or {}; B.setdefault("suppressed", {})[s + "|" + str(tk)] = wita().date().isoformat(); wj(STATE_P, B)
     log("FINISH %s %s %s" % (wid, st, json.dumps(summ, default=str)[:300]))
     refund_failed(wid, W, summ)
+    try: second_looks(W)   # advisory only, after the seat round so it cannot take a Grok slot the trade calls need
+    except Exception as e: log("second look err %s" % type(e).__name__)
 def refund_failed(wid, W, summ):
     """tfo_wakerefund_20261030: a seat whose model round failed (no action back: queue/timeout/error) does not use up a wake against CAP_SEAT/CAP_TOTAL."""
     try:
@@ -577,7 +596,7 @@ def gpt2l(wid):
               "your call LONG/SHORT/PASS, confidence 0-1, and any hard fact error (wrong stop side, thin liquidity). Reply ONE JSON object {notes:[{sym,call,confidence,kill_case,fact_flags:[]}]}.\nCANDIDATES:" + json.dumps(c, default=str))
     t0 = time.time(); txt = D._llm("codex", prompt, LLM_TIMEOUT_2L, effort="low")
     j = D.parse_json(txt) if txt and not txt.startswith("__ERR__") else None
-    o = dict(wake_id=wid, model="grok_bot/file_queue", utc=now().isoformat(), secs=round(time.time() - t0, 1), status="ok" if j else "timeout_or_error", notes=(j or {}).get("notes"), raw=None if j else (txt or "")[:300])
+    o = dict(wake_id=wid, model="grok_bot/file_queue", label="Grok second look", utc=now().isoformat(), secs=round(time.time() - t0, 1), status="ok" if j else "timeout_or_error", notes=(j or {}).get("notes"), raw=None if j else (txt or "")[:300], advisory=True, blocks_entry=False)
     wj(os.path.join(ST, "second_look", "gpt", wid + ".json"), o); _merge(wid)
 def grok_note(wid, path):
     j = rj(path) or {}
@@ -695,11 +714,14 @@ BOOT = now().isoformat()
 def cycle(n):
     if not STORE["built_utc"] or (now() - dt.datetime.fromisoformat(STORE["built_utc"])).total_seconds() > FEAT_EVERY_S: build_store(); coverage()
     S = score_all()
+    with _lock("broker"): broker(S)
     for seat, v in S.items():
+        for x in v.get("top10") or []:
+            if x.get("wake_block"): x["why_no_wake"] = x["wake_block"]
+            elif not x.get("why_no_wake"): x["why_no_wake"] = _wake_why(x)
         wj(os.path.join(ST, "grades", seat + ".json"), dict(utc=v["utc"], grades=v.pop("grades")))
         wj(os.path.join(ST, "top10", seat + ".json"), v)
     wj(os.path.join(ST, "top10", "head_of_desk.json"), marcus_view(S))
-    with _lock("broker"): broker(S)
     first = os.path.join(ST, "first_top10.json")
     if not os.path.exists(first): wj(first, dict(utc=now().isoformat(), wita=wita().strftime("%F %T WITA"), seats={k: [(x["sym"], x["side"], x["grade"], x["score"]) for x in v["top10"]] for k, v in S.items()}))
     try: subdesks(S)

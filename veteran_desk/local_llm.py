@@ -11,7 +11,7 @@ TIMEOUT = int(os.environ.get("TFO_FAST_TIMEOUT", "120"))
 WS = os.path.expanduser("~/.tfo_llm_ws")   # empty sandbox dir: CLI sees no repo, no ledgers
 LOG = os.path.join(BASE, "reports", "queue_answerer.jsonl")
 # per-desk lanes so VD and THF never block each other
-_LANES = {"vd": int(os.environ.get("TFO_LANE_VD", "3")), "thf": int(os.environ.get("TFO_LANE_THF", "2")), "other": 2}
+_LANES = {"vd": int(os.environ.get("TFO_LANE_VD", "3")), "thf": int(os.environ.get("TFO_LANE_THF", os.environ.get("TFO_CLI_GLOBAL_CAP", "3"))), "other": 2}
 _SEM = {k: threading.BoundedSemaphore(v) for k, v in _LANES.items()}
 def enabled(): return os.environ.get("TFO_FAST_LLM", "1") == "1" and os.path.exists(CLI) and os.path.exists(KEYF)
 def _env():
@@ -19,12 +19,59 @@ def _env():
 def _log(rec):
     try: os.makedirs(os.path.dirname(LOG), exist_ok=True); open(LOG, "a").write(json.dumps(rec) + "\n")
     except Exception: pass
+def _json_body(text):
+    s = (text or ""); i = s.find("{")
+    if i < 0: return None
+    depth = 0; quote = False; esc = False
+    for j, ch in enumerate(s[i:], i):
+        if quote:
+            if esc: esc = False
+            elif ch == "\\": esc = True
+            elif ch == '"': quote = False
+            continue
+        if ch == '"': quote = True
+        elif ch == "{": depth += 1
+        elif ch == "}":
+            depth -= 1
+            if depth == 0:
+                return s[i:j + 1] if s[j + 1:].strip() == "" else None
+    return None
 def _once(prompt, timeout):
     os.makedirs(WS, exist_ok=True)
     cmd = [CLI, "-p", "--output-format", "text", "--model", MODEL, "--mode", "ask", "--trust", "--workspace", WS]
-    p = subprocess.run(cmd, input=prompt, capture_output=True, text=True, timeout=timeout, env=_env(), cwd=WS)
-    out = (p.stdout or "").strip()
-    if p.returncode != 0 or not out: raise RuntimeError(f"rc={p.returncode} {(p.stderr or out)[-200:]}")
+    p = subprocess.Popen(cmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, env=_env(), cwd=WS)
+    buf = []
+    def _read():
+        try:
+            while True:
+                chunk = p.stdout.read(512)
+                if not chunk: break
+                buf.append(chunk)
+        except Exception: pass
+    th = threading.Thread(target=_read, daemon=True); th.start()
+    try: p.stdin.write(prompt or ""); p.stdin.close()
+    except Exception: pass
+    deadline = time.time() + max(1, timeout); early = None
+    while time.time() < deadline:
+        if p.poll() is not None: break
+        body = _json_body("".join(buf))
+        if body:
+            time.sleep(0.35)
+            body2 = _json_body("".join(buf))
+            if body2:
+                early = body2; p.kill(); break
+        time.sleep(0.05)
+    else:
+        p.kill()
+    try: p.wait(timeout=5)
+    except Exception: pass
+    th.join(timeout=2)
+    err = ""
+    try: err = (p.stderr.read() or "") if p.stderr else ""
+    except Exception: pass
+    out = (early or "".join(buf)).strip()
+    if not out: raise RuntimeError(f"rc={p.returncode} {(err or '')[-200:]}")
+    if early is None and p.returncode not in (0, None) and p.returncode != -9: raise RuntimeError(f"rc={p.returncode} {(err or out)[-200:]}")
     return out
 GLOBAL_CAP = int(os.environ.get("TFO_CLI_GLOBAL_CAP", "3"))
 CAP_CFG = os.path.join(BASE, "state", "llm_cap.json")   # tfo_fastllm4: {"cap": N} live-tunable without redeploy
