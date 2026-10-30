@@ -950,19 +950,24 @@ def time_stop_trigger(p, m, t, au, marks=None, seat=None):
 RULE_LOG.append(dict(utc="2026-10-29T11:11:00+00:00", wita="19:11 WITA 29 Oct 2026", rule="t1sync", approved_by="TFO ruling",
                      text="Manual half-bank / seat_cli partial close must set t1_done (and the rail's half-bank state: original R kept, residual stop -> fee floor/BE tighten-only, target -> T2, rail_state t1_done) so the rail never half-banks the residual again."))
 def mark_half_banked(p, t, x, h, why):
-    """Apply the rail's post-half-bank state to p (residual). Idempotent; stops only tighten; initial_stop/r0 preserved."""
-    L = p["side"] == "LONG"; f = float(p["fill"]); s0 = _initial_stop(p)
+    """Apply the rail's post-half-bank state to p (residual) only when the partial is at or beyond BE+fees in the trade's favour.
+    A loss cut logs partial_cut, keeps the stop and r0, and remembers shares_orig. Idempotent; stops only tighten; initial_stop/r0 preserved."""
+    L = p["side"] == "LONG"; f = float(p["fill"]); s0 = _initial_stop(p); x = float(x)
     p.setdefault("initial_stop", s0); p["r0"] = p.get("r0") or abs(f - s0)
     if p.get("t1_done"):
         if not p.get("t2_done"): p.update(t2_done=True, t2_utc=t.isoformat(), rail_state="t2_done"); _rlog(p, t, "quarter_bank", px=x, shares=h, reason=why)   # exitC: 2nd partial
         return p
-    p.setdefault("shares_orig", int(p["shares"]) + int(h))
     be = f + (1 if L else -1) * f * rt_rate(p)
+    if (L and x < be) or (not L and x > be):   # not yet a profit half-bank: do not lift the stop through the market or set t1_done
+        _rlog(p, t, "partial_cut", px=x, shares=h, reason=why); p.setdefault("shares_orig", int(p["shares"]) + int(h)); return p
+    p.setdefault("shares_orig", int(p["shares"]) + int(h))
     if (L and p["stop"] < be) or (not L and p["stop"] > be): _rlog(p, t, "stop_tighten", old=p["stop"], new=round(be, 6), why="manual half banked -> BE"); p["stop"] = round(be, 6)
     tg = p.get("target")
     if tg is not None: p.update(t1=tg, target=round(f + 2 * (float(tg) - f), 6))
     p.update(t1_done=True, t1_utc=t.isoformat(), rail_state="t1_done"); _rlog(p, t, "half_bank", px=x, shares=h, reason=why)
     return p
+RULE_LOG.append(dict(id="tfo_partial_cut_20261030", utc="2026-10-30T21:22:00+00:00", rule="partial_cut is not a half-bank",
+                     text="PAPER. A partial whose exit is not yet at BE+fees in the trade's favour logs partial_cut, keeps the stop and r0, sets shares_orig, and does not set t1_done or move the target to T2. At or beyond BE, the half-bank state still applies. Rail-stop and other heartbeat exits while the venue is closed stay queued for the next open's mark. Crypto, FX, and the kill switch still book immediately. Closed rows are not rewritten."))
 RULE_LOG.append(dict(id="brett_override_20261029_1917", utc="2026-10-29T11:17:00+00:00", wita="19:17 WITA 29 Oct 2026", approved_by="Brett", relayed_by="TFO",
                      words="Arm the grade A's", scope="trim-only: lifts ONLY the soft trim (A+-only new arms) for grade-A setups; every other rail still applies (A$500k liquidity, 5% ADV, 5% cap / A at 2%, stop on every trade, desk + correlated heat, US net beta <= ~US$750k, no levered ETFs, no chase >1% / price not through stop)"))
 RULE_LOG.append(dict(id="tfo_stalefill_20261029_1921", utc="2026-10-29T11:21:00+00:00", wita="19:21 WITA 29 Oct 2026", approved_by="TFO ruling",
@@ -1015,7 +1020,7 @@ def realise(B, p, x, h, au, marks=None):
         au_f = p.get("fill_audusd"); sh = float(p.get("shares") or h) or h
         if p.get("fill_notional_aud") not in (None, ""): fill_n = float(p["fill_notional_aud"]) * h / sh
         elif au_f not in (None, ""): fill_n = aud(p["ticker"], p["fill"], float(au_f)) * h
-        else: fill_n = old_fill_n
+        else: fill_n = fill_px * h
         true_gross = sg * (exit_n - fill_n)
         if abs(true_gross - old_gross) < 1e-6: gross, price, fx = old_gross, old_gross, 0.0
         else:
