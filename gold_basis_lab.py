@@ -108,7 +108,8 @@ def _kraken(endpoint, params, tries=6):
     and then every subsequent call errors -- which is exactly how the first
     attempt at this fetch silently wedged.
     """
-    import requests
+    import kraken_dns, requests
+    kraken_dns.install()
     for i in range(tries):
         try:
             r = requests.get("https://api.kraken.com/0/public/" + endpoint,

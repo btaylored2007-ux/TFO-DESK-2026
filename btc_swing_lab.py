@@ -125,6 +125,7 @@ def fetch_hourly():
 def kraken_daily_check(daily):
     """Cross-check yfinance closes against Kraken public daily OHLC."""
     try:
+        import kraken_dns; kraken_dns.install()
         r = urllib.request.urlopen(
             "https://api.kraken.com/0/public/OHLC?pair=XBTUSD&interval=1440",
             timeout=20)
@@ -146,6 +147,7 @@ def kraken_daily_check(daily):
 def kraken_depth_slippage():
     """Live Kraken XBT/USD book: VWAP sweep cost vs mid for $50k-$500k clips."""
     try:
+        import kraken_dns; kraken_dns.install()
         r = urllib.request.urlopen(
             "https://api.kraken.com/0/public/Depth?pair=XBTUSD&count=500",
             timeout=20)

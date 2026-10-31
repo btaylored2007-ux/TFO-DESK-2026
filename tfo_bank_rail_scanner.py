@@ -62,6 +62,7 @@ def http_get_json(url, timeout=30):
 
 
 def fetch_kraken(pairs):
+    import kraken_dns; kraken_dns.install()
     out = {}
     for pair in sorted(set(p for p in pairs if p)):
         try:

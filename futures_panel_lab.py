@@ -83,6 +83,7 @@ D=pickle.load(open("panel.pkl","rb")); spotmap=D["spotmap"]
 syms=sorted(set(spotmap[s] for s in set(k[0] for k in D["panel"])))
 print("need",len(syms),"spot symbols")
 def get(url):
+    import kraken_dns; kraken_dns.install()
     for a in range(4):
         try:
             return json.loads(urllib.request.urlopen(url,timeout=25).read())

@@ -54,6 +54,11 @@ def news(tickers=None, limit=25, get=None):
         out = []
         for r in (js or {}).get("results") or []:
             ti = (r.get("title") or "").strip(); pub = r.get("published_utc") or r.get("published")
-            if ti and pub: out.append(dict(title=ti[:220], link=r.get("article_url") or r.get("url") or "", source=src, published_utc=str(pub)))
+            ticks = []
+            for tk in (r.get("tickers") or r.get("stocks") or []):
+                if isinstance(tk, str): ticks.append(tk.upper())
+                elif isinstance(tk, dict) and (tk.get("ticker") or tk.get("symbol")): ticks.append(str(tk.get("ticker") or tk.get("symbol")).upper())
+            if ti and pub: out.append(dict(title=ti[:220], link=r.get("article_url") or r.get("url") or "", source=src, published_utc=str(pub),
+                                           tickers=ticks, sentiment_raw=r.get("sentiment") or r.get("overall_sentiment")))
         if out: return out
     return []

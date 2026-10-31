@@ -22,6 +22,7 @@ DAY_MS = 86_400_000
 
 
 def public_json(url):
+    import kraken_dns; kraken_dns.install()   # futures.kraken.com is ISP-sinkholed on plain DNS
     with urllib.request.urlopen(url, timeout=20) as response:
         raw = response.read()
     return json.loads(raw), hashlib.sha256(raw).hexdigest()

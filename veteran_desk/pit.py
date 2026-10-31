@@ -198,6 +198,43 @@ def ingest_kraken(c, pair="XBTUSD"):
     for t, o, h, l, cl, vw, v, n in (res[k[0]] if k else []):
         rows.append((dt.datetime.fromtimestamp(int(t), UTC).date().isoformat(), float(o), float(h), float(l), float(cl), float(v)))
     put_bars(c, "KRAKEN:" + pair, rows, "kraken_public"); return len(rows)
+def _ensure_bars_1h(c):
+    c.execute("CREATE TABLE IF NOT EXISTS bars_1h(sym TEXT, ts TEXT, o REAL, h REAL, l REAL, c REAL, v REAL, src TEXT, PRIMARY KEY(sym, ts))")
+def hourly_asof(c, sym, asof, n=48):
+    """Completed 1h bars, oldest->newest, or [] if the table/feed is missing (fail open)."""
+    try:
+        a = asof.astimezone(UTC).isoformat() if isinstance(asof, dt.datetime) else str(asof)
+        q = c.execute("SELECT ts,o,h,l,c,v FROM bars_1h WHERE sym=? AND ts<=? ORDER BY ts DESC LIMIT ?", (sym, a, n)).fetchall()
+        return list(reversed(q))
+    except Exception:
+        return []
+def ingest_kraken_hourly(c, pair, get=None):
+    """Public Kraken 1h OHLC via DoH. Drops the forming bar. Returns rows stored."""
+    import kraken_dns; kraken_dns.install()
+    url = "https://api.kraken.com/0/public/OHLC?pair=%s&interval=60" % pair
+    d = get(url) if get else json.loads(_get(url, ua=False))
+    res = (d or {}).get("result") or {}
+    k = [x for x in res if x != "last"]
+    raw = (res[k[0]] if k else [])[:-1]   # drop the bar that is still forming
+    rows = []
+    for t, o, h, l, cl, vw, v, n in raw:
+        rows.append((dt.datetime.fromtimestamp(int(t), UTC).isoformat(), float(o), float(h), float(l), float(cl), float(v)))
+    _ensure_bars_1h(c)
+    if rows:
+        c.executemany("INSERT OR REPLACE INTO bars_1h VALUES(?,?,?,?,?,?,?,?)", [("KRAKEN:" + pair, *r, "kraken_public_1h") for r in rows])
+    return len(rows)
+def refresh_kraken_hourly(c, syms, get=None, limit=25):
+    """Best-effort 1h refresh. A failed pair is a warning, never an exception to the caller."""
+    warnings = []; ok = 0
+    for sym in list(syms or [])[:limit]:
+        pair = str(sym).split(":")[-1]
+        try:
+            ingest_kraken_hourly(c, pair, get=get); ok += 1
+        except Exception as e:
+            warnings.append("%s %s" % (pair, type(e).__name__))
+    try: c.commit()
+    except Exception: pass
+    return dict(ok=ok, warnings=warnings, blocks_trade=False)
 def ingest_edgar(c, sym, cik):
     d = json.loads(_get(f"https://data.sec.gov/submissions/CIK{int(cik):010d}.json")); r = d["filings"]["recent"]; n = 0
     for form, acc, fd, at in zip(r["form"], r["accessionNumber"], r["filingDate"], r.get("acceptanceDateTime") or r["filingDate"]):

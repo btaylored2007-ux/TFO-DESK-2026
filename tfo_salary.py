@@ -37,6 +37,7 @@ def next_month(value):
 
 def fetch_aud_fx():
     """Public midpoint for PAPER accounting only; no FX order or bank fees."""
+    import kraken_dns; kraken_dns.install()
     with urllib.request.urlopen(FX_URL, timeout=15) as response:
         data = json.load(response)
     if data.get('error') or set(data.get('result', {})) != {'AUDUSD'}:

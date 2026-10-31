@@ -120,6 +120,7 @@ def commit(book, powder, expected, action):
 
 
 def get(url):
+    import kraken_dns; kraken_dns.install()   # futures.kraken.com public GETs only; DoH so DNS cannot null the book
     req = urllib.request.Request(url, headers={'User-Agent': 'TFO-PAPER-SOL/1.0'})
     with urllib.request.urlopen(req, timeout=15) as response:
         d = json.load(response)

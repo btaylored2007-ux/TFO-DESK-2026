@@ -90,14 +90,30 @@ SESSION_SEC = 23400.0
 PREVIEW_ASSUMED_DELAY_S = 1200.0   # Yahoo ASX/TSE/LSE ~20 min
 
 
+def delayed_book_on(book="value"):
+    """Config flag: this one hunt book may paper-trade a current-session delayed print.
+
+    Env TFO_HUNT_DELAYED_PAPER=value (or 1/true/on) or state/config/hunt_delayed_paper.json
+    {"enabled": true, "book": "value"}. Default off, so .AX/.T/.L stay the only delayed names.
+    Stops are still required on every fill.
+    """
+    v = os.environ.get("TFO_HUNT_DELAYED_PAPER", "").strip().lower()
+    if v in (book, "1", "true", "on", "value_deploy", "fundamental"):
+        return True
+    try:
+        j = json.load(open(os.path.join(BASE, "state", "config", "hunt_delayed_paper.json")))
+        return bool(j.get("enabled")) and str(j.get("book") or "").lower() in (book, "value_deploy", "fundamental")
+    except Exception:
+        return False
 def fillable(sym, q):
-    """(ok, delay_s, price_class). Live executable always; delayed PAPER only for DELAYED_OK_SUFFIXES."""
+    """(ok, delay_s, price_class). Live executable always; delayed PAPER for DELAYED_OK_SUFFIXES, or any name when the value-book flag is on."""
     if not q or not q.get("px_usd"): return False, None, None
+    delayed_ok = str(sym).upper().endswith(DELAYED_OK_SUFFIXES) or delayed_book_on()
     if q.get("_preview"):   # what-if on closing prints: assume the typical Yahoo delay, not the overnight age
-        d = PREVIEW_ASSUMED_DELAY_S if str(sym).upper().endswith(DELAYED_OK_SUFFIXES) else 0.0
+        d = PREVIEW_ASSUMED_DELAY_S if delayed_ok else 0.0
         return True, d, "PREVIEW (assumed delay %ds)" % d if d else "PREVIEW"
     if q.get("executable") is True: return True, float(q.get("age_sec") or 0.0), "CURRENT"
-    if q.get("paper_executable") is True and str(sym).upper().endswith(DELAYED_OK_SUFFIXES):
+    if q.get("paper_executable") is True and delayed_ok:
         return True, float(q.get("age_sec") or 0.0), q.get("paper_price_class") or "DELAYED PAPER"
     return False, None, None
 
@@ -265,14 +281,19 @@ def _main(dry=True, preview=False):
 
     print("%-9s %-28s %-20s %10s %7s %6s %7s %7s" % ("SYM", "NAME", "SECTOR", "USD", "%ADV", "COSTbp", "PX", "STOP"))
     spend = 0.0
+    kept = []
     for o in orders:
         px_usd = float(o["q"]["px_usd"]); px_local = float(o["q"]["px"])
         o["cost_usd"] = o["usd"] * o["cost_bps"] / 1e4
         o["fill_usd"] = px_usd * (1 + (o["cost_bps"] - COMMISSION_BPS) / 1e4)   # spread+impact in the fill price
         o["units"] = o["usd"] / o["fill_usd"]; o["stop_px"] = px_local * (1 - STOP_PCT)
+        if not (STOP_PCT > 0 and o["stop_px"] < px_local):
+            skipped.append((o["sym"], "paper fill refused: no stop under entry")); continue
+        kept.append(o)
         spend += o["usd"] + o["usd"] * COMMISSION_BPS / 1e4
         print("%-9s %-28s %-20s %10s %6.2f%% %6.0f %7.2f %7.2f" % (o["sym"], (o["row"].get("name") or "")[:28], o["sector"][:20],
               "{:,.0f}".format(o["usd"]), 100 * o["pct_adv"], o["cost_bps"], px_local, o["stop_px"]))
+    orders = kept
     for s, why in skipped[:25]:
         print("  skip %-9s %s" % (s, why))
     print("  %d buys US$%s incl. commission; cash US$%s -> US$%s (reserve US$%s)" % (len(orders), "{:,.0f}".format(spend),

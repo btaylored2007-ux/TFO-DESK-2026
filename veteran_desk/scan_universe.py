@@ -95,7 +95,8 @@ ASIA = ("JP", "HK", "KR", "TW", "SG")
 YS = {"Healthcare": "Health Care", "Financial Services": "Financials", "Energy": "Energy", "Consumer Defensive": "Consumer Staples", "Utilities": "Utilities",
       "Technology": "Information Technology", "Communication Services": "Communication Services", "Industrials": "Industrials", "Basic Materials": "Materials",
       "Consumer Cyclical": "Consumer Discretionary", "Real Estate": "Real Estate", "ETF": "ETF/Fund"}   # thfreview: ETF/fund tag (no GICS)   # Yahoo sector -> GICS
-STABLE = ("USDT", "USDC", "DAI", "PYUSD", "USDG", "RLUSD", "USDD", "TUSD", "FDUSD", "EUR", "GBP", "AUD", "CAD", "CHF", "JPY", "USD")
+from veteran_desk import crypto_universe as _CU
+STABLE = _CU.STABLE   # tuple, so alt.startswith(STABLE) still works; includes AUSD, QCAD, ...
 def _intl():
     try: return json.load(open(os.path.join(P.BASE, "data", "pit", "sector_map_intl.json")))
     except Exception: return {}
@@ -107,7 +108,7 @@ def kraken_liquid():
     try: K = json.load(open(os.path.join(P.BASE, "state", "veteran_desk", "kraken_24h_all.json")))
     except Exception: return None, 0
     ps = K.get("pairs") or []
-    L = ["KRAKEN:" + x["alt"] for x in ps if x.get("liquid") and not any(x["alt"].startswith(b) for b in STABLE) and not P.banned("KRAKEN:" + x["alt"])]
+    L = ["KRAKEN:" + x["alt"] for x in ps if x.get("liquid") and (x.get("vol24h_aud") or 0) >= 500_000 and not _CU.is_stable_pair(x.get("alt")) and not P.banned("KRAKEN:" + x["alt"])]
     return L, len(ps)
 def load():
     try: return json.load(open(OUT))

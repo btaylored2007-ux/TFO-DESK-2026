@@ -235,6 +235,7 @@ def _fallback_usd_rates(majors):
     if need_k:
         pairs = ",".join(kraken_pair[m] for m in need_k)
         try:
+            import kraken_dns; kraken_dns.install()
             with urllib.request.urlopen(
                 "https://api.kraken.com/0/public/Ticker?pair=" + pairs, timeout=10
             ) as r:

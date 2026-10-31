@@ -186,6 +186,7 @@ def breakdown(tk, sw):
         b["derivs"] = dict(funding=b["sweep"]["funding"], open_interest=b["sweep"]["oi"])
         b["volume"] = dict(vol24_usd=sw.get("vol24_usd") or g(info, "volume24Hr"), exchange_concentration=U); b["unknowns"].append("exchange concentration (needs CoinGecko tickers)")
         try:
+            import kraken_dns; kraken_dns.install()
             pair = tk.replace("/", ""); r = json.load(urllib.request.urlopen(f"https://api.kraken.com/0/public/Ticker?pair={pair}", timeout=10))
             v = list(r.get("result", {}).values())
             if v: b["kraken"] = dict(last=fnum(v[0]["c"][0]), vol_24h_base=fnum(v[0]["v"][1]), spread=fnum(v[0]["a"][0]) - fnum(v[0]["b"][0])); b["sources"].append("kraken public ticker")

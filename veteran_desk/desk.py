@@ -206,6 +206,17 @@ def pack(c, seat, asof):
             out["filings_8k"] = [FD.edgar_8k_text(dict(r)) for r in R if r["sym"] in mine][:10] + [dict(r, text=r.get("text")) for r in R if r["sym"] not in mine and r.get("text")][:6]
             out["filings_8k_note"] = "8-Ks filed last 2 days (EDGAR). items: 2.02 results, 1.01 material agreement, 5.02 officer change, 8.01 other, 7.01 Reg FD. text = first 1,500 chars of the filing. Only names in your universe/ranked list are tradable here."
         except Exception as x: out["filings_8k_note"] = "edgar 8-K fetch failed: %s" % type(x).__name__
+    if seat.get("seat") == "news_filings":   # Quinn: Benzinga via the Massive key, sentiment + recency. Missing feed is neutral, never a block.
+        try:
+            from veteran_desk import benzinga_news as _BZ
+            out["benzinga"] = _BZ.for_quinn()
+        except Exception as x:
+            out["benzinga"] = dict(ok=False, rows=[], warning=type(x).__name__, blocks_trade=False, note="benzinga fail-open; N contribution neutral")
+    try:   # Unusual Whales + Coinglass, paper A/B. Default arm is without. Never blocks.
+        from veteran_desk import flow_ab as _FA
+        out["flow_ab"] = _FA.for_pack()
+    except Exception as x:
+        out["flow_ab"] = dict(arm="without", included=False, ok=False, warning=type(x).__name__, blocks_trade=False, paper_only=True)
     return out
 # ---------------- model calls (foreground subprocess, never background) ----------------
 CLAUDE_RETIRED = os.path.exists(os.path.join(BASE, "state", "config", "claude_retired.json")) or os.environ.get("TFO_CLAUDE_OFF") == "1"
@@ -572,6 +583,11 @@ def run(use_llm=True, queue=True, asof=None, queue_path=None, only=None):
         by_engine={e: sum(1 for u in U if u["engine"] == e) for e in ("codex",)}, avg_secs=round(sum(u["secs"] for u in U) / len(U), 1) if U else None), ok=True, last_run_utc=now().isoformat(), run_id=runid, secs=round(time.time() - t0), llm=use_llm,
                 seats_ok=sum(1 for v in log["seats"].values() if v["raw_ok"]), seats_total=len(props), proposals=len(out), passed=sum(r["gate"]["passed"] for r in out)))
     if not ENGINE_WAKE: card(log, sc)
+    try:
+        from veteran_desk import grade_ledger as _GL
+        _GL.record_vd(log, packs)
+    except Exception:
+        pass   # ledger is advisory; a write failure must not block the run
     return log
 HOD = os.path.join(SD, "head_of_desk.json")
 

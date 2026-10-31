@@ -162,6 +162,7 @@ def kraken_closes(base, cache):
     if hit and (time.time() - fetched) < CACHE_MAX_AGE_SEC:
         return hit
     try:
+        import kraken_dns; kraken_dns.install()
         url = "https://api.kraken.com/0/public/OHLC?pair=%s&interval=1440" % pair
         with urllib.request.urlopen(url, timeout=20) as r:
             d = json.loads(r.read().decode())
