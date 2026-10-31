@@ -416,6 +416,18 @@ def mark(L=None):
 
 
 def _append_fill(fill):
+    try:
+        import audit
+        _pl = {k: fill.get(k) for k in ("id", "inst", "side", "shares", "px_usd", "reason", "leg")}
+        _pl["paper_only"] = True
+        side = str(fill.get("side") or "").upper()
+        if side == "BUY":
+            audit.log("paper_order", "tfo", _pl)
+            audit.log("fill", "tfo", _pl)
+        else:
+            audit.log("stop" if "stop" in str(fill.get("reason") or "").lower() else "exit", "tfo", _pl)
+    except Exception:
+        pass
     new = not os.path.exists(FILLS)
     with open(FILLS, "a", newline="") as f:
         w = csv.DictWriter(f, fieldnames=[

@@ -336,6 +336,14 @@ def open_book(verbose=True):
         "realised_usd": 0.0, "costs_paid_usd": 0.0,
     }
     save_ledger(led)
+    try:
+        import audit
+        for sym, pos in positions.items():
+            pl = {"sym": sym, "side": pos.get("side"), "units": pos.get("units"), "px_usd": pos.get("entry_px_usd"), "paper_only": True}
+            audit.log("paper_order", "fundamental", pl)
+            audit.log("fill", "fundamental", pl)
+    except Exception:
+        pass
     print("   opened %d positions, deployed $%s, cash $%s, held/unopened %d"
           % (len(positions), "{:,.0f}".format(deployed), "{:,.0f}".format(cash),
              len(unopened)))

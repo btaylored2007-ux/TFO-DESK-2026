@@ -707,11 +707,26 @@ def heat(b):
     return sum(max(0.0, p["entry_px"] - p["stop"]) * p["qty"] for p in b["positions"].values())
 
 
-def log_fill(act, sym, qty, px, tape, principal, proceeds, pnl, fees, fact, tid, setup):
+def log_fill(act, sym, qty, px, tape, principal, proceeds, pnl, fees, fact, tid, setup, *, desk=None):
     syd = now_utc().astimezone(SYD).strftime("%Y-%m-%d %H:%M")
     line = "LOG %s %s %s %.8g %.8g %s %s %.2f %.2f %.2f %.2f" % (syd, act, sym, qty, px, tape, KEY, principal, proceeds, pnl, fees)
     append_line(LOG, line)
     append_line(FACTS, json.dumps({"syd": syd, "fact": fact, "ticket": tid, "fees_usd": round(fees, 2), "setup": setup, "book": KEY}))
+    try:
+        import audit
+        who = desk or ("kraken" if "KRAKEN" in "%s %s" % (tape, setup) else "v2")
+        pl = {"ticket": tid, "sym": sym, "action": act, "qty": qty, "px": px, "setup": setup, "tape": tape, "paper_only": True}
+        if act == "FUND":
+            audit.capital(who, pl)
+        elif act == "BUY":
+            audit.log("paper_order", who, pl)
+            audit.log("fill", who, pl)
+        elif act in ("STOP", "TRAIL"):
+            audit.log("stop", who, pl)
+        else:
+            audit.log("exit", who, pl)
+    except Exception:
+        pass
     return line
 
 
@@ -1248,6 +1263,13 @@ def cmd_enter(execute):
                 tok, twhy = theme_gate(o["sym"], sz["qty"] * sz["ask"], o.get("cluster"))
                 if not tok: fails.append(twhy)
             report.append((o, fails, sz))
+            if fails:
+                try:
+                    import audit
+                    audit.log("risk_decision", "kraken" if o.get("venue") == "KRAKEN" else "v2",
+                              {"sym": o.get("sym"), "setup": o.get("setup"), "reasons": [str(x)[:160] for x in fails[:8]], "paper_only": True})
+                except Exception:
+                    pass
             if fails or not execute: continue
             tid = "V2-" + uuid.uuid4().hex[:10]; utc = iso(t)
             qty, px = sz["qty"], sz["ask"]
@@ -1268,7 +1290,8 @@ def cmd_enter(execute):
             b["tickets"].append(tk); o["status"] = "FILLED"; o["ticket_id"] = tid; o["filled_utc"] = utc
             restrike(b)
             lines.append(log_fill("BUY", o["sym"], qty, px, q["tape"], qty * px, 0, 0, fees,
-                                  "V2 BUY %s %s $%.0f at ask %.6g; stop %.6g (risk $%.0f); fees %.2f; %s" % (o["setup"], o["sym"], qty * px, px, sz["stop"], sz["risk_usd"], fees, o.get("why")), tid, o["setup"]))
+                                  "V2 BUY %s %s $%.0f at ask %.6g; stop %.6g (risk $%.0f); fees %.2f; %s" % (o["setup"], o["sym"], qty * px, px, sz["stop"], sz["risk_usd"], fees, o.get("why")), tid, o["setup"],
+                                  desk="kraken" if o.get("venue") == "KRAKEN" else "v2"))
         if execute and lines:
             restrike(b); atomic(BOOK, b); append_firm_row(b)
         atomic(STAGED, s)
@@ -1361,7 +1384,8 @@ def cmd_rails(execute):
                 del b["positions"][sym]
                 s["exit_flags"].pop(sym, None)
             lines.append(log_fill(act, sym, sold, px, q["tape"], principal, proceeds, pnl, fees,
-                                  "V2 %s %s %s: %s; pnl %.2f; fees %.2f" % (act, p["setup"], sym, why, pnl, fees), tid, p["setup"]))
+                                  "V2 %s %s %s: %s; pnl %.2f; fees %.2f" % (act, p["setup"], sym, why, pnl, fees), tid, p["setup"],
+                                  desk="kraken" if p.get("venue") == "KRAKEN" else "v2"))
         restrike(b)
         if changed or lines: atomic(BOOK, b)
         if lines: append_firm_row(b)

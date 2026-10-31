@@ -30,3 +30,7 @@ data/history/*.sqlite*
 state/hunt_orch/us_scan/**/*.pkl
 *.parquet
 work/oanda_v3/*.json
+# hash-chained paper audit trail (runtime; the verifier and the desk recreate it)
+state/audit/*.jsonl
+state/audit/verify_status.json
+state/audit/.lock

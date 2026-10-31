@@ -165,6 +165,11 @@ def api(method, path, body=None, params=None, retry=None):
             raise
 def acct(path=""): return f"/v3/accounts/{ACCOUNT}{path}"
 def log(rec):
+    try:
+        import audit
+        audit.from_oanda(rec)
+    except Exception:
+        pass
     rec["utc"] = dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds"); rec["paper_practice"] = True
     with open(LOG, "a") as f: f.write(json.dumps(rec) + "\n")
 def now_utc(): return dt.datetime.now(dt.timezone.utc)

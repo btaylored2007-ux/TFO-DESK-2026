@@ -139,6 +139,11 @@ def main(argv=None):
     tc.atomic_json(DONE, {"utc": tc.iso(now), "wita": tc.wita(), "rows": rows, "before": before["equity_aud"], "after": after["equity_aud"]})
     with open(DEPLOY_LOG, "a") as f:
         f.write("%s [pt1571u] %s | PAPER only | one-shot (state/trend_core_rebook_done.json)\n" % (tc.wita(), msg))
+    try:
+        import audit
+        audit.deploy("DEPLOY_LOG.txt", tag="rebook", note=msg, desk="tfo")
+    except Exception:
+        pass
     print(msg); return 0
 
 

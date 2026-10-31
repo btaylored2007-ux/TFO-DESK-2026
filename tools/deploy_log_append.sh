@@ -15,6 +15,7 @@ NOW="$(date '+%Y-%m-%d %H:%M WITA')"
 mkdir -p "$(dirname "$TXT")"
 echo "$NOW $SUMMARY" >> "$TXT"
 echo "appended -> $TXT"
+(cd "$ROOT" && AUDIT_SOURCE=deploy_log_append AUDIT_DESK=tfo AUDIT_SUMMARY="$SUMMARY" AUDIT_MD="${MD:-}" python3 -m audit emit) || true
 if [[ -n "$MD" ]]; then
   {
     echo ""

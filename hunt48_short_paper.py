@@ -102,6 +102,11 @@ def atomic(path, obj):
     with os.fdopen(fd, "w") as f: json.dump(obj, f, indent=1, default=str)
     os.replace(tmp, path)
 def event(kind, **kw):
+    try:
+        import audit
+        audit.from_kind("hunts", kind, kw)
+    except Exception:
+        pass
     os.makedirs(SD, exist_ok=True)
     with open(EVENTS, "a") as f: f.write(json.dumps(dict(utc=now_utc().isoformat(timespec="seconds"), kind=kind, **kw), default=str) + "\n")
 

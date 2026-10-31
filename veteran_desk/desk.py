@@ -422,6 +422,14 @@ def risk_gate(p, f, chal, da, asof, run_risk_used, others=None, au=0.65):
             if pct < fl - 1e-9: g["passed"] = False; g.setdefault("reasons", []).append("thf_half_risk: %.2f%% below %.1f%% floor - rejected (A+ only while half risk)" % (pct * 100, fl * 100))
             else: k_ = pct / pct0 if pct0 else TR.size_mult(seat); g.update(risk_pct=round(pct, 5), risk_aud=round(g["risk_aud"] * k_), size_mult=round(float(g.get("size_mult") or 1) * k_, 3))
     except Exception as x: g.setdefault("warnings", []).append("thf half-risk check error %s" % type(x).__name__)
+    try:
+        import audit
+        audit.log("risk_decision", "thf" if os.environ.get("THF_DESK") == "1" else "veteran", {
+            "ticker": (p or {}).get("ticker"), "side": (p or {}).get("side"), "grade": (p or {}).get("grade"),
+            "seat": seat, "passed": bool(g.get("passed")), "reasons": (g.get("reasons") or [])[:8],
+            "risk_aud": g.get("risk_aud"), "paper_only": True})
+    except Exception:
+        pass
     return g
 def size(p, f, risk_aud, au):
     from veteran_desk import book as BK
@@ -692,7 +700,15 @@ def enqueue(recs, au, path=None, px_fn=None, ack_required=False):
                 ack_required=bool(ack_required), acked=(not ack_required) or (p.get("confirm") is True and r.get("seat_reply_ok") is True),   # tfo_propose_ack_20261031 + tfo_review_fix: desk-run auto-confirm only on the seat's own explicit "confirm":true in a reply the desk received
                 note="VETERAN DESK PAPER auto-arm (Brett 2026-10-28 19:05 WITA): gate_v2 + Marcus passed, book.py arms on its next tick without a funder tick. Brett can still veto before then: python3 funder_approve.py --reject ID", hash=r["hash"], gate_version=r["gate"].get("version", "v1"), gate_warnings=r["gate"].get("warnings", [])[:8], gate_size_mult=r["gate"].get("size_mult", 1.0), seat_risk_pct=r["gate"].get("seat_risk_pct"), override=bool(r["gate"].get("override")), lessons_respected=(p.get("lessons_respected") or "")[:400])
             ids.append(r["id"])
-    FG.update(f, path); return ids
+    FG.update(f, path)
+    try:
+        import audit
+        _desk = "thf" if os.environ.get("THF_DESK") == "1" else "veteran"
+        for i in ids:
+            audit.log("paper_order", _desk, {"id": i, "stage": "queued", "paper_only": True})
+    except Exception:
+        pass
+    return ids
 # ---------------- forward shadow scoring (code, PIT) ----------------
 def track(recs):
     T = _rj(os.path.join(_fwd_dir(), "forward_trades.json"), {"trades": {}})

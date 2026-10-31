@@ -236,6 +236,13 @@ def execute(row):
     try:  # 2026-10-02 shark slippage LOGGING ONLY (shark_slippage.py): live bid/ask next to the paper fill; after the save; never raises
         import shark_slippage; shark_slippage.record(act, k, sym, side, sold, {**q, "tape": row.get("tape")}, {**tk, "ht_clip": bool(p.get("ht_clip"))}, ledger_log=LOG)
     except Exception: pass
+    try:  # hash-chained audit after the ledger save; never blocks the exit that already booked
+        import audit
+        who = "fundamental" if k in ("fundamental_book", "fundamental_spec_book") else ("kraken" if k in ("tfo_ht_crypto", "kraken") else "tfo")
+        audit.log("stop" if act in ("STOP", "TRAIL") else "exit", who, {
+            "ticket": tid, "sym": sym, "action": act, "qty": sold, "px": px, "book": k, "paper_only": True})
+    except Exception:
+        pass
     return line
 
 def persist_trails(rows):

@@ -3669,6 +3669,14 @@ class Handler(BaseHTTPRequestHandler):
                 self._json({"status": "UNAVAILABLE", "error": str(exc)[:200]}, 503)
             return
 
+        if path == "/api/audit":  # hash-chained paper audit: read-only tip + last nightly verify
+            try:
+                import audit
+                self._json(audit.card())
+            except Exception as exc:
+                self._json({"status": "UNAVAILABLE", "ok": None, "error": str(exc)[:200], "paper_only": True}, 503)
+            return
+
         if path == "/api/dashboard":  # 2026-10-03 interactive dashboard aggregate (dashboard_api.py): read-only, PAPER, no broker contact
             try:
                 import dashboard_api

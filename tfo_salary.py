@@ -106,6 +106,11 @@ def prepare(ledger, salary, risk, now, fx=None):
     after['dry_powder_usd'] = after['cash']
     after['updated'] = stamp
     after.setdefault('capital_events', []).append(event)
+    try:
+        import audit
+        audit.capital("tfo", {"type": "capital_withdrawal", "usd": -amount, "purpose": "salary", "payment_id": identity, "paper_only": True})
+    except Exception:
+        pass
     payment = {'id':identity,'date':now.astimezone(SYD).date().isoformat(),'due_date':due,
                'paid_at_sydney':now.astimezone(SYD).isoformat(),'paid_at_utc':stamp,
                'payee':'Brent Taylor','amount':nominal,'currency':currency,'amount_usd':amount,

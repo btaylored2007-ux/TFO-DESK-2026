@@ -104,6 +104,11 @@ def _transfer(source, destination, amount, utc):
         for key in ("cash", "equity", "seed_usd", "start"):
             ledger[key] += sign * amount
         ledger.setdefault("capital_events", []).append({**event, "usd": sign * amount})
+    try:
+        import audit
+        audit.capital("tfo", {"type": "capital_transfer", "usd": amount, "from": source.get("book_key"), "to": destination.get("book_key"), "paper_only": True})
+    except Exception:
+        pass
 
 
 def _remark(book, cover_price):

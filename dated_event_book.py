@@ -120,6 +120,11 @@ def create(seed_from_sleeve_usd):
         "charter": "DATED_EVENT_BOOK_PREREGISTRATION.md",
     }
     save(d)
+    try:
+        import audit
+        audit.capital("tfo", {"type": "capital_transfer", "usd": seed_from_sleeve_usd, "to": "dated_event_book", "paper_only": True})
+    except Exception:
+        pass
     return d
 
 
@@ -172,6 +177,12 @@ def queue(symbol, event_date, event_url, confirms_it, kills_it, sector, ccy, adv
         "fill_session": fill_session_date, "fill_rule": "first live quote after the session open",
     }
     save(d)
+    try:
+        import audit
+        audit.log("armed_setup", "tfo", {"sym": symbol, "event_date": event_date, "fill_session": fill_session_date, "book": "dated_event_book", "paper_only": True})
+        audit.log("paper_order", "tfo", {"sym": symbol, "ticket_usd": TICKET_USD, "book": "dated_event_book", "stage": "pending", "paper_only": True})
+    except Exception:
+        pass
     return d["pending"][symbol]
 
 
@@ -217,6 +228,7 @@ def tick(verbose=True):
     d = load()
     if d is None:
         return None
+    aud = []
     now = _dt.datetime.now(_dt.timezone.utc)
     # 1. FILL pending orders whose session has opened
     import v1_venues  # 2026-09-28 funder directive: V1 entry venues US/.T/.AX from 29 Sep Sydney
@@ -267,6 +279,7 @@ def tick(verbose=True):
                                "planned_exit_date": exit_date.isoformat(),
                                "reread_triggered": False}
         del d["pending"][sym]
+        aud.append(("fill", {"sym": sym, "units": units, "px_usd": px_usd, "book": "dated_event_book", "paper_only": True}))
         if verbose:
             print("  FILLED  %-10s %s units @ %s %s ($%.4f) = $%s   exit planned %s"
                   % (sym, units, q["px"], q.get("ccy"), px_usd, format(cost, ",.2f"), exit_date))
@@ -295,6 +308,7 @@ def tick(verbose=True):
             d["closed"].append({**pos, "exit_utc": _utc(), "exit_px_usd": pos["mark_usd"],
                                 "pnl_usd": pnl, "reason": "planned-exit (hold %dd / event+%d)" % (HOLD_MIN_TD, EVENT_EXIT_TD)})
             del d["positions"][sym]; unreal -= u
+            aud.append(("exit", {"sym": sym, "px_usd": pos.get("mark_usd"), "pnl_usd": pnl, "reason": "planned-exit", "book": "dated_event_book", "paper_only": True}))
             if verbose:
                 print("  EXIT    %-10s planned date reached  P&L $%+.2f" % (sym, pnl))
     d["unrealised_usd"] = round(unreal, 2)
@@ -307,6 +321,12 @@ def tick(verbose=True):
         print("  CASH-YIELD skipped: %s" % _e)
     d["equity"] = round(d["cash"] + sum(p["mark_usd"] * p["units"] for p in d["positions"].values()), 2)
     save(d)
+    try:
+        import audit
+        for et, pl in aud:
+            audit.log(et, "tfo", pl)
+    except Exception:
+        pass
     return d
 
 

@@ -175,6 +175,11 @@ def _book(L, orders, px, fx, reason):
 def _deploy_log(msg):
     with open(os.path.expanduser("~/.tfo_swing/DEPLOY_LOG.txt"), "a") as fh:
         fh.write("%s [pt1580u] %s | PAPER only\n" % (tc.wita(), msg))
+    try:
+        import audit
+        audit.deploy("DEPLOY_LOG.txt", note=msg, desk="tfo")
+    except Exception:
+        pass
 
 def crypto_now(dry=False):
     """Crypto legs only (crypto trades 24/7): fill to recomputed targets at live Kraken quotes."""
