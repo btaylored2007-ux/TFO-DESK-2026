@@ -160,9 +160,26 @@ def risk_size(usd, theme=None):
 def _cap_log_path():
     return risk_caps.LOG_PATH if os.path.abspath(R) == os.path.abspath(os.path.join(BASE, "reports")) else os.path.join(R, "risk_cap_log.jsonl")
 
+def _firm_proposal(sym, usd, q):
+    """Equity clip as the shark seat already sized it (0.5% ceiling). Not lifted to the firm floor."""
+    px = float(q["px_usd"])
+    try: seq = float(sizing_eq())
+    except Exception: seq = usd * SHARK_SIZING_STOP / SHARK_RISK_PCT if SHARK_RISK_PCT else usd
+    if seq <= 0: seq = usd or 1.0
+    risk_usd = float(usd) * SHARK_SIZING_STOP
+    prop = dict(desk="tfo_equity", seat="shark", ticker=sym, side="LONG", venue=venue(sym), grade="B", action="entry",
+                risk_pct=risk_usd / seq, risk_aud=risk_usd, notional_aud=float(usd), seat_equity_aud=seq,
+                stop=px * (1 - SHARK_SIZING_STOP), entry=px, seat_risk_min=0.0, seat_risk_max=SHARK_RISK_PCT)
+    if venue(sym) == "US":
+        prop["us_beta_usd"] = float(usd)
+    return prop
+
 def execute(sym, usd, theme, label, why, q, risk_cap=None):
     now = dt.datetime.now(UTC); utc = now.strftime("%Y-%m-%dT%H:%M:%SZ"); tid = "HT-" + uuid.uuid4().hex[:10]
     v1_venues.require_entry_allowed(sym, now)  # hard stop even if a caller skipped gates()
+    import firm_pretrade
+    _fr = firm_pretrade.blocked(_firm_proposal(sym, usd, q))
+    if _fr: raise SystemExit("firm_risk refused: %s" % _fr)
     _cap = risk_caps.planned_loss_cap_usd(SHARK_SIZING_STOP, **risk_caps.theme_params(theme))  # Brett 2026-10-09: entry-engine theme $150k
     if usd > _cap + 0.5: raise SystemExit("refused: clip $%.0f over the $%.0f planned-loss cap (TFO Risk audit 4 Oct 2026%s); size via main()/risk_size" % (usd, _cap, "; entry engine Brett 2026-10-09" if risk_caps.is_entry_engine(theme) else ""))
     px_usd = float(q["px_usd"]); units = usd / px_usd

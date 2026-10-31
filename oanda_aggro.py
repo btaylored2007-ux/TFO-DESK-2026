@@ -202,6 +202,15 @@ def place(e, c, live):
         need = S.margin_needed(e["ins"], units, px)
     r0 = RK.r0_aud(units, Dd, cq); cost_r = (px["ask"] - px["bid"]) * 1.5 * units * cq / r0
     if cost_r > c["max_cost_r"]: log(dict(event="cost_skip", instrument=e["ins"], cost_r=round(cost_r, 3))); return "skip:cost %.2fR" % cost_r
+    import firm_pretrade
+    _pct = (r0 / nav) if nav else 0.0
+    _side = "LONG" if e["dir"] > 0 else "SHORT"
+    _why = firm_pretrade.blocked(dict(desk="oanda", seat="aggro", ticker=e["ins"], side=_side, venue="OANDA", grade="B", action="entry",
+                                      risk_pct=_pct, risk_aud=r0, notional_aud=abs(units) * float(ref), seat_equity_aud=nav,
+                                      stop=float(stop), entry=float(ref)))
+    if _why:
+        log(dict(event="firm_risk_block", instrument=e["ins"], design=e.get("design"), reason=_why))
+        return "skip:firm_risk:" + _why
     cid = "AGGRO-%s-%s-%s" % (e["design"], e["ins"], e["signal_bar"][:10])
     body = {"order": {"type": "MARKET", "instrument": e["ins"], "units": str(units if e["dir"] > 0 else -units), "timeInForce": "FOK", "positionFill": "OPEN_ONLY",
                       "stopLossOnFill": {"price": S.fmt(e["ins"], stop), "timeInForce": "GTC"},

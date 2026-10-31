@@ -88,3 +88,6 @@ def _seatcap_legacy(request, monkeypatch):
     if getattr(request.module, "SEATCAP_LIVE", False): return
     from veteran_desk import book as _BK
     monkeypatch.setattr(_BK, "SEAT_NOTIONAL_CAP", 10.0, raising=False); monkeypatch.setattr(_BK, "gap_risk_pct", lambda e: 0.0, raising=False)
+    # Same legacy waiver for the firm gate: those tests predate the 40% name cap. SEATCAP_LIVE modules keep 40%.
+    from veteran_desk.exec_speed import firm_risk_service as _FR
+    monkeypatch.setattr(_FR, "SINGLE_NAME_CAP", 10.0, raising=False)

@@ -227,12 +227,21 @@ def stamp_exit_at_fill(t, fill_utc):
     t["_te_rule"] = "v2"
     return te
 
+def _firm_block(trade, L, book, venue, risk_aud=None):
+    import firm_pretrade
+    eq = float((L or {}).get("sleeve_aud") or (L or {}).get("capital_aud") or 1_000_000.0)
+    ra = risk_aud if risk_aud is not None else float((L or {}).get("risk_cap_aud") or 2500.0)
+    return firm_pretrade.blocked(firm_pretrade.hunt_proposal(trade, book, venue, eq, ra))
+
 def arm_default(audusd=0.7022, risk_aud=2500.0, now=None):
     te = session_exit(now or now_utc()).isoformat()   # audit C1 hardening: provisional exit on the NY calendar (re-stamped at fill)
     L = dict(book="HUNT48_SHORT_PAPER", paper_only=True, sleeve_aud=1_000_000, approved="Brett 2026-10-26 22:26 WITA",
              fomc_half_size=True, borrow_assumption_pa=BORROW_PA, audusd_armed=audusd,
              dropped=[dict(ticker="QQQ", reason="dropped by Brett 22:26 WITA; replaced by IBKR")], trades=[])
     for i, t in enumerate(DEFAULT_TRADES, 1):
+        _why = _firm_block(dict(t, direction="short"), L, "us_main", "US", risk_aud)
+        if _why:
+            L.setdefault("firm_risk_refused", []).append(dict(ticker=t["ticker"], reason=_why)); continue
         L["trades"].append(dict(id=i, direction="short", status="ARMED", risk_cap_aud=risk_aud, time_exit_utc=te,
             armed_utc=now_utc().isoformat(timespec="seconds"), entry=None, entry_utc=None, open_qty=0, half_done=False,
             trail=None, lowest=None, ext_days=0, realised_usd=0.0, fees_usd=0.0, borrow_usd=0.0, exits=[], last_px=None, **t))
@@ -269,7 +278,10 @@ def upsert_trade(L, spec, now, risk_aud=None):
             if spec.get("time_exit_utc") and dt.datetime.fromisoformat(spec["time_exit_utc"]) <= now:
                 raise ArmRefused(f"{t['ticker']}: time exit {spec['time_exit_utc']} already passed; refusing to re-level")
             t.setdefault("level_history", []).append({k: t.get(k) for k in ("trigger", "max_fill", "stop", "t1", "t2", "shares")})
-            if t["status"] == "BENCH": t.update(status="ARMED", relevel_from="BENCH")
+            if t["status"] == "BENCH":
+                _why = _firm_block(dict(t, **spec, direction=t.get("direction")), L, "us_main" if not BOOK else "us_" + BOOK, "US", risk_aud)
+                if _why: raise ArmRefused(f"{t.get('ticker')}: firm_risk:{_why}")
+                t.update(status="ARMED", relevel_from="BENCH")
             t.update(armed_utc=now.isoformat(timespec="seconds"), **spec); return t
     spec = dict(spec); d = spec.pop("direction", "short").lower()
     # Brett 2026-10-27 20:56 WITA: the main book may take longs as well as shorts (was: longs only in --book comparison books).
@@ -278,6 +290,9 @@ def upsert_trade(L, spec, now, risk_aud=None):
     te = spec.pop("time_exit_utc", None)   # audit C1: no duplicate kwarg; provisional exit, re-stamped at fill
     if te and dt.datetime.fromisoformat(te) <= now: raise ArmRefused(f"{spec['ticker']}: time exit {te} already passed; refusing to arm")
     te = te or session_exit(now).isoformat()
+    _spec = dict(spec, direction=d, stop=spec.get("stop"), max_fill=spec.get("max_fill") or spec.get("trigger"))
+    _why = _firm_block(_spec, L, "us_main" if not BOOK else "us_" + BOOK, "US", risk_aud)
+    if _why: raise ArmRefused(f"{spec.get('ticker')}: firm_risk:{_why}")
     t = dict(id=max([x["id"] for x in L["trades"]] or [0]) + 1, direction=d, status="ARMED", risk_cap_aud=risk_aud,
              time_exit_utc=te, time_exit_rule="provisional; set at fill", armed_utc=now.isoformat(timespec="seconds"), entry=None, entry_utc=None, open_qty=0,
              half_done=False, trail=None, lowest=None, ext_days=0, realised_usd=0.0, fees_usd=0.0, borrow_usd=0.0, exits=[], last_px=None, **spec)
@@ -434,6 +449,10 @@ def try_fill(t, bars, now, fx=None):
             n = int(cap_usd // Rps)
             while n > 0 and Rps * n > cap_usd: n -= 1
             if n < 1: return _no_fill(f"risk > cap at fill: 1 sh = A${Rps / fx:,.2f} > A${cap_aud:,.0f}")
+            _why = _firm_block(dict(t, entry=px, max_fill=px), {"sleeve_aud": 1_000_000.0}, "us_main" if not BOOK else "us_" + BOOK, "US", cap_aud)
+            if _why:
+                t["firm_risk_block"] = _why
+                return None
             if Rps * t["shares"] > cap_usd:
                 t["shares_planned"] = t["shares"]; t["shares"] = n
                 t["risk_resized_at_fill"] = f"{t['shares_planned']} -> {t['shares']} sh (risk at fill > A${cap_aud:,.0f})"

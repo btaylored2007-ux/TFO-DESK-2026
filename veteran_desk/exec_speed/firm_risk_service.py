@@ -1,8 +1,10 @@
 """Shared firm-risk query service. PAPER ONLY. Places no orders.
 
-Other desks call `query` / `admit`. A missing, stale, or unreachable service
-refuses new risk (fail closed). Exits stay allowed: this service never
-liquidates and never blocks a reduce-only order.
+Other desks call `pretrade` once, before opening new risk. `query` / `admit`
+are the pieces it uses. A missing, stale, or unreachable service refuses new
+risk (fail closed). Exits and stops always pass: this service never liquidates
+and never blocks a reduce-only order. Decisions append to
+state/firm_risk_decisions.jsonl. A seat rail below the firm floor is not lifted.
 
 Rails published here match the desk that already trades paper:
   firm heat cap          book.HEAT_CAP (15% open risk / equity)
@@ -25,7 +27,7 @@ import json
 import os
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-from veteran_desk.exec_speed.common import atomic_json, iso, parse_utc, read_json, utc_now
+from veteran_desk.exec_speed.common import append_jsonl, atomic_json, iso, parse_utc, read_json, utc_now
 
 PAPER_ONLY = True
 HEAT_CAP = 0.15
@@ -265,6 +267,121 @@ def _num(value):
     return float(value)
 
 
+def _opt_num(proposal, key):
+    if proposal.get(key) is None or proposal.get(key) == "":
+        return None
+    return _num(proposal.get(key))
+
+
+def _seat_floor(proposal, floor, risk_pct):
+    """A seat's own lower rail wins. Never lift a size up to the firm floor.
+
+    seat_risk_min below the firm floor replaces that floor (a 0.5% crypto idea
+    stays 0.5%). seat_risk_max is a ceiling: a proposal above it is refused,
+    not resized. Both keys are optional.
+    """
+    try:
+        seat_max = _opt_num(proposal, "seat_risk_max")
+        seat_min = _opt_num(proposal, "seat_risk_min")
+    except (TypeError, ValueError):
+        return {"ok": False, "exits_allowed": True, "reason": "proposal_incomplete", "paper_only": True}
+    if seat_max is not None and risk_pct > seat_max + 1e-12:
+        return {"ok": False, "exits_allowed": True, "reason": "above_seat_rail", "paper_only": True,
+                "seat_risk_max": seat_max}
+    if seat_min is not None and risk_pct + 1e-12 < seat_min:
+        return {"ok": False, "exits_allowed": True, "reason": "below_seat_rail", "paper_only": True,
+                "floor": seat_min}
+    if seat_min is not None and floor is not None and seat_min + 1e-12 < floor:
+        return {"_skip_firm_floor": True}
+    return None
+
+
+_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+DECISION_LOG = os.path.join(_ROOT, "state", "firm_risk_decisions.jsonl")
+QUERY_FN = None
+_EXIT_ACTIONS = {"exit", "stop", "flatten", "reduce", "close", "cover", "stop_update"}
+
+
+def _stop_ok(proposal):
+    """A new trade needs a protective stop. Distance or a price on the correct side of entry."""
+    stop = proposal.get("stop", proposal.get("stop_px"))
+    entry = proposal.get("entry", proposal.get("px", proposal.get("limit")))
+    side = str(proposal.get("side") or "").upper()
+    try:
+        stop_f = float(stop)
+    except (TypeError, ValueError):
+        try:
+            dist = float(proposal.get("stop_dist", proposal.get("stop_pct")))
+        except (TypeError, ValueError):
+            return False
+        return dist > 0
+    if not (stop_f > 0):
+        return False
+    try:
+        entry_f = float(entry)
+    except (TypeError, ValueError):
+        return True
+    if side in ("LONG", "BUY"):
+        return stop_f < entry_f
+    if side in ("SHORT", "SELL"):
+        return stop_f > entry_f
+    return True
+
+
+def _log_decision(proposal, decision, now=None, path=None):
+    """Append one allow/deny row. Never writes a ledger. A log failure does not change the decision."""
+    row = {
+        "utc": iso(now),
+        "paper_only": True,
+        "ok": bool(decision.get("ok")),
+        "reason": decision.get("reason"),
+        "desk": (proposal or {}).get("desk"),
+        "seat": (proposal or {}).get("seat"),
+        "ticker": (proposal or {}).get("ticker"),
+        "side": (proposal or {}).get("side"),
+        "action": (proposal or {}).get("action") or "entry",
+        "risk_pct": (proposal or {}).get("risk_pct"),
+        "detail": decision.get("detail"),
+    }
+    try:
+        append_jsonl(path or DECISION_LOG, row)
+    except Exception:
+        pass
+    return row
+
+
+def pretrade(proposal, snapshot=None, now=None, log_path=None, query_fn=None):
+    """One shared check before a desk opens new risk. PAPER ONLY.
+
+    Exits and stops (reduce_only, or action exit/stop/close/cover) always pass,
+    even when this service is down. A missing, stale, or unreachable snapshot
+    refuses new risk. Does not change the proposed size and does not write a ledger.
+    Every allow and deny is appended to state/firm_risk_decisions.jsonl.
+    """
+    now = utc_now(now)
+    proposal = dict(proposal or {})
+    action = str(proposal.get("action") or "entry").lower()
+    if proposal.get("reduce_only") or action in _EXIT_ACTIONS:
+        decision = {"ok": True, "exits_allowed": True, "reason": "exit_or_stop", "paper_only": True}
+        _log_decision(proposal, decision, now, log_path)
+        return decision
+    if not _stop_ok(proposal):
+        decision = {"ok": False, "exits_allowed": True, "reason": "stop_required", "paper_only": True}
+        _log_decision(proposal, decision, now, log_path)
+        return decision
+    if snapshot is None:
+        fn = query_fn or QUERY_FN or query
+        try:
+            snapshot = fn(now=now)
+        except Exception as exc:
+            snapshot = _closed("firm_risk_service_unreachable", type(exc).__name__)
+    if not isinstance(snapshot, dict):
+        snapshot = _closed("firm_risk_service_unreachable", "missing_or_invalid")
+    decision = admit(proposal, snapshot)
+    _log_decision(proposal, decision, now, log_path)
+    return decision
+
+
 def admit(proposal, snapshot):
     """Return {ok, reason, exits_allowed}. `proposal` is a new paper idea or a reduce.
 
@@ -306,6 +423,11 @@ def admit(proposal, snapshot):
     cap_binds = str(proposal.get("grade")) == "A" and (
         bool(proposal.get("cap_binds")) or name_frac + 1e-9 >= SINGLE_NAME_CAP)
     floor = floor_for(proposal.get("grade"), cap_binds, venue)
+    seat_floor = _seat_floor(proposal, floor, risk_pct)
+    if isinstance(seat_floor, dict) and seat_floor.get("_skip_firm_floor"):
+        floor = None
+    elif seat_floor is not None:
+        return seat_floor
     if floor is not None and risk_pct + 1e-12 < floor:
         return {"ok": False, "exits_allowed": True, "reason": "below_risk_floor", "paper_only": True,
                 "floor": floor, "cap_binds": bool(cap_binds and str(proposal.get("grade")) == "A")}

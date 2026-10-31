@@ -557,6 +557,15 @@ def place_entry(e, live):
     if cg:
         log(dict(event="entry_cost_block", instrument=e["ins"], design=e["design"], reason=cg, cost_r=cr, spread_px=sp_px, atr=e.get("atr"),
                  financing_rate=fin, live=live)); return cg
+    import firm_pretrade
+    _pct = (r0 / nav) if nav else 0.0
+    _side = "LONG" if e["dir"] > 0 else "SHORT"
+    _why = firm_pretrade.blocked(dict(desk="oanda", seat="lab", ticker=e["ins"], side=_side, venue="OANDA", grade="B", action="entry",
+                                      risk_pct=_pct, risk_aud=r0, notional_aud=abs(units) * float(ref), seat_equity_aud=nav,
+                                      stop=float(stop), entry=float(ref)))
+    if _why:
+        log(dict(event="firm_risk_block", instrument=e["ins"], design=e.get("design"), reason=_why, live=live))
+        return "skip:firm_risk:" + _why
     cid = client_id_for(e)                                        # 13 Oct 2026 audit (GPT N03): one broker id per DECISION
     if live and e.get("decision_id"):
         try: prior, _ptr = order_by_client_id(cid)

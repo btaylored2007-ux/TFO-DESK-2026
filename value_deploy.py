@@ -190,6 +190,26 @@ def plan(led, ranked, quotes, liq, theme_check, slot_usd, deploy_usd, sector_of_
     return orders, skipped
 
 
+def _firm_block(o, equity):
+    """Fundamental auto-deploy. The book's own rail is a 15% stop on a slot, not the 2% firm floor."""
+    import firm_pretrade
+    eq = float(equity or 0)
+    usd = float(o.get("usd") or 0)
+    px = float((o.get("q") or {}).get("px") or o.get("stop_px") or 0)
+    stop = float(o.get("stop_px") or (px * (1 - STOP_PCT) if px else 0))
+    sym = o.get("sym")
+    _sfx = str(sym).rsplit(".", 1)[-1] if sym and "." in str(sym) else ""
+    venue = "INTL" if _sfx and _sfx.isalpha() and _sfx not in ("A", "B") else "US"
+    risk = usd * STOP_PCT
+    prop = dict(desk="fundamental", seat="auto_deploy", ticker=sym, side="LONG", venue=venue, grade="B", action="entry",
+                risk_pct=(risk / eq) if eq else 0.0, risk_aud=risk, notional_aud=usd, seat_equity_aud=eq or usd,
+                stop=stop, entry=px or (stop / (1 - STOP_PCT) if stop else None),
+                seat_risk_min=0.0, seat_risk_max=SLOT_MAX_PCT * STOP_PCT)
+    if venue == "US" and px:
+        from veteran_desk.exec_speed.firm_risk_service import LEVERED
+        prop["us_beta_usd"] = float(o.get("usd") or 0) * LEVERED.get(str(sym).upper(), 1)
+    return firm_pretrade.blocked(prop)
+
 def _main(dry=True, preview=False):
     """preview=True: market-closed WHAT-IF using last/closing quotes — NEVER writes (dry forced)."""
     if preview: dry = True
@@ -294,7 +314,18 @@ def _main(dry=True, preview=False):
         return {"orders": orders, "skipped": skipped}
 
     from paper_execution_price import receipt
+    opened = []
     for o in orders:
+        _why = _firm_block(o, equity)
+        if _why:
+            print("  FIRM RISK skip %s: %s" % (o["sym"], _why))
+            skipped.append((o["sym"], "firm_risk:" + _why))
+            continue
+        opened.append(o)
+    if not opened:
+        print("  FIRM RISK: no new positions opened")
+        return {"orders": [], "skipped": skipped}
+    for o in opened:
         q = o["q"]; fxu = float(q["fx_usd"]); fill_local = o["fill_usd"] / fxu
         comm = o["usd"] * COMMISSION_BPS / 1e4
         led["positions"][o["sym"]] = {
@@ -321,15 +352,15 @@ def _main(dry=True, preview=False):
         led["cash"] = round(led["cash"] - o["usd"] - comm, 2)
         led["costs_paid_usd"] = round(led.get("costs_paid_usd", 0.0) + comm + o["usd"] * (o["cost_bps"] - COMMISSION_BPS) / 1e4, 4)
     led.setdefault("deployments", []).append(
-        {"utc": _utc(), "n": len(orders), "slot_pct": SLOT_PCT, "reserve_pct": CASH_RESERVE_PCT,
-         "symbols": [o["sym"] for o in orders], "usd": [o["usd"] for o in orders],
+        {"utc": _utc(), "n": len(opened), "slot_pct": SLOT_PCT, "reserve_pct": CASH_RESERVE_PCT,
+         "symbols": [o["sym"] for o in opened], "usd": [o["usd"] for o in opened],
          "source": "value_deploy auto", "note": "Brett 28 Oct 14:10 fundamental auto-trade; PAPER"})
     _atomic_dump(led, LEDGER)
     os.makedirs(os.path.dirname(RUNLOG), exist_ok=True)
     with open(RUNLOG, "a") as f:
-        f.write(json.dumps({"utc": _utc(), "bought": [[o["sym"], o["usd"], round(o["cost_bps"], 1), o.get("delay_s"), o.get("price_class")] for o in orders]}) + "\n")
-    print("  DEPLOYED %d longs (PAPER). cash now US$%s" % (len(orders), "{:,.2f}".format(led["cash"])))
-    return {"orders": orders, "skipped": skipped}
+        f.write(json.dumps({"utc": _utc(), "bought": [[o["sym"], o["usd"], round(o["cost_bps"], 1), o.get("delay_s"), o.get("price_class")] for o in opened]}) + "\n")
+    print("  DEPLOYED %d longs (PAPER). cash now US$%s" % (len(opened), "{:,.2f}".format(led["cash"])))
+    return {"orders": opened, "skipped": skipped}
 
 
 if __name__ == "__main__":

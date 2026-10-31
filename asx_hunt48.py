@@ -180,6 +180,10 @@ def _track_fetch(f):   # 2026-10-29 TFO 11:12 WITA fix 2 (additive): record late
         except Exception: pass
         return b
     return g
+def _firm_block(trade):
+    import firm_pretrade
+    return firm_pretrade.blocked(firm_pretrade.hunt_proposal(trade, "hunt_asx", "ASX", CAPITAL_AUD, RISK_AUD))
+
 def run(now=None, fetch=None, base=BASE, force=False):
     if fetch is None:   # 2026-10-30 paidbars: paid-first hourly bars (EODHD where it matches Yahoo exactly), Yahoo CB.bars_yf fallback; source logged
         import paid_bars as PB; fetch = lambda y, s: PB.hourly(y, s, CB.bars_yf)
@@ -283,6 +287,8 @@ def run(now=None, fetch=None, base=BASE, force=False):
             if not ok4: t["bench_note"] = "intraday open-time checks: " + "; ".join(why4)[:200]; continue
             t.update(armed_utc=now.isoformat(), armed_wita=w(now), intraday_rescan=w(now))
         if valid_from and dt.datetime.fromisoformat(t["armed_utc"]) > valid_from: t.update(armed_utc=valid_from.isoformat(), armed_wita=w(valid_from))
+        _why = _firm_block(t)
+        if _why: t["bench_note"] = "firm_risk:" + _why; continue
         t["status"] = "ARMED"; t["promoted_utc"] = now.isoformat(); t.pop("bench_note", None)
     # 3b) bench capped at MAX_BENCH (lowest score beyond 15 -> DISARMED 'bench full'; kept in ledger, never deleted)
     for t in sorted([t for t in T if t["status"] == "BENCH"], key=lambda t: -t["score"])[HR.max_bench("asx", MAX_BENCH, os.path.join(base, "state")):]:
@@ -298,6 +304,9 @@ def run(now=None, fetch=None, base=BASE, force=False):
     if in_hours(now) or force:
         for t in [t for t in T if t["status"] in ("ARMED", "FILLED")]:
             if dt.datetime.fromisoformat(t["armed_utc"]) > now: continue
+            if t["status"] == "ARMED":
+                _why = _firm_block(t)
+                if _why: t["firm_risk_block"] = _why; continue
             try:
                 bars = fetch(t["yahoo"], dt.datetime.fromisoformat(t["armed_utc"]))
                 if t["status"] == "ARMED": bars = [b for b in bars if b["t"] <= session_close(dt.datetime.fromisoformat(t["armed_utc"]).astimezone(SYD).date()) + dt.timedelta(minutes=65)]   # day arm (2026-10-27 audit, = asia_hunt48)
