@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- PAPER firm book + broker recon. 05:30 every day in the Mac's local zone.
+     The desk Mac is Asia/Makassar (WITA, UTC+8, no DST), so this is 05:30 WITA.
+     On demand, any time: launchctl start com.tfo.firm-book
+     Exit 2 means AUDUSD failed, a broker was unread, or a break was flagged.
+     The report is still written. A failed read is never a match. -->
+<plist version="1.0">
+<dict>
+	<key>Label</key>
+	<string>com.tfo.firm-book</string>
+	<key>ProgramArguments</key>
+	<array>
+		<string>/Library/Frameworks/Python.framework/Versions/3.14/bin/python3</string>
+		<string>firm_book.py</string>
+	</array>
+	<key>WorkingDirectory</key>
+	<string>/Users/test/Applications/MultiVenueDesk</string>
+	<key>RunAtLoad</key>
+	<false/>
+	<key>StartCalendarInterval</key>
+	<dict>
+		<key>Hour</key>
+		<integer>5</integer>
+		<key>Minute</key>
+		<integer>30</integer>
+	</dict>
+	<key>EnvironmentVariables</key>
+	<dict>
+		<key>PATH</key>
+		<string>/Library/Frameworks/Python.framework/Versions/3.14/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+		<key>PYTHONUNBUFFERED</key>
+		<string>1</string>
+	</dict>
+	<key>StandardOutPath</key>
+	<string>/Users/test/Applications/MultiVenueDesk/logs/firm-book.log</string>
+	<key>StandardErrorPath</key>
+	<string>/Users/test/Applications/MultiVenueDesk/logs/firm-book.err.log</string>
+</dict>
+</plist>
