@@ -633,10 +633,6 @@ def main(execute=False, funder_cycle_id=None):
     except Exception:
         fr = {"capital_accounting_valid": None, "dd_pct": None, "equity": None, "status": None}
 
-    nearest = sorted(
-        [{"book": s["book"], "pct": s["pct"], "mtm": s["mtm_usd"]} for s in sleeves if s["action"] in ("HOLD", "HALF_BANK", "FULL_BANK", "STOP")],
-        key=lambda x: -abs(x["pct"]) if False else -x["pct"],
-    )[:5]
     # nearest to +2% from above or highest pct
     nearest = sorted((s for s in sleeves if s["action"] not in ("SKIP",)),
                      key=lambda s: min(abs(s["pct"] - rail) for rail in (-5, 2, 5)))[:5]

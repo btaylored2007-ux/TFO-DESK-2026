@@ -737,7 +737,7 @@ def main():
     r_vt = r_cur * s_cur
     r_ivvt = r_iv * s_iv
 
-    def scheme_metrics(r, W=None, scale=None, gross_mult=None):
+    def scheme_metrics(r, W=None, scale=None):
         r2 = r.reindex(idx2).dropna()
         met = {
             "ann_vol_pct": round(ann_vol(r2), 2),

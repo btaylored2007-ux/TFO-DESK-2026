@@ -74,7 +74,7 @@ OANDA_CMDTY = {"XAU_USD": "GC=F", "XAG_USD": "SI=F", "XPT_USD": "PL=F", "XPD_USD
 OANDA_PEG = {"USD_HKD", "USD_TRY", "USD_CNH", "EUR_TRY", "TRY_JPY", "HKD_JPY", "CHF_HKD", "GBP_HKD", "AUD_HKD", "EUR_HKD", "CAD_HKD", "NZD_HKD", "USD_DKK", "EUR_DKK"}
 def oanda_yahoo(ins):
     if ins in OANDA_CMDTY: return OANDA_CMDTY[ins]
-    a, b = ins.split("_"); return (b + "=X") if a == "USD" and False else a + b + "=X"
+    a, b = ins.split("_"); return a + b + "=X"
 MACRO_EXTRA = ["^GSPC", "^NDX", "^DJI", "^RUT", "^FTSE", "^GDAXI", "^FCHI", "^N225", "^HSI", "^AXJO", "^STOXX50E", "^TNX", "^FVX", "^TYX", "^IRX", "^VIX",
                "ES=F", "NQ=F", "YM=F", "RTY=F", "ZN=F", "ZB=F", "ZF=F", "ZT=F", "DX-Y.NYB"]
 FUT_EXTRA = ["CL=F", "BZ=F", "NG=F", "GC=F", "SI=F", "HG=F", "PL=F", "PA=F", "ZW=F", "ZC=F", "ZS=F", "KC=F", "CC=F", "SB=F", "CT=F", "LE=F", "HE=F", "RB=F", "HO=F"]

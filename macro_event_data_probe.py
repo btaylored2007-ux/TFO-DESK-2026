@@ -108,8 +108,7 @@ def parse_calendar():
         dtxt = " ".join(re.sub(r"<[^>]+>", " ", dat.group(1)).split())
         stmts = sorted(set(re.findall(r"monetary(\d{8})a?\d*\.htm", blk)))
         rows.append({"month": month, "date_text": dtxt, "stmt_dates": stmts,
-                     "unscheduled": "*" in dtxt and "projections" not in blk.lower()
-                                    and False})  # '*' on this page = press conference
+                     "unscheduled": False})  # '*' on this page = press conference, not an unscheduled meeting
     return rows
 
 
