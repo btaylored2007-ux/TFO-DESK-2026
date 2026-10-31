@@ -14,6 +14,8 @@ Current rails the suite was brought in line with:
 
 The known-failure list is **not empty**. After the rail fixes, 34 tests still fail. They are listed in `tools/test_baseline.json` and below. Anything outside that list rolls a deploy back. Do not add a name to hide a new red test.
 
+GitHub Actions uses that same list (`tools/check_test_baseline.py`, also called from `tools/safe_deploy.sh`). A red node that is already on the list does not fail the job. A red node that is not on the list does. A run with no pytest summary fails too.
+
 ## Fixes (code or stale test)
 
 | Item | Cause | Fix |

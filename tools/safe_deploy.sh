@@ -70,16 +70,7 @@ log "running veteran_desk/tests ..."
 TFO_TEST_OFFLINE=1 $PY -m pytest veteran_desk/tests -q -p no:cacheprovider -rfE --continue-on-collection-errors >> "$OUT" 2>&1; RC2=$?
 RC=0; [ "$RC1" -eq 0 ] && [ "$RC2" -eq 0 ] || RC=1
 SUMMARY=$(grep -E '(passed|failed|error)' "$OUT" | tail -1)
-CMP=$($PY - "$BASE" "$OUT" <<'PYEOF'
-import json, re, sys
-known = set(json.load(open(sys.argv[1])).get("known_failures", []))
-got = set()
-for l in open(sys.argv[2]):
-    m = re.match(r"^(FAILED|ERROR) (\S+)", l)
-    if m: got.add(m.group(2))
-new = sorted(got - known); print("NEW:" + " ".join(new) if new else "OK", "| known still failing:", len(got & known), "| fixed:", len(known - got))
-PYEOF
-)
+CMP=$($PY "$ROOT/tools/check_test_baseline.py" "$BASE" "$OUT")
 log "pytest rc=$RC: $SUMMARY"; log "baseline: $CMP"
 if [ $RC -ne 0 ] && [ -z "$SUMMARY" ]; then tail -20 "$OUT"; fail "pytest did not run (rc=$RC); output $OUT"; fi
 case "$CMP" in OK*) ;; *) grep -E '^(FAILED|ERROR)' "$OUT"; fail "new test failures vs baseline (full output $OUT)";; esac
