@@ -140,8 +140,23 @@ def pack(c, seat, asof):
                 except Exception: return x, None
             with _TPE(8) as _ex: LQd = dict(_ex.map(_q, LQ))
             out["live_quotes"] = {k: v for k, v in LQd.items() if v}
-            out["live_quotes_note"] = "PAID live quotes fetched this wake (Massive real-time US; EODHD/FMP intl, may be exchange-delayed - see status). Set entry vs live px, NOT the prior daily close in instruments[]. Missing symbol = no paid quote; say so."
+            out["live_quotes_note"] = "PAID live quotes fetched this wake (Massive real-time US; EODHD Cboe Europe websocket for LSE/EU when healthy, else EODHD/FMP). Yahoo is fallback only. Set entry vs live px, NOT the prior daily close in instruments[]. Missing symbol = no paid quote; say so."
     except Exception as _x: out["live_quotes_err"] = type(_x).__name__
+    try:   # tfo_paidrt_20261031: 1m/5m/15m from data/intraday/bars.sqlite (not pit). Past asof drops bars that open later.
+        from veteran_desk import intraday_store as _IB
+        _asof_ms = None if abs((now() - asof).total_seconds()) <= 900 else int(asof.timestamp() * 1000)
+        _syms = []
+        for _r in (ranked or [])[:25]:
+            _s = _r.get("sym") or _r.get("ticker")
+            if _s and _s not in _syms: _syms.append(_s)
+        for _f in F:
+            if _f["sym"] not in _syms: _syms.append(_f["sym"])
+            if len(_syms) >= 40: break
+        _iv = _IB.for_symbols(_syms, asof_ms=_asof_ms)
+        if _iv:
+            out["intraday"] = _iv
+            out["intraday_note"] = "1m/5m/15m from data/intraday/bars.sqlite (Massive US, EODHD where pulled, Cboe Europe candles). Pit stays daily. Missing symbol = no intraday row yet."
+    except Exception: pass
     try:   # tfo_seatpipe_5c_20261030: screens -> every seat's pack (daily value rank, essentials screen, unusual volume, intraday rescan). Advisory only; gate untouched.
         from veteran_desk import scan_universe as _SU
         syms = {f["sym"] for f in F}; FR = _SU._factor_rank(); ES = _SU.essentials_tags(); sc = {}

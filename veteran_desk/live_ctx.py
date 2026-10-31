@@ -17,6 +17,12 @@ def ctx(sym):
                 out = dict(src="massive_aggs_5m", today_bar=dict(date=str(d0), o=T[0]["o"], h=max(r["h"] for r in T), l=min(r["l"] for r in T), c=T[-1]["c"], v=sum(r.get("v", 0) for r in T)),
                            last_5m=[dict(t=dt.datetime.fromtimestamp(r["t"] / 1000, UTC).strftime("%H:%M"), o=r["o"], h=r["h"], l=r["l"], c=r["c"]) for r in R[-12:]])
     except Exception: pass
+    try:   # tfo_paidrt_20261031: persisted 1m/5m/15m (companion store, not pit)
+        from veteran_desk import intraday_store as _IB
+        sm = _IB.summary(sym, n=12)
+        if sm: out["intraday"] = dict(tf=sm["tf"], n=sm["n"], src=sm["src"], last=sm["last"], last_utc=sm["last_utc"],
+                                      bars=[dict(t=r["utc"][11:16], o=r["o"], h=r["h"], l=r["l"], c=r["c"]) for r in sm["bars"][-12:]])
+    except Exception: pass
     try:
         base = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         if base not in sys.path: sys.path.insert(0, base)

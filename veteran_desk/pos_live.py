@@ -107,6 +107,12 @@ def _fetch(t, us):
     try:
         if _crypto(t): return _live_crypto(t)
         if "=" in t: return None   # FX/futures: no paid per-symbol tape wired here
+        if not us:
+            try:
+                from veteran_desk import eodhd_eu_ws as _EU
+                q = _EU.live_px(t)
+                if q: return dict(src=q["src"], last=q["last"], day_pct=None, spread_bps=None, imbalance=None, asof_utc=q.get("asof"))
+            except Exception: pass
         return _live_us(t) if us else _live_eodhd(t)
     except Exception as e: return dict(src="error", err=type(e).__name__)
 def _loop():

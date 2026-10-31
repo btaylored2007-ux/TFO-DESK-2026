@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """paid_feeds.py — paid-first market data for the TFO fundamental book. PAPER ONLY. 2026-10-30 HT mandate.
 
-Quotes:  US (no suffix)            -> Massive 1m aggs (real-time)            fallback Yahoo chart
+Quotes:  EU/LSE (Cboe Europe)     -> EODHD websocket tape when healthy       else the rows below
+         US (no suffix)            -> Massive 1m aggs (real-time)            fallback Yahoo chart
          .AX .L .T .HK             -> FMP /stable/historical-chart/1min      fallback Yahoo chart
          anything else             -> Yahoo chart (unchanged)
 Each paid quote is converted into a Yahoo-chart-shaped payload and run through the UNCHANGED
@@ -163,6 +164,11 @@ def _fmp_payload(sym, venue, now_epoch):
 def fetch_quote(symbol):
     """Drop-in for tfo_equity_refresh.fetch_quote: paid first, Yahoo fallback. Same dict schema + source fields."""
     import tfo_equity_refresh as ter
+    try:  # tfo_paidrt_20261031: Cboe Europe websocket before FMP/Yahoo when the consumer is healthy
+        from veteran_desk import eodhd_eu_ws as _EU
+        q = _EU.chart_quote(symbol)
+        if q: return q
+    except Exception: pass
     v = venue_of(symbol)
     if v is not None:
         try:

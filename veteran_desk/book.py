@@ -299,6 +299,11 @@ def live_px(sym):
             _q = _MS.quote(sym)
             if _q: return _q
     except Exception: pass
+    try:   # tfo_paidrt_20261031: EODHD Cboe Europe websocket when healthy; Yahoo below stays the fallback
+        from veteran_desk import eodhd_eu_ws as _EU
+        _eq = _EU.live_px(sym)
+        if _eq: return _eq
+    except Exception: pass
     try:
         import yfinance as yf
         h = yf.Ticker(sym).history(period="2d", interval="5m")

@@ -26,6 +26,7 @@ secrets/
 # tfo_lagfix_20261031: bulk regenerable binaries out of the daily `git add -A` snapshot (7.9G pit.sqlite + backups were re-packed nightly -> 3G tmp_pack I/O storms / Mac lag)
 data/pit/*.sqlite*
 data/history/*.sqlite*
+data/intraday/
 *.sqlite.bak-*
 state/hunt_orch/us_scan/**/*.pkl
 *.parquet

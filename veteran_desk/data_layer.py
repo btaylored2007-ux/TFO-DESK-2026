@@ -125,7 +125,12 @@ def eodhd_quote(sym, get=None, now_utc=None, max_age_min=30):
     return dict(last=last, hi=float(js.get("high") or last), lo=float(js.get("low") or last), open=float(js.get("open") or last),
                 prev_close=js.get("previousClose"), asof=ts.isoformat(), age_min=round(age, 1), stale=age > max_age_min, src="eodhd_rt")
 def quote(sym, yahoo_fn=None, now_utc=None):
-    """Paid-first quote. US: Massive 5m -> EODHD rt; non-US: EODHD rt (delayed, flagged). Yahoo only if both fail/stale."""
+    """Paid-first quote. EU/LSE: EODHD Cboe websocket when healthy. US: Massive 5m -> EODHD rt. Else EODHD rt. Yahoo only if those fail."""
+    try:
+        from veteran_desk import eodhd_eu_ws as _EU
+        q = _EU.live_px(sym, now=now_utc)
+        if q: return q
+    except Exception: pass
     try:
         from veteran_desk import massive as _MS
         if eodhd_symbol(sym) and eodhd_symbol(sym).endswith(".US"):

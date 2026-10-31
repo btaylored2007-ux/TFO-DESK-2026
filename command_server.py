@@ -362,12 +362,12 @@ def crypto_marks(symbols):
 
 
 def _yf_fetch(tickers):
-    """Native quotes with source timestamps; never a daily-bar fetch stamped live."""
+    """Paid marks (Massive US / EODHD EU websocket) with Yahoo inside paid_feeds as the fallback. Never a daily-bar fetch stamped live."""
     from concurrent.futures import ThreadPoolExecutor
-    from tfo_equity_refresh import fetch_quote
+    from tfo_equity_refresh import mark_fetcher
     def one(symbol):
         try:
-            return symbol, fetch_quote(symbol)
+            return symbol, mark_fetcher(symbol)
         except Exception:
             return symbol, None
     with ThreadPoolExecutor(max_workers=4) as pool:
