@@ -243,8 +243,13 @@ def warroom():
         pass
 
     total = sum(x["n"] for x in streams if x["n"])
+    try:
+        from veteran_desk import catalyst_quality as _CQ
+        catalyst_sources = _CQ.warroom_card()
+    except Exception:
+        catalyst_sources = {"advisory_only": True, "blocks_trade": False, "auto_apply": False, "unavailable": True, "rows": [], "proposals": []}
     return {"streams": streams, "total_hypotheses": total, "traps": traps,
-            "wire": wire}
+            "wire": wire, "catalyst_sources": catalyst_sources}
 
 
 _PX_CACHE = {"crypto": [0.0, {}], "equity": [0.0, {}]}

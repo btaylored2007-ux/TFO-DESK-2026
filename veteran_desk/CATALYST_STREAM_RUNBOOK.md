@@ -61,6 +61,10 @@ Stop it with `launchctl bootout gui/$(id -u) ~/Library/LaunchAgents/com.tfo.cata
 
 `latency_alert.json` `alert: true` means the rolling p95 is above 60 seconds. It does not halt entries or exits. A cold start can alert while the last few hours of headlines are still in the 200-sample window; fresh items replace them. Clear the samples by stopping the daemon and removing `latency.json` if you need a clean window after a feed outage. Do not delete seat queues to silence the alert.
 
+## Same story, surprise, and Asia filings
+
+Cross-wire clustering, the surprise score, source attribution, the nightly source card, and the TDnet / HKEXnews collectors are in `veteran_desk/CATALYST_QUALITY_RUNBOOK.md`. They are advisory. A down-weight of a weak source is a proposal after 30 days and is not applied. TDnet and HKEXnews stay on their own cache and backoff so a slow filing host does not stall the other wires.
+
 ## When a vendor is down
 
 That vendor's `last_err` is a status code or `parse` or `key missing`. The URL is not stored, because FMP, EODHD and EIA put the key in the query string. The seat keeps receiving every other vendor, and the free fallback for that group runs on the next cycle. Trades and stops do not call this module.
