@@ -29,4 +29,5 @@ data/history/*.sqlite*
 *.sqlite.bak-*
 state/hunt_orch/us_scan/**/*.pkl
 *.parquet
+tests/_coverage_audit_root/
 work/oanda_v3/*.json

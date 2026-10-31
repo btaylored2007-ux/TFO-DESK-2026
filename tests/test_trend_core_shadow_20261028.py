@@ -66,8 +66,20 @@ class T(unittest.TestCase):
         self.assertGreater(S["pos"]["UPRO"]["diff_aud"], 0)
 
     def test_status_has_shadow_block(self):
-        s = json.load(open(os.path.join(BASE, "static", "trend_core_status.json")))
+        # Live static/trend_core_status.json is not in this tree. write_status always attaches the shadow
+        # summary, and that summary stays outside book P&L even when the shadow file is absent.
+        import tempfile, trend_core as tc
+        d = tempfile.mkdtemp()
+        L = {"equity_aud": 1e6, "seed_aud": 1e6, "cash_aud": 1e6, "holdings": {}, "audusd": 0.7,
+             "nav_per_unit": 1.0, "drawdown_pct": 0.0, "scale_current": 0, "sigma_current": 0}
+        old = tc.STATUS
+        tc.STATUS = os.path.join(d, "trend_core_status.json")
+        try:
+            s = tc.write_status(L)
+        finally:
+            tc.STATUS = old
         self.assertIn("shadow", s)
+        self.assertTrue(s["shadow"]["shadow_only"])
         self.assertFalse(s["shadow"]["in_book_pnl"])
 
     def test_desk_tick_wired(self):

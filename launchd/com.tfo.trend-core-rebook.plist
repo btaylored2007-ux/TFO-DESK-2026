@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- TREND-CORE one-shot rebook (PAPER). Times are WITA, before the global reweight job.
+     Amendment: 21:36 / 21:50 / 22:15 / 23:00. Rebook writes its done-file; the global job waits on it.
+     Install on the Mac: cp this file to ~/Library/LaunchAgents/ and launchctl bootstrap. -->
+<plist version="1.0"><dict>
+  <key>Label</key><string>com.tfo.trend-core-rebook</string>
+  <key>ProgramArguments</key><array>
+    <string>/Library/Frameworks/Python.framework/Versions/3.14/bin/python3</string>
+    <string>/Users/test/Applications/MultiVenueDesk/trend_core_rebook.py</string>
+  </array>
+  <key>WorkingDirectory</key><string>/Users/test/Applications/MultiVenueDesk</string>
+  <key>StartCalendarInterval</key><array>
+    <dict><key>Hour</key><integer>21</integer><key>Minute</key><integer>36</integer></dict>
+    <dict><key>Hour</key><integer>21</integer><key>Minute</key><integer>50</integer></dict>
+    <dict><key>Hour</key><integer>22</integer><key>Minute</key><integer>15</integer></dict>
+    <dict><key>Hour</key><integer>23</integer><key>Minute</key><integer>0</integer></dict>
+  </array>
+  <key>EnvironmentVariables</key><dict>
+    <key>PATH</key><string>/Library/Frameworks/Python.framework/Versions/3.14/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+    <key>PYTHONUNBUFFERED</key><string>1</string>
+  </key>
+  <key>StandardOutPath</key><string>/Users/test/Applications/MultiVenueDesk/logs/trend_core_rebook.log</string>
+  <key>StandardErrorPath</key><string>/Users/test/Applications/MultiVenueDesk/logs/trend_core_rebook.err.log</string>
+</dict></plist>

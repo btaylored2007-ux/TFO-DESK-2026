@@ -56,7 +56,7 @@ sys.argv = _ARGV
 def _iso(monkeypatch, tmp_path):
     """Runs before every test: all engine paths to a private tmp dir, no borrow/FX/news network."""
     monkeypatch.setattr(H, "SD", str(tmp_path)); monkeypatch.setattr(H, "LEDGER", str(tmp_path / "ledger.json"))
-    monkeypatch.setattr(H, "EVENTS", str(tmp_path / "events.jsonl")); monkeypatch.setattr(H, "STATUS", str(tmp_path / "status.json"))
+    monkeypatch.setattr(H, "EVENTS", str(tmp_path / "events.jsonl")); monkeypatch.setattr(H, "STATUS", str(tmp_path / "hunt48_short_status.json"))
     monkeypatch.setattr(H, "SECTOR_CACHE", str(tmp_path / "sector_cache.json"))
     if hasattr(H, "EARN_DIR"): monkeypatch.setattr(H, "EARN_DIR", str(tmp_path / "clearance"))
     monkeypatch.setattr(H.IC, "has_borrow", lambda *a, **k: True); monkeypatch.setattr(H.IC, "borrow_pa", lambda *a, **k: 0.03)

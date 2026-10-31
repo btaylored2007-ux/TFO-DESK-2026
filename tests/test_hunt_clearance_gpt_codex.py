@@ -42,23 +42,22 @@ class Parse(unittest.TestCase):
         finally:
             subprocess.run = real; HC.CODEX_BIN = old
     def test_codex_parses_stubbed_output(self):
-        import subprocess
-        class Fake:
-            returncode = 0; stdout = ""; stderr = ""
-        real = subprocess.run
-        def fake(cmd, **k):
-            # write the -o last_msg file the way codex would
-            o = cmd[cmd.index("-o") + 1]
-            open(o, "w").write("main FLG PASS ok thesis\nclaude T FAIL event\n")
-            return Fake()
-        subprocess.run = fake; old = HC.CODEX_BIN; HC.CODEX_BIN = sys.executable
+        # Codex CLI was removed 2026-10-30. The same BOOK TICKER PASS|FAIL lines now come from the Grok queue.
+        from veteran_desk import llm_backend as LB
+        text = "main FLG PASS ok thesis\nclaude T FAIL event\n"
+        real = LB.grok_call
+        def fake(engine, prompt, timeout=None, effort="high", seat=None, desk=None):
+            return text, "rid-test", "ok"
+        LB.grok_call = fake
         try:
             d = tempfile.mkdtemp()
             p = HC.gpt_via_codex("prompt", d)
             self.assertEqual(p["main"]["FLG"]["GPT"], "PASS")
-            self.assertEqual(HC.GPT_STATE["status"], "ok (codex)")
-            self.assertTrue(os.path.exists(os.path.join(d, "gpt_codex_raw.md")))
+            self.assertEqual(p["claude"]["T"]["GPT"], "FAIL")
+            self.assertEqual(HC.GPT_STATE["status"], "ok (grok)")
+            self.assertEqual(HC.GPT_STATE["source"], "grok_queue")
+            self.assertTrue(os.path.exists(os.path.join(d, "gpt_grok_raw.md")))
         finally:
-            subprocess.run = real; HC.CODEX_BIN = old
+            LB.grok_call = real
 
 if __name__ == "__main__": unittest.main()

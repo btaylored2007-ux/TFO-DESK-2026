@@ -32,12 +32,14 @@ def test_warn_mode_never_blocks():
     assert d["warn_only"] and d["blocks_new_buys_in"] == [] and te.check_buy("TQQQ", 5000, d=d, cfg=c)[0]
 
 def test_trend18_deploy_legs_pass_now():
-    d = te.build()
+    # Live books are not in this tree, and a full live book can already sit on the theme cap.
+    # This fixture has room under the cap. ENFORCE itself is unchanged (see test_blocks_capped_theme_and_passes_others).
+    c = _cfg()
+    pos = [te.pos("Trend18", "UGL", 10000.0), te.pos("Trend18", "XBT/USD", 10000.0)]
+    d = te.build(cfg=c, positions=pos, nav={"Trend18": 7_000_000.0})
     for s, v in (("UGL", 100000), ("XBT/USD", 170000), ("DBMF", 332000), ("KMLM", 332000), ("CTA", 332000)):
-        if s == "UGL" or s.startswith("XBT"):
-            th = te.classify(s)[0]; t = {x["theme"]: x for x in d["themes"]}[th]
-            if t["current_stress_loss_aud"] >= d["theme_cap_aud"]: continue  # live state moved
-        assert te.check_buy(s, v, d=d)[0], s
+        ok, why = te.check_buy(s, v, d=d, cfg=c)
+        assert ok, (s, why)
 
 def test_lse_pence_not_read_as_aud():
     d = te.build()

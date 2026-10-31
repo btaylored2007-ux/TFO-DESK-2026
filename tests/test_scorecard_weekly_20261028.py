@@ -20,12 +20,17 @@ def test_r2_zero_fills_in_10_sessions():
     b = S.flag(bk(kind="trades", trades=3, sessions=12, fills_last_10_sessions=0), R); assert any("R2" in x for x in b["flag_reasons"])
     assert S.flag(bk(kind="trades", trades=3, sessions=12, fills_last_10_sessions=1), R)["flag"] == "OK"
 
-def test_trend18_benchmark_is_nasdaq2x_and_aud(monkeypatch):
+def test_trend18_benchmark_is_nasdaq2x_and_aud(monkeypatch, tmp_path):
+    # state/trend18.json is a live ledger and is not in this tree. The scorecard rule is unchanged.
+    state = tmp_path / "state"; state.mkdir()
+    tj = {"start": 1_000_000.0, "equity": 1_050_000.0, "created_utc": "2026-06-01T00:00:00Z"}
+    (state / "trend18.json").write_text(json.dumps(tj))
+    (state / "shadow_nasdaq2x_history.csv").write_text("date,shadow_value_usd\n2026-06-01,100\n2026-10-28,110\n")
+    monkeypatch.setattr(S, "BASE", str(tmp_path))
     now = dt.datetime(2026, 10, 28, 12, tzinfo=S.WITA)
     B = S.books(now, ret=lambda *a: 0.0)
     t = [b for b in B if b["book"].startswith("Trend18")][0]
     assert "Nasdaq 2x" in t["benchmark"]
-    tj = json.load(open(os.path.join(S.BASE, "state", "trend18.json")))
     assert t["pnl_aud"] == round((tj["equity"] - tj["start"]) / S.FX)
 
 def test_hook_appends_once(tmp_path, monkeypatch):

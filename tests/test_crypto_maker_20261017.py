@@ -8,6 +8,9 @@ from test_tfo_trail_rail import CryptoEngine, UTC
 class Maker(CryptoEngine):
     def setUp(self):
         super().setUp()
+        # Archive lock stays on for the live book (test_tfo_ht_crypto_archive_lock). This class
+        # covers maker fill, expiry and stop-cancel on the temp book only.
+        p0 = patch.object(self.tc, "OPENS_DISABLED", False); p0.start(); self.addCleanup(p0.stop)
         self.prints = []
         p = patch.object(self.tc, "trades_since", lambda pair, since: [x for x in self.prints if x[2] > since]); p.start(); self.addCleanup(p.stop)
         self.book()
