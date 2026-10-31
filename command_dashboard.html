@@ -355,6 +355,41 @@ html,body{overflow-x:hidden!important;max-width:100vw}
   <div><div class="lbl">Paper profit today, after costs</div><div class="big" id="st_today">…</div></div>
   <div><div class="lbl">Firm value</div><div class="big" id="st_eq">…</div></div>
  </div>
+ <div id="firmbook" style="margin-top:18px;background:#161b22;border-radius:14px;padding:16px 18px">
+  <h2 style="margin-top:0">Firm book <span class="lbl" id="fb_asof"></span></h2>
+  <div class="lbl" id="fb_sum">Loading the firm book…</div>
+  <div id="fb_rows"></div>
+  <div class="lbl" id="fb_recon" style="margin-top:10px"></div>
+ </div>
+ <script>
+ (function(){
+  var A=function(n){if(n==null||n!==n)return '—';return (n<0?'−':'')+'A$'+Math.abs(Math.round(n)).toLocaleString('en-AU');};
+  function paint(j){
+   if(!j||!j.firm){document.getElementById('fb_sum').textContent='Firm book has not been built yet.';return;}
+   var fx=j.audusd||{}, firm=j.firm||{}, recon=j.recon||{};
+   var fxTxt=fx.ok?((fx.frozen?'weekend freeze ':'')+'AUDUSD '+(+fx.rate).toFixed(4)):(fx.error||'AUDUSD unavailable — totals withheld');
+   document.getElementById('fb_asof').textContent=(j.asof_wita||'')+' · PAPER · read only';
+   document.getElementById('fb_sum').textContent='Firm equity '+A(firm.equity_aud)+' · cash '+A(firm.cash_aud)+' · gross exposure '+A((firm.exposure||{}).gross_aud)+' · '+(firm.complete?'complete':'incomplete')+' · '+fxTxt;
+   var rows=(j.desks||[]).map(function(d){
+    var st=d.error?d.error:(d.present?(d.in_firm_total?'in the firm total':'shown separately'):'absent');
+    return '<div class="row"><b>'+d.label+'</b><span>'+A(d.equity_aud)+'</span><span class="lbl">'+st+'</span></div>';
+   }).join('');
+   document.getElementById('fb_rows').innerHTML=rows||'<div class="lbl">No desks.</div>';
+   var bits=[];
+   if(recon.status==='NOT_RUN'||recon.matched==null&&!recon.brokers){bits.push('Broker recon has not been run. That is not a match.');}
+   else {
+    Object.keys(recon.brokers||{}).forEach(function(name){
+     var b=recon.brokers[name]||{};
+     bits.push(name.toUpperCase()+' '+(b.matched?'match':(b.status||'BREAK'))+(b.breaks&&b.breaks.length?' · '+b.breaks.length+' break(s)':'')+(b.error?' · '+b.error:''));
+    });
+    if(!bits.length) bits.push(recon.matched?'brokers match':'recon did not match');
+   }
+   document.getElementById('fb_recon').textContent=bits.join('  ·  ');
+  }
+  function tick(){fetch('/static/firm_book.json?t='+Date.now(),{cache:'no-store'}).then(function(r){return r.json()}).then(paint).catch(function(){paint(null)})}
+  tick(); setInterval(tick,60000);
+ })();
+ </script>
  <div class="mood" id="st_mood">Loading…</div>
  <h2>Hunt trades</h2><div class="cards" id="st_cards"></div><div id="st_cash" class="lbl" style="margin-top:12px"></div><h2 id="st_benchh" style="display:none">Backup bench</h2><div class="lbl" id="st_benchnote"></div><div id="st_bench"></div><details id="st_cutbox" style="display:none"><summary>Cut trades</summary><div id="st_cut" class="lbl"></div></details>
  <h2>Who picks best</h2>
