@@ -111,6 +111,12 @@ def intraday(sym, interval="5m", start_utc=None, get=None):
     for r in js if isinstance(js, list) else []:
         try: out.append((int(r["timestamp"]), float(r["open"]), float(r["high"]), float(r["low"]), float(r["close"]), float(r.get("volume") or 0)))
         except Exception: continue
+    try:
+        if out and not os.environ.get("PYTEST_CURRENT_TEST"):
+            from veteran_desk import intraday_health as _IH
+            _IH.observe(sym, interval, out)
+    except Exception:
+        pass   # health file is diagnostic; a write failure never blocks a caller
     return out
 def eodhd_quote(sym, get=None, now_utc=None, max_age_min=30):
     """EODHD real-time (US live; other venues ~15-20 min delayed) -> dict like book.live_px or None if stale/absent."""

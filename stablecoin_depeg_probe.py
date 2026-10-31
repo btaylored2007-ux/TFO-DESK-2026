@@ -93,6 +93,7 @@ def db_inventory():
 
 
 def fetch_ohlc(rest_pair, interval):
+    import kraken_dns; kraken_dns.install()
     url = (f"https://api.kraken.com/0/public/OHLC?pair={rest_pair}"
            f"&interval={interval}")
     with urllib.request.urlopen(url, timeout=30) as r:

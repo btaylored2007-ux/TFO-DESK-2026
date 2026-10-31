@@ -790,7 +790,8 @@ def _bars_default(sym, crypto):
     """Closed bars oldest->newest as dicts(o,h,l,c,v). Crypto: Kraken public OHLC 1h. Else: yfinance daily. None on failure."""
     try:
         if crypto:
-            import urllib.request
+            import kraken_dns, urllib.request
+            kraken_dns.install()   # 1h OHLC must not depend on the ISP sinkhole
             pair = sym.split(":", 1)[1]
             J = json.loads(urllib.request.urlopen(f"https://api.kraken.com/0/public/OHLC?pair={pair}&interval=60", timeout=8).read())
             rows = [v for k, v in (J.get("result") or {}).items() if k != "last"][0][:-1]   # drop the forming bar

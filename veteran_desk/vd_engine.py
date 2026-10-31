@@ -33,7 +33,7 @@ def log(msg):
     except Exception: pass
 # ---------------- seats: design §3 weights (P,V,N,F,X) ----------------
 SEATS = {
- "crypto":               dict(name="Kai Navarro",      w=(.30, .25, .10, .00, .35)),
+ "crypto":               dict(name="Kai Navarro",      w=(.30, .25, .10, .10, .25)),   # F 0.10 is Coinalyze funding/OI/liq (was 0); X 0.35 -> 0.25. Stops/size/caps unchanged.
  "news_filings":         dict(name="Quinn Mercer",     w=(.15, .25, .45, .05, .10)),
  "essentials_utilities": dict(name="Nora Whitlock",    w=(.25, .10, .10, .40, .15)),
  "trend":                dict(name="Dex Romano · Trend", w=(.55, .15, .00, .10, .20)),
@@ -49,7 +49,8 @@ PILLARS = ("P", "V", "N", "F", "X")
 # ---------------- pre-score filters (Marcus 17:10) ----------------
 LEVERED = set("TQQQ SQQQ UPRO SPXU SPXL SPXS SOXL SOXS TNA TZA LABU LABD FAS FAZ TECL TECS UVXY SVXY VXX UVIX SVIX NUGT DUST JNUG JDST YINN YANG FNGU FNGD BOIL KOLD UCO SCO ERX ERY GUSH DRIP TMF TMV UDOW SDOW QLD QID SSO SDS NVDL NVDU TSLL TSLQ CONL MSTU MSTX ETHU BITX BITU SBIT TSLZ AMDL NAIL DPST WEBL WEBS CURE DFEN UTSL TBT UBT ROM REW USD SKF UYG DIG DUG BIB BIS UGL ZSL AGQ GLL".split())
 PEGS = {"USDHKD=X", "HKD=X", "USDTRY=X", "TRY=X", "USDCNY=X", "CNY=X", "USDSAR=X", "SAR=X", "USDAED=X", "AED=X", "USDQAR=X", "USDBHD=X", "USDKWD=X", "USDARS=X", "USDEGP=X", "USDNGN=X", "EURDKK=X", "USDDKK=X"}
-STABLE = ("USDT", "USDC", "DAI", "PYUSD", "USDG", "RLUSD", "USDD", "TUSD", "FDUSD", "EUR", "GBP", "AUD", "CAD", "CHF", "JPY", "USD", "USDE", "USDS", "USD1", "EURC", "EURT", "USDQ", "FRAX", "LUSD", "GUSD", "PAXG", "XAUT")
+from veteran_desk import crypto_universe as CU
+STABLE = CU.STABLE   # includes AUSD, QCAD and the other stable/fiat bases
 def pre_filter(sym, market, last_close, adv_aud, rows):
     """Returns reject reason or None. Applied BEFORE scoring."""
     s = sym.upper(); b = s.split(".")[0]
@@ -86,11 +87,11 @@ def build_universe():
         m = x.get("market") or "?"; a = avail.setdefault(m, dict(available=0, cleared=0)); a["available"] += 1
         if x.get("liquid"): a["cleared"] += 1; U[x["sym"]] = dict(sym=x["sym"], market=m, cls="EQ", sector=x.get("sector"), adv_aud=x.get("adv20_aud"))
     K = rj(os.path.join(BASE, "state", "veteran_desk", "kraken_24h_all.json"), {}) or {}
-    ps = K.get("pairs") or []; usd = [p for p in ps if str(p.get("alt", "")).endswith("USD")]
-    a = avail.setdefault("CRYPTO (Kraken USD)", dict(available=len(usd), cleared=0))
-    for p in usd:
-        base = p["alt"][:-3]
-        if any(base == s for s in STABLE) or not p.get("liquid") or (p.get("vol24h_aud") or 0) < 500_000: continue
+    ps = K.get("pairs") or []
+    a = avail.setdefault("CRYPTO (Kraken)", dict(available=len(ps), cleared=0, stables_dropped=0))
+    for p in ps:
+        if CU.is_stable_pair(p.get("alt")): a["stables_dropped"] += 1; continue
+        if not p.get("liquid") or (p.get("vol24h_aud") or 0) < 500_000: continue
         a["cleared"] += 1; U["KRAKEN:" + p["alt"]] = dict(sym="KRAKEN:" + p["alt"], market="CRYPTO", cls="CRYPTO", adv_aud=p.get("vol24h_aud"), k24=p)
     fx = [(i, oanda_yahoo(i)) for i in OANDA_FX]; a = avail.setdefault("FX (OANDA book)", dict(available=len(fx), cleared=0, pegs_excluded=0))
     for i, y in fx:
@@ -184,6 +185,17 @@ def feats(c, u, t, bench):
              gap=(O[-1] / C[-2] - 1) if C[-2] else 0.0, gap_hold=(C[-1] >= O[-1]) if O[-1] > C[-2] else (C[-1] <= O[-1]),
              prev_close=C[-2], prev_high=H[-2], prev_low=L[-2])
     if m == "CRYPTO" and u.get("k24"): f["chg_since_open"] = u["k24"].get("chg_pct_since_open")
+    if m == "CRYPTO":
+        try:
+            hb = P.hourly_asof(c, sym, t, 48)
+            h1 = CU.hourly_signal(hb, t, d)
+        except Exception:
+            h1 = None
+        if h1 and not h1.get("stale"):
+            f["h1"] = h1
+        else:
+            f["hourly_warning"] = "hourly bars missing or stale; vol_breakout uses the daily proxy"
+            if h1 and h1.get("stale"): f["h1"] = h1
     f["_rows"] = rows
     return f, None
 # ---------------- seat signals (Marcus 17:10) ----------------
@@ -193,7 +205,11 @@ def signals(seat, f, ctx):
     trend_up = f["stack"] >= 2
     if seat == "crypto":
         S["ema20_pullback"] = d > 0 and trend_up and abs(C - f["e20"]) <= 0.75 * A and f["stab"]
-        S["vol_breakout"] = (f["rvol"] or 0) >= 2 and ((d > 0 and C > f["hi20p"]) or (d < 0 and C < f["lo20p"]))   # daily-bar proxy (no 1h bars in pit)
+        h1 = f.get("h1")
+        if h1 and not h1.get("stale"):
+            S["vol_breakout"] = (h1.get("rvol") or 0) >= 2 and ((d > 0 and h1.get("broke_up")) or (d < 0 and h1.get("broke_dn")))
+        else:
+            S["vol_breakout"] = (f["rvol"] or 0) >= 2 and ((d > 0 and C > f["hi20p"]) or (d < 0 and C < f["lo20p"]))   # daily proxy when 1h bars are missing or stale (fail open)
         S["rs_vs_btc"] = (f["rs_btc7"] or 0) * d > 0.02 and (f["rs_btc30"] or 0) * d > 0.05
     elif seat == "news_filings":
         nh = ctx["news"].get(f["sym"], 0)
@@ -262,7 +278,17 @@ def raw_pillars(seat, f, ctx):
     Vv = ((f["rvol"] or 1) - 1) + ((f["rvol5"] or 1) - 1) + (abs(f["cloc"] - .5) * 2 if (f["cloc"] - .5) * d > 0 else 0) if f["has_vol"] else 0.0
     if f["cls"] == "CRYPTO" and f.get("chg_since_open") is not None: Vv += max(-1, min(1, d * f["chg_since_open"] / 5))
     Nn = math.log1p(ctx["news"].get(f["sym"], 0))
-    Ff = ctx["factor"].get(f["sym"], 0.0)
+    if not ctx.get("benzinga_warning"):
+        Nn += float((ctx.get("benzinga_scores") or {}).get(f["sym"]) or (ctx.get("benzinga_scores") or {}).get((f["sym"] or "").split(".")[0]) or 0)
+    if f["cls"] == "CRYPTO":
+        row = (ctx.get("coinalyze") or {}).get(f["sym"])
+        if ctx.get("coinalyze_warning") or not row:
+            Ff = None   # missing/stale Coinalyze -> F neutral (z-score mean), never a block
+        else:
+            from veteran_desk import coinalyze_client as CZC
+            Ff = CZC.f_score(row, d)
+    else:
+        Ff = ctx["factor"].get(f["sym"], 0.0)
     Xx = 0.0
     sig = signals(seat, f, ctx); Xx += sum(sig.values()) + (0.25 if f["nr7"] or f["inside"] else 0)
     return dict(P=Pp, V=Vv, N=Nn, F=Ff, X=Xx), sig
@@ -330,7 +356,7 @@ def earnings_block(sym, days=10):
     except Exception: return None
 CTX_CACHE = {}
 # ---------------- context ----------------
-def context(c, t):
+def context(c, t, cryptos=None):
     news = {}
     N = rj(os.path.join(BASE, "state", "veteran_desk", "news.json"), {}) or {}
     for k, v in (N.get("asset_tags") or {}).items(): news[k] = news.get(k, 0) + len(v or [])
@@ -348,12 +374,39 @@ def context(c, t):
     except Exception: pass
     from veteran_desk import scan_universe as SU
     fac = SU._factor_rank()
+    bz_scores, bz_warn = {}, None
+    try:
+        from veteran_desk import benzinga_news as BZ
+        loaded = BZ.load()
+        if not loaded or not loaded.get("ok"):
+            bz_warn = (loaded or {}).get("warning") or "benzinga missing; N contribution neutral"
+            if not os.environ.get("PYTEST_CURRENT_TEST"): log(bz_warn)
+        else:
+            bz_scores = loaded.get("scores") or {}
+    except Exception as e:
+        bz_warn = "benzinga %s; N contribution neutral" % type(e).__name__
+        if not os.environ.get("PYTEST_CURRENT_TEST"): log(bz_warn)
+    cz_rows, cz_warn = {}, None
+    try:
+        from veteran_desk import coinalyze_client as CZC
+        snap = CZC.snapshot(list(cryptos or []))
+        if not snap or not snap.get("ok"):
+            cz_warn = (snap or {}).get("warning") or "coinalyze missing or stale; F pillar neutral"
+            if not os.environ.get("PYTEST_CURRENT_TEST"): log(cz_warn)
+        else:
+            cz_rows = snap.get("by_sym") or {}
+            if snap.get("warning") and not os.environ.get("PYTEST_CURRENT_TEST"):
+                log(snap["warning"])
+    except Exception as e:
+        cz_warn = "coinalyze %s; F pillar neutral" % type(e).__name__
+        if not os.environ.get("PYTEST_CURRENT_TEST"): log(cz_warn)
     tnx = P.bars_asof(c, "^TNX", t, 25); tnx_chg20 = (tnx[-1][4] - tnx[-21][4]) if len(tnx) >= 21 else None
     cm = []
     for s in ("CL=F", "BZ=F", "NG=F"):
         b = P.bars_asof(c, s, t, 25)
         if len(b) >= 21 and b[-21][4]: cm.append(b[-1][4] / b[-21][4] - 1)
-    return dict(news=news, factor=fac, tnx_chg20=tnx_chg20, crude_mom=sum(cm) / len(cm) if cm else 0.0)
+    return dict(news=news, factor=fac, tnx_chg20=tnx_chg20, crude_mom=sum(cm) / len(cm) if cm else 0.0,
+                benzinga_scores=bz_scores, benzinga_warning=bz_warn, coinalyze=cz_rows, coinalyze_warning=cz_warn)
 def bench_rets(c, t):
     B = {}
     for s in ("KRAKEN:XBTUSD", "SMH", "SOXX", "KRE", "XLE", "SPY"):
@@ -367,6 +420,13 @@ STORE = dict(F={}, U={}, avail={}, rejects={}, built_utc=None, secs=None, feat_e
 def build_store():
     t0 = time.time(); t = now(); c = P.con()
     U, avail = build_universe(); B = bench_rets(c, t); F = {}; rej = {}; err = {}
+    cryptos = [s for s, u in U.items() if u.get("cls") == "CRYPTO"]
+    if not os.environ.get("PYTEST_CURRENT_TEST") and os.environ.get("TFO_KRAKEN_HOURLY", "1") != "0":
+        try:
+            n = P.refresh_kraken_hourly(c, cryptos[:25])
+            if n.get("warnings"): log("hourly bars partial (fail open) %s" % n["warnings"][:3])
+        except Exception as e:
+            log("hourly bars fail-open %s" % type(e).__name__)
     for s, u in U.items():
         try:
             f, why = feats(c, u, t, B)
@@ -375,38 +435,66 @@ def build_store():
             if pr: rej[s] = pr; continue
             F[s] = f
         except Exception as e: err[s] = "%s: %s" % (type(e).__name__, str(e)[:80])
-    STORE.update(F=F, U=U, avail=avail, rejects=rej, feat_errors=dict(list(err.items())[:200]), n_err=len(err), built_utc=t.isoformat(), secs=round(time.time() - t0, 1), ctx=context(c, t))
+    STORE.update(F=F, U=U, avail=avail, rejects=rej, feat_errors=dict(list(err.items())[:200]), n_err=len(err), built_utc=t.isoformat(), secs=round(time.time() - t0, 1), ctx=context(c, t, cryptos))
     try: c.close()
     except Exception: pass
     log("feature store built: %d scored-ready of %d universe (%d filtered, %d errors) in %.0fs" % (len(F), len(U), len(rej), len(err), time.time() - t0))
 # ---------------- scoring ----------------
 def score_all():
-    t = now(); F, U, ctx = STORE["F"], STORE["U"], STORE["ctx"]; out = {}
+    t = now(); F, U, ctx = STORE["F"], STORE["U"], STORE["ctx"]; out = {}; ledger = []
+    try:
+        from veteran_desk import earnings_advisory as EA
+        _earn_flags = EA.flags_for(list(F))
+        _earn_warn = EA.warning_for()
+        if _earn_warn and not os.environ.get("PYTEST_CURRENT_TEST"): log(_earn_warn)
+    except Exception as e:
+        _earn_flags, _earn_warn = {}, "earnings advisory %s; fail-open" % type(e).__name__
+        if not os.environ.get("PYTEST_CURRENT_TEST"): log(_earn_warn)
     for seat, cfg in SEATS.items():
         syms = seat_universe(seat, U, F); rows = []
         for s in syms:
             raw, sig = raw_pillars(seat, F[s], ctx); rows.append([s, raw, sig])
         Z = {p: zs([r[1][p] for r in rows]) for p in PILLARS}
-        comp = [sum(cfg["w"][i] * Z[p][j] for i, p in enumerate(PILLARS)) for j in range(len(rows))]
+        # Coinalyze down: keep the pre-feed weights so a missing F feed cannot move a grade (F stays neutral).
+        w = (.30, .25, .10, 0.0, .35) if seat == "crypto" and (ctx or {}).get("coinalyze_warning") else cfg["w"]
+        comp = [sum(w[i] * Z[p][j] for i, p in enumerate(PILLARS)) for j in range(len(rows))]
         order = sorted(range(len(rows)), key=lambda j: comp[j]); pct = {}
         for rk, j in enumerate(order): pct[j] = 100.0 * (rk + 1) / max(len(rows), 1)
         res = []
         for j, (s, raw, sig) in enumerate(rows):
             f = F[s]; R, rn = rfit(f); sc = round(pct[j] * R, 1)
-            nz = sum(1 for i, p in enumerate(PILLARS) if cfg["w"][i] > 0 and Z[p][j] > 1)
+            nz = sum(1 for i, p in enumerate(PILLARS) if w[i] > 0 and Z[p][j] > 1)
             fl = floors(seat, f, sig, ctx); g = grade(sc, nz, R, fl)
-            res.append(dict(sym=s, side="LONG" if f["dir"] > 0 else "SHORT", score=sc, pct=round(pct[j], 1), grade=g, r_fit=R, r_notes=rn, pillars_z={p: round(Z[p][j], 2) for p in PILLARS},
-                            pillars_gt1=nz, signals=[k for k, v in sig.items() if v], floors_failed=fl, close=f["close"], stop=f["stop"], k_atr=f["k_atr"], atr_pct=f["atr_pct"],
-                            last_bar=f["last_date"], bar_age_d=f["bar_age_d"], market=f["market"], rvol=f["rvol"], ret20=f["ret20"], news=ctx["news"].get(s, 0)))
+            row = dict(sym=s, side="LONG" if f["dir"] > 0 else "SHORT", score=sc, pct=round(pct[j], 1), grade=g, r_fit=R, r_notes=rn, pillars_z={p: round(Z[p][j], 2) for p in PILLARS},
+                       pillars_gt1=nz, signals=[k for k, v in sig.items() if v], floors_failed=fl, close=f["close"], stop=f["stop"], k_atr=f["k_atr"], atr_pct=f["atr_pct"],
+                       last_bar=f["last_date"], bar_age_d=f["bar_age_d"], market=f["market"], rvol=f["rvol"], ret20=f["ret20"], news=ctx["news"].get(s, 0),
+                       earnings_advisory=_earn_flags.get(s.upper()))
+            if f.get("hourly_warning"): row["hourly_warning"] = f["hourly_warning"]
+            res.append(row)
+            if g in ("A+", "A", "B"):
+                ledger.append(dict(source="thf", seat=seat, sym=s, side=row["side"], grade=g, score=sc, utc=t.isoformat(),
+                                   pillars_z=row["pillars_z"], pillars_raw={p: (None if raw[p] is None else round(float(raw[p]), 4)) for p in PILLARS},
+                                   close=f["close"], stop=f["stop"], last_bar=f["last_date"],
+                                   inputs=dict(signals=row["signals"], floors_failed=fl, rvol=f.get("rvol"), news=row["news"],
+                                               benzinga=(ctx.get("benzinga_scores") or {}).get(s), benzinga_warning=ctx.get("benzinga_warning"),
+                                               coinalyze=(ctx.get("coinalyze") or {}).get(s), coinalyze_warning=ctx.get("coinalyze_warning"),
+                                               hourly=f.get("h1"), hourly_warning=f.get("hourly_warning"), atr_pct=f.get("atr_pct"), ret20=f.get("ret20"),
+                                               flow_arm=os.environ.get("TFO_FLOW_AB") or "without"),
+                                   earnings_advisory=row["earnings_advisory"], earnings_warning=_earn_warn, paper_only=True, blocks_trade=False))
         res.sort(key=lambda x: -x["score"])
         for x in res[:25]:
             if x["grade"] in ("A", "A+"):
                 x["history"] = history_check(seat, F[x["sym"]]); x["earnings_block"] = earnings_block(x["sym"])
                 x["market_open"] = market_open(x["market"], t)
                 x["wake_ok"] = bool(x["history"].get("wake_ok")) and not x["earnings_block"] and x["market_open"] and x["bar_age_d"] <= (2 if x["market"] == "CRYPTO" else 4)
-        out[seat] = dict(seat=seat, trader=cfg["name"], weights=dict(zip(PILLARS, cfg["w"])), scanned=len(syms), top10=res[:10],
+        out[seat] = dict(seat=seat, trader=cfg["name"], weights=dict(zip(PILLARS, w)), scanned=len(syms), top10=res[:10],
                          n_A=sum(1 for x in res if x["grade"] == "A"), n_Aplus=sum(1 for x in res if x["grade"] == "A+"), n_B=sum(1 for x in res if x["grade"] == "B"),
                          grades={x["sym"].upper(): x["grade"] for x in res}, utc=t.isoformat(), version=VERSION)
+    try:
+        from veteran_desk import grade_ledger as GL
+        GL.record_thf(out, ledger)
+    except Exception as e:
+        if not os.environ.get("PYTEST_CURRENT_TEST"): log("grade ledger fail-open %s" % type(e).__name__)
     return out
 def marcus_view(S):
     """Marcus (Head of Desk): desk-wide top 10 across seats + cross-seat overlaps / opposite sides."""
@@ -683,7 +771,7 @@ def coverage():
             dict(sev="amber", what="FX: %d of %d OANDA-book pairs scored have no volume (OTC) - volume pillar off for them" % (by.get("FX (OANDA book)", {}).get("no_volume", 0), by.get("FX (OANDA book)", {}).get("scored", 0))),
             dict(sev="amber", what="Sector tags on %d of %d cleared equities (sector seats only see tagged names + hand lists)" % (sect, sum(1 for u in U.values() if u["cls"] == "EQ"))),
             dict(sev="amber", what="No borrow data in the engine (shorts checked by gate/book only)"),
-            dict(sev="amber", what="No 1h/5m bars: RVOL is daily (not time-of-day); Kai 1h breakout uses daily proxy"),
+            dict(sev="amber", what="Kraken 1h bars feed the crypto vol-breakout when fresh; a missing or stale 1h feed keeps the daily proxy and logs a warning (fail open). Equity RVOL stays daily."),
             dict(sev="amber", what="Earnings calendar: %s" % ("loaded" if CTX_CACHE.get("earn") else "no earnings file found - print-in-window block unverified"))]
     o = dict(utc=now().isoformat(), store_built_utc=STORE["built_utc"], store_secs=STORE["secs"], by_market=by, bar_dates=dict(sorted(last.items())[-6:]), gaps=gaps,
              totals=dict(universe=len(U), scored=len(F), filtered=sum(1 for r in rej.values() if "bars" not in r), errors=STORE.get("n_err", 0)))

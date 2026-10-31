@@ -92,8 +92,14 @@ def _getaddrinfo(host, port, family=0, type=0, proto=0, flags=0):
 
 
 def install():
-    """Idempotent. Patches socket.getaddrinfo for this process only."""
-    global _installed
+    """Idempotent. Patches socket.getaddrinfo for this process only.
+
+    If desk_doh (or another resolver) is already installed, it becomes the fallback
+    for non-Kraken hosts. Kraken spot, futures and websocket hosts stay on DoH.
+    """
+    global _installed, _orig_getaddrinfo
+    if socket.getaddrinfo is not _getaddrinfo:
+        _orig_getaddrinfo = socket.getaddrinfo
     if not _installed:
         socket.getaddrinfo = _getaddrinfo
         _installed = True

@@ -30,6 +30,8 @@ OANDA_HOSTS = frozenset({
 })
 DATA_HOSTS = frozenset({
     "api.kraken.com",
+    "futures.kraken.com",   # charts + derivatives; system DNS is sinkholed the same way as spot
+    "ws.kraken.com",
     "query1.finance.yahoo.com",
     "query2.finance.yahoo.com",
     "www.sec.gov",
@@ -126,7 +128,7 @@ def _getaddrinfo(host, port, family=0, type=0, proto=0, flags=0):
 
 def install(ibkr=True, oanda=True, extra=None, data=True):
     """Idempotent. Patches socket.getaddrinfo for this process only. extra=True (or TFO_DESK_DOH_EXTRA=1) adds exchange hosts."""
-    global _installed, _hosts
+    global _installed, _hosts, _orig_getaddrinfo
     hosts = set()
     if ibkr: hosts |= set(IBKR_HOSTS)
     if oanda: hosts |= set(OANDA_HOSTS)
@@ -135,6 +137,10 @@ def install(ibkr=True, oanda=True, extra=None, data=True):
     if extra or (extra is None and os.environ.get("TFO_DESK_DOH_EXTRA", "1") != "0"):   # 2026-10-28 (Brett B4): venue hosts default ON (extra=None); explicit extra=False stays scoped; opt out TFO_DESK_DOH_EXTRA=0
         hosts |= set(EXTRA_HOSTS)
     _hosts = frozenset(h.lower() for h in hosts)
+    # Chain: if kraken_dns (or anything else) already patched getaddrinfo, keep it as the fallback
+    # so a later desk_doh install cannot send futures.kraken.com back to the ISP sinkhole.
+    if socket.getaddrinfo is not _getaddrinfo:
+        _orig_getaddrinfo = socket.getaddrinfo
     if not _installed:
         socket.getaddrinfo = _getaddrinfo
         _installed = True

@@ -33,6 +33,7 @@ BORROW_BPS_PER_4H = 2.0       # 0.02%/4h on borrowed notional (assumption; works
 
 
 def _get(url):
+    import kraken_dns; kraken_dns.install()
     with urllib.request.urlopen(url, timeout=15) as r:
         return json.load(r)
 

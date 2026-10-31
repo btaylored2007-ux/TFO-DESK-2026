@@ -53,6 +53,12 @@ def digest(raw):
 
 
 def get_json(url):
+    try:
+        host = urllib.parse.urlparse(url).hostname or ""
+    except Exception:
+        host = ""
+    if host.endswith("kraken.com"):
+        import kraken_dns; kraken_dns.install()
     req = urllib.request.Request(url, headers={'User-Agent': 'TFO-paper-mark-refresh/1.0'})
     with urllib.request.urlopen(req, timeout=20) as response:
         return json.load(response)

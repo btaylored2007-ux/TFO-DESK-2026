@@ -118,6 +118,7 @@ def _fetch(url, path, allow_fetch):
             return json.load(f)
     if not allow_fetch:
         return None
+    import kraken_dns; kraken_dns.install()   # futures.kraken.com must not use the ISP sinkhole
     with urllib.request.urlopen(url, timeout=30) as r:
         d = json.load(r)
     os.makedirs(os.path.dirname(path), exist_ok=True)
