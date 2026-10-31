@@ -48,6 +48,10 @@ def _rows(body):
         for k in ("data", "results", "earnings", "historical"):
             v = body.get(k)
             if isinstance(v, list): return v
+        resp = body.get("response")
+        if isinstance(resp, dict):
+            for k in ("data", "results"):
+                if isinstance(resp.get(k), list): return resp[k]
     return []
 
 def _mark(fetched, field):
