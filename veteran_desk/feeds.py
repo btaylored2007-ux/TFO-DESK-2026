@@ -57,12 +57,18 @@ def coingecko_global(sleep=None, get=None):
     except Exception: pass
     raise err or RuntimeError("coingecko failed")
 FRED_FALLBACK = {"AUDUSD=X": ("DEXUSAL", False), "^VIX": ("VIXCLS", False)}   # DEXUSAL is USD per AUD (= AUDUSD); FRED is prior-day close
+def fred_rows(series, n=30, get=None):
+    """Last n non-missing FRED observations, oldest first. Same public CSV as fred_last. No key."""
+    txt = (get or _get)("https://fred.stlouisfed.org/graph/fredgraph.csv?id=" + series, 20).decode().strip().splitlines()
+    rows = []
+    for x in txt[1:]:
+        p = x.split(",")
+        if len(p) > 1 and p[1] not in (".", ""): rows.append((p[0], float(p[1])))
+    if not rows: raise RuntimeError("FRED %s empty" % series)
+    return rows[-int(n):]
 def fred_last(series, get=None):
     """Last non-missing FRED observation (public fredgraph CSV, no key). Returns (date, value)."""
-    txt = (get or _get)("https://fred.stlouisfed.org/graph/fredgraph.csv?id=" + series, 20).decode().strip().splitlines()
-    rows = [x.split(",") for x in txt[1:] if len(x.split(",")) > 1 and x.split(",")[1] not in (".", "")]
-    if not rows: raise RuntimeError("FRED %s empty" % series)
-    return rows[-1][0], float(rows[-1][1])
+    return fred_rows(series, 1, get)[-1]
 def fred_px(sym, get=None):
     """Fallback quote for AUDUSD=X / ^VIX when yfinance is empty: dict(last, hi, lo, asof, src) like book.live_px, or None."""
     if sym not in FRED_FALLBACK: return None

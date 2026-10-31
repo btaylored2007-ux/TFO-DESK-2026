@@ -28,5 +28,7 @@ data/pit/*.sqlite*
 data/history/*.sqlite*
 *.sqlite.bak-*
 state/hunt_orch/us_scan/**/*.pkl
+# advisory feature-store cache — regenerable, and request URLs must never be committed
+state/features/_cache/
 *.parquet
 work/oanda_v3/*.json
