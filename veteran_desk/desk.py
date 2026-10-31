@@ -168,6 +168,10 @@ def pack(c, seat, asof):
         N = json.load(open(os.path.join(SD, "news.json"))); out["news_regime"] = N["regime"]["flag"]
         out["news_tags"] = {k: v[:3] for k, v in (N.get("asset_tags") or {}).items() if k in {f["sym"] for f in F}}
     except Exception: out["news_regime"] = "unknown"
+    try:   # catalyst stream: local advisory queue only. A missing file or a dead daemon never blocks this pack.
+        from veteran_desk import catalyst_stream as _CS
+        _CS.attach(out, seat.get("seat") or "")
+    except Exception: pass
     m = {}
     for inp in seat["data_inputs"]:
         if inp.startswith("fred:"):
