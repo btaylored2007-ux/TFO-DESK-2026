@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0"><dict>
+ <key>Label</key><string>com.tfo.exec-speed-wakes</string>
+ <key>ProgramArguments</key><array>
+  <string>/Library/Frameworks/Python.framework/Versions/3.14/bin/python3</string>
+  <string>-m</string><string>veteran_desk.exec_speed</string><string>wake-daemon</string>
+ </array>
+ <key>WorkingDirectory</key><string>/Users/test/Applications/MultiVenueDesk</string>
+ <key>EnvironmentVariables</key><dict><key>PYTHONUNBUFFERED</key><string>1</string><key>EXEC_SPEED_DISPATCH</key><string>0</string><key>EXEC_SPEED_MIRROR_ENGINE</key><string>0</string></dict>
+ <key>RunAtLoad</key><true/><key>KeepAlive</key><true/><key>ThrottleInterval</key><integer>30</integer>
+ <key>StandardOutPath</key><string>/Users/test/Applications/MultiVenueDesk/logs/exec_speed_wakes.log</string>
+ <key>StandardErrorPath</key><string>/Users/test/Applications/MultiVenueDesk/logs/exec_speed_wakes.err.log</string>
+</dict></plist>
