@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0"><dict>
+ <key>Label</key><string>com.tfo.exec-speed-streams</string>
+ <key>ProgramArguments</key><array>
+  <string>/Library/Frameworks/Python.framework/Versions/3.14/bin/python3</string>
+  <string>-m</string><string>veteran_desk.exec_speed</string><string>stream-daemon</string>
+ </array>
+ <key>WorkingDirectory</key><string>/Users/test/Applications/MultiVenueDesk</string>
+ <key>EnvironmentVariables</key><dict><key>PYTHONUNBUFFERED</key><string>1</string></dict>
+ <key>RunAtLoad</key><true/><key>KeepAlive</key><true/><key>ThrottleInterval</key><integer>30</integer>
+ <key>StandardOutPath</key><string>/Users/test/Applications/MultiVenueDesk/logs/exec_speed_streams.log</string>
+ <key>StandardErrorPath</key><string>/Users/test/Applications/MultiVenueDesk/logs/exec_speed_streams.err.log</string>
+</dict></plist>
