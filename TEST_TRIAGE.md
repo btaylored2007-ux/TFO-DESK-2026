@@ -12,7 +12,7 @@ Current rails the suite was brought in line with:
 
 `tools/safe_deploy.sh` runs `tests/` and `veteran_desk/tests` as two processes (so the veteran live-path guard does not wrap the desk suite). It refuses outside the existing deploy window: start at :04:00 or later, and the run (`SAFE_DEPLOY_RUNTIME_S`, default 450s) must finish before the next quarter, which is **:04:00 through :07:29**. That window is the one already in this script. It is not a second clock next to the exec-speed gate. `TFO_TEST_OFFLINE=1` blocks non-localhost sockets, same as CI. Secrets are not loaded.
 
-The known-failure list is **not empty**. After the rail fixes, 34 tests still fail. They are listed in `tools/test_baseline.json` and below. Anything outside that list rolls a deploy back. Do not add a name to hide a new red test.
+The known-failure list is **empty**. The 34 names that were on it are fixed below. None were deleted. Anything red rolls a deploy back and fails CI. Do not add a name to hide a new red test.
 
 GitHub Actions uses that same list (`tools/check_test_baseline.py`, also called from `tools/safe_deploy.sh`). A red node that is already on the list does not fail the job. A red node that is not on the list does. A run with no pytest summary fails too.
 
@@ -51,28 +51,28 @@ Each skip names this file. They run on the Mac when the live file or module is p
 | OANDA `config.json` reads | Live config is not in this tree. |
 | Scan universe and XOM pit bars | See the table above. |
 
-## Still failing (34)
+## Cleared (the 34)
 
-These stay on `tools/test_baseline.json`. Root cause is the assertion, not a missing file the harness already skips.
+`tools/test_baseline.json` `known_failures` is `[]`. Offline, both suites are green. None of these tests were deleted.
 
-| Test | What it shows | Why it is still open |
+| Test | What was wrong | What changed |
 | --- | --- | --- |
-| `test_approveall_5_theme_cap_enforce` `test_trend18_deploy_legs_pass_now` | `UGL` buy is blocked | `theme_exposure.build()` on this tree's books blocks UGL. The test allows a block only when the theme is already at the cap. Needs a fixture book, not the empty tree. |
-| `test_book_coverage_repair_snapshots` (4) | repaired path not in the audit set | Coverage audit no longer lists that temp repair path. The exemption set changed. Not a cap change. |
-| `test_claude_down_gpt_alone` `test_hang_times_out_fast` | `RETIRED` != `PENDING` | A hunt/clearance state the test still calls PENDING is RETIRED in code. |
-| `test_coinspot_retirement` `test_coverage_exemption_is_exact_path_and_proof_bound` | copied ledger not returned as the only uncovered path | Coverage treats the retired CoinSpot ledger differently from the copy the test plants. |
-| `test_crypto_exit_c3` (2) | `KeyError: ETH/USD` and risk 0 != 180000 | C3 book no longer has that key / that clip. |
-| `test_crypto_maker` (4) | `KeyError: resting_entries` / `resting_log` | Maker state shape changed. Tests still read the old keys. |
-| `test_entry_engine_150k` crypto clip tests (3) | `gates` was not called (`[]` vs `[150000, ...]`) | `cmd_buy` returns before the clip. `entry_engine` itself is not in this tree (those cases skip). |
-| `test_hunt_clearance_gpt_codex` `test_codex_parses_stubbed_output` | `KeyError: main` | Clearance summary shape no longer has `books["main"]` for that stub. |
-| `test_hunt_tp3_sl8` `test_us_short_full_exit_at_plus3` | `shadow` != `filled` | The +3% exit path leaves the row shadow instead of filled. |
-| `test_regression_audit` `test_H4_day_base` | `KeyError: pnl_today_aud` | Day-base field was renamed or dropped. |
-| `test_risk_audit` crypto buy path (4) | empty call lists, `[]` vs `[26500]` / `[30000]` | Buy path no longer records those clip sizes. |
-| `test_scorecard_weekly` | index 0 out of range | Scorecard has no row where the test indexes `[0]`. |
-| `test_three_fixes` staged plan fire (6) | `TypeError: set is not callable` and `0 != 1` | `set` in the plan API is shadowed or the fire count is 0. |
-| `test_trend_core_rebook` `test_plist_present` | assertion false | Expected plist/text is not in the file the test reads. |
-| `test_trend_core_shadow` `test_status_has_shadow_block` | status dict has no `shadow` key | Shadow block is not on the status object the test reads (network marks still build a book). |
-| `veteran_desk/tests/test_e2e_autoarm.py` | `TypeError: NoneType is not subscriptable` | Auto-arm result is None without the live pipeline inputs. |
-| `veteran_desk/tests/test_gate_stale_crypto_hkd` | `IndexError` on an empty array | Crypto history fixture is empty in this tree, so ATR index 0 fails. |
+| Theme-cap deploy legs | `build()` used the live book, which can already sit on the cap | Test builds a fixture book with room. ENFORCE is unchanged. |
+| Repair-snapshot coverage (4) and CoinSpot copy | Audit skips any path containing `/tmp/`, so the temp ledgers were invisible | Fixtures sit under `tests/_coverage_audit_root`, outside that skip. The skip itself stays. |
+| Claude hang | Test still expected `PENDING` | Claude is retired. The test expects `RETIRED` and a fast return. |
+| C3 buy tag, maker (4), entry-engine clips (3), risk-audit buy path (4) | `OPENS_DISABLED` returns before the clip. The archive lock is a separate rail, already locked by `test_tfo_ht_crypto_archive_lock` | Those tests opt the lock off on their temp book only, and restore it. C3 1% sizing now stubs `sizing_eq`. The live lock stays on. |
+| Codex parse | Codex CLI is gone. Reviews come back from the Grok queue | Test stubs `grok_call` and expects `ok (grok)`. |
+| US short +3R exit | No borrow file, so the fill is SHADOW. That fail-closed path is correct | Test stubs a locate for this case only. `has_borrow` is unchanged. |
+| H4 day base | A status path that does not end in `_status.json` was overwritten by the health dict, which has no `pnl_today_aud` | Health is written beside the status file. The test uses the production `*_status.json` name. |
+| Staged plan fire (6) | The test stored its reject set on `self.fail`, which is `TestCase.fail`. Sizing equity was missing, so every clip was $0 | The set is `self.blocked`. The firm stub includes `sizing_equity_usd`. The $90k planned-loss cap is unchanged. |
+| Scorecard Trend18 | No `state/trend18.json` in this tree | Test plants a temp ledger and shadow CSV. The Nasdaq 2x benchmark is unchanged. |
+| Rebook plist | Test required `~/Library/LaunchAgents` on the Mac | The job file is `launchd/com.tfo.trend-core-rebook.plist`. The test reads that. |
+| Shadow block | `write_status` attached `shadow` only when the shadow file already existed | Status always carries `summary()`, and `in_book_pnl` stays false. The test calls `write_status` on a temp path. |
+| Veteran e2e auto-arm | `feats("XOM")` was None, and `P.con()` tried to mkdir the live pit | Temp sqlite with a fresh liquid XOM series. A+ stays inside 2–5% when the gate does not stale-cut it. |
+| Crypto ATR scale | Empty pit, so `arrays` indexed an empty close | Temp Kraken bars at coin scale (close > 1000, ATR > 100). The ETF alias is not used. |
 
-None of these 34 were deleted.
+Two further reds were not on the list of 34 and failed the desk job anyway: the strategy-tracker row for TREND-CORE (only emitted when the status file has a NAV) and `test_enter_is_noop` (an empty created book is not "already entered"). Both now use a temp book. They are on the parent of this branch.
+
+## Nightly test fixer
+
+`launchd/com.tfo.test-fixer.plist` runs `tools/test_fixer.py` at 03:20 local every night. It runs both suites. A new red test is classified stale test, real bug, environment, or flaky. Flaky means it did not fail all 3 retries. Those results are written to `reports/test_health.json` (War Room card) and appended to `reports/test_quarantine.jsonl`. A safe mechanical patch to a test file is committed on a branch and opened as a PR with the `gh` CLI. If `CURSOR_API_KEY` is set and there is no safe patch, a Cursor cloud agent is asked to open the PR. The job never merges, never edits a risk rail, and never runs `tools/safe_deploy.sh`. A fix reaches the desk only through that gate.
