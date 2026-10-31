@@ -1,6 +1,6 @@
 # Dead code report
 
-Paper-only desk. Phase 1 is this report. Later commits on this branch apply only the high-confidence rows. Anything on a risk, stop, exit, ledger, audit, backup, or watchdog path was left for a person unless the dead branch was provably unreachable, in which case only that unreachable branch was deleted and the live check stayed.
+Paper-only desk. Phase 1 is this report. The commits after it apply only the high-confidence rows. Anything on a risk, stop, exit, ledger, audit, backup, or watchdog path was left for a person unless the dead branch was provably unreachable, in which case only that unreachable branch was deleted and the live check stayed.
 
 ## How a candidate was judged
 
