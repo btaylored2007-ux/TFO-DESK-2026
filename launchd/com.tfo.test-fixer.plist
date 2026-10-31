@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- Nightly PAPER test fixer. 03:20 local (WITA on the desk Mac), every day.
+     Runs both suites. Writes reports/test_health.json for the War Room card.
+     May open a PR. Never merges. Never runs tools/safe_deploy.sh.
+     Install: cp to ~/Library/LaunchAgents/ and launchctl bootstrap gui/$UID ~/Library/LaunchAgents/com.tfo.test-fixer.plist -->
+<plist version="1.0"><dict>
+  <key>Label</key><string>com.tfo.test-fixer</string>
+  <key>ProgramArguments</key><array>
+    <string>/Library/Frameworks/Python.framework/Versions/3.14/bin/python3</string>
+    <string>/Users/test/Applications/MultiVenueDesk/tools/test_fixer.py</string>
+  </array>
+  <key>WorkingDirectory</key><string>/Users/test/Applications/MultiVenueDesk</string>
+  <key>StartCalendarInterval</key><dict>
+    <key>Hour</key><integer>3</integer>
+    <key>Minute</key><integer>20</integer>
+  </key>
+  <key>RunAtLoad</key><false/>
+  <key>EnvironmentVariables</key><dict>
+    <key>PATH</key><string>/Library/Frameworks/Python.framework/Versions/3.14/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+    <key>PYTHONUNBUFFERED</key><string>1</string>
+    <key>TFO_TEST_OFFLINE</key><string>1</string>
+  </key>
+  <key>StandardOutPath</key><string>/Users/test/Applications/MultiVenueDesk/logs/test_fixer.log</string>
+  <key>StandardErrorPath</key><string>/Users/test/Applications/MultiVenueDesk/logs/test_fixer.err.log</string>
+</dict></plist>
