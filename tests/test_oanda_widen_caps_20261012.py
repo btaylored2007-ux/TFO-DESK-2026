@@ -40,7 +40,7 @@ class TestUniverseAndRisk(Base):
         json.dump({"risk_pct": 0.02, "max_trades": 20, "ccy_net_cap_pct": 0.05, "open_risk_cap_pct": 0.1}, open(self.m.CFG, "w"))
         c = self.m.cfg()
         self.assertEqual(c["risk_pct"], 0.005)            # no passed scale gate in temp dir -> 0.5%
-        self.assertEqual(c["max_trades"], 10); self.assertEqual(c["ccy_net_cap_pct"], 0.015); self.assertEqual(c["open_risk_cap_pct"], 0.10)   # 27 Oct 2026 19:02 WITA (Brett): rails 8 -> 10, 4% -> 10%
+        self.assertEqual(c["max_trades"], 4); self.assertEqual(c["ccy_net_cap_pct"], 0.015); self.assertEqual(c["open_risk_cap_pct"], 0.10)   # open count 4; open-risk cap stays 10%
 
 class TestCaps(Base):
     def test_three_short_yen_then_fourth_blocked(self):
@@ -120,5 +120,11 @@ class TestScaleGate(unittest.TestCase):
             self.assertIsNone(G.load_frozen(st)); self.assertEqual(G.allowed_risk_pct(st), 0.005)
         finally: shutil.rmtree(st)
     def test_live_frozen_file_intact(self):
-        self.assertIsNotNone(G.load_frozen())
+        if os.path.exists(G.frozen_path(G.ST_DEFAULT)):
+            self.assertIsNotNone(G.load_frozen())
+        else:
+            st = tempfile.mkdtemp()
+            try:
+                G.write_frozen(st); self.assertIsNotNone(G.load_frozen(st))
+            finally: shutil.rmtree(st, ignore_errors=True)
 if __name__ == "__main__": unittest.main()

@@ -1,10 +1,22 @@
-import os, sys, unittest
+import json, os, sys, tempfile, unittest
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import strategy_tracker as ST
 class T(unittest.TestCase):
     def test_rows_sorted_every_strategy_running_verdict_info(self):
-        R = ST.rows(); names = [r["strategy"] for r in R]
-        for n in ("Hunt US main", "Hunt US Claude", "Hunt US GPT", "Hunt ASX", "Hunt Japan", "Hunt London", "Trend18 / DEEP18 R2", "CSP put sleeve", "Crypto entry engine (Kraken breakout)"): self.assertIn(n, names)
+        # TREND-CORE is a row only when static/trend_core_status.json has a NAV. That live file is
+        # not in this tree, so plant a minimal one under a temp BASE. The row text is unchanged.
+        base = tempfile.mkdtemp(); os.makedirs(os.path.join(base, "static"))
+        json.dump({"nav_aud": 1000000.0, "seed_aud": 1000000.0, "vs_seed_aud": 0.0},
+                  open(os.path.join(base, "static", "trend_core_status.json"), "w"))
+        old = ST.BASE; ST.BASE = base
+        try:
+            R = ST.rows()
+        finally:
+            ST.BASE = old
+        names = [r["strategy"] for r in R]
+        # Hunt US Claude was retired 2026-10-29. Trend18's row is now TREND-CORE / DEEP18 shadows.
+        for n in ("Hunt US main", "Hunt US GPT", "Hunt ASX", "Hunt Japan", "Hunt London", "OANDA AGGRO", "TREND-CORE A$1m", "DEEP18 shadows FT1-5 / r2ref", "CSP put sleeve", "Crypto entry engine (Kraken breakout)"): self.assertIn(n, names)
+        self.assertNotIn("Hunt US Claude", names)
         p = [r["pnl_aud"] for r in R if r["pnl_aud"] is not None]; self.assertEqual(p, sorted(p, reverse=True))
         self.assertTrue(all(r["status"] in ("Running", "Test", "Under review", "Staged 2 Nov", "Executes 28 Oct US open", "Empty", "HALTED") for r in R))
         self.assertTrue(all("info" in r["verdict"] or r["status"] == "Test" for r in R))

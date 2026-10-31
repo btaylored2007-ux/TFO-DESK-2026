@@ -225,7 +225,7 @@ class T1BeforeThesisExit(unittest.TestCase):
     def test_short_t1_then_thesis(self):
         H, t, bar, e = self._t("short")
         ev = H.manage(t, [bar], e + dt.timedelta(hours=1))
-        self.assertEqual(ev, ["t1", "thesis_exit"]); self.assertEqual([x["why"] for x in t["exits"]], ["T1 half", "thesis exit"]); self.assertEqual(t["status"], "CLOSED")
+        self.assertEqual(ev, ["t1", "thesis_exit"]); self.assertEqual([x["why"] for x in t["exits"]], ["1R half", "thesis exit"]); self.assertEqual(t["status"], "CLOSED")
     def test_long_t1_then_thesis(self):
         H, t, bar, e = self._t("long")
         ev = H.manage(t, [bar], e + dt.timedelta(hours=1))

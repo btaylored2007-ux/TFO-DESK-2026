@@ -3,6 +3,9 @@ import os, sys, types
 from unittest import mock
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT); sys.path.insert(0, os.path.join(ROOT, "research", "overnight2k"))
+if not os.path.exists(os.path.join(ROOT, "research", "overnight2k", "overnight2k.py")):
+    import pytest
+    pytest.skip("overnight2k is not in the code-only export. See TEST_TRIAGE.md.", allow_module_level=True)
 import tfo_watchlist as W, tfo_crypto as TC
 import overnight2k as O
 

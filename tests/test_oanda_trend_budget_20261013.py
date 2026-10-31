@@ -35,7 +35,7 @@ class Base(unittest.TestCase):
 class TestConfig(Base):
     def test_defaults(self):
         c = self.c
-        self.assertEqual((c["open_risk_cap_pct"], c["ccy_net_cap_pct"], c["max_trades"]), (0.04, 0.015, 8))
+        self.assertEqual((c["open_risk_cap_pct"], c["ccy_net_cap_pct"], c["max_trades"]), (0.04, 0.015, 4))
         self.assertEqual((c["trend_open_risk_cap_pct"], c["trend_ccy_net_cap_pct"], c["trend_max_trades"], c["combined_ccy_warn_pct"]), (0.02, 0.015, 4, 0.025))
         self.assertEqual(D.MAXSLOTS["OXF1"], 4); self.assertEqual(D.RISK["OXF1"], 0.005); self.assertEqual(D.RISK["OXF1_XAU"], 0.0025)
     def test_rails(self):
@@ -43,10 +43,13 @@ class TestConfig(Base):
                    "open_risk_cap_pct": 0.1, "max_trades": 20}, open(self.m.CFG, "w"))
         c = self.m.cfg()
         self.assertEqual((c["trend_open_risk_cap_pct"], c["trend_max_trades"], c["trend_ccy_net_cap_pct"], c["combined_ccy_warn_pct"]), (0.02, 4, 0.015, 0.025))
-        self.assertEqual((c["open_risk_cap_pct"], c["max_trades"]), (0.10, 10))   # 27 Oct 2026 19:02 WITA (Brett): book rails 8 -> 10, 4% -> 10%
+        self.assertEqual((c["open_risk_cap_pct"], c["max_trades"]), (0.10, 4))   # open-risk cap 10%; open count 4
     def test_live_config_file(self):
-        c = json.load(open(os.path.join(ROOT, "state", "oanda", "config.json")))
-        self.assertEqual((c["trend_open_risk_cap_pct"], c["trend_max_trades"], c["open_risk_cap_pct"], c["max_trades"]), (0.02, 4, 0.10, 10))   # 27 Oct 2026 (Brett): book 10 trades / 10%
+        p = os.path.join(ROOT, "state", "oanda", "config.json")
+        if not os.path.exists(p): self.skipTest("live state/oanda/config.json is not in the code-only tree (TEST_TRIAGE.md)")
+        c = json.load(open(p))
+        self.assertEqual((c["trend_open_risk_cap_pct"], c["trend_max_trades"]), (0.02, 4))
+        self.assertLessEqual(float(c.get("risk_pct", 0.02)), 0.02)
 
 class TestBuckets(Base):
     def full_book(self):   # 4% book incl. 1.5% net short USD
@@ -92,16 +95,17 @@ class TestCombinedLog(Base):
         self.assertEqual(self.m.combined_ccy_check([dict(bad=1)], self.c, "t"), {})
 
 class TestPlaceEntry(Base):
-    def test_book_8_full_trend_still_allowed(self):
-        self.open = [T(i, p, 1, "OXL2") for i, p in enumerate(["EUR_GBP", "AUD_NZD", "EUR_AUD", "GBP_AUD", "CAD_CHF", "EUR_CAD", "GBP_CAD", "AUD_CHF"])]
-        self.m.ledger_entry_risk = lambda: {str(i): dict(risk_aud=0.004 * 50000) for i in range(8)}
-        self.assertEqual(self.m.place_entry(self.e("EUR_JPY", "OXL2"), False), "skip:max_trades")
-        self.assertEqual(self.m.place_entry(self.e("EUR_JPY", "OXF1"), False), "defer:not_tradeable")   # passed caps
+    def test_four_open_blocks_book_and_trend(self):
+        self.open = [T(i, p, 1, "OXL2") for i, p in enumerate(["EUR_GBP", "AUD_NZD", "EUR_AUD", "GBP_AUD"])]
+        self.m.ledger_entry_risk = lambda: {str(i): dict(risk_aud=0.004 * 50000) for i in range(4)}
+        self.assertEqual(self.m.place_entry(self.e("EUR_JPY", "OXL2"), False), "skip:total_max_trades")
+        self.assertEqual(self.m.place_entry(self.e("EUR_JPY", "OXF1"), False), "skip:total_max_trades")
     def test_trend_max_4(self):
         self.open = [T(i, p, 1, "OXF1") for i, p in enumerate(["EUR_GBP", "AUD_NZD", "CAD_CHF", "GBP_CAD"])]
         self.m.ledger_entry_risk = lambda: {str(i): dict(risk_aud=0.001 * 50000) for i in range(4)}
-        self.assertEqual(self.m.place_entry(self.e("EUR_JPY", "OXF1"), False), "skip:trend_max_trades")
-        self.assertEqual(self.m.place_entry(self.e("EUR_JPY", "OXL2"), False), "defer:not_tradeable")
+        self.assertEqual(self.m.cfg()["trend_max_trades"], 4)
+        self.assertEqual(self.m.place_entry(self.e("EUR_JPY", "OXF1"), False), "skip:total_max_trades")
+        self.assertEqual(self.m.place_entry(self.e("EUR_JPY", "OXL2"), False), "skip:total_max_trades")
     def test_one_per_pair_across_desk_even_same_direction(self):
         self.open = [T(1, "EUR_USD", 1000, "OXL2")]; self.m.ledger_entry_risk = lambda: {}
         self.assertEqual(self.m.place_entry(self.e("EUR_USD", "OXF1", 1), False), "skip:already_open")

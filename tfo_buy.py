@@ -81,7 +81,7 @@ def gates(sym, usd, theme):
         import theme_exposure as _te; _ok, _why = _te.check_buy(sym, usd / _te.DESK_FX, ccy="USD" if venue(sym) == "US" else None, hint=theme, book="TFO main")
         if not _ok: fails.append(_why)
     except Exception as _e: fails.append("theme cap check failed (%s)" % str(_e)[:60])
-    if venue(sym) == "US":   # tfo_usbook_cap_20261030 (Brett 19:35 WITA): main-book US beta cap 40% of main-book equity; new adds only
+    if venue(sym) == "US":   # tfo_usbook_cap_20261030: main-book US beta cap 60% of main-book equity; new adds only
         try:
             import us_book_cap as _ubc; _uok, _uwhy, _ = _ubc.check(sym, usd, "long", book="tfo_buy", accumulate=False)
             if not _uok: fails.append(_uwhy)

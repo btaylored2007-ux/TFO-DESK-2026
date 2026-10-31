@@ -30,7 +30,7 @@ import yfinance as yf
 
 FEED_DIR = Path(__file__).resolve().parent
 SYD = ZoneInfo("Australia/Sydney"); NY = ZoneInfo("America/New_York")
-SEC_UA = __import__("json").load(open(__import__("os").path.expanduser("~/Applications/MultiVenueDesk/research_controls/sec_contact.json")))["user_agent"]   # same UA the desk already uses
+SEC_UA = __import__("sec_contact").user_agent()   # same UA the desk already uses
 WEB_UA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126 Safari/537.36"
 NEVER_REENTER = {"SOXL", "RCL", "IAG"}
 HELD = {"META", "ISRG", "TMO"}

@@ -25,7 +25,11 @@ warnings.filterwarnings("ignore")
 import asia_markets as AM
 BASE = os.environ.get("DESK_BASE", os.path.dirname(os.path.abspath(__file__)))
 CD = os.path.join(BASE, "state", "calendar"); IN = os.path.join(CD, "inputs")
-sys.path.insert(0, os.environ.get("RANKER_DIR", os.path.join(CD, "ranker"))); import run_scan as RS
+_ranker = os.environ.get("RANKER_DIR", os.path.join(CD, "ranker"))
+if not os.path.exists(os.path.join(_ranker, "run_scan.py")):
+    _alt = os.path.join(BASE, "staged_fixes", "tforul", "ranker")   # code-only export keeps the ranker here; the Mac copy is state/calendar/ranker
+    if os.path.exists(os.path.join(_alt, "run_scan.py")): _ranker = _alt
+sys.path.insert(0, _ranker); import run_scan as RS
 UA = {"User-Agent": "Mozilla/5.0 (Macintosh) AppleWebKit/537.36 Chrome/128 Safari/537.36"}; UTC = dt.timezone.utc
 MIN_ADV_AUD = 2e6; SLIP_BP_SIDE = 10.0
 EXCL_WORDS = ("INDONESIA", "JAKARTA", "TBK")

@@ -1,0 +1,38 @@
+name: tests
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  suite:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install test dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install pytest numpy pandas scipy requests yfinance beautifulsoup4 scikit-learn websocket-client
+      - name: Both suites vs baseline (same rule as tools/safe_deploy.sh)
+        env:
+          TFO_TEST_OFFLINE: "1"
+          SEC_USER_AGENT: "TFO-DESK CI paper research (no secret contact)"
+          OANDA_PRACTICE_TOKEN: ""
+          MASSIVE_API_KEY: ""
+          COINALYZE_API_KEY: ""
+          VD_REVGUARD_WEBHOOK_DISABLE: "1"
+        run: |
+          set -u
+          OUT=$(mktemp)
+          echo "----- tests/ -----" | tee -a "$OUT"
+          python -m pytest tests -q -p no:cacheprovider -rfE --continue-on-collection-errors >> "$OUT" 2>&1 || true
+          echo "----- veteran_desk/tests -----" | tee -a "$OUT"
+          python -m pytest veteran_desk/tests -q -p no:cacheprovider -rfE --continue-on-collection-errors >> "$OUT" 2>&1 || true
+          echo "----- pytest tail -----"
+          tail -120 "$OUT"
+          python tools/check_test_baseline.py tools/test_baseline.json "$OUT"

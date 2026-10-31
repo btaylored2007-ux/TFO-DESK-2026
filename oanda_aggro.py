@@ -16,7 +16,7 @@ import os, sys, json, datetime as dt
 import oanda_sleeve as S, oanda_designs as D, oanda_setups as X, oanda_risk as RK
 TAG = "AGGRO"; ST = os.path.join(S.ROOT, "state", "oanda_aggro"); os.makedirs(ST, exist_ok=True)
 LOG = os.path.join(ST, "trades.jsonl")
-CFG = dict(start_nav_aud=50315.52, risk_pct=0.03, open_risk_cap_pct=0.25, group_cap={"METALS": 0.06, "OIL": 0.03, "GAS": 0.03}, usd_cap_pct=0.09,
+CFG = dict(start_nav_aud=50315.52, risk_pct=0.02, open_risk_cap_pct=0.25, max_open=4, group_cap={"METALS": 0.06, "OIL": 0.03, "GAS": 0.03}, usd_cap_pct=0.09,
            margin_cap_frac=0.60, weekly_halt_pct=-0.15, kill_nav_frac=0.60, weekly_target_pct=0.05, max_cost_r=0.15,
            designs=["OXB1", "OXP1", "OXT1"], live=True)
 # Brett 17 Oct 2026 14:27 AEDT (item 2): NATGAS added to AGGRO's commodity BREAKOUT (OXB1) only. AGGRO-local: the shared
@@ -39,7 +39,8 @@ def extra_signals(names, data):
 def cfg():
     c = dict(CFG); p = os.path.join(ST, "config.json")
     if os.path.exists(p): c.update(json.load(open(p)))
-    c["risk_pct"] = min(float(c["risk_pct"]), 0.03); c["open_risk_cap_pct"] = min(float(c["open_risk_cap_pct"]), 0.25)   # rails (28 Oct 2026 Brett: account open-risk cap 15% -> 25%, PAPER)
+    c["risk_pct"] = min(float(c["risk_pct"]), 0.02); c["open_risk_cap_pct"] = min(float(c["open_risk_cap_pct"]), 0.25)   # rails: at most 2% per trade; account open-risk cap stays 25%
+    c["max_open"] = min(int(c.get("max_open", 4)), 4)
     c["margin_cap_frac"] = min(float(c["margin_cap_frac"]), 0.60); c["weekly_halt_pct"] = max(float(c["weekly_halt_pct"]), -0.15)
     c["kill_nav_frac"] = max(float(c["kill_nav_frac"]), 0.60)
     c["start_nav_aud"] = float(c["start_nav_aud"]) + topup_total(); return c   # start base includes dated funder top-ups
@@ -97,6 +98,7 @@ def risk_rows(trades, nav, c):
                          design=(t.get("clientExtensions") or {}).get("comment")))
     return rows
 def caps(rows, ins, d, rf, c):
+    if len(rows) + 1 > int(c.get("max_open", 4)): return "skip:max_open %d" % int(c.get("max_open", 4))
     tot = sum(r["risk_frac"] for r in rows) + rf
     if tot > c["open_risk_cap_pct"] + 1e-9: return "skip:open_risk_cap %.2f%% > %.0f%%" % (tot * 100, c["open_risk_cap_pct"] * 100)
     b, q = ins.split("_"); g = _group(b)

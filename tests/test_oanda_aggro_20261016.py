@@ -9,7 +9,7 @@ class T(unittest.TestCase):
         self.assertGreaterEqual(self.c["weekly_halt_pct"], -0.15); self.assertGreaterEqual(self.c["kill_nav_frac"], 0.60)
         self.assertEqual(set(self.c["designs"]), {"OXB1", "OXP1", "OXT1"})
     def test_total_cap(self):
-        r = [row("XAU_USD", 1, .03), row("XAG_USD", -1, .03), row("XCU_USD", 1, .03), row("EUR_JPY", 1, .03, "TFO"), row("GBP_CHF", 1, .02, "TFO"), row("AUD_NZD", 1, .10, "TFO")]
+        r = [row("XAU_USD", 1, .10), row("EUR_JPY", 1, .10, "TFO"), row("AUD_NZD", 1, .06, "TFO")]
         self.assertIn("open_risk_cap", A.caps(r, "BCO_USD", 1, .03, self.c) or "")
     def test_oil_one_bet(self):
         self.assertIn("OIL", A.caps([row("WTICO_USD", 1, .03)], "BCO_USD", 1, .03, self.c) or "")

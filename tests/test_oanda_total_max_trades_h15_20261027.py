@@ -1,5 +1,4 @@
-"""audit H15 (Brett 27 Oct 2026 19:35 WITA, PAPER): OANDA max 10 open TFO trades across ALL buckets combined (book + trend + cmdty).
-Per-bucket limits (10 / 4 / 6), 1% risk and the 10% caps are unchanged. No network, temp state only."""
+"""OANDA open-count rail: at most 4 TFO trades across ALL buckets (book + trend + cmdty). No network, temp state only."""
 import importlib.util, json, os, shutil, sys, tempfile, unittest
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT); sys.path.insert(0, os.path.join(ROOT, "research", "behaviour"))
@@ -21,14 +20,14 @@ class H15(unittest.TestCase):
         m.ledger_entry_risk = lambda: {str(i): dict(risk_aud=0.001 * 50000) for i in range(12)}
     def tearDown(self): shutil.rmtree(self.tmp)
     def e(self, ins, design): return dict(design=design, ins=ins, dir=1, risk_pct=0.005, stop_dist=0.01, floor_sp=1e-4, close=1.0)
-    def test_rail_is_10_and_cannot_be_raised(self):
-        self.assertEqual(self.m.cfg()["total_max_trades"], 10)
-        json.dump({"total_max_trades": 25}, open(self.m.CFG, "w")); self.assertEqual(self.m.cfg()["total_max_trades"], 10)
-    def test_ten_across_buckets_blocks_every_bucket(self):
-        self.open = [T(i, p, "OXL2") for i, p in enumerate(BOOK)] + [T(10 + i, p, "OXF1") for i, p in enumerate(TREND)]   # 8 book + 2 trend = 10
+    def test_rail_is_4_and_cannot_be_raised(self):
+        self.assertEqual(self.m.cfg()["total_max_trades"], 4)
+        json.dump({"total_max_trades": 25}, open(self.m.CFG, "w")); self.assertEqual(self.m.cfg()["total_max_trades"], 4)
+    def test_four_across_buckets_blocks_every_bucket(self):
+        self.open = [T(i, p, "OXL2") for i, p in enumerate(BOOK[:2])] + [T(10 + i, p, "OXF1") for i, p in enumerate(TREND)]   # 2 book + 2 trend = 4
         self.assertEqual(self.m.place_entry(self.e("EUR_JPY", "OXL2"), False), "skip:total_max_trades")
         self.assertEqual(self.m.place_entry(self.e("EUR_JPY", "OXF1"), False), "skip:total_max_trades")
-    def test_nine_open_still_allows(self):
-        self.open = [T(i, p, "OXL2") for i, p in enumerate(BOOK)] + [T(10, TREND[0], "OXF1")]   # 9 open
+    def test_three_open_still_allows(self):
+        self.open = [T(i, p, "OXL2") for i, p in enumerate(BOOK[:2])] + [T(10, TREND[0], "OXF1")]   # 3 open
         self.assertEqual(self.m.place_entry(self.e("EUR_JPY", "OXF1"), False), "defer:not_tradeable")   # passed the count gates
 if __name__ == "__main__": unittest.main()

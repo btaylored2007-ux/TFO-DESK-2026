@@ -82,7 +82,7 @@ class TfoBuyEntryEngine(unittest.TestCase):
 
     def test_shark_max_clip_gate_still_present(self):
         import tfo_buy, inspect
-        self.assertIn("shark_max_clip(eq)", inspect.getsource(tfo_buy.gates))
+        self.assertIn("shark_max_clip(seq)", inspect.getsource(tfo_buy.gates))
         self.assertIn("0.05 * dv_usd", inspect.getsource(tfo_buy.gates))
         self.assertIn("HEAT_CAP_PCT * eq", inspect.getsource(tfo_buy.gates))
 

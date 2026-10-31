@@ -10,7 +10,11 @@ try:  # 2026-10-30 WITA feedfix2: ISP DNS hijack of api.kraken.com/futures.krake
 except Exception as _kd_e: print("kraken_dns unavailable: %r" % _kd_e)
 # 2026-10-28 Brett 20:31: resolve from desk base (DESK_BASE or this file's location), never $HOME (orch overrides HOME to yf_home)
 DESK_BASE=os.environ.get("DESK_BASE") or os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)),"..","..",".."))
-H={"User-Agent": json.load(open(os.path.join(DESK_BASE,"research_controls","sec_contact.json")))["user_agent"]}
+try:
+    import sec_contact as _sec
+    H={"User-Agent": _sec.user_agent()}
+except Exception:
+    H={"User-Agent": "TFO-DESK paper research (contact file absent)"}
 FEEDS={}; KSKIP={}; TSKIP={}
 def feed(n,ok,note=""): FEEDS[n]={"ok":bool(ok),"note":str(note)[:160]}
 def empty_scan_guard(R):
@@ -24,7 +28,9 @@ def empty_scan_guard(R):
     return R
 EXCL_SUFFIX=(".JK",); EXCL_WORDS=("INDONESIA","JAKARTA","IDR")
 # ---------- weights (transparent) ----------
-CFG=json.load(open(os.path.join(os.path.dirname(os.path.abspath(__file__)),"config.json")))
+_CFG_PATH=os.path.join(os.path.dirname(os.path.abspath(__file__)),"config.json")
+_CFG_DEFAULT={"weights":{"trend":1.0,"rs":1.0,"catalyst":0.5,"earn":0.5,"volume":0.5},"direction":{"trend_min_stack":2,"rs_min_pct":2.0,"cat_min":0.3,"counter_regime_rank_penalty":0.5},"max_open":3,"max_stop_pct":5.0,"no_short_if_squeeze_flag":True,"regime":{"rule":"SPY regime is a RANK input only, never a block"},"costs":{"kraken_maker_pct":0.25,"kraken_taker_pct":0.40,"ibkr_usd_per_side":1.0,"ibkr_slip_bp_per_side":5.0},"event_shield":{"fomc":[]},"max_corr":0.8}
+CFG=json.load(open(_CFG_PATH)) if os.path.exists(_CFG_PATH) else _CFG_DEFAULT
 W=CFG["weights"]
 
 def universe_us():

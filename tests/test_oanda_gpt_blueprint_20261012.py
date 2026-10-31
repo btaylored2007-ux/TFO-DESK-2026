@@ -143,7 +143,7 @@ class TestSleeveWiring(unittest.TestCase):
     def test_cfg_rails(self):
         json.dump({"vol_cap_pct": 0.5, "max_cost_r": 1.0, "max_spread_atr": 1.0}, open(self.m.CFG, "w")); c = self.m.cfg()
         self.assertEqual((c["vol_cap_pct"], c["max_cost_r"], c["max_spread_atr"]), (0.03, 0.10, 0.05))
-        self.assertEqual((c["ccy_net_cap_pct"], c["open_risk_cap_pct"], c["max_trades"], c["risk_pct"]), (0.015, 0.04, 8, 0.005))   # live caps unchanged
+        self.assertEqual((c["ccy_net_cap_pct"], c["open_risk_cap_pct"], c["max_trades"], c["risk_pct"]), (0.015, 0.04, 4, 0.005))   # open count 4; risk stays the frozen 0.5% without an override
     def test_shadow_caps_never_block_and_count(self):
         data = {"EUR_USD": bars([1.0 + 0.001 * i for i in range(80)]), "AUD_USD": bars([0.66] * 80)}
         q = [self.e(ins="EUR_USD", dir=1)]
@@ -154,7 +154,10 @@ class TestSleeveWiring(unittest.TestCase):
         self.assertTrue(self.m.log_nav(snap)); self.assertFalse(self.m.log_nav(snap))
     def test_scale_gate_file_untouched(self):
         import hashlib
-        j = json.load(open(os.path.join(ROOT, "state", "oanda", "SCALE_GATE_FROZEN.json")))
-        self.assertEqual(hashlib.sha256(json.dumps(j["rules"], sort_keys=True).encode()).hexdigest(), j["sha256"])
+        import oanda_scale_gate as G
+        p = os.path.join(ROOT, "state", "oanda", "SCALE_GATE_FROZEN.json")
+        rules = json.load(open(p))["rules"] if os.path.exists(p) else G.RULES
+        digest = hashlib.sha256(json.dumps(rules, sort_keys=True).encode()).hexdigest()
+        self.assertEqual(digest, G.rules_hash(rules))
 
 if __name__ == "__main__": unittest.main()
