@@ -1012,6 +1012,12 @@ var o=document.getElementById('plan48');if(o){document.getElementById('h48old').
       edge verdict not before 182 days.</div>
   </section>
 
+  <section class="wide" id="catalyst-sources-card">
+    <h2>Catalyst sources <span class="meta" id="catalyst-sources-meta">paper · advisory</span></h2>
+    <div id="catalyst-sources"><span class="dim">loading…</span></div>
+    <div class="note">Hit rate, average R and lead time by source and event. A down-weight is a proposal only. It does not change size, stops, or entries.</div>
+  </section>
+
   <section class="wide">
     <h2>Edge map <span class="meta" id="edge-meta"></span></h2>
     <div class="scroll"><table id="edgemap">
@@ -2029,6 +2035,20 @@ function renderWarroom(d){
         ? `<div class="note">All traps READY (≥21d). Waiting on a research ticket to open, not more calendar days.</div>`
         : `<div class="note">Datasets accumulating toward testability. The scheduled task announces the moment one is ready.</div>`;
     })();
+  }
+  const cs = w.catalyst_sources;
+  const csBox = $("#catalyst-sources");
+  if(csBox){
+    const rows = (cs && cs.rows) || [];
+    const props = (cs && cs.proposals) || [];
+    csBox.innerHTML = rows.length
+      ? `<div class="scroll"><table><thead><tr><th>Source</th><th class="num">N</th><th class="num">Hit</th><th class="num">Avg R</th><th class="num">Lead</th></tr></thead><tbody>`
+        + rows.map(r=>`<tr><td>${esc(r.source)}</td><td class="num">${r.n??"—"}</td><td class="num">${r.hit_rate==null?"—":Math.round(r.hit_rate*100)+"%"</td><td class="num">${r.avg_r==null?"—":r.avg_r}</td><td class="num dim">${r.median_lead_min==null?"—":r.median_lead_min+"m"}</td></tr>`).join("")
+        + `</tbody></table></div>`
+      : '<span class="dim">no attributed closes yet</span>';
+    if(props.length) csBox.innerHTML += `<div class="note">${props.map(p=>esc((p.target||"source")+" "+(p.name||""))+": proposed down-weight. Not applied.").join("<br>")}</div>`;
+    const meta = $("#catalyst-sources-meta");
+    if(meta) meta.textContent = `paper · advisory · ${(cs&&cs.days_observed)||0} days · not auto-applied`;
   }
   const wr = $("#wire");
   if(wr && w.wire){

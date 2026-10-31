@@ -1,11 +1,12 @@
 """Live news and catalyst stream for the paper desk. Advisory only.
 
 Polls paid wires first (FMP, EODHD, Massive, Unusual Whales, EIA) and free
-fallbacks (ASX announcements, EDGAR 8-K and Form 4, LSE RNS, HKEX and TSE
-disclosure, newswire RSS, Fed and central-bank calendars, the macro calendar,
-FDA PDUFA dates). Each item is routed to a per-seat queue under
-state/catalyst_stream/. High-urgency items are also appended to that seat's
-advisory wake file in the same cycle.
+fallbacks (ASX announcements, EDGAR 8-K and Form 4, LSE RNS, HKEXnews and
+TDnet timely disclosures, newswire RSS, Fed and central-bank calendars, the
+macro calendar, FDA PDUFA dates). The same story is clustered across wires.
+Surprise is folded into urgency so a routine item does not wake a seat.
+Each item is routed to a per-seat queue under state/catalyst_stream/.
+High-urgency items are also appended to that seat's advisory wake file once.
 
 This module never arms, sizes, exits, or takes a feed lock. A vendor error
 backs that vendor off and is swallowed. Keys are read from ~/.tfo_secrets at
@@ -18,6 +19,7 @@ call time and are never logged.
 import datetime as dt, email.utils, gzip, hashlib, json, os, re, signal, sys, time, urllib.error, urllib.request, xml.etree.ElementTree as ET
 from concurrent.futures import ThreadPoolExecutor, wait
 from zoneinfo import ZoneInfo
+from veteran_desk import catalyst_quality as CQ
 
 BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 UTC = dt.timezone.utc
@@ -87,8 +89,11 @@ CB_FEEDS = (("fed", "https://www.federalreserve.gov/feeds/press_all.xml"), ("fed
             ("boe", "https://www.bankofengland.co.uk/rss/news"), ("rba", "https://www.rba.gov.au/rss/rss-cb-media-releases.xml"),
             ("boc", "https://www.bankofcanada.ca/content_type/press-releases/feed/"))
 LSE_URLS = ("https://www.investegate.co.uk/Rss.aspx",)
-HKEX_URLS = ("https://www.hkexnews.hk/listedco/listconews/sehk/ncfeed.xml", "https://www1.hkexnews.hk/listedco/listconews/sehk/ncfeed.xml")
-TDNET_URLS = ("https://webapi.yanoshin.jp/webapi/tdnet/list/recent.rss",)
+HKEX_RSS = ("https://www.hkexnews.hk/listedco/listconews/sehk/ncfeed.xml", "https://www1.hkexnews.hk/listedco/listconews/sehk/ncfeed.xml")
+TDNET_URLS = ("https://webapi.yanoshin.jp/webapi/tdnet/list/recent.json2?limit=40", "https://webapi.yanoshin.jp/webapi/tdnet/list/recent.rss?limit=40")
+HK_TTL, HK_GAP = 90, 45
+TD_TTL, TD_GAP = 60, 30
+TAPE_FRESH_S = 25 * 60
 EPIC_SKIP = {"THE", "AND", "FOR", "NEW", "ALL", "PLC", "LTD", "INC", "RNS", "PDF"}
 
 class Inactive(Exception):
@@ -217,7 +222,25 @@ def score_urgency(item, now):
     if k in ("earnings", "cb_decision", "cb_speaker", "eia", "economic") and _soon(item.get("source_utc"), now, 6): u = max(u, 80)
     if k == "pdufa" and _soon(item.get("source_utc"), now, 24): u = max(u, 85)
     u += int(min(10, abs(float(item.get("sentiment") or 0)) * 10))
-    return max(0, min(100, int(u)))
+    u = max(0, min(100, int(u)))
+    return _apply_surprise(u, item)
+def _hard_event(item, title):
+    if HALT_RE.search(title or "") or FDA_ACT_RE.search(title or ""): return True
+    if set(item.get("items") or []) & MATERIAL_8K: return True
+    if item.get("event") in ("trading_halt", "fda"): return True
+    return False
+def _apply_surprise(structural, item):
+    """Surprise pulls a routine calendar item under the wake line and lifts an unexpected headline. Hard events stay loud."""
+    sur = item.get("surprise")
+    if not isinstance(sur, (int, float)): return structural
+    sur = max(0.0, min(100.0, float(sur)))
+    if _hard_event(item, item.get("title") or ""):
+        return max(0, min(100, int(round(0.9 * structural + 0.1 * sur))))
+    blended = int(round(0.35 * structural + 0.65 * sur))
+    if sur >= 75: blended = max(blended, int(round(sur)))
+    if structural >= WAKE_AT and sur >= 60: blended = max(blended, WAKE_AT)
+    if structural >= WAKE_AT and sur < 45: blended = min(blended, WAKE_AT - 1)
+    return max(0, min(100, blended))
 def load_universe():
     try:
         from veteran_desk import pit as P
@@ -250,6 +273,8 @@ def seats_for(item, index):
     blob = item.get("title") or ""
     for rx, extra in KW:
         if rx.search(blob): seats.update(extra)
+    try: seats.update(CQ.extra_seats(item))
+    except Exception: pass
     route = "matched"
     if not seats:
         seats.add("news_filings"); route = "unmatched_wire"
@@ -297,8 +322,14 @@ def parse_fmp_earnings(raw, now):
         hour = 12 if when == "bmo" else (21 if when == "amc" else 16)
         try: src = dt.datetime.fromisoformat(day + "T%02d:00:00+00:00" % hour)
         except Exception: src = None
-        items.append(_item(kind="earnings", title="Earnings %s %s (FMP)" % (sym, when.upper()), link="", tickers=[sym], source="fmp_earnings",
-                           source_utc=src.isoformat() if src else None, tier="paid"))
+        row = _item(kind="earnings", title="Earnings %s %s (FMP)" % (sym, when.upper()), link="", tickers=[sym], source="fmp_earnings",
+                    source_utc=src.isoformat() if src else None, tier="paid")
+        for key, val in (("eps", CQ._num(r.get("eps") if r.get("eps") is not None else r.get("epsActual"))),
+                         ("eps_est", CQ._num(r.get("epsEstimated") if r.get("epsEstimated") is not None else r.get("epsEstimate"))),
+                         ("revenue", CQ._num(r.get("revenue") if r.get("revenue") is not None else r.get("revenueActual"))),
+                         ("revenue_est", CQ._num(r.get("revenueEstimated") if r.get("revenueEstimated") is not None else r.get("revenueEstimate")))):
+            if val is not None: row[key] = val
+        items.append(row)
     return items
 def parse_fmp_econ(raw):
     items = []
@@ -351,8 +382,13 @@ def parse_eodhd_earnings(raw):
         if not sym or not day: continue
         try: src = dt.datetime.fromisoformat(day + "T12:00:00+00:00")
         except Exception: src = None
-        items.append(_item(kind="earnings", title="Earnings %s (EODHD %s)" % (sym, code), link="", tickers=[sym], source="eodhd_earnings",
-                           source_utc=src.isoformat() if src else None, tier="paid"))
+        row = _item(kind="earnings", title="Earnings %s (EODHD %s)" % (sym, code), link="", tickers=[sym], source="eodhd_earnings",
+                    source_utc=src.isoformat() if src else None, tier="paid")
+        for key, val in (("eps", CQ._num(r.get("actual") if r.get("actual") is not None else r.get("epsActual"))),
+                         ("eps_est", CQ._num(r.get("estimate") if r.get("estimate") is not None else r.get("epsEstimate"))),
+                         ("revenue", CQ._num(r.get("revenue"))), ("revenue_est", CQ._num(r.get("revenue_estimate") or r.get("revenueEstimated")))):
+            if val is not None: row[key] = val
+        items.append(row)
     return items
 def parse_massive(raw, source):
     items = []
@@ -436,7 +472,28 @@ def parse_lse(raw):
         t = parse_time(pub); epic = _epic(title)
         items.append(_item(kind="rns", title=title, link=link, tickers=[epic] if epic else [], source="lse_rns", source_utc=t.isoformat() if t else None, tier="free"))
     return items
+def _hk_code(raw):
+    ticks = []
+    for c in re.findall(r"\d{3,5}", str(raw or ""))[:3]:
+        try: ticks.append(str(int(c)) + ".HK")
+        except Exception: pass
+    return ticks
+def _hk_time(s):
+    raw = str(s or "").strip()
+    t = parse_time(raw)
+    if t: return t
+    m = re.search(r"(\d{1,2})/(\d{1,2})/(\d{4})(?:\s+(\d{1,2}):(\d{2}))?", raw)
+    if not m: return None
+    a, b, y = int(m.group(1)), int(m.group(2)), int(m.group(3))
+    hh, mm = int(m.group(4) or 8), int(m.group(5) or 0)
+    day, month = (a, b) if a > 12 else ((b, a) if b > 12 else (a, b))
+    try:
+        return dt.datetime(y, month, day, hh, mm, tzinfo=ZoneInfo("Asia/Hong_Kong")).astimezone(UTC)
+    except Exception:
+        return None
 def parse_hkex(raw):
+    text = _text(raw).lstrip()
+    if text.startswith("{") or text.startswith("["): return parse_hkex_json(raw)
     items = []
     try: rows = _xml_items(raw)
     except Exception: rows = []
@@ -452,7 +509,40 @@ def parse_hkex(raw):
         t = parse_time(pub)
         items.append(_item(kind="hkex", title=title, link=link, tickers=ticks, source="hkex_disclosure", source_utc=t.isoformat() if t else None, tier="free"))
     return items
+def parse_hkex_json(raw):
+    items = []
+    try: js = _loads(raw)
+    except Exception: return items
+    if isinstance(js, dict) and isinstance(js.get("result"), str):
+        try: js = json.loads(js["result"])
+        except Exception: js = js.get("newsInfoLst") or []
+    if isinstance(js, dict): js = js.get("newsInfoLst") or js.get("result") or js.get("items") or []
+    if not isinstance(js, list): return items
+    for r in js:
+        if not isinstance(r, dict): continue
+        title = r.get("TITLE") or r.get("title") or r.get("headline") or r.get("LONG_TEXT") or ""
+        if not str(title).strip(): continue
+        en = r.get("TITLE_EN") or r.get("title_en") or r.get("english_title")
+        ticks = _hk_code(r.get("STOCK_CODE") or r.get("stockCode") or r.get("code") or title)
+        link = r.get("FILE_LINK") or r.get("file_link") or r.get("url") or ""
+        if link and str(link).startswith("/"): link = "https://www1.hkexnews.hk" + str(link)
+        t = _hk_time(r.get("DATE_TIME") or r.get("publishedAt") or r.get("date"))
+        items.append(_item(kind="hkex", title=str(title).strip(), title_en=en, link=link, tickers=ticks, source="hkexnews",
+                           source_utc=t.isoformat() if t else None, tier="free", sector=r.get("category") or r.get("headlineCategory")))
+    return items
+def _tdnet_rows(raw):
+    js = _loads(raw)
+    rows = js.get("items") if isinstance(js, dict) else js
+    if not isinstance(rows, list): return []
+    out = []
+    for r in rows:
+        if not isinstance(r, dict): continue
+        row = r.get("TDnet") or r.get("Tdnet") or r
+        if isinstance(row, dict): out.append(row)
+    return out
 def parse_tdnet(raw):
+    text = _text(raw).lstrip()
+    if text.startswith("{") or text.startswith("["): return parse_tdnet_json(raw)
     items = []
     for title, link, pub, _s in _xml_items(raw):
         ticks = []
@@ -461,6 +551,29 @@ def parse_tdnet(raw):
             ticks.append(c + ".T")
         t = parse_time(pub)
         items.append(_item(kind="tdnet", title=title, link=link, tickers=ticks[:3], source="tdnet_yanoshin", source_utc=t.isoformat() if t else None, tier="free"))
+    return items
+def _jp_ticker(code):
+    c = str(code or "").strip().upper()
+    if re.fullmatch(r"[0-9A-Z]{4,5}", c): return c + ".T"
+    return ""
+def parse_tdnet_json(raw):
+    items = []
+    try: rows = _tdnet_rows(raw)
+    except Exception: return items
+    for r in rows:
+        title = r.get("title") or ""
+        if not str(title).strip(): continue
+        en = r.get("title_en") or r.get("english_title") or r.get("title_english")
+        code = _jp_ticker(r.get("company_code") or r.get("code"))
+        ticks = [code] if code else []
+        if not ticks:
+            for c in re.findall(r"\b(\d{4})\b", str(title)):
+                if 1990 <= int(c) <= 2035: continue
+                ticks.append(c + ".T")
+        t = parse_time(r.get("pubdate") or r.get("published") or r.get("disclosed_at"))
+        items.append(_item(kind="tdnet", title=str(title).strip(), title_en=en, link=r.get("document_url") or r.get("url") or "",
+                           tickers=ticks[:3], source="tdnet", source_utc=t.isoformat() if t else None, tier="free",
+                           company=r.get("company_name")))
     return items
 def parse_fda(raw):
     s = _text(raw)
@@ -571,10 +684,11 @@ def _run(name, fn):
         msg = redact(e.args[0] if getattr(e, "args", None) else type(e).__name__)
         return name, "fail", [], msg
 def _dedupe_key(item):
-    title = re.sub(r"[^a-z0-9]+", " ", (item.get("title") or "").lower()).strip()
+    """One poll of one source. A second wire with the same story has a different key and is clustered instead."""
+    title = re.sub(r"[^a-z0-9]+", " ", (item.get("title_raw") or item.get("title") or "").lower()).strip()
     ticks = ",".join(sorted(str(t).upper() for t in (item.get("tickers") or [])))
     day = str(item.get("source_utc") or item.get("fetched_utc") or "")[:10]
-    return hashlib.sha1(("%s|%s|%s|%s" % (item.get("kind"), ticks, title, day)).encode()).hexdigest()[:20]
+    return hashlib.sha1(("%s|%s|%s|%s|%s" % (item.get("source"), item.get("kind"), ticks, title, day)).encode()).hexdigest()[:20]
 def _append(path, obj):
     os.makedirs(os.path.dirname(path), exist_ok=True)
     with open(path, "a") as f: f.write(json.dumps(obj, default=str) + "\n")
@@ -728,6 +842,41 @@ def _vendors(ctx):
         if items: return items
         if err: raise err
         return []
+    def _asia(name, urls, parser, ttl, gap):
+        """One cached fetch. A fresh cache skips the network. A failed call reuses a cache younger than six hours."""
+        path = _p("cache", name + ".json")
+        now_ts = ctx["now"].timestamp()
+        hit = CQ.cache_load(path, now_ts, ttl)
+        if hit: return hit.get("items") or []
+        prev = CQ.load_json(path, {}) if isinstance(CQ.load_json(path, {}), dict) else {}
+        try:
+            if float((prev or {}).get("next_fetch") or 0) > now_ts:
+                return (prev or {}).get("items") or []
+        except Exception: pass
+        err, items = None, []
+        for u in urls:
+            try:
+                body = call(ctx["get"], u, {"Accept": "application/json, application/rss+xml, application/xml, text/xml, */*"}, secrets=())
+                items = parser(body) or []
+                if items: break
+            except VendorError as e: err = e
+            except Exception: err = VendorError("parse")
+        if items:
+            CQ.cache_save(path, items, now_ts, gap)
+            return items
+        stale = CQ.cache_stale(path, now_ts, 6 * 3600)
+        if stale and err: return stale.get("items") or []
+        if items or err is None:
+            CQ.cache_save(path, items, now_ts, gap)
+        if err: raise err
+        return []
+    def hkex_urls():
+        import urllib.parse
+        local = ctx["now"].astimezone(ZoneInfo("Asia/Hong_Kong")).date()
+        q = urllib.parse.urlencode({"sortDir": 0, "sortByOptions": "DateTime", "category": 0, "market": "SEHK", "stockId": -1,
+                                     "documentType": -1, "fromDate": (local - dt.timedelta(days=1)).strftime("%Y%m%d"), "toDate": local.strftime("%Y%m%d"),
+                                     "title": "", "searchType": 0, "t1code": -2, "t2Gcode": -2, "t2code": -2, "rowRange": 40, "lang": "E"})
+        return ("https://www1.hkexnews.hk/search/titleSearchServlet.do?" + q,) + HKEX_RSS
     def fda():
         return parse_fda(call(ctx["get"], "https://www.rttnews.com/corpinfo/fdacalendar.aspx", {"Accept": "text/html"}, secrets=()))
     def eia_rule():
@@ -740,7 +889,8 @@ def _vendors(ctx):
     return {"fmp_news": fmp_news, "fmp_press": fmp_press, "fmp_earnings": fmp_earn, "fmp_economic": fmp_econ, "fmp_8k": fmp_8k,
             "eodhd_news": eod_news, "eodhd_earnings": eod_earn, "massive_news": massive, "uw_news": uw_news, "uw_flow": uw_flow, "eia_wpsr": eia,
             "edgar_form4": lambda: edgar("4", "form4"), "asx_announcements": asx, "lse_rns": lambda: first_ok(LSE_URLS, parse_lse),
-            "hkex_disclosure": lambda: first_ok(HKEX_URLS, parse_hkex), "tdnet": lambda: first_ok(TDNET_URLS, parse_tdnet), "fda_pdufa": fda,
+            "hkex_disclosure": lambda: _asia("hkex", hkex_urls(), parse_hkex, HK_TTL, HK_GAP),
+            "tdnet": lambda: _asia("tdnet", TDNET_URLS, parse_tdnet, TD_TTL, TD_GAP), "fda_pdufa": fda,
             "rss_newswire": rss, "cb_calendar": cb, "ff_calendar": ff, "edgar_8k": lambda: edgar("8-K", "8k"),
             "calendar_earnings": cal_earn, "calendar_macro": cal_macro, "eia_rule": eia_rule}
 
@@ -755,8 +905,23 @@ def _need_fallback(results):
     if not ok(("fmp_economic",)): out.extend(("cb_calendar", "ff_calendar", "calendar_macro"))
     if not ok(("eia_wpsr",)): out.append("eia_rule")
     return out
-def _stamp(item, index, now, fetched):
+def _stamp(item, index, now, fetched, novelty=None, tape_fn=None, translate=None, cache=None):
     item = dict(item)
+    item["title_raw"] = str(item.get("title") or "")[:220]
+    try:
+        title, how = CQ.english_title(item.get("title"), item.get("title_en"), translate=translate)
+        item["title"] = str(title or item["title_raw"])[:220]
+        item["title_lang"] = how
+        item["event"] = CQ.event_key(item)
+        item["schedule"] = CQ.is_schedule(item)
+        sc, parts = CQ.surprise(item, now, novelty or {}, tape_fn=tape_fn, cache=cache)
+        item["surprise"] = sc
+        item["surprise_parts"] = parts
+        item["sig"] = CQ.signature(item.get("title") or "")
+    except Exception:
+        item["title"] = item["title_raw"]
+        item.setdefault("event", item.get("kind") or "news")
+        item.setdefault("surprise", None)
     item["sentiment"] = score_sentiment(item)
     item["urgency"] = score_urgency(item, now)
     seats, route = seats_for(item, index)
@@ -838,37 +1003,82 @@ def cycle(now=None, get=None, key_fn=None, universe=None, calendar_path=None):
     e2es = list(lat.get("e2e") or []) if isinstance(lat, dict) else []
     queued, woke, deduped = {}, {}, 0
     seat_dt = now if frozen else now_utc()
+    novelty = load_json(_p("novelty.json"), {})
+    if not isinstance(novelty, dict): novelty = {}
+    clusters = {}
+    try: clusters = CQ.load_clusters(base())
+    except Exception: clusters = {}
+    sig_cache, tr_left = {}, [3]
+    def _translate(text):
+        if tr_left[0] <= 0: return None
+        tr_left[0] -= 1
+        return CQ.remote_translate(text, key_fn)
+    tape = CQ.Tape(get, key_fn, now, base())
+    pending = []
     for name, rec in results.items():
         tier = "free_fallback" if name in ("rss_newswire", "cb_calendar", "ff_calendar", "edgar_8k", "calendar_earnings", "calendar_macro", "eia_rule") else None
         for raw in rec.get("items") or []:
             if not isinstance(raw, dict) or not raw.get("title"): continue
             if tier and raw.get("tier") == "free": raw["tier"] = tier
-            item = _stamp(raw, index, now, fetched)
+            try: item = _stamp(raw, index, now, fetched, novelty, tape.score, _translate, sig_cache)
+            except Exception: continue
             key = _dedupe_key(item)
             if key in seen:
                 deduped += 1
                 continue
             seen[key] = seat_dt.isoformat()
-            hop, e2e = _latency(item, seat_dt)
-            hops.append(hop)
-            if e2e is not None: e2es.append(e2e)
-            item["id"] = key
-            urgent = item["urgency"] >= WAKE_AT
-            for seat in item["seats"]:
-                row = dict(item)
-                try: _append(_p("queues", seat + ".jsonl"), row)
-                except Exception: continue
-                queued[seat] = queued.get(seat, 0) + 1
-                if urgent:
-                    wake = dict(row, wake_id="cat-%s-%s-%s" % (now.strftime("%Y%m%dT%H%M%SZ"), seat, key[:8]))
-                    try: _append(_p("wake", seat + ".jsonl"), wake); _append(_p("wake_queue.jsonl"), wake)
-                    except Exception: pass
-                    woke[seat] = woke.get(seat, 0) + 1
+            pending.append(item)
+    try: fresh, fuzzy = CQ.cluster_batch(pending, clusters)
+    except Exception:
+        fresh, fuzzy = [], 0
+        for item in pending:
+            try:
+                c = CQ.new_cluster(item)
+                clusters[c["id"]] = c
+                fresh.append(c)
+            except Exception: continue
+    deduped += fuzzy
+    def _emit(cluster, do_wake):
+        row = CQ.snapshot(cluster)
+        hop, e2e = _latency(row, seat_dt)
+        hops.append(hop)
+        if e2e is not None: e2es.append(e2e)
+        urgent = int(row.get("urgency") or 0) >= WAKE_AT
+        for seat in row.get("seats") or []:
+            try: _append(_p("queues", seat + ".jsonl"), row)
+            except Exception: continue
+            queued[seat] = queued.get(seat, 0) + 1
+            if do_wake and urgent:
+                wake = dict(row, wake_id="cat-%s-%s-%s" % (now.strftime("%Y%m%dT%H%M%SZ"), seat, str(cluster.get("id") or "")[:8]))
+                try: _append(_p("wake", seat + ".jsonl"), wake); _append(_p("wake_queue.jsonl"), wake)
+                except Exception: pass
+                woke[seat] = woke.get(seat, 0) + 1
+        cluster["emitted"] = True
+        if do_wake and urgent: cluster["woke"] = True
+        try: CQ.remember(novelty, row, now)
+        except Exception: pass
+    for cluster in fresh:
+        if cluster.get("emitted"): continue
+        try: _emit(cluster, True)
+        except Exception: continue
+    for cluster in clusters.values():
+        if cluster.get("_dup_this_cycle") and cluster.get("emitted") and not cluster.get("woke") and int(cluster.get("urgency") or 0) >= WAKE_AT:
+            row = CQ.snapshot(cluster)
+            for seat in row.get("seats") or []:
+                wake = dict(row, wake_id="cat-%s-%s-%s" % (now.strftime("%Y%m%dT%H%M%SZ"), seat, str(cluster.get("id") or "")[:8]))
+                try: _append(_p("wake", seat + ".jsonl"), wake); _append(_p("wake_queue.jsonl"), wake)
+                except Exception: pass
+                woke[seat] = woke.get(seat, 0) + 1
+            cluster["woke"] = True
     hops, e2es = hops[-SAMPLE_CAP:], e2es[-SAMPLE_CAP:]
     ph, pe = p95(hops), p95(e2es)
     alert = bool((len(hops) >= P95_MIN_N and ph is not None and ph > SLA_S) or (len(e2es) >= P95_MIN_N and pe is not None and pe > SLA_S))
     latency = {"p95_hop_s": ph, "p95_e2e_s": pe, "n_hop": len(hops), "n_e2e": len(e2es), "alert": alert, "sla_s": SLA_S}
     try: write_json(_p("seen.json"), seen)
+    except Exception: pass
+    try: write_json(_p("novelty.json"), novelty)
+    except Exception: pass
+    try: write_json(_p("clusters.json"), CQ.prune_clusters(clusters, now))
     except Exception: pass
     try: write_json(_p("backoff.json"), state)
     except Exception: pass
@@ -912,6 +1122,11 @@ def main(argv=None):
         return 0
     if cmd == "status":
         print(json.dumps(status(), default=str)[:4000]); return 0
+    if cmd == "score":
+        book = os.path.join(BASE, "reports", "veteran_desk_book.json")
+        scores = CQ.nightly(book_path=book if os.path.exists(book) else None)
+        print(json.dumps({k: scores.get(k) for k in ("paper_only", "days_observed", "attributed_closes", "proposals", "auto_apply", "blocks_trade")}, default=str)[:4000])
+        return 0
     def _stop(*_a):
         global STOP
         STOP = True

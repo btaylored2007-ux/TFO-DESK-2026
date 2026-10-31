@@ -1258,8 +1258,14 @@ def tick(price_fn=None, au=None, queue_path=None):
         # TFO HT 03:28: order_type explicit at arm - entry at/through market = true limit; entry beyond market (breakout) = stop_limit
         if not bad and _uu > 0 and q * _uu * _mr > eq * _cap + 0.01: bad = "seat_cap_%s_%dpct: final size %.0f%% of seat (rounding)" % (_basis, _cap * 100, q * _uu * _mr / eq * 100 if eq > 0 else 999)   # seatcap: re-check after futures/spec resizing
         if bad: upd[e["id"]] = dict(state="expired", why=bad); ev.append((e["id"], "blocked", bad)); continue
+        _tags = e.get("tags")
+        try:   # advisory catalyst tag. A dead stream leaves the entry unchanged and never blocks the arm.
+            from veteran_desk import catalyst_quality as _CQ
+            _ct = _CQ.attribute(e.get("ticker"), t, seat)
+            if _ct: _tags = dict(_tags or {}, catalyst=_ct)
+        except Exception: pass
         B["positions"][e["id"]] = dict(id=e["id"], seat=seat, ticker=e["ticker"], side=e["side"], entry=entry, stop=stop, target=float(e["target"]), shares=q,
-            risk_aud=round(per * q, 2), gap_risk_aud=round(_per_gap * q, 2) if _gp else None, risk_pct=pct, sleeve="spec" if spec else "core", size_mult=mult, gate_size_mult=e.get("gate_size_mult"), sizing_warning=rp["warning"], floor_note=_floor_note, posture=post, status="armed", queued_for_open=not session_open(P.venue_of(e["ticker"]), t), seat_risk_pct=e.get("seat_risk_pct"), override=bool(e.get("override")), order_type=e.get("order_type") if e.get("order_type") in ("limit", "stop_limit") else ("limit" if px and ((L and entry <= px) or (not L and entry >= px)) else "stop_limit"), armed_utc=t.isoformat(), venue=P.venue_of(e["ticker"]), hash=e.get("hash"), pre_trade=pt, scale_t1=True, grade=_grade, tags=e.get("tags"))
+            risk_aud=round(per * q, 2), gap_risk_aud=round(_per_gap * q, 2) if _gp else None, risk_pct=pct, sleeve="spec" if spec else "core", size_mult=mult, gate_size_mult=e.get("gate_size_mult"), sizing_warning=rp["warning"], floor_note=_floor_note, posture=post, status="armed", queued_for_open=not session_open(P.venue_of(e["ticker"]), t), seat_risk_pct=e.get("seat_risk_pct"), override=bool(e.get("override")), order_type=e.get("order_type") if e.get("order_type") in ("limit", "stop_limit") else ("limit" if px and ((L and entry <= px) or (not L and entry >= px)) else "stop_limit"), armed_utc=t.isoformat(), venue=P.venue_of(e["ticker"]), hash=e.get("hash"), pre_trade=pt, scale_t1=True, grade=_grade, tags=_tags)
         upd[e["id"]] = dict(state="armed", armed_utc=t.isoformat(), px_at_approval=px, shares=q, risk_aud=round(per * q), **({"floor_note": _floor_note} if _floor_note else {})); ev.append((e["id"], "armed", q))
     for seat, B in D["seats"].items():   # 2. code-only fills / stops / targets, per seat book
         for k, p in B["positions"].items():

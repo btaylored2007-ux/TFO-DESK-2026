@@ -15,8 +15,8 @@ FEEDS = {"BBC Business": "https://feeds.bbci.co.uk/news/business/rss.xml", "CNBC
          "CoinDesk": "https://www.coindesk.com/arc/outboundfeeds/rss", "SEC Form 4": "https://www.sec.gov/cgi-bin/browse-edgar?action=getcurrent&type=4&count=40&output=atom", "DCD (datacentre)": "https://www.datacenterdynamics.com/en/rss/"}
 NOT_WIRED = {"ASX announcements": "live path is catalyst_stream (com.tfo.catalyst-stream); this 15-min job keeps the regime flag",
              "LSE RNS": "live path is catalyst_stream via the Investegate RNS RSS",
-             "HKEX": "live path is catalyst_stream (HKEX disclosure feed, best effort)",
-             "JPX/TDnet": "live path is catalyst_stream (public TDnet mirror)",
+             "HKEX": "live path is catalyst_stream (HKEXnews English search, RSS fallback, cached)",
+             "JPX/TDnet": "live path is catalyst_stream (TDnet timely disclosures, English title or glossary, cached)",
              "economic calendar": "live path is catalyst_stream: FMP calendar primary, Fed/CB RSS and the macro file as fallback"}
 DESK = {"macro": r"\b(fed|fomc|ecb|rba|boj|rate (cut|hike)|cpi|inflation|payrolls|jobs report|gdp|central bank|powell|lagarde|bullock|treasury yields?)\b",
         "geo": r"\b(war|missile|strike|sanction|opec|tariff|houthi|red sea|strait|shipping|pipeline|iran|russia|ukraine|israel|embargo)\b",

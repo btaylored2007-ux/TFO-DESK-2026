@@ -401,6 +401,11 @@ def write_status(mkt, L, now, reg, revs, rows, CL, base=BASE):
               arming_law="BENCH->ARMED only via same-day clearance before open; demoted never re-armed; day arm; pre-open live re-check",
               armed=[t for t in T if t["status"] in ("ARMED", "FILLED")], awaiting_funder=[t for t in T if t["status"] == "awaiting_funder"], bench=sorted([t for t in T if t["status"] == "BENCH"], key=lambda t: -t["score"]),
               recent=[t for t in T if t["status"] not in ("ARMED", "FILLED", "BENCH")][-15:])
+    try:   # Asia filing context. Read only. Missing stream leaves an empty note and does not change arming.
+        from veteran_desk import catalyst_quality as _CQ
+        st["catalyst_advisory"] = _CQ.hunt_advisory(mkt)
+    except Exception:
+        st["catalyst_advisory"] = dict(advisory_only=True, blocks_trade=False, items=[], note="unavailable")
     vs = VV.summary(VV.load(mkt, now, base))
     st["clearance"].update(gpt=f"FAIL {len(vs.get('gpt_fail', []))} / CLEARED {len(vs.get('cleared', []))}" if vs.get("ok") else "NO VERDICT FILE", claude=f"FAIL {len(vs.get('claude_fail', []))}" if vs.get("ok") else "NO VERDICT FILE", gpt_fail=vs.get("gpt_fail", []), claude_fail=vs.get("claude_fail", []), final_blocked=vs.get("blocked", []), cleared=vs.get("cleared", []), verdict_veto=vs,
                            rule=f"arm only after same-day RISK+BEHAVIOR+SPECIALIST PASS AND finalize CLEARED with no GPT FAIL (Claude retired 2026-10-29), before open (hunt_clearance.py run/finalize --book {mkt}); verdict files missing/stale -> stay out")
