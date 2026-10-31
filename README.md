@@ -5,6 +5,7 @@ Clean code-only snapshot for speed work. No ledgers, state, reports, logs, data,
 ## Speed-critical paths
 - `veteran_desk/local_llm.py` — local LLM calls
 - `tools/queue_answer_daemon.py` — queue answer daemon
+- `veteran_desk/claude_review.py` — Claude advice client (never on the arm path). See `veteran_desk/CLAUDE_BRIDGE.md`
 - `veteran_desk/vd_engine.py` — engine loop
 - `veteran_desk/desk.py` — desk orchestration
 - `veteran_desk/pit.py` — pit / data layer

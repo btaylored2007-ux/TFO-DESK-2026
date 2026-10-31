@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0"><dict>
+	<key>Label</key><string>com.tfo.claude-bridge-watchdog</string>
+	<key>ProgramArguments</key>
+	<array>
+		<string>/usr/local/bin/python3</string>
+		<string>/Users/test/Applications/MultiVenueDesk/tools/claude_bridge_watchdog.py</string>
+	</array>
+	<key>WorkingDirectory</key><string>/Users/test/Applications/MultiVenueDesk</string>
+	<key>RunAtLoad</key><true/>
+	<key>KeepAlive</key><true/>
+	<key>ThrottleInterval</key><integer>10</integer>
+	<key>EnvironmentVariables</key>
+	<dict>
+		<key>HOME</key><string>/Users/test</string>
+		<key>PATH</key><string>/Users/test/.local/bin:/usr/local/bin:/usr/bin:/bin</string>
+		<key>PYTHONUNBUFFERED</key><string>1</string>
+	</dict>
+	<key>StandardOutPath</key><string>/Users/test/Applications/MultiVenueDesk/logs/claude_bridge_watchdog.log</string>
+	<key>StandardErrorPath</key><string>/Users/test/Applications/MultiVenueDesk/logs/claude_bridge_watchdog.log</string>
+</dict></plist>
