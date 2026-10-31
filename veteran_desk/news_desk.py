@@ -13,8 +13,11 @@ FEEDS = {"BBC Business": "https://feeds.bbci.co.uk/news/business/rss.xml", "CNBC
          "OilPrice": "https://oilprice.com/rss/main", "Federal Reserve": "https://www.federalreserve.gov/feeds/press_all.xml", "ECB": "https://www.ecb.europa.eu/rss/press.html",
          "RBA": "https://www.rba.gov.au/rss/rss-cb-media-releases.xml", "SEC 8-K": "https://www.sec.gov/cgi-bin/browse-edgar?action=getcurrent&type=8-K&count=40&output=atom",
          "CoinDesk": "https://www.coindesk.com/arc/outboundfeeds/rss", "SEC Form 4": "https://www.sec.gov/cgi-bin/browse-edgar?action=getcurrent&type=4&count=40&output=atom", "DCD (datacentre)": "https://www.datacenterdynamics.com/en/rss/"}
-NOT_WIRED = {"ASX announcements": "no free machine feed (JS-rendered) - planned", "LSE RNS": "no free RSS - planned", "HKEX": "planned", "JPX/TDnet": "planned",
-             "economic calendar": "no reliable free API - Fed/ECB/RBA press feeds used instead"}
+NOT_WIRED = {"ASX announcements": "live path is catalyst_stream (com.tfo.catalyst-stream); this 15-min job keeps the regime flag",
+             "LSE RNS": "live path is catalyst_stream via the Investegate RNS RSS",
+             "HKEX": "live path is catalyst_stream (HKEX disclosure feed, best effort)",
+             "JPX/TDnet": "live path is catalyst_stream (public TDnet mirror)",
+             "economic calendar": "live path is catalyst_stream: FMP calendar primary, Fed/CB RSS and the macro file as fallback"}
 DESK = {"macro": r"\b(fed|fomc|ecb|rba|boj|rate (cut|hike)|cpi|inflation|payrolls|jobs report|gdp|central bank|powell|lagarde|bullock|treasury yields?)\b",
         "geo": r"\b(war|missile|strike|sanction|opec|tariff|houthi|red sea|strait|shipping|pipeline|iran|russia|ukraine|israel|embargo)\b",
         "credit": r"\b(default|downgrade|credit spread|bankrupt|chapter 11|liquidity|bank run|margin call|vix|selloff|sell-off|crash|private credit|neocloud|coreweave|nebius|notes offering|convertible notes|credit facility|debt raise|gpu-backed|data center financing)\b"}
