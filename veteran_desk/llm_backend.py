@@ -15,14 +15,8 @@ def config():
     except Exception: return {}
 def desk_id(): return "thf" if os.environ.get("THF_DESK") == "1" else "vd"
 def backend(desk=None):
-    """Per-desk: config {"vd": {"backend","revert_at","revert_to"}, "thf": {"backend": "grok_queue"}} (THF Grok-only permanently, Brett 22:15)."""
-    return "grok_queue"   # Brett 22:29 WITA 30 Oct: Codex removed entirely, every desk Grok permanently
-    c = config(); c = c.get(desk or desk_id(), c) if isinstance(c, dict) else {}
-    b = c.get("backend", "codex")
-    try:
-        if c.get("revert_at") and _now() >= dt.datetime.fromisoformat(c["revert_at"]): return c.get("revert_to", "codex")
-    except Exception: pass
-    return b if b in ("codex", "grok_queue") else "codex"
+    """Every desk is Grok. Brett 22:29 WITA 30 Oct: Codex removed, no revert."""
+    return "grok_queue"
 def _ctx():
     """Best-effort seat id from the caller stack (a local 'seat' dict or 'sk'/'seat_key' str)."""
     for fr in inspect.stack()[2:16]:
