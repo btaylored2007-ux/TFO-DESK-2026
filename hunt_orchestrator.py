@@ -57,6 +57,11 @@ def jload(p, d=None):
     try: return json.load(open(p))
     except Exception: return d
 def event(kind, **kw):
+    try:
+        import audit
+        audit.from_kind("hunts", kind, kw)
+    except Exception:
+        pass
     os.makedirs(ORCH, exist_ok=True)
     with open(EVENTS, "a") as f: f.write(json.dumps(dict(utc=now_utc().isoformat(timespec="seconds"), wita=wita(now_utc()), kind=kind, **kw), default=str) + "\n")
 def cfg():

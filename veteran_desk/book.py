@@ -427,12 +427,23 @@ def load(au=None):
                     au = au or audusd(); B["seats"][s_] = _seat_ledger(); B["seed_aud"] = B.get("seed_aud", 0) + SEAT_SEED; B["start"] = round(B.get("start", 0) + SEAT_SEED * au, 2)
                     if B.get("day_start_equity_aud") is not None: B["day_start_equity_aud"] += SEAT_SEED   # injection is not P&L
                     B["capital_events"].append(dict(type="injection", amount_aud=SEAT_SEED, amount_usd=round(SEAT_SEED * au, 2), utc=now().isoformat(), source=f"fresh funder seed for seat {s_}", authorised=SEAT_AUTH.get(s_, "Brett 2026-10-28 17:06 WITA")))
+                    try:
+                        import audit
+                        audit.capital("thf" if THF else "veteran", {"type": "injection", "seat": s_, "amount_aud": SEAT_SEED, "paper_only": True})
+                    except Exception:
+                        pass
             return B
     au = au or audusd(); t = now().isoformat()
-    return dict(book="thf" if THF else "veteran_desk", label=LABEL, paper_only=True, ccy_native="AUD", seed_aud=SEED_AUD,
+    rec = dict(book="thf" if THF else "veteran_desk", label=LABEL, paper_only=True, ccy_native="AUD", seed_aud=SEED_AUD,
                 start=round(SEED_AUD * au, 2), audusd_at_seed=au, seats={s: _seat_ledger() for s in TRADERS},
                 capital_events=[dict(type="injection", amount_aud=SEED_AUD, amount_usd=round(SEED_AUD * au, 2), utc=t, source=("THF fresh paper book: %d x A$500k seat books, same seats/seed as VD, nothing carried from VD" % len(TRADERS)) if THF else "fresh funder seed capital, 9 x A$500k seat books (not from any other book)",
                                      authorised="Brett 2026-10-30 19:16 WITA (THF separate fresh book)" if THF else "Brett 2026-10-28 16:57 WITA")], created_utc=t, holdings={}, rules=__doc__)
+    try:
+        import audit
+        audit.capital("thf" if THF else "veteran", {"type": "injection", "amount_aud": SEED_AUD, "paper_only": True})
+    except Exception:
+        pass
+    return rec
 def firm_ok():
     try: f = json.load(open(os.path.join(BASE, "reports", "firm_risk.json")))
     except Exception: return False, "firm_risk.json unreadable - fail closed"
@@ -1460,7 +1471,18 @@ def tick(price_fn=None, au=None, queue_path=None):
                     if is_fx(p): qa = quote_to_aud(p["ticker"], au, marks); n = x * p["shares"] / qa; cc = leg_cost_aud(p, x, p["shares"], au, marks, "exit"); gross = sg * (x - p["fill"]) * p["shares"] / qa; B["cash_aud"] += gross - cc
                     else: n = aud(p["ticker"], x, au) * p["shares"]; cc = leg_cost_aud(p, x, p["shares"], au, marks, "exit"); B["cash_aud"] += sg * n - cc; gross = sg * (aud(p["ticker"], x, au) - aud(p["ticker"], p["fill"], au)) * p["shares"]
                     p.update(status="closed", exit=x, exit_reason="kill_switch_flat", closed_utc=t.isoformat(), gross_aud=round(gross, 2), net_aud=round(gross - p["cost_aud"] - cc, 2)); B["closed"].append(dict(p))
-                elif p["status"] == "armed": p["status"] = "expired"
+                    try:
+                        import audit
+                        audit.log("exit", "thf" if THF else "veteran", {"id": k, "ticker": p.get("ticker"), "reason": "kill_switch_flat", "px": x, "paper_only": True})
+                    except Exception:
+                        pass
+                elif p["status"] == "armed":
+                    p["status"] = "expired"
+                    try:
+                        import audit
+                        audit.log("paper_order", "thf" if THF else "veteran", {"id": k, "ticker": p.get("ticker"), "status": "expired", "reason": "kill_switch_flat", "paper_only": True})
+                    except Exception:
+                        pass
             B["positions"] = {k: p for k, p in B["positions"].items() if p["status"] in ("armed", "open")}
         ks = dict(state="FLAT", at_utc=t.isoformat(), dd_pct=round(dd * 100, 2)); ka = KILL_ALERT_PATH or os.path.join(_state_dir(), "KILL_ALERT.json"); os.makedirs(os.path.dirname(ka), exist_ok=True)
         json.dump(dict(ks, msg="VETERAN DESK KILL SWITCH: -12% from peak. All positions flattened, new trades halted. Brett must reset (delete state/veteran_desk/KILL_ALERT.json and set kill_switch.state OK)."), open(ka, "w"), indent=1)
@@ -1552,6 +1574,11 @@ def tick(price_fn=None, au=None, queue_path=None):
         real = os.path.abspath(BOOK) == os.path.abspath(_REAL_BOOK); sp = None if real else BOOK + ".snapshots.jsonl"; op = None if real else BOOK + ".weekly.json"
         WS.snapshot(now=t, book_path=BOOK, snap_path=sp); WS.score(now=t, book_path=BOOK, snap_path=sp, out_path=op)
     except Exception as x: D["weekly_score_error"] = "%s: %s" % (type(x).__name__, str(x)[:160])
+    try:  # hash-chained audit AFTER the ledger write; a failure here cannot unwind a stop or an exit
+        import audit
+        audit.book_events("thf" if THF else "veteran", ev)
+    except Exception:
+        pass
     return D
 if __name__ == "__main__":
     b = tick() if (sys.argv[1:] or ["tick"])[0] == "tick" else load()

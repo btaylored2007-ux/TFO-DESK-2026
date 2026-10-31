@@ -514,6 +514,11 @@ def xfer(L, g, usd, utc, tag, note):
     L["start"] = round(float(L["start"]) + usd, 2); L["seed_usd"] = L["start"]
     L["units"] = float(L["units"]) + usd / nav
     if L["units"] < 1e-9: L["units"] = 0.0
+    try:
+        import audit
+        audit.capital("trend18", {"type": "capital_transfer", "usd": usd, "tag": tag, "note": note, "paper_only": True})
+    except Exception:
+        pass
 
 def accrue_cash(L):
     c = float(L.get("cash") or 0)
@@ -923,6 +928,16 @@ def book_fill(L, r, utc, tag, quote_meta):
         w.writerow([utc, fill["syd"], fill["fill_id"], tag, inst, fill["side"], abs(q), px, fill["notional_usd"], fee, fill["realised_usd"],
                     quote_meta.get("kind") or quote_meta.get("source")])
     log("FILL %s %s %s %.6g @ %.6g notional %.2f cost %.2f" % (tag, fill["side"], inst, abs(q), px, notional, fee))
+    try:
+        import audit
+        _pl = {"id": fill["fill_id"], "inst": inst, "side": fill["side"], "qty": abs(q), "px_usd": px, "tag": tag, "paper_only": True}
+        if q > 0:
+            audit.log("paper_order", "trend18", _pl)
+            audit.log("fill", "trend18", _pl)
+        else:
+            audit.log("stop" if "stop" in str(tag).lower() else "exit", "trend18", _pl)
+    except Exception:
+        pass
     return fill
 
 def sell_staged(venue_filter, need_usd, execute):

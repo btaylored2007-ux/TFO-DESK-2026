@@ -301,6 +301,12 @@ def cmd_rails(execute, dry=False):
                 b["closed"].append({"pair": pair, "closed_utc": utc, "reason": "Head Trader " + act, "position": p}); del b["positions"][pair]
             xfer(b, g, proceeds - fees, True, utc, "HT_%s_%s" % (act, pair), "Head Trader %s %s; proceeds to powder; firm moves by P&L only. PAPER" % (act, pair))
             lines.append(log(act, pair, sold, px, principal, proceeds, pnl, "%s %s %.2f%% from orig fill; pnl %.2f; fees %.2f" % (act, pair, 100 * r0, pnl, fees), tid, fees))
+            try:
+                import audit
+                audit.log("stop" if act in ("STOP", "TRAIL") else "exit", "kraken", {
+                    "ticket": tid, "pair": pair, "action": act, "qty": sold, "px": px, "paper_only": True})
+            except Exception:
+                pass
         if dry: print("DRY RUN: nothing saved, no tickets"); return
         ece.finish(b); restrike(b, marks); save(KEY, b); save(GCL, g)
     rails_heartbeat(execute, len(b["positions"]), qfails, statuses, len(lines))
@@ -365,6 +371,11 @@ def cmd_sell(pair, rule, why, execute):
         line = log("FLAT", pair, qty0, px, principal, proceeds, pnl, "FLAT %s %.2f%% from orig fill; pnl %.2f; fees %.2f; %s" % (pair, 100 * r0, pnl, fees, reason), tid, fees)
         marks = {pair: q["mid"]}
         ece.finish(b); restrike(b, marks); save(KEY, b); save(GCL, g)
+        try:
+            import audit
+            audit.log("exit", "kraken", {"ticket": tid, "pair": pair, "action": "FLAT", "qty": qty0, "px": px, "rule": rule, "paper_only": True})
+        except Exception:
+            pass
     print(line)
 
 def clip_heat():
@@ -554,6 +565,14 @@ def cmd_buy(pair, usd, theme, label, why, execute, stop_pct=None, slip_pct=None,
             b["positions"][pair].update({"exit_variant": trl.C3, "exit_variant_start": CRYPTO_EXIT_VARIANT_START, "c3_stop_dist": info["c3_stop_dist"], "c3_atr14_entry": info["c3_atr14_entry"]})
             tk["exit_variant"] = trl.C3; tk["c3_stop_dist"] = info["c3_stop_dist"]
         b["head_trader_tickets"].append(tk); restrike(b, {pair: q["mid"]}); save(KEY, b); save(GCL, g)
+        try:
+            import audit
+            pl = {"ticket": tid, "pair": pair, "qty": qty, "px": px, "usd": usd, "theme": theme, "paper_only": True}
+            audit.capital("kraken", {"type": "funding", "pair": pair, "usd": usd, "theme": theme, "paper_only": True})
+            audit.log("paper_order", "kraken", pl)
+            audit.log("fill", "kraken", pl)
+        except Exception:
+            pass
     print(log("BUY", pair, qty, px, usd, 0, 0, "BUY %s $%.0f LIVE (%s) theme %s: %s; fees %.2f" % (pair, usd, label, theme, why, fees), tid, fees))
 
 def cmd_scan(n):

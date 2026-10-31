@@ -144,6 +144,11 @@ def apply_prizes(D, au, t):
             if D.get("day_start_equity_aud") is not None: D["day_start_equity_aud"] += x
             D.setdefault("capital_events", []).append(dict(type="leaderboard_prize", award_id=aid, seat=w["seat"], rank=w["rank"], amount_aud=x, amount_usd=round(x * au, 2), utc=t.isoformat(),
                 source="daily leaderboard prize %s rank %d for seat %s (paper capital, not P&L)" % (a["day"], w["rank"], w["seat"]), authorised="Brett 2026-10-28 20:13 WITA"))
+            try:
+                import audit
+                audit.capital("veteran", {"type": "leaderboard_prize", "award_id": aid, "seat": w["seat"], "rank": w["rank"], "amount_aud": x, "paper_only": True})
+            except Exception:
+                pass
 def weekly(day, holds_now, D=None):
     """day = WITA date the daily window opened. Runs only when that is a Friday (US Friday session, cutoff Sat 06:00 WITA)."""
     d0 = dt.date.fromisoformat(day)

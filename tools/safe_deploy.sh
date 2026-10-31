@@ -83,4 +83,8 @@ ENTRY="
 ${NOTE:+- Note: $NOTE
 }- Rollback: cp -p each .bak-$STAMP-$TAG back over its file."
 if [ $DRY = 1 ]; then restore; log "DRY RUN passed - originals restored; would append:"; echo "$ENTRY"; exit 0; fi
-printf '%s\n' "$ENTRY" >> DEPLOY_LOG.md; log "DEPLOYED; DEPLOY_LOG.md updated"; rm -f "$OUT"; exit 0
+printf '%s\n' "$ENTRY" >> DEPLOY_LOG.md; log "DEPLOYED; DEPLOY_LOG.md updated"
+# Hash-chained audit. A failure here must not fail a deploy the gate already accepted.
+AUDIT_SOURCE=safe_deploy AUDIT_DESK=tfo AUDIT_TAG="$TAG" AUDIT_FILES="${DESTS[*]}" AUDIT_NOTE="$NOTE" AUDIT_ENTRY="$ENTRY" \
+  "$PY" -m audit emit || true
+rm -f "$OUT"; exit 0

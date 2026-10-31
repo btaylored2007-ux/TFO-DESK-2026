@@ -262,6 +262,15 @@ def _deploy_locked(dry_run):
         "deployed_notional_usd": round(gross, 2),
         "entry_cost_usd": round(cost, 2),
     })
+    try:
+        import audit
+        audit.capital("tfo", {"type": "authorization", "sleeve": "profit_gate", "deployed_notional_usd": round(gross, 2), "paper_only": True})
+        for sym, pos in new_positions.items():
+            pl = {"sym": sym, "side": pos.get("side"), "units": pos.get("units"), "sleeve": "profit_gate", "paper_only": True}
+            audit.log("paper_order", "tfo", pl)
+            audit.log("fill", "tfo", pl)
+    except Exception:
+        pass
     long_mv = short_mv = unreal = 0.0
     for pos in led["positions"].values():
         mv = pos["units"] * float(pos.get("mark_usd") or pos.get("entry_px_usd") or 0)

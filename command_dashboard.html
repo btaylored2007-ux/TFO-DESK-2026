@@ -635,6 +635,18 @@ function wdRender(j, nowMs){var STALE_S=300, age=null, m=String(j.updated_wita||
  var b=document.getElementById('wdbadge');b.textContent=o.level;b.style.background=o.color;b.style.color='#fff';document.getElementById('wdcard').style.borderColor=o.color;document.getElementById('wdbody').innerHTML=o.html;})
  .catch(function(e){var b=document.getElementById('wdbadge');b.textContent='RED';b.style.background='#b02a37';b.style.color='#fff';document.getElementById('wdcard').style.borderColor='#b02a37';document.getElementById('wdbody').textContent='no watchdog health file';});}r();setInterval(r,60000);})();
 </script>
+<div class="card" id="auditcard" style="margin:8px 0;padding:10px;border:2px solid #444;border-radius:8px"><b>Audit chain · PAPER tamper-evident log</b> <span id="auditbadge" style="padding:1px 8px;border-radius:8px;font-weight:bold">…</span><div id="auditbody">loading…</div></div>
+<script>
+(function(){function r(){fetch('/api/audit?t='+Date.now()).then(function(x){return x.json();}).then(function(j){
+ var st=j.status||'UNVERIFIED', col={INTACT:'#1e7e34',EMPTY:'#1e7e34',TIP_MOVED:'#b8860b',UNVERIFIED:'#b8860b',BREAK:'#b02a37',DISABLED:'#666'}[st]||'#b8860b';
+ var b=document.getElementById('auditbadge'); b.textContent=st; b.style.background=col; b.style.color='#fff';
+ document.getElementById('auditcard').style.borderColor=col;
+ var br=(j.breaks||[]).map(function(x){return (x.file?x.file+':'+x.line+' ':'')+(x.error||'');}).join(' · ');
+ var tip=j.tip?(String(j.tip).slice(0,12)+'…'):'none';
+ document.getElementById('auditbody').textContent='Records '+(j.records==null?'?':j.records)+' · month '+(j.month||'?')+' · tip '+tip+(j.since_verify?' · new records since last verify':'')+' · checked '+(j.checked_at||'not yet')+(br?(' · '+br):'')+' · stops and exits are never blocked by this log.';
+}).catch(function(){var b=document.getElementById('auditbadge'); b.textContent='UNVERIFIED'; b.style.background='#b8860b'; b.style.color='#fff'; document.getElementById('auditbody').textContent='audit status unavailable';});}
+r(); setInterval(r,60000);})();
+</script>
 <div class="card" id="fpmcard" style="margin:8px 0;padding:10px;border:1px solid #444;border-radius:8px"><b>Forward-book pass mark (pre-registered 28 Oct 05:04 WITA)</b>
  <div id="fpmline" style="font-size:13px;color:#ccc">loading…</div></div>
 <script>(function(){function r(){fetch('/static/forward_pass_mark.json?t='+Date.now()).then(x=>x.json()).then(j=>{
