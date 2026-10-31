@@ -446,9 +446,32 @@ def risk_size(pair, usd, info, stop_pct=None, slip_pct=None, presized=False, the
     return risk_caps.size_entry(usd, min(sds) if sds else None, slip_pct=slip_pct, atr_pct=atr, apply_atr_rule=not presized,
                                 min_clip=risk_caps.CRYPTO_MIN_CLIP_USD, **risk_caps.theme_params(theme))
 
+def _firm_proposal(pair, usd, info, px):
+    """Kraken clip at the engine's own 1% ceiling. A smaller clip is not lifted."""
+    sd = info.get("c3_stop_dist") or info.get("stop_pct") or 0.05
+    try: sd = float(sd)
+    except (TypeError, ValueError): sd = 0.0
+    try:
+        from tfo_buy import sizing_eq
+        seq = float(sizing_eq())
+    except Exception:
+        seq = (float(usd) * sd / C3_MAX_RISK_PCT) if sd and C3_MAX_RISK_PCT else float(usd or 1)
+    if seq <= 0: seq = float(usd or 1)
+    risk_usd = float(usd) * sd if sd else 0.0
+    return dict(desk="tfo_crypto", seat="kraken_clips", ticker=pair, side="LONG", venue="CRYPTO", grade="A", action="entry",
+                risk_pct=(risk_usd / seq) if seq else 0.0, risk_aud=risk_usd, notional_aud=float(usd), seat_equity_aud=seq,
+                stop=(float(px) * (1 - sd)) if sd and px else None, entry=float(px) if px else None, stop_dist=sd or None,
+                seat_risk_min=0.0, seat_risk_max=C3_MAX_RISK_PCT)
+
+def _firm_block(pair, usd, info, px):
+    import firm_pretrade
+    return firm_pretrade.blocked(_firm_proposal(pair, usd, info, px))
+
 def _post_entry(pair, usd, theme, label, why, q, info):
     """Post-only buy resting at the best bid (never crosses). Powder for clip + maker fee is reserved now, returned on expiry."""
     if opens_blocked("tfo_crypto.post_entry", pair): return OPENS_BLOCK_CODE   # 2026-10-30 archive lock
+    _fr = _firm_block(pair, usd, info, q.get("bid"))
+    if _fr: print("FIRM RISK refuse %s: %s" % (pair, _fr)); print("LOG none"); return
     with desk_lock.ledger_lock(KEY), desk_lock.ledger_lock("tfo_gcl_powder"):
         b = book(); g = load(GCL); now = dt.datetime.now(UTC); utc = now.strftime("%Y-%m-%dT%H:%M:%SZ"); tid = "HT-" + uuid.uuid4().hex[:10]
         rest = b.setdefault("resting_entries", {})
@@ -515,6 +538,11 @@ def resting_entries(b, g, now, execute, lines):
         if outcome is None and now.timestamp() > exp and prs is not None: outcome = "expired"
         if outcome is None and now.timestamp() > exp + MAKER_ENTRY_TTL_S: outcome = "expired"   # gate F7: feed down past 2x TTL -> expire on the clock
         if outcome == "fill" and OPENS_DISABLED: outcome = "archived_cancel"   # 2026-10-30 archive lock: never fill into a position; reservation returned
+        if outcome == "fill":
+            _fr = _firm_block(pair, r.get("usd") or 0, {"c3_stop_dist": r.get("c3_stop_dist")}, r.get("limit_px"))
+            if _fr:
+                print("RESTING %s firm risk refuse %s (order stays resting)" % (pair, _fr))
+                continue
         print("RESTING %-10s %s limit %.8g -> %s" % (pair, r["ticket_id"], r["limit_px"], outcome or "open"))
         if not execute or outcome is None: continue
         if outcome == "fill": lines.append(_fill_entry(b, pair, r, utc))
@@ -535,6 +563,8 @@ def cmd_buy(pair, usd, theme, label, why, execute, stop_pct=None, slip_pct=None,
     if execute: risk_caps.log_bind(rk, "tfo_crypto.buy", pair, executed=not fails, path=_cap_log_path(), extra={"theme": theme, "why": (why or "")[:200]})
     if fails: print("LOG none"); return
     if not execute: print("PREVIEW PASS (not executed)"); return
+    _fr = _firm_block(pair, usd, info, q.get("ask"))
+    if _fr: print("FIRM RISK refuse %s: %s" % (pair, _fr)); print("LOG none"); return
     # 17 Oct 2026 (Brett 14:27 item 1): callers (watchlist, overnight2k) may ask for a post-only entry per order with --post-only
     if theme in MAKER_THEMES or post_only: return _post_entry(pair, usd, theme, label, why, q, info)
     with desk_lock.ledger_lock(KEY), desk_lock.ledger_lock("tfo_gcl_powder"):

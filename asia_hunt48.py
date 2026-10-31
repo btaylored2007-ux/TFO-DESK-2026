@@ -226,6 +226,11 @@ def _track_fetch(f):   # 2026-10-29 TFO 11:12 WITA fix 2 (additive): record late
         except Exception: pass
         return b
     return g
+def _firm_block(trade, mkt):
+    import firm_pretrade
+    venue = "US" if mkt == "us" else str(mkt).upper()
+    return firm_pretrade.blocked(firm_pretrade.hunt_proposal(trade, "hunt_" + str(mkt), venue, CAPITAL_AUD, RISK_AUD))
+
 def run(mkt, now=None, fetch=None, base=BASE, force=False, live=live_px):
     if fetch is None:   # 2026-10-30 paidbars: paid-first hourly bars (EODHD where it matches Yahoo exactly), Yahoo CB.bars_yf fallback; source logged
         import paid_bars as PB; fetch = lambda y, s: PB.hourly(y, s, CB.bars_yf)
@@ -344,6 +349,8 @@ def run(mkt, now=None, fetch=None, base=BASE, force=False, live=live_px):
             ok4, why4 = IR_checks(mkt, cand, now)
             if not ok4: t["bench_note"] = "intraday open-time checks: " + "; ".join(why4)[:200]; continue
         arm_at = open_today if can_arm else now
+        _why = _firm_block(dict(cand, direction=t["direction"], sym=t["sym"]), mkt)
+        if _why: t["bench_note"] = "firm_risk:" + _why; continue
         t.update({k: cand[k] for k in ("trigger", "max_fill", "stop", "t1", "t2", "shares")}, status="ARMED", promoted_utc=now.isoformat(), cleared_wita=wday(now),
                  armed_utc=arm_at.isoformat(), armed_wita=w(arm_at), intraday_rescan=(w(now) if not can_arm else None), live_px=lp, room_R=cand.get("room_R"), room_basis=cand.get("room_basis"))
         t.pop("bench_note", None)
@@ -357,6 +364,9 @@ def run(mkt, now=None, fetch=None, base=BASE, force=False, live=live_px):
     if in_hours(mkt, now, 75) or force:
         for t in [t for t in T if t["status"] in ("ARMED", "FILLED")]:
             if dt.datetime.fromisoformat(t["armed_utc"]) > now: continue
+            if t["status"] == "ARMED":
+                _why = _firm_block(t, mkt)
+                if _why: t["firm_risk_block"] = _why; continue
             try:
                 bars = fetch(t["yahoo"], dt.datetime.fromisoformat(t["armed_utc"])); was = t["status"] == "FILLED"
                 if t["status"] == "ARMED": bars = [b for b in bars if b["t"] <= session_close(mkt, local_day(mkt, dt.datetime.fromisoformat(t["armed_utc"]))) + dt.timedelta(minutes=65)]   # day arm

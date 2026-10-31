@@ -1257,6 +1257,21 @@ def tick(price_fn=None, au=None, queue_path=None):
         if bad: upd[e["id"]] = dict(state="expired", why=bad); ev.append((e["id"], "blocked", bad)); continue
         # TFO HT 03:28: order_type explicit at arm - entry at/through market = true limit; entry beyond market (breakout) = stop_limit
         if not bad and _uu > 0 and q * _uu * _mr > eq * _cap + 0.01: bad = "seat_cap_%s_%dpct: final size %.0f%% of seat (rounding)" % (_basis, _cap * 100, q * _uu * _mr / eq * 100 if eq > 0 else 999)   # seatcap: re-check after futures/spec resizing
+        if not bad:   # firm risk before the arm. Exits in section 2 never reach this. Size is unchanged.
+            try:
+                import firm_pretrade
+                _venue = P.venue_of(e["ticker"])
+                _frac = (q * _u / eq) if eq and _u else 0.0
+                _capbind = bool(not _crypto and _grade == "A" and _basis == "notional" and _frac + 1e-9 >= SEAT_NOTIONAL_CAP)
+                _actual = (per * q / eq) if eq else 0.0
+                _rp = _actual if _capbind else (pct or _actual)
+                if _capbind and RISK_A_CAPBIND_MIN - 0.001 <= _actual < RISK_A_CAPBIND_MIN: _rp = RISK_A_CAPBIND_MIN   # share-lot remainder of the 1.5% target, not a lift
+                _prop = dict(desk="thf" if (os.environ.get("THF_DESK") == "1" or THF) else "veteran", seat=seat, ticker=e["ticker"], side=e["side"], venue=_venue, grade=_grade or "B", action="entry", risk_pct=_rp, risk_aud=per * q, notional_aud=(q * _u) if _u else 0.0, seat_equity_aud=eq, stop=stop, entry=entry, cap_binds=_capbind)
+                if _crypto: _prop.update(seat_risk_min=RISK_CRYPTO_MIN, seat_risk_max=RISK_CRYPTO_MAX if _grade == "A+" else RISK_CRYPTO_DEFAULT)   # 0.5-1% (A+ 2%); never lift the crypto seat
+                if _venue == "US": _prop["us_beta_usd"] = (1.0 if L else -1.0) * float(entry) * float(q) * LEVERED_ETF_MULT.get(str(e["ticker"]).upper(), 1)
+                _why = firm_pretrade.blocked(_prop)
+                if _why: bad = "firm_risk:" + _why
+            except Exception as _fxr: bad = "firm_risk:firm_risk_service_unreachable"
         if bad: upd[e["id"]] = dict(state="expired", why=bad); ev.append((e["id"], "blocked", bad)); continue
         B["positions"][e["id"]] = dict(id=e["id"], seat=seat, ticker=e["ticker"], side=e["side"], entry=entry, stop=stop, target=float(e["target"]), shares=q,
             risk_aud=round(per * q, 2), gap_risk_aud=round(_per_gap * q, 2) if _gp else None, risk_pct=pct, sleeve="spec" if spec else "core", size_mult=mult, gate_size_mult=e.get("gate_size_mult"), sizing_warning=rp["warning"], floor_note=_floor_note, posture=post, status="armed", queued_for_open=not session_open(P.venue_of(e["ticker"]), t), seat_risk_pct=e.get("seat_risk_pct"), override=bool(e.get("override")), order_type=e.get("order_type") if e.get("order_type") in ("limit", "stop_limit") else ("limit" if px and ((L and entry <= px) or (not L and entry >= px)) else "stop_limit"), armed_utc=t.isoformat(), venue=P.venue_of(e["ticker"]), hash=e.get("hash"), pre_trade=pt, scale_t1=True, grade=_grade, tags=e.get("tags"))

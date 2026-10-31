@@ -1249,6 +1249,21 @@ def cmd_enter(execute):
                 if not tok: fails.append(twhy)
             report.append((o, fails, sz))
             if fails or not execute: continue
+            import firm_pretrade
+            _eq = float(b["equity"] or 0)
+            _risk = float(sz["risk_usd"])
+            _px = float(sz["ask"])
+            _venue = "CRYPTO" if o["venue"] == "KRAKEN" else "US"
+            _prop = dict(desk="v2", seat=o["setup"], ticker=o["sym"], side="LONG", venue=_venue, grade="A", action="entry",
+                         risk_pct=(_risk / _eq) if _eq else 0.0, risk_aud=_risk, notional_aud=_px * float(sz["qty"]),
+                         seat_equity_aud=_eq or _risk, stop=sz["stop"], entry=_px,
+                         seat_risk_min=0.0, seat_risk_max=float(cfg["law"]["risk_pct"]))
+            if _venue == "US":
+                from veteran_desk.exec_speed.firm_risk_service import LEVERED as _LEV
+                _prop["us_beta_usd"] = _px * float(sz["qty"]) * _LEV.get(str(o["sym"]).upper(), 1)
+            _fr = firm_pretrade.blocked(_prop)
+            if _fr:
+                fails.append("firm_risk:" + _fr); report[-1] = (o, fails, sz); continue
             tid = "V2-" + uuid.uuid4().hex[:10]; utc = iso(t)
             qty, px = sz["qty"], sz["ask"]
             fee = desk_costs.fill_fees(o["sym"], "buy", qty, px, when=t); fees = round(fee["fees_usd"], 2)

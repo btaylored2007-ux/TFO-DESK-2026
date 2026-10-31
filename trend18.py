@@ -892,6 +892,24 @@ def room_report(plan, L, g, base_usd, fi=None):
             "note": "needed_from_sales covers the TREND legs only; the MF basket is sized from cash that exists and never triggers a sale"}
 
 # ------------------------------------------------------------------ booking
+def _firm_proposal(r, equity_usd):
+    """New trend18 buy. The 20% weekly trail is the stop where the sleeve has one. Sells are not proposals."""
+    import trend18_trail as TT
+    px = float(r["px"]); inst = r["inst"]
+    thr = TT.TRAIL.get(inst)
+    notion = abs(float(r["order_qty"]) * px)
+    eq = float(equity_usd or 0) or 0.0
+    risk = notion * float(thr or 0)
+    venue = "CRYPTO" if inst in ("XBT/USD", "BTC/USD") else "US"
+    prop = dict(desk="trend18", seat="trend", ticker=inst, side="LONG", venue=venue, grade="B", action="entry",
+                risk_pct=(risk / eq) if eq else 0.0, risk_aud=risk, notional_aud=notion, seat_equity_aud=eq or notion,
+                stop=(px * (1 - float(thr))) if thr else None, entry=px,
+                seat_risk_min=0.0, seat_risk_max=0.05)
+    if venue == "US":
+        from veteran_desk.exec_speed.firm_risk_service import LEVERED
+        prop["us_beta_usd"] = px * abs(float(r["order_qty"])) * LEVERED.get(str(inst).upper(), 1)
+    return prop
+
 def book_fill(L, r, utc, tag, quote_meta):
     q, px, kind, inst = float(r["order_qty"]), float(r["px"]), r["kind"], r["inst"]
     if q == 0: return None
@@ -1213,6 +1231,11 @@ def cmd_execute(args):
             log("FUNDING COST TRUE-UP %.2f for %s" % (trueup, [x["sym"] for x in trueups]))
         fills = []
         for r in sells + buys:
+            if float(r.get("order_qty") or 0) > 0:   # new risk only; sells and stops are not gated
+                import firm_pretrade
+                _fr = firm_pretrade.blocked(_firm_proposal(r, E))
+                if _fr:
+                    log("FIRM RISK BLOCK %s %s: %s" % (tag, r["inst"], _fr)); print("   firm risk refused %s: %s" % (r["inst"], _fr)); continue
             meta = etf_px.get(r["inst"]) if r["kind"] == "etf" else {"kind": "kraken_%s" % ("ask" if r["side"] == "BUY" else "bid"), "utc": btc.get("utc"),
                                                                     "spread_bp": btc.get("spread_bp"), "source": btc.get("source")}
             f = book_fill(L, r, utc, tag, {**(meta or {}), "prices_source": src})
