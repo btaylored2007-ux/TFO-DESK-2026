@@ -1113,6 +1113,13 @@ def prearm_check(e, q, px, t):
 def _slip_log(seat, k, p, f, slip, ot, t):
     try: open(os.path.join(_state_dir(), "slip_rejects.jsonl"), "a").write(json.dumps(dict(utc=t.isoformat(), seat=seat, id=k, ticker=p.get("ticker"), side=p.get("side"), plan=p.get("entry"), fill=f, slip_bps=slip, order_type=ot, collar_bps=SLIP_COLLAR_BPS)) + "\n")
     except Exception: pass
+def _claude_shadow_arm(seat, e, grade, pct, entry, stop, q):
+    """Advice only, and only after the arm is already on the book. Returns at once. Never changes the arm, the stop or the exit."""
+    try:
+        from veteran_desk import claude_review as _CR
+        _CR.observe(dict(desk="thf" if os.environ.get("THF_DESK") == "1" else "vd", seat=seat, ticker=e.get("ticker"), side=e.get("side"), grade=grade, risk_pct=pct, entry=entry, stop=stop, target=e.get("target"), trade_id=e.get("id"), shares=q, paper_only=True, oversized=bool(isinstance(pct, (int, float)) and float(pct) >= 0.05)), decision=None, tiebreak_ok=True)
+    except Exception:
+        pass
 def tick(price_fn=None, au=None, queue_path=None):
     import funder_gate as FG
     price_fn = price_fn or live_px; _fxstale = None
@@ -1260,7 +1267,7 @@ def tick(price_fn=None, au=None, queue_path=None):
         if bad: upd[e["id"]] = dict(state="expired", why=bad); ev.append((e["id"], "blocked", bad)); continue
         B["positions"][e["id"]] = dict(id=e["id"], seat=seat, ticker=e["ticker"], side=e["side"], entry=entry, stop=stop, target=float(e["target"]), shares=q,
             risk_aud=round(per * q, 2), gap_risk_aud=round(_per_gap * q, 2) if _gp else None, risk_pct=pct, sleeve="spec" if spec else "core", size_mult=mult, gate_size_mult=e.get("gate_size_mult"), sizing_warning=rp["warning"], floor_note=_floor_note, posture=post, status="armed", queued_for_open=not session_open(P.venue_of(e["ticker"]), t), seat_risk_pct=e.get("seat_risk_pct"), override=bool(e.get("override")), order_type=e.get("order_type") if e.get("order_type") in ("limit", "stop_limit") else ("limit" if px and ((L and entry <= px) or (not L and entry >= px)) else "stop_limit"), armed_utc=t.isoformat(), venue=P.venue_of(e["ticker"]), hash=e.get("hash"), pre_trade=pt, scale_t1=True, grade=_grade, tags=e.get("tags"))
-        upd[e["id"]] = dict(state="armed", armed_utc=t.isoformat(), px_at_approval=px, shares=q, risk_aud=round(per * q), **({"floor_note": _floor_note} if _floor_note else {})); ev.append((e["id"], "armed", q))
+        upd[e["id"]] = dict(state="armed", armed_utc=t.isoformat(), px_at_approval=px, shares=q, risk_aud=round(per * q), **({"floor_note": _floor_note} if _floor_note else {})); ev.append((e["id"], "armed", q)); _claude_shadow_arm(seat, e, _grade, pct, entry, stop, q)
     for seat, B in D["seats"].items():   # 2. code-only fills / stops / targets, per seat book
         for k, p in B["positions"].items():
             m = marks.get(p["ticker"])

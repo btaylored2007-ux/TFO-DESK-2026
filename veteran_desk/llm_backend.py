@@ -1,7 +1,8 @@
 """tfo_grokqueue_20261030 (Brett 22:10 WITA): LLM backend switch for VD + THF seats. PAPER ONLY.
 Config: state/llm_backend.json {"backend": "codex"|"grok_queue", "revert_at": ISO, "revert_to": "codex"}.
 grok_queue: write state/llm_queue/pending/<id>.json, poll state/llm_queue/done/<id>.json; Grok Bot answers via tools/llm_queue_cli.py.
-No prompt cap (Brett 22:11). 22:29: Codex removed everywhere; backend() always grok_queue, no revert."""
+No prompt cap (Brett 22:11). 22:29: Codex removed everywhere; backend() always grok_queue, no revert.
+Claude (veteran_desk.claude_review) is a side path: advice only, never a substitute for grok_call, never a veto."""
 import threading, datetime as dt, hashlib, inspect, json, os, time
 BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 CFG = os.path.join(BASE, "state", "llm_backend.json")

@@ -27,6 +27,16 @@ def debate(seat, p, f, S):
         a = ex.submit(lambda: D.parse_json(D.llm(other, D.chal_prompt(f), DEBATE_TIMEOUT_S))); b = ex.submit(lambda: D.parse_json(D.llm("codex", D.da_prompt(p, f, pend), DEBATE_TIMEOUT_S)))
         chal, da = a.result(), b.result()
     return (chal if isinstance(chal, dict) and chal.get("call") else None), (da if isinstance(da, dict) else None), other
+def _claude_note(seat, p, g, out):
+    """Advice only, after the gate result exists. A+ is a log tag, not a wait. Returns the same dict."""
+    try:
+        from veteran_desk import claude_review as _CR
+        rp = (g or {}).get("risk_pct") if isinstance(g, dict) else None
+        if rp is None and isinstance(out, dict): rp = out.get("risk_pct")
+        _CR.observe(dict(desk="thf" if os.environ.get("THF_DESK") == "1" else "vd", seat=seat, ticker=(p or {}).get("ticker"), side=(p or {}).get("side"), grade=(p or {}).get("grade"), entry=(p or {}).get("entry"), stop=(p or {}).get("stop"), target=(p or {}).get("target"), risk_pct=rp, trade_id=(out or {}).get("id"), shares=(out or {}).get("shares"), passed=(out or {}).get("passed"), paper_only=True), decision=out, tiebreak_ok=True)
+    except Exception:
+        pass
+    return out
 def propose(seat, setup, chal_call=None, queue_path=None, env=None, run_debate=False):
     S = D.seats()
     if seat not in S or S[seat]["role"] != "proposer" or seat not in BK.TRADERS: return dict(ok=False, error="unknown trading seat %s" % seat)
@@ -48,9 +58,9 @@ def propose(seat, setup, chal_call=None, queue_path=None, env=None, run_debate=F
                verdict="PASS" if g.get("passed") else "REJECT", reasons=g.get("reasons"), warnings=g.get("warnings"),
                r_stats=dict(rr=g.get("rr"), risk_aud=g.get("risk_aud"), risk_pct=g.get("risk_pct"), size_mult=g.get("size_mult"), history=g.get("history"), gate_version=g.get("version")))
     except Exception: pass
-    if not g["passed"]: return dict(ok=True, passed=False, reasons=g["reasons"], warnings=g["warnings"], challenger=chal, devils_advocate=da)
+    if not g["passed"]: return _claude_note(seat, p, g, dict(ok=True, passed=False, reasons=g["reasons"], warnings=g["warnings"], challenger=chal, devils_advocate=da))
     sz = D.size(p, f or dict(), g["risk_aud"], au)
-    if sz["shares"] < 1: return dict(ok=True, passed=False, reasons=["size rounds to zero"])
+    if sz["shares"] < 1: return _claude_note(seat, p, g, dict(ok=True, passed=False, reasons=["size rounds to zero"]))
     runid = asof.strftime("%Y%m%d-%H%M%S"); rid = "VET-%s-%s-%s" % ("".join(ch for ch in p["ticker"].upper() if ch.isalnum()), runid, seat)
     # 2026-10-29 infra: stamp proposal with live quote as-of (from gate) so stale checks have a timestamp
     if g.get("quote_asof") and not p.get("quote_asof"):
@@ -62,8 +72,8 @@ def propose(seat, setup, chal_call=None, queue_path=None, env=None, run_debate=F
         from veteran_desk import learning as LN
         LN.critique_async([rec], runid)   # 2026-10-29 item 14: detached GPT-only sounding board; never blocks propose
     except Exception: pass
-    return dict(ok=True, passed=not rec.get("live_reject"), live_reject=rec.get("live_reject"), id=rid, queued=bool(ids), risk_aud=sz["risk_aud"], risk_pct=g.get("risk_pct"), shares=sz["shares"], size_mult=g["size_mult"], warnings=g["warnings"], challenger=chal, devils_advocate=(da or {}).get("kill_case"),
-                note="auto-approved; book.py arms on next tick (no funder tick, PAPER)")
+    return _claude_note(seat, p, g, dict(ok=True, passed=not rec.get("live_reject"), live_reject=rec.get("live_reject"), id=rid, queued=bool(ids), risk_aud=sz["risk_aud"], risk_pct=g.get("risk_pct"), shares=sz["shares"], size_mult=g["size_mult"], warnings=g["warnings"], challenger=chal, devils_advocate=(da or {}).get("kill_case"),
+                note="auto-approved; book.py arms on next tick (no funder tick, PAPER)"))
 def status(seat):
     B = BK.load()["seats"].get(seat)
     if B is None: return dict(ok=False, error="no book for seat %s" % seat)
