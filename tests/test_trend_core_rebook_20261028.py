@@ -35,8 +35,12 @@ class T(unittest.TestCase):
             self.assertLess(r["new_shares"], r["old_shares"])  # 1% higher price -> fewer shares
 
     def test_plist_present(self):
-        p = os.path.expanduser("~/Library/LaunchAgents/com.tfo.trend-core-rebook.plist")
-        self.assertTrue(os.path.exists(p))
+        # The job definition lives in the repo. The Mac copies it into ~/Library/LaunchAgents on install.
+        p = os.path.join(BASE, "launchd", "com.tfo.trend-core-rebook.plist")
+        self.assertTrue(os.path.isfile(p), p)
+        text = open(p).read()
+        self.assertIn("com.tfo.trend-core-rebook", text)
+        self.assertIn("trend_core_rebook.py", text)
 
 
 if __name__ == "__main__":

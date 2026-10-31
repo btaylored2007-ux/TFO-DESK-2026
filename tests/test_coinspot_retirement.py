@@ -12,9 +12,14 @@ import firm_capital_flows as flows
 from test_firm_capital_flows import capital, event
 
 
+_AUDIT_ROOT = Path(__file__).resolve().parent / "_coverage_audit_root"
+
+
 class RetirementProofTests(unittest.TestCase):
     def setUp(self):
-        self.temp = tempfile.TemporaryDirectory()
+        # Same /tmp skip as the repair-snapshot audit (book_coverage.AUDIT_SKIP). See TEST_TRIAGE.md.
+        _AUDIT_ROOT.mkdir(exist_ok=True)
+        self.temp = tempfile.TemporaryDirectory(dir=_AUDIT_ROOT)
         self.addCleanup(self.temp.cleanup)
         root = Path(self.temp.name)
         self.base, self.kraken = root / "desk", root / "kraken"

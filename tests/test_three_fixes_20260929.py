@@ -116,8 +116,8 @@ class StagedPlanFire(unittest.TestCase):
     def setUp(self):
         import tfo_watchlist as wl
         self.wl = wl; self.tmp = tempfile.mkdtemp(); self.addCleanup(shutil.rmtree, self.tmp)
-        self.calls = []; self.fail = set(); self.held_today = set()
-        firm = {"firm_equity_usd": 1.8e6, "headroom_notional_usd": 5e6, "unreserved_powder_usd": 5e6, "crypto_stack_room_usd": 0}
+        self.calls = []; self.blocked = set(); self.held_today = set()
+        firm = {"firm_equity_usd": 1.8e6, "sizing_equity_usd": 1.8e6, "headroom_notional_usd": 5e6, "unreserved_powder_usd": 5e6, "crypto_stack_room_usd": 0}
         for p in (mock.patch.object(wl, "R", self.tmp), mock.patch.object(wl, "FIRE_SOURCE_LOG", os.path.join(self.tmp, "src.jsonl")),
                   mock.patch.object(wl, "now_utc", lambda: WED_2340.astimezone(dt.timezone.utc)),
                   mock.patch.object(wl, "wl_lock", lambda *a, **k: contextlib.nullcontext()), mock.patch.object(wl, "read_doc", lambda: {}),
@@ -131,7 +131,7 @@ class StagedPlanFire(unittest.TestCase):
     def runner(self, argv):
         sym, usd, ex = argv[2], float(argv[3]), "--execute" in argv
         self.calls.append((sym, usd, ex))
-        ok = sym not in self.fail
+        ok = sym not in self.blocked
         logs = ["LOG 2026-09-30 23:40 BUY %s 1 100 LIVE fundamental_book %.2f 0.00 0.00 1.00" % (sym, usd)] if ok and ex else []
         return {"passed": ok, "fails": [] if ok else ["quote_inconsistent: missing side"], "info": {"px_usd": 100.0}, "logs": logs, "stdout": ""}
     def fire(self, execute=True):
@@ -150,12 +150,12 @@ class StagedPlanFire(unittest.TestCase):
         d = plan_doc(); d["candidates"][0]["planned_usd"] = 50000.0; self.write(d); self.fire()
         self.assertEqual(self.executed()[0], ("ISRG", 50000.0))
     def test_alternate_only_for_failed_primary(self):
-        self.fail = {"TMO"}; self.write(plan_doc()); self.fire()
+        self.blocked = {"TMO"}; self.write(plan_doc()); self.fire()
         self.assertEqual([s for s, _ in self.executed()], ["ISRG", "DE", "SHEL", "PG"])
         self.assertEqual(dict(self.executed())["DE"], 90000.0)   # 2026-10-04 planned-loss cap (was 135000.0)
     def test_retry_is_idempotent_no_double_buy(self):
-        self.fail = {"TMO"}; self.write(plan_doc()); self.fire()
-        self.calls.clear(); self.fail = set(); self.held_today = {"ISRG", "DE", "SHEL", "PG"}
+        self.blocked = {"TMO"}; self.write(plan_doc()); self.fire()
+        self.calls.clear(); self.blocked = set(); self.held_today = {"ISRG", "DE", "SHEL", "PG"}
         logs, out = self.fire()
         self.assertEqual(self.executed(), []); self.assertIn("DONE TMO slot filled earlier by DE", out)
     def test_held_today_primary_is_not_rebought_nor_substituted(self):
@@ -172,12 +172,12 @@ class StagedPlanFire(unittest.TestCase):
     def test_alternate_role_prefix_and_failed_alt_not_retried(self):
         d = plan_doc(); d["candidates"].append({"rank": 7, "symbol": "ABBV", "role": "alternate (only if ISRG or TMO drops)", "planned_usd": 0.0,
                                                 "theme": "us-health", "label": "beta", "why": "x", "ref_price": 100.0, "alt_usd_if_substituted": 135000.0})
-        self.fail = {"ISRG", "TMO", "DE", "AAPL"}; self.write(d); self.fire()
+        self.blocked = {"ISRG", "TMO", "DE", "AAPL"}; self.write(d); self.fire()
         tried = [s for s, u, ex in self.calls if not ex]
         self.assertEqual(tried.count("DE"), 1); self.assertIn("ABBV", tried)
         self.assertEqual([s for s, _ in self.executed()], ["ABBV", "SHEL", "PG"])
     def test_all_fail_buys_nothing(self):
-        self.fail = {"ISRG", "TMO", "SHEL", "PG", "DE", "AAPL"}; self.write(plan_doc()); logs, _ = self.fire()
+        self.blocked = {"ISRG", "TMO", "SHEL", "PG", "DE", "AAPL"}; self.write(plan_doc()); logs, _ = self.fire()
         self.assertEqual(logs, []); self.assertEqual(self.executed(), [])
 
 

@@ -100,6 +100,7 @@ class C3Engine(CryptoEngine):
         import tfo_buy
         with mock.patch.object(tc, "quote", lambda p: q), mock.patch.object(tc, "avg10_vol", lambda p: 1), \
              mock.patch.object(tc, "clip_heat", lambda: (0.0, 0.0)), mock.patch.object(tfo_buy, "firm_state", lambda: (eq, -1.0, eq)), \
+             mock.patch.object(tfo_buy, "sizing_eq", lambda: eq), \
              mock.patch.object(tc.trl, "kraken_atr_pct", lambda g, k: atr), \
              mock.patch.object(tc, "load", lambda k, _o=tc.load: {"cash": 1e7, "positions": {}} if k == tc.GCL else _o(k)):
             return tc.gates("ETH/USD", usd, "crypto-major")
@@ -118,8 +119,8 @@ class C3Engine(CryptoEngine):
         self.book(); self.w("tfo_gcl_powder", {"cash": 1e7, "positions": {}})
         tc = self.tc
         fails, q, info = self._gates(100000, 0.05)
-        with mock.patch.object(tc, "gates", lambda *a: ([], q, info)), mock.patch.object(tc, "xfer", lambda *a, **k: None), \
-             contextlib.redirect_stdout(open(os.devnull, "w")):
+        with mock.patch.object(tc, "OPENS_DISABLED", False), mock.patch.object(tc, "gates", lambda *a: ([], q, info)), \
+             mock.patch.object(tc, "xfer", lambda *a, **k: None), contextlib.redirect_stdout(open(os.devnull, "w")):
             tc.cmd_buy("ETH/USD", 100000, "crypto-major", "edge", "test", True)
         p = self.r("tfo_ht_crypto")["positions"]["ETH/USD"]
         self.assertEqual((p["exit_variant"], p["c3_stop_dist"], p["c3_atr14_entry"]), ("C3", 0.1, 0.05))

@@ -10,12 +10,24 @@ def test_crypto_canon_maps_bare_btc_to_kraken():
     assert G.canon("XRP") == "KRAKEN:XRPUSD"
     assert G.canon("AAPL") == "AAPL"
 
-def test_crypto_history_atr_is_coin_scale_not_etf():
-    now = dt.datetime.now(dt.timezone.utc)
-    rows, _ = G.history("BTC", now)
-    A = G.arrays(rows)
-    assert float(A["c"][-1]) > 1000, "BTC must resolve to coin price not ~$35 ETF"
-    assert float(A["atr"][-1]) > 100
+def test_crypto_history_atr_is_coin_scale_not_etf(tmp_path):
+    # Live pit.sqlite is not in this tree (and the US ETF row named BTC is the bug this test locks).
+    # Seed Kraken coin bars in a temp store: close well above 1000, daily range so ATR is coin-scale.
+    db = str(tmp_path / "pit.sqlite")
+    c = P.con(db); px = 60000.0; rows = []
+    for i in range(40):
+        d = (dt.date(2026, 8, 1) + dt.timedelta(days=i)).isoformat()
+        rows.append((d, px, px + 900.0, px - 700.0, px + 100.0, 100.0)); px += 100.0
+    P.put_bars(c, "KRAKEN:XBTUSD", rows, "coin-scale-test"); c.commit(); c.close()
+    old = P.DB; P.DB = db
+    try:
+        now = dt.datetime.now(dt.timezone.utc)
+        rows, _ = G.history("BTC", now)
+        A = G.arrays(rows)
+        assert float(A["c"][-1]) > 1000, "BTC must resolve to coin price not ~$35 ETF"
+        assert float(A["atr"][-1]) > 100
+    finally:
+        P.DB = old
 
 def test_hkd_sizing_hard_reject():
     # fxsize 2026-10-29: HKD/JPY now converted at live FX; the reject is a backstop for missing FX / unknown suffix only

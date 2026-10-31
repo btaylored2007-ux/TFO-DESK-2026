@@ -538,8 +538,7 @@ def write_status(L=None):
     }
     try:  # 2026-10-28 shadow profit-taking summary (trend_core_shadow.py; SHADOW, outside book P&L)
         import trend_core_shadow as _tcs
-        if os.path.exists(_tcs.SHADOW):
-            status["shadow"] = _tcs.summary()
+        status["shadow"] = _tcs.summary()  # load() -> new_state() when the shadow file is absent; in_book_pnl stays False
     except Exception:
         pass
     atomic_json(STATUS, status)

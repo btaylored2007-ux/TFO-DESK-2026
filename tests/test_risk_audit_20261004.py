@@ -68,7 +68,9 @@ class CryptoBuyPath(CryptoEngine):
         def gates(pair, u, theme): calls.append(u); return [], q, dict(info)
         self.book(); self.w("tfo_gcl_powder", {"cash": 1e7, "positions": {}})
         out = io.StringIO()
-        with mock.patch.object(tc, "gates", gates), mock.patch.object(tc, "xfer", lambda *a, **k: None), contextlib.redirect_stdout(out):
+        # Archive lock is asserted by test_tfo_ht_crypto_archive_lock. These cases lock the risk-cap clip on a temp book.
+        with mock.patch.object(tc, "OPENS_DISABLED", False), mock.patch.object(tc, "gates", gates), \
+             mock.patch.object(tc, "xfer", lambda *a, **k: None), contextlib.redirect_stdout(out):
             tc.cmd_buy("ETH/USD", usd, "crypto-major", "beta", "t", True, **kw)
         return calls, out.getvalue()
 

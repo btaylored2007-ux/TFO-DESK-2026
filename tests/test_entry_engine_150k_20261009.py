@@ -93,7 +93,9 @@ class TfoCryptoEntryEngine(CryptoEngine):
         q = {"pair": "ETH/USD", "bid": 100.0, "ask": 100.0, "last": 100.0, "mid": 100.0, "spread_bp": 1.0, "tape": "LIVE"}
         def gates(pair, u, th): calls.append(u); return [], q, dict(info)
         self.book(); self.w("tfo_gcl_powder", {"cash": 1e7, "positions": {}})
-        with mock.patch.object(tc, "gates", gates), mock.patch.object(tc, "xfer", lambda *a, **k: None), QUIET():
+        # Archive lock is asserted elsewhere. These cases lock the $150k / $5k clip rails on a temp book.
+        with mock.patch.object(tc, "OPENS_DISABLED", False), mock.patch.object(tc, "gates", gates), \
+             mock.patch.object(tc, "xfer", lambda *a, **k: None), QUIET():
             tc.cmd_buy("ETH/USD", usd, theme, "beta", "t", True)
         return calls
 

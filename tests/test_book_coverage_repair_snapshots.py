@@ -9,9 +9,15 @@ from unittest.mock import patch
 import book_coverage as coverage
 
 
+_AUDIT_ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "_coverage_audit_root")
+
+
 class RepairSnapshotCoverage(unittest.TestCase):
     def setUp(self):
-        self.tmp = tempfile.TemporaryDirectory()
+        # coverage_audit skips any path containing "/tmp/" (AUDIT_SKIP). The fixture must sit
+        # outside that prefix or a changed repair ledger is invisible and the audit looks clean.
+        os.makedirs(_AUDIT_ROOT, exist_ok=True)
+        self.tmp = tempfile.TemporaryDirectory(dir=_AUDIT_ROOT)
         self.base = os.path.join(os.path.realpath(self.tmp.name), "firm")
         self.other = os.path.join(os.path.realpath(self.tmp.name), "engine")
         self.folder = os.path.join(self.base, "reports", "repairs", "verified-capital-fix")

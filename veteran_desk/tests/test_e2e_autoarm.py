@@ -1,5 +1,5 @@
 """End-to-end PAPER: seat_cli propose -> auto-approved queue -> book.py arm -> fill -> stop -> close -> commission/payout bridge. Temp files only."""
-import json, os, sys, tempfile
+import datetime as dt, json, os, sys, tempfile
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 from veteran_desk import book as BK, desk as D, seat_cli as SC, pit as P, payouts as PY
 def test_e2e():
@@ -8,7 +8,16 @@ def test_e2e():
     PY.DEFAULT_OUT_PATH, PY.DEFAULT_FWD_PATH, PY.DEFAULT_SCORE_PATH = (os.path.join(tmp, x) for x in ("payouts.json", "fwd.json", "score.json"))   # 19:17 leak fix: never touch the real payouts ledger
     from veteran_desk import learning as LN; keep_ca = LN.critique_async; LN.critique_async = lambda recs, runid="run": dict(spawned=False, n=len(recs or []), test_stub=True)   # fixer 2026-10-29: never write live state/learning/pending_critique
     keep_so = BK.session_open; BK.session_open = lambda v, t: True; keep_now = BK.now; BK.now = lambda: __import__("datetime").datetime(2026, 10, 28, 15, 0, tzinfo=__import__("datetime").timezone.utc); keep = (BK.BOOK, BK.firm_ok, BK.posture); BK.BOOK = os.path.join(tmp, "book.json"); BK.MARGIN_HEADROOM = 1.0; BK.firm_ok = lambda: (True, "OK"); BK.posture = lambda: ("calm", "risk-off")
+    old_db = P.DB; P.DB = os.path.join(tmp, "pit.sqlite")
     try:
+        # Code-only tree has no XOM bars. Seed a fresh, liquid, slow uptrend so the gate does not
+        # stale-cut or chase-cut an A+ (4%) below the 2% band this test locks. Do not mkdir data/pit.
+        c = P.con(P.DB); px = 100.0; rows = []; d = dt.date.today() - dt.timedelta(days=180); end = dt.date.today() - dt.timedelta(days=2)
+        while d <= end:
+            if d.weekday() < 5:
+                rows.append((d.isoformat(), px, px * 1.012, px * 0.988, px * 1.002, 8_000_000.0)); px *= 1.002
+            d += dt.timedelta(days=1)
+        P.put_bars(c, "XOM", rows, "e2e-test"); c.commit(); c.close()
         c = P.con(); f = D.feats(c, "XOM", D.now()); e = f["close"]; a = f["atr14"]
         setup = dict(ticker="XOM", side="LONG", entry=round(e, 2), stop=round(e - 2 * a, 2), target=round(e + 4 * a, 2), grade="A+", thesis="VDTEST end-to-end paper")   # 2026-10-29: A x0.75 no-debate now rejects below floor
         r = SC.propose("energy", setup, "LONG", queue_path=q, env=dict(book=([], "OK"), firm="OK"))
@@ -26,5 +35,5 @@ def test_e2e():
     finally:
         BK.MARGIN_HEADROOM = 1.3
         LN.critique_async = keep_ca
-        BK.BOOK, BK.firm_ok, BK.posture = keep; BK.session_open = keep_so; BK.now = keep_now; PY.DEFAULT_OUT_PATH, PY.DEFAULT_FWD_PATH, PY.DEFAULT_SCORE_PATH = keepP
+        BK.BOOK, BK.firm_ok, BK.posture = keep; BK.session_open = keep_so; BK.now = keep_now; P.DB = old_db; PY.DEFAULT_OUT_PATH, PY.DEFAULT_FWD_PATH, PY.DEFAULT_SCORE_PATH = keepP
     assert open(keepP[0]).read() == real, "test touched the real payouts ledger"

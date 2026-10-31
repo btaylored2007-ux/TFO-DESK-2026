@@ -899,7 +899,13 @@ def write_status(L, fx, now):
         health = dict(book=L["book"], market="us", paper_only=True, ok=True, open=st["open"], armed=st["armed"], bench_armed=st["bench_armed"],
                       price_asof_utc=st["price_asof_utc"], data_error_count=st["data_error_count"], bars_asof=max(_lb).isoformat() if _lb else None,
                       updated_utc=st["updated_utc"], updated_wita=st["updated_wita"])
-        atomic(STATUS.replace("_status.json", "_health.json"), health)
+        # Health is a sibling file. A status path that does not end in _status.json must not be
+        # overwritten (that dropped pnl_today_aud when a test named the file status.json).
+        if str(STATUS).endswith("_status.json"):
+            _hp = STATUS[:-len("_status.json")] + "_health.json"
+        else:
+            _hp = os.path.join(os.path.dirname(STATUS) or ".", os.path.splitext(os.path.basename(STATUS))[0] + "_health.json")
+        atomic(_hp, health)
     except Exception:
         pass
     return st

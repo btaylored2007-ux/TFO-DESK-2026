@@ -27,7 +27,13 @@ class FullExit(unittest.TestCase):
         UTC = dt.timezone.utc; now = dt.datetime(2026, 11, 3, 15, 0, tzinfo=UTC); L = H.new_ledger("t")
         t = H.upsert_trade(L, dict(ticker="XYZ", trigger=50.0, max_fill=49.9, stop=52.0, t1=49.0, t2=46.75, shares=100, atr=1.0, sector="TECH", direction="short"), now)
         bar = lambda m, o, h, l, c: dict(start=now + dt.timedelta(minutes=m), o=o, h=h, l=l, c=c)
-        self.assertEqual(H.try_fill(t, [bar(15, 50.1, 50.2, 49.9, 49.95)], now + dt.timedelta(minutes=31), 0.75), "filled")
+        # H11: no borrow snapshot -> SHADOW (fail closed). This case locks the +3R exit, so borrow is present.
+        old_b, old_p = H.IC.has_borrow, H.IC.borrow_pa
+        H.IC.has_borrow = lambda *a, **k: True; H.IC.borrow_pa = lambda *a, **k: 0.03
+        try:
+            self.assertEqual(H.try_fill(t, [bar(15, 50.1, 50.2, 49.9, 49.95)], now + dt.timedelta(minutes=31), 0.75), "filled")
+        finally:
+            H.IC.has_borrow, H.IC.borrow_pa = old_b, old_p
         H.manage(t, [bar(30, 49.0, 49.2, t["t1"] - 0.01, 49.0)], now + dt.timedelta(minutes=46), daily=None)
         self.assertEqual(t["status"], "FILLED"); self.assertFalse(t["half_done"])   # +2% / T1 tag < 1R net: nothing
         H.manage(t, [bar(45, 49.0, 49.0, 43.0, 43.1)], now + dt.timedelta(minutes=61), daily=None)   # > 3R net in one bar
