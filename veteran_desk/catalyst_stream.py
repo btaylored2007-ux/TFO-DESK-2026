@@ -21,7 +21,7 @@ from zoneinfo import ZoneInfo
 
 BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 UTC = dt.timezone.utc
-ET = ZoneInfo("America/New_York")
+NY = ZoneInfo("America/New_York")
 ROOT = None
 CYCLE_S = int(os.environ.get("CATALYST_CYCLE_S", "20"))
 HTTP_TIMEOUT = 5
@@ -306,8 +306,8 @@ def parse_fmp_econ(raw):
         if not isinstance(r, dict): continue
         title = r.get("event") or r.get("title") or ""
         if not title: continue
-        if DECISION_RE.search(title): kind = "cb_decision"
-        elif SPEAKER_RE.search(title): kind = "cb_speaker"
+        if SPEAKER_RE.search(title): kind = "cb_speaker"
+        elif DECISION_RE.search(title): kind = "cb_decision"
         else: kind = "economic"
         impact = str(r.get("impact") or "")
         if kind == "economic" and impact.lower() not in ("high", "medium", "3", "2"): continue
@@ -482,8 +482,8 @@ def parse_ff(raw):
     for e in js:
         if not isinstance(e, dict): continue
         title = e.get("title") or ""
-        if DECISION_RE.search(title): kind = "cb_decision"
-        elif SPEAKER_RE.search(title): kind = "cb_speaker"
+        if SPEAKER_RE.search(title): kind = "cb_speaker"
+        elif DECISION_RE.search(title): kind = "cb_decision"
         elif e.get("impact") == "High": kind = "economic"
         else: continue
         t = parse_time(e.get("date"))
@@ -491,13 +491,13 @@ def parse_ff(raw):
     return items
 def next_eia(now):
     """Next WPSR: Wednesday 10:30 ET, Thursday when that Wednesday or its Monday is a US holiday."""
-    local = now.astimezone(ET).date()
+    local = now.astimezone(NY).date()
     for i in range(0, 16):
         day = local + dt.timedelta(days=i)
         if day.weekday() != 2: continue
         monday = day - dt.timedelta(days=2)
         rel = day + dt.timedelta(days=1) if (day.isoformat() in EIA_HOLIDAYS or monday.isoformat() in EIA_HOLIDAYS) else day
-        stamp = dt.datetime(rel.year, rel.month, rel.day, 10, 30, tzinfo=ET)
+        stamp = dt.datetime(rel.year, rel.month, rel.day, 10, 30, tzinfo=NY)
         if stamp > now: return stamp.astimezone(UTC)
     return None
 def parse_eia_schedule(raw, now):
@@ -505,11 +505,11 @@ def parse_eia_schedule(raw, now):
     for m in re.finditer(r"\b(\d{1,2})/(\d{1,2})/(\d{4})\b", _text(raw)):
         try: day = dt.date(int(m.group(3)), int(m.group(1)), int(m.group(2)))
         except Exception: continue
-        stamp = dt.datetime(day.year, day.month, day.day, 10, 30, tzinfo=ET).astimezone(UTC)
+        stamp = dt.datetime(day.year, day.month, day.day, 10, 30, tzinfo=NY).astimezone(UTC)
         if stamp > now and (best is None or stamp < best): best = stamp
     return best
 def eia_item(when, value, tier, source):
-    title = "EIA weekly petroleum status release %s ET" % when.astimezone(ET).strftime("%Y-%m-%d %H:%M")
+    title = "EIA weekly petroleum status release %s ET" % when.astimezone(NY).strftime("%Y-%m-%d %H:%M")
     if value is not None: title += " (latest crude stocks %s)" % value
     return _item(kind="eia", title=title, link="https://www.eia.gov/petroleum/supply/weekly/schedule.php", tickers=["CL=F", "BZ=F"],
                  source=source, source_utc=when.isoformat(), tier=tier)
@@ -700,7 +700,7 @@ def _vendors(ctx):
         items, err = [], None
         for name, u in RSS_WIRES:
             try: items.extend(parse_rss(call(ctx["get"], u, {"Accept": "application/rss+xml"}, secrets=()), "rss_" + name))
-            except VendorError as e: err = e
+            except Exception as e: err = e if isinstance(e, VendorError) else VendorError("parse")
         if items: return items
         if err: raise err
         return []
@@ -709,8 +709,8 @@ def _vendors(ctx):
         for name, u in CB_FEEDS:
             try:
                 for it in parse_rss(call(ctx["get"], u, {"Accept": "application/rss+xml"}, secrets=()), "cb_" + name, kind="economic"):
-                    if DECISION_RE.search(it["title"]): it["kind"] = "cb_decision"
-                    elif SPEAKER_RE.search(it["title"]): it["kind"] = "cb_speaker"
+                    if SPEAKER_RE.search(it["title"]): it["kind"] = "cb_speaker"
+                    elif DECISION_RE.search(it["title"]): it["kind"] = "cb_decision"
                     else: continue
                     it["tier"] = "free_fallback"
                     items.append(it)
