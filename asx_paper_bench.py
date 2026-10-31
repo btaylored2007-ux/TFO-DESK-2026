@@ -15,7 +15,7 @@ def ibkr_est_cost_usd(s, q2u, hold_days=3):
     if s["direction"] == "short": c += q2u * n_aud * IC.borrow_pa(s["sym"] + ".AX", "asx") * hold_days / 365
     return round(c, 2)
 def run(now=None, fetch=CB.bars_yf, cal=None, base=BASE):
-    now = now or CB.now_utc(); L = CB.load(LEDGER, dict(book="ASX_PAPER_BENCH", paper_only=True, trades=[]))
+    now = now or CB.now_utc(); L = CB.load(LEDGER, dict(book="ASX_PAPER_BENCH", paper_only=True, trades=[]), strict=True)
     cal = cal or CB.load(os.path.join(base, "static", "event_calendar.json"), {})
     active = {t["sym"] for t in L["trades"] if t["status"] in ("ARMED", "FILLED") or t.get("shadow_reason") == "no borrow"}
     for s in cal.get("staged", []):

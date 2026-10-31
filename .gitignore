@@ -11,6 +11,8 @@ __pycache__/
 reports/*.log
 reports/command_server*.log
 reports/launchd.*.log
+reports/health_shots/
+*.dom
 .tick.lock
 # daily snapshot tarballs — regenerable, and versioning them compounds:
 # each tar would contain the .git that holds every previous tar.

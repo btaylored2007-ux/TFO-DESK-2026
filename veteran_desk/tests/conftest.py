@@ -39,6 +39,17 @@ _BEFORE = _sig()
 import contextlib, tempfile
 TMP = tempfile.mkdtemp(prefix="vd_tests_")
 sys.path.insert(0, ROOT)
+def _synthetic_book():
+    """Empty paper book so rail tests can run when the live ledger is not in this tree.
+    Never written under reports/ or state/. The Mac's real ledger is used when it is present."""
+    import copy
+    seat = dict(seed_aud=500000.0, cash_aud=500000.0, positions={}, closed=[], commission_expense_aud=0.0,
+                commission_forfeit_credit_aud=0.0, day_start_equity_aud=500000.0, pnl_since_inception_aud=0.0, today_pnl_aud=0.0, equity_aud=500000.0)
+    traders = ["energy", "essentials_utilities", "banks", "healthcare", "macro", "news_filings", "price_action", "crypto", "fx_commodities", "tech_ai_infra", "trend"]
+    return dict(book="veteran_desk", paper_only=True, ccy_native="AUD", audusd=0.70, audusd_at_seed=0.70,
+                seed_aud=500000.0 * len(traders), start=round(500000.0 * len(traders) * 0.70, 2),
+                seats={s: copy.deepcopy(seat) for s in traders}, capital_events=[], hedge={"disabled": True},
+                kill_switch={"state": "OK"}, peak_equity_aud=500000.0 * len(traders), holdings={})
 def _redirect():
     from veteran_desk import feeds as FD, payouts as PY, leaderboard as LB
     FD.FH = os.path.join(TMP, "feeds_health.json"); FD.CG_CACHE = os.path.join(TMP, "coingecko_cache.json")
@@ -47,6 +58,14 @@ def _redirect():
     PY.DEFAULT_OUT_PATH = os.path.join(TMP, "veteran_desk_payouts.json"); LB.LIVE = os.path.join(TMP, "leaderboard.json")
     import funder_gate as FG
     FG._lock = lambda: contextlib.nullcontext()   # shared desk_lock lives under live reports/; tests use tmp queues only
+    live_book = os.path.join(ROOT, "reports", "veteran_desk_book.json")
+    if not os.path.exists(live_book):
+        import json
+        from veteran_desk import book as _BK
+        syn = os.path.join(TMP, "synthetic_veteran_desk_book.json")
+        with open(syn, "w") as fh: json.dump(_synthetic_book(), fh)
+        _BK._REAL_BOOK = syn
+        if not _BK.THF: _BK.BOOK = syn
 _redirect()
 def pytest_sessionfinish(session, exitstatus):
     after = _sig(); changed = [k for k in KEY if after[k] != _BEFORE[k]]
@@ -59,7 +78,8 @@ def _no_live_writes():
     new = VIOLATIONS[n:]
     if new: pytest.fail("TEST GUARD: test wrote live paths: %s" % new[:5], pytrace=False)
 _PINNED = [("veteran_desk.payouts", a) for a in ("DEFAULT_OUT_PATH", "DEFAULT_FWD_PATH", "DEFAULT_SCORE_PATH")] + [("veteran_desk.leaderboard", "LIVE"), ("veteran_desk.feeds", "FH"), ("veteran_desk.feeds", "CG_CACHE"),
-           ("veteran_desk.book", "BOOK"), ("veteran_desk.book", "now"), ("veteran_desk.book", "HEDGE_ARCHIVE"), ("veteran_desk.book", "KILL_ALERT_PATH")]
+           ("veteran_desk.book", "BOOK"), ("veteran_desk.book", "now"), ("veteran_desk.book", "HEDGE_ARCHIVE"), ("veteran_desk.book", "KILL_ALERT_PATH"),
+           ("veteran_desk.book", "session_open"), ("veteran_desk.book", "posture"), ("veteran_desk.book", "firm_ok"), ("veteran_desk.book", "first_print_after_open")]
 @pytest.fixture(autouse=True)
 def _restore_module_paths():
     """Tests that repoint module paths without restoring them must not leak into later tests."""

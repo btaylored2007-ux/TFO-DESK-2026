@@ -13,6 +13,9 @@ import datetime as dt, json, os, sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from veteran_desk import desk as D, book as BK, pit as P
 LESSONS = os.path.join(D.SD, "lessons.jsonl")
+def _sh(p, n=None):
+    """Position quantity via book._qty. int(0.33) is 0 and drops the crypto notional."""
+    return BK._qty(p if n is None else dict(p, shares=n))
 def _out(o): print(json.dumps(o, default=str)); return 0 if o.get("ok", True) else 1
 DEBATE_TIMEOUT_S = int(os.environ.get("VET_DEBATE_TIMEOUT_S", "60"))   # 2026-10-28 20:47 WITA Brett trim advisory: hard 60s cap; timeout -> no challenger (gate handles), never hangs
 def debate(seat, p, f, S):
@@ -82,11 +85,12 @@ def close(seat, pid, reason, price_fn=None, shares=None, pct=None):
         if p["status"] == "armed":
             if shares is not None or pct is not None: return dict(ok=False, error="partial close only on open positions (armed: amend --shares or withdraw)")
             p.update(status="cancelled", why=reason, closed_utc=t.isoformat()); B["closed"].append(dict(p)); del B["positions"][pid]; BK._wj(BK.BOOK, D_); return dict(ok=True, cancelled=pid)
-        m = (price_fn or BK.live_px)(p["ticker"]) or {}; x = m.get("last") or p.get("mark") or p["fill"]; au = D_.get("audusd") or BK.audusd(); tot = int(p["shares"])
+        m = (price_fn or BK.live_px)(p["ticker"]) or {}; x = m.get("last") or p.get("mark") or p["fill"]; au = D_.get("audusd") or BK.audusd(); tot = _sh(p)
         if shares is not None or pct is not None:
-            h = int(shares) if shares is not None else int(tot * float(pct) / 100.0)
-            if h < 1: return dict(ok=False, error="partial close size rounds to < 1 share")
-            if tot - h < 1: return dict(ok=False, error="partial close would leave %d share(s) residual (< 1) - use a full close" % (tot - h))
+            crypto = BK._is_crypto(p)
+            h = _sh(p, shares) if shares is not None else (BK.crypto_units(tot * float(pct) / 100.0) if crypto else int(tot * float(pct) / 100.0))
+            if h <= 0 or (not crypto and h < 1): return dict(ok=False, error="partial close size rounds to < 1 share")
+            if tot - h <= 0 or (not crypto and tot - h < 1): return dict(ok=False, error="partial close would leave %s residual (< 1 share) - use a full close" % (tot - h))
             n_ = sum(1 for c in B["closed"] if str(c.get("id", "")).startswith(pid + "-P"))
             part = BK.partial_close(B, p, pid, x, h, au, t, "seat_partial_close: " + str(reason)[:120], "-P%d" % (n_ + 1))
             p.setdefault("rail_log", []).append(dict(utc=t.isoformat(), ev="seat_partial_close", px=x, shares=h, residual=p["shares"], reason=str(reason)[:120]))
@@ -154,8 +158,8 @@ def amend(seat, pid, reason, stop=None, shares=None, target=None):
             p["stop"] = stop
         if shares is not None:
             if p["status"] != "armed": return dict(ok=False, error="size amend only on armed orders (open trades: close or let stops run)")
-            q = int(shares); eq = BK.seat_equity(seat); per = abs(BK.aud(p["ticker"], p["entry"], au) - BK.aud(p["ticker"], p["stop"], au)) if not BK.is_fx(p) else None
-            if q < 1: return dict(ok=False, error="shares must be >= 1")
+            q = _sh(p, shares); eq = BK.seat_equity(seat); per = abs(BK.aud(p["ticker"], p["entry"], au) - BK.aud(p["ticker"], p["stop"], au)) if not BK.is_fx(p) else None
+            if q <= 0 or (not BK._is_crypto(p) and q < 1): return dict(ok=False, error="shares must be >= 1")
             if per is not None:
                 r = per * q / eq
                 if r < BK.RISK_MIN - 1e-9 or r > BK.RISK_MAX + 1e-9: return dict(ok=False, error="risk %.2f%% outside 1-5%% rails (tfo_a1pct_20261031: A floor 1%%, never force up; non-A 2%%)" % (r * 100))
@@ -168,7 +172,7 @@ def amend(seat, pid, reason, stop=None, shares=None, target=None):
         # 2026-10-29 infra (Marcus/Theo): stop/size amend recalculates risk_aud from new stop distance so heat is not overstated.
         if stop is not None or shares is not None:
             try:
-                eq = BK.seat_equity(seat); q = int(p["shares"]); ref_px = float(p.get("fill") or p["entry"])
+                eq = BK.seat_equity(seat); q = _sh(p); ref_px = float(p.get("fill") or p["entry"])
                 per = BK.aud(p["ticker"], abs(ref_px - float(p["stop"])), au)
                 p["risk_aud"] = round(per * q, 2); p["risk_pct"] = round(per * q / eq, 4) if eq else p.get("risk_pct")
             except Exception:

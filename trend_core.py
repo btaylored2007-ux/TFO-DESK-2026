@@ -312,6 +312,13 @@ def plan_entry(sig, nav_aud, scale, marks, fx):
 
 
 def apply_buys(L, orders, sig, scale, marks, src, fx, fx_src, reason="entry"):
+    try:
+        import book_kill
+        _blocked, _why = book_kill.firm_halt_blocks_entry("trend_core")
+        if _blocked:
+            log("ENTRY REFUSED firm halt: " + _why); return []
+    except Exception:
+        pass
     cash = float(L["cash_aud"])
     fills = []
     for o in orders:

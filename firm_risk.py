@@ -21,14 +21,13 @@ NEW position.
 THE TWO LEVELS (frozen)
 -----------------------
     -10%  WARN            loud banner, dashboard banner. Nothing is blocked.
-    -20%  HALT NEW ENTRIES a firm-level flag. ACCURACY (CM-045): the gate is
-          wired into the FOUR desk floors only (kraken, replica, coinspot,
-          cross_asset). The remaining books — tournament sleeves, growth_book,
-          value_book, the carry books, the punt, the engine — publish into the
-          firm series but do NOT yet consult the flag before opening. That gap
-          is recorded in FIRM_RISK_AMENDMENT.md. Previously this docstring
-          claimed 'every book checks it', which was not true; it now checks it before
-                          OPENING a position. EXITS ARE NEVER BLOCKED.
+    -20%  HALT NEW ENTRIES a firm-level flag. book_kill.firm_halt_blocks_entry
+          is the shared pre-trade check for tfo_buy, tfo_crypto, the hunt48
+          engines, trend18, trend_core, trend_core_global and oanda_aggro.
+          It refuses only a published HALT_NEW_ENTRIES. A missing or stale
+          state file does not refuse (that would be a tooling failure). The
+          four desk floors still call firm_gate(), which also refuses when the
+          state file itself is missing or stale. EXITS ARE NEVER BLOCKED.
 
 *** THIS MONITOR NEVER FORCE-LIQUIDATES. NOT AT ANY LEVEL. ***
 Twenty-seven books are running pre-registered forward tests. Auto-closing them

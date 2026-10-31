@@ -354,9 +354,12 @@ def us_cap_fill_block(t):
     return None if ok else why
 
 def apply_plan(path, now):
+    with _hunt_lock():
+        return _apply_plan_body(path, now)
+def _apply_plan_body(path, now):
     """plan json: {label, cut:[{ticker,reason}], set:[{ticker,trigger,max_fill,stop,t1,t2,shares,atr}], cash_slots:[..], note}"""
     P = json.load(open(path))
-    L = json.load(open(LEDGER)) if os.path.exists(LEDGER) else new_ledger(P.get("label", "Our picks"))
+    L = _read_ledger(lambda: new_ledger(P.get("label", "Our picks")))
     evs = []   # audit H7: one bad row never aborts the plan; the ledger is written BEFORE the events are appended
     for c in P.get("cut", []):
         if not isinstance(c, dict): c = dict(ticker=str(c), reason=P.get("note") or "cut")   # gatecut 2026-10-30: accept plain ticker strings
@@ -411,6 +414,14 @@ def short_may_carry(t, px):
 def try_fill(t, bars, now, fx=None):
     """bars: list of dict(start: datetime UTC, o,h,l,c) 15m regular-session bars. Only bars completed by `now` and
     started after armed_utc count. Mutates t; returns event kind or None."""
+    try:
+        import book_kill
+        _blocked, _why = book_kill.firm_halt_blocks_entry("hunt48_short")
+    except Exception:
+        _blocked, _why = False, "ok"
+    if _blocked:
+        t["exec_note"] = _why
+        return None
     armed = dt.datetime.fromisoformat(t["armed_utc"])
     for b in bars:
         if b["start"] + dt.timedelta(minutes=15) <= armed or b["start"] + dt.timedelta(minutes=15) > now: continue
@@ -794,76 +805,89 @@ def us_rth(now):
     ny = now.astimezone(ZoneInfo("America/New_York"))
     return ny.weekday() < 5 and dt.time(9, 30) <= ny.time() <= dt.time(16, 5)
 
+def _hunt_lock():
+    import desk_lock
+    return desk_lock.ledger_lock("hunt48_short" + _SFX)
+def _read_ledger(missing):
+    """missing() is used only when the file is absent. A present unreadable file is never replaced."""
+    if not os.path.exists(LEDGER):
+        return missing()
+    try:
+        with open(LEDGER) as f:
+            return json.load(f)
+    except Exception as e:
+        raise RuntimeError("ledger EXISTS but is unreadable — NOT replaced with an empty book: %s (%s)" % (LEDGER, type(e).__name__)) from e
 def tick(force=False):
-    L = json.load(open(LEDGER)); now = now_utc(); fx = live_audusd(L["audusd_armed"]); rth = us_rth(now)
-    # 2026-10-28 Brett 10:37 FUNDER GATE: ARMED (not funder-approved) -> awaiting_funder + state/funder_queue.json; ticks applied here, before any fill
-    import funder_gate as FG
-    def _lp(t):
-        b = bars_15m(t["ticker"]); return b[-1]["c"] if b else None
-    def _fexp(t, n):      # same-day clearance rule; no clearance date -> the first NY close after it was queued
-        if clearance_expiry(t): return clearance_expired(t, n)
-        q = dt.datetime.fromisoformat(t.get("funder_queued_utc") or n.isoformat()); d = q.astimezone(_NY).date()
-        while not ny_session(d) or ny_close_utc(d) <= q: d += dt.timedelta(days=1)
-        return n > ny_close_utc(d)
-    for tk, a in FG.gate_tick({"": "us_main", "gpt": "us_gpt", "claude": "us_claude"}.get(BOOK, "us_" + BOOK), L, now, _lp, _fexp, audusd=fx, base=os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(LEDGER))))):
-        event("funder_gate", ticker=tk, action=a)
-    open_now = sum(t["status"] == "FILLED" for t in L["trades"])
-    for tk, f, to in apply_event_exit(L, hi_events(), now): event("time_exit_event_adjusted", ticker=tk, from_utc=f, to_utc=to)
-    for t in sorted(L["trades"], key=lambda x: bool(x.get("bench"))):   # primaries (SLV/FLG) get first claim within a tick
-        if t["status"] in ("MISSED", "STOPPED", "CLOSED", "CUT", "SHADOW", "awaiting_funder", "REJECTED_FUNDER", "EXPIRED"): continue
-        if t["status"] == "ARMED" and clearance_expired(t, now):   # review fix #2: same-day clearance; never fills on a stale approval
-            cut_trade(L, t["ticker"], f"clearance {t['cleared']} expired (same-day rule)", now); event("clearance_expired_cut", ticker=t["ticker"], cleared=t["cleared"]); continue
-        if not (rth or force): continue
-        try:
-            b = bars_15m(t["ticker"]); t.pop("data_error", None)   # audit H14: an error clears once data flows again
-            if b: t["last_px"] = b[-1]["c"]; t["last_px_utc"] = b[-1]["start"].isoformat()
-            if t["status"] == "ARMED" and t.get("bench"):   # fix 3: bench needs full clearance; else stays ARMED, no fill
-                ok, why = bench_clearance(t, now); t["bench_clearance"] = dict(ok=ok, why=why, utc=now.isoformat(timespec="seconds"))
-                if not ok: continue
-            if t["status"] == "ARMED":
-                # audit H3 (Brett 27 Oct 19:35 WITA): a fill is committed only after causal_guard, room_check and slot_gate all pass.
-                # Any exception in the fill or a gate restores the ARMED snapshot (no FILLED trade ever bypasses the gates).
-                snap = copy.deepcopy(t)
-                try:
-                    k = try_fill(t, b, now, fx)
-                    if k == "filled" and causal_guard.check(t, now):   # reject non-causal fill: back to ARMED, log
-                        vio = causal_guard.check(t, now)
-                        t.clear(); t.update(copy.deepcopy(snap))   # audit H3 hardening: restore the pre-fill ARMED snapshot (no fees/shares/exit/_last_bar leak)
-                        t["last_causal_reject"] = dict(utc=now.isoformat(timespec="seconds"), v=vio)
-                        L["causal_rejects"] = L.get("causal_rejects", 0) + 1; event("causal_reject", ticker=t["ticker"], v=vio); k = None
-                    if k == "filled":
-                        rc = room_check(t, bars_daily(t["ticker"]), t["entry"]); t["room_check"] = rc
-                        if not rc["ok"] and rc.get("no_data"):   # audit retry-edge hardening (Brett 21:11 WITA): empty daily bars -> kept ARMED, retried next tick
-                            raise RuntimeError("no daily bars at fill (data outage): retry next tick")
-                        if not rc["ok"]: _shadow(t, rc["why"]); k = "shadow"
-                    if k == "filled":   # audit H6: earnings inside the maximum hold -> never a position
-                        es, eb = earnings_status(t, now)   # audit H6 hardening: a check error raises -> kept ARMED, retried next tick
-                        t["earnings_at_fill"] = dict(utc=now.isoformat(timespec="seconds"), status=es, why=eb)
-                        if es == "block": _shadow(t, eb); k = "shadow"
-                    if k == "filled": k = slot_gate(t, open_now, MAX_OPEN, [x for x in L["trades"] if x["status"] == "FILLED" and x is not t])
-                    if k == "filled":   # review fix #6: firm-level ticker + net-direction rules (sibling ledger read error -> kept ARMED)
-                        fw = firm_gate(t, [x for x in L["trades"] if x["status"] == "FILLED" and x is not t], firm_other_open())
-                        if fw: k = firm_undo(t, fw)
-                    if k == "filled":   # tfo_usbook_cap_20261030: main-book US beta cap at fill -> stays ARMED (retried), no position
-                        _ubw = us_cap_fill_block(t)
-                        if _ubw:
-                            t.clear(); t.update(copy.deepcopy(snap)); t["us_book_cap_block"] = dict(utc=now.isoformat(timespec="seconds"), why=_ubw[:200])
-                            event("us_book_cap_block", ticker=t["ticker"], why=_ubw[:200]); k = None
-                except Exception as e:
-                    t.clear(); t.update(snap); t["data_error"] = ("gate error, kept ARMED: " + str(e))[:120]
-                    event("gate_error_kept_armed", ticker=t["ticker"], e=str(e)[:120]); k = None
-                open_now += k == "filled"
-                if k == "filled" and t.get("risk_resized_at_fill") and not snap.get("risk_resized_at_fill"):
-                    event("risk_trim", ticker=t["ticker"], note=t["risk_resized_at_fill"])   # audit H5 hardening
-                if k: event(k, ticker=t["ticker"], entry=t.get("entry"), shadow_entry=t.get("shadow_entry"), bench=bool(t.get("bench")))
-            if t["status"] == "FILLED" and t.get("pending_cover") and b:   # discretionary cut: cover ALL at current RTH price
-                _cover(t, t["open_qty"], b[-1]["c"], t["pending_cover"], now); t.update(status="CLOSED", exit_reason=t.pop("pending_cover"))
-                event("discretionary_cover", ticker=t["ticker"], exits=t["exits"][-1:]); continue
-            if t["status"] == "FILLED":   # audit H9: stops/T1 first; daily bars lazily + optional (failure = no extension, never skips stops)
-                for k in manage(t, b, now, None, daily_fn=(lambda tk=t["ticker"]: bars_daily(tk))): event(k, ticker=t["ticker"], exits=t["exits"][-1:] or None)
-                if t.pop("daily_error", None): event("daily_data_error", ticker=t["ticker"], note="no extension this tick")
-        except Exception as e: t["data_error"] = str(e)[:120]; event("data_error", ticker=t["ticker"], e=str(e)[:120])
-    write_status(L, fx, now); atomic(LEDGER, L)
+    with _hunt_lock():
+        L = _read_ledger(lambda: (_ for _ in ()).throw(FileNotFoundError(LEDGER))); now = now_utc(); fx = live_audusd(L["audusd_armed"]); rth = us_rth(now)
+        # 2026-10-28 Brett 10:37 FUNDER GATE: ARMED (not funder-approved) -> awaiting_funder + state/funder_queue.json; ticks applied here, before any fill
+        import funder_gate as FG
+        def _lp(t):
+            b = bars_15m(t["ticker"]); return b[-1]["c"] if b else None
+        def _fexp(t, n):      # same-day clearance rule; no clearance date -> the first NY close after it was queued
+            if clearance_expiry(t): return clearance_expired(t, n)
+            q = dt.datetime.fromisoformat(t.get("funder_queued_utc") or n.isoformat()); d = q.astimezone(_NY).date()
+            while not ny_session(d) or ny_close_utc(d) <= q: d += dt.timedelta(days=1)
+            return n > ny_close_utc(d)
+        for tk, a in FG.gate_tick({"": "us_main", "gpt": "us_gpt", "claude": "us_claude"}.get(BOOK, "us_" + BOOK), L, now, _lp, _fexp, audusd=fx, base=os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(LEDGER))))):
+            event("funder_gate", ticker=tk, action=a)
+        open_now = sum(t["status"] == "FILLED" for t in L["trades"])
+        for tk, f, to in apply_event_exit(L, hi_events(), now): event("time_exit_event_adjusted", ticker=tk, from_utc=f, to_utc=to)
+        for t in sorted(L["trades"], key=lambda x: bool(x.get("bench"))):   # primaries (SLV/FLG) get first claim within a tick
+            if t["status"] in ("MISSED", "STOPPED", "CLOSED", "CUT", "SHADOW", "awaiting_funder", "REJECTED_FUNDER", "EXPIRED"): continue
+            if t["status"] == "ARMED" and clearance_expired(t, now):   # review fix #2: same-day clearance; never fills on a stale approval
+                cut_trade(L, t["ticker"], f"clearance {t['cleared']} expired (same-day rule)", now); event("clearance_expired_cut", ticker=t["ticker"], cleared=t["cleared"]); continue
+            if not (rth or force): continue
+            try:
+                b = bars_15m(t["ticker"]); t.pop("data_error", None)   # audit H14: an error clears once data flows again
+                if b: t["last_px"] = b[-1]["c"]; t["last_px_utc"] = b[-1]["start"].isoformat()
+                if t["status"] == "ARMED" and t.get("bench"):   # fix 3: bench needs full clearance; else stays ARMED, no fill
+                    ok, why = bench_clearance(t, now); t["bench_clearance"] = dict(ok=ok, why=why, utc=now.isoformat(timespec="seconds"))
+                    if not ok: continue
+                if t["status"] == "ARMED":
+                    # audit H3 (Brett 27 Oct 19:35 WITA): a fill is committed only after causal_guard, room_check and slot_gate all pass.
+                    # Any exception in the fill or a gate restores the ARMED snapshot (no FILLED trade ever bypasses the gates).
+                    snap = copy.deepcopy(t)
+                    try:
+                        k = try_fill(t, b, now, fx)
+                        if k == "filled" and causal_guard.check(t, now):   # reject non-causal fill: back to ARMED, log
+                            vio = causal_guard.check(t, now)
+                            t.clear(); t.update(copy.deepcopy(snap))   # audit H3 hardening: restore the pre-fill ARMED snapshot (no fees/shares/exit/_last_bar leak)
+                            t["last_causal_reject"] = dict(utc=now.isoformat(timespec="seconds"), v=vio)
+                            L["causal_rejects"] = L.get("causal_rejects", 0) + 1; event("causal_reject", ticker=t["ticker"], v=vio); k = None
+                        if k == "filled":
+                            rc = room_check(t, bars_daily(t["ticker"]), t["entry"]); t["room_check"] = rc
+                            if not rc["ok"] and rc.get("no_data"):   # audit retry-edge hardening (Brett 21:11 WITA): empty daily bars -> kept ARMED, retried next tick
+                                raise RuntimeError("no daily bars at fill (data outage): retry next tick")
+                            if not rc["ok"]: _shadow(t, rc["why"]); k = "shadow"
+                        if k == "filled":   # audit H6: earnings inside the maximum hold -> never a position
+                            es, eb = earnings_status(t, now)   # audit H6 hardening: a check error raises -> kept ARMED, retried next tick
+                            t["earnings_at_fill"] = dict(utc=now.isoformat(timespec="seconds"), status=es, why=eb)
+                            if es == "block": _shadow(t, eb); k = "shadow"
+                        if k == "filled": k = slot_gate(t, open_now, MAX_OPEN, [x for x in L["trades"] if x["status"] == "FILLED" and x is not t])
+                        if k == "filled":   # review fix #6: firm-level ticker + net-direction rules (sibling ledger read error -> kept ARMED)
+                            fw = firm_gate(t, [x for x in L["trades"] if x["status"] == "FILLED" and x is not t], firm_other_open())
+                            if fw: k = firm_undo(t, fw)
+                        if k == "filled":   # tfo_usbook_cap_20261030: main-book US beta cap at fill -> stays ARMED (retried), no position
+                            _ubw = us_cap_fill_block(t)
+                            if _ubw:
+                                t.clear(); t.update(copy.deepcopy(snap)); t["us_book_cap_block"] = dict(utc=now.isoformat(timespec="seconds"), why=_ubw[:200])
+                                event("us_book_cap_block", ticker=t["ticker"], why=_ubw[:200]); k = None
+                    except Exception as e:
+                        t.clear(); t.update(snap); t["data_error"] = ("gate error, kept ARMED: " + str(e))[:120]
+                        event("gate_error_kept_armed", ticker=t["ticker"], e=str(e)[:120]); k = None
+                    open_now += k == "filled"
+                    if k == "filled" and t.get("risk_resized_at_fill") and not snap.get("risk_resized_at_fill"):
+                        event("risk_trim", ticker=t["ticker"], note=t["risk_resized_at_fill"])   # audit H5 hardening
+                    if k: event(k, ticker=t["ticker"], entry=t.get("entry"), shadow_entry=t.get("shadow_entry"), bench=bool(t.get("bench")))
+                if t["status"] == "FILLED" and t.get("pending_cover") and b:   # discretionary cut: cover ALL at current RTH price
+                    _cover(t, t["open_qty"], b[-1]["c"], t["pending_cover"], now); t.update(status="CLOSED", exit_reason=t.pop("pending_cover"))
+                    event("discretionary_cover", ticker=t["ticker"], exits=t["exits"][-1:]); continue
+                if t["status"] == "FILLED":   # audit H9: stops/T1 first; daily bars lazily + optional (failure = no extension, never skips stops)
+                    for k in manage(t, b, now, None, daily_fn=(lambda tk=t["ticker"]: bars_daily(tk))): event(k, ticker=t["ticker"], exits=t["exits"][-1:] or None)
+                    if t.pop("daily_error", None): event("daily_data_error", ticker=t["ticker"], note="no extension this tick")
+            except Exception as e: t["data_error"] = str(e)[:120]; event("data_error", ticker=t["ticker"], e=str(e)[:120])
+        write_status(L, fx, now); atomic(LEDGER, L)
 
 def write_status(L, fx, now):
     rows = []; tot = 0.0; cut = []

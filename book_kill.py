@@ -301,6 +301,28 @@ _FIRM_CACHE = {"epoch": 0.0, "val": None}
 FIRM_CACHE_TTL_SEC = 60
 
 
+def firm_halt_blocks_entry(label=""):
+    """(blocked, reason). The one pre-trade firm-halt check entry paths call.
+
+    A published HALT_NEW_ENTRIES refuses the new entry. A missing, stale, or
+    unreadable firm-state file is a tooling failure and does not refuse: only
+    the halt itself is a risk rule here. Exits must not call this. Floors that
+    already call firm_gate() keep that function's fail-closed behaviour.
+    """
+    try:
+        halted, level, detail = firm_gate(verbose=False)
+    except Exception as e:                          # noqa: BLE001 - tooling, not a halt
+        print("!! firm halt check failed (%s: %s) — not blocking %s"
+              % (type(e).__name__, e, label or "entry"))
+        return False, "ok"
+    if level in ("UNAVAILABLE", "STALE", "UNMEASURED"):
+        return False, "ok"
+    if level == "HALT_NEW_ENTRIES" or halted:
+        return True, ("FIRM HALT (%s): %s — new entries refused; exits unaffected"
+                      % (level, detail))
+    return False, "ok"
+
+
 def firm_entries_allowed(label="", verbose=True):
     """(allowed, reason) consulting ONLY the firm-wide halt.
 

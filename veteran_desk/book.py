@@ -1347,9 +1347,18 @@ def tick(price_fn=None, au=None, queue_path=None):
                     c = (leg_cost_aud(p, f, p["shares"], au, marks, "entry") / n) if n else c   # tfo_costmodel_20261030
                     slip = round((f / p["entry"] - 1) * (1 if L else -1) * 1e4, 1)
                     if ot not in ("limit", "stop_limit") or slip > SLIP_COLLAR_BPS + 1e-9: p["exec_note"] = f"{EXEC_TRADER}: fill {f:g} is {slip:.1f} bps through plan {p['entry']:g} (> {SLIP_COLLAR_BPS:g} bps collar or bad order type {ot}) - rejected, order still working"; _slip_log(seat, k, p, f, slip, ot, t); ev.append((k, "blocked", "slip_collar")); continue   # tfo_review_20261030
-                    if THF and not ok: p["exec_note"] = f"{EXEC_TRADER}: THF fill-time firm/kill check: {why} - no fill, order still working"; ev.append((k, "blocked", "firm_halt")); continue   # tfo_thffresh_20261030 (GPT review HIGH)
-                    if THF and ((L and float(f) <= float(p["stop"])) or (not L and float(f) >= float(p["stop"]))): p["exec_note"] = f"{EXEC_TRADER}: THF fill {f:g} at/through stop {p['stop']:g} - no fill"; ev.append((k, "blocked", "fill_through_stop")); continue
-                    if THF and (p.get("risk_aud") or 0) and abs(float(f) - float(p["stop"])) * p["shares"] * (1.0 / quote_to_aud(p["ticker"], au, marks) if is_fx(p) else aud(p["ticker"], 1.0, au)) > RISK_MAX * float(equity_aud(B, marks, au)) * 1.001: p["exec_note"] = f"{EXEC_TRADER}: THF fill-time risk > {RISK_MAX:.0%} cap - no fill"; ev.append((k, "blocked", "risk_cap_5pct")); continue
+                    # Three fill guards. THF keeps fail-closed on an unreadable firm file (not ok).
+                    # VD blocks the same real rules — firm halt, desk kill, fill through the stop, 5% cap —
+                    # and does not refuse because firm_risk.json is missing (tooling).
+                    _kill_flat = (D.get("kill_switch") or {}).get("state") == "FLAT"
+                    _firm_rail = str(why).startswith("firm rail")
+                    if (THF and not ok) or ((not THF) and (_kill_flat or _firm_rail)):
+                        p["exec_note"] = f"{EXEC_TRADER}: fill-time firm/kill check: {why} - no fill, order still working"; ev.append((k, "blocked", "firm_halt")); continue
+                    if (L and float(f) <= float(p["stop"])) or (not L and float(f) >= float(p["stop"])):
+                        p["exec_note"] = f"{EXEC_TRADER}: fill {f:g} at/through stop {p['stop']:g} - no fill"; ev.append((k, "blocked", "fill_through_stop")); continue
+                    _qfill = _qty(p)
+                    if (p.get("risk_aud") or 0) and abs(float(f) - float(p["stop"])) * _qfill * (1.0 / quote_to_aud(p["ticker"], au, marks) if is_fx(p) else aud(p["ticker"], 1.0, au)) > RISK_MAX * float(equity_aud(B, marks, au)) * 1.001:
+                        p["exec_note"] = f"{EXEC_TRADER}: fill-time risk > {RISK_MAX:.0%} cap - no fill"; ev.append((k, "blocked", "risk_cap_5pct")); continue
                     _ub = us_beta_block(D, p, f, marks, au)   # tfo_usbeta_cap_20261030: arm stays armed, no fill
                     if _ub: p.update(exec_note=f"{EXEC_TRADER}: {_ub} - no fill, order still working", us_beta_block=_ub, us_beta_block_utc=t.isoformat()); ev.append((k, "blocked", "us_beta_cap")); continue
                     _cf = prefill_seat_cap(p, f, n, float(equity_aud(B, marks, au)), au, marks)   # capfill 30 Oct (Brett HIGH): 40%/75%/margin seat cap re-checked at fill; orders armed before seatcap2 are resized down

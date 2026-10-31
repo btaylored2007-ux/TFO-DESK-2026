@@ -682,8 +682,8 @@ That appends to `.txt` and adds a short `##` section here. Do not invent P&L or 
 
 ## 2026-10-30 20:44 WITA — encbackup (TFO, Brett: cloud instead of thumb drive) — PAPER
 - tools/run_offsite_backup.sh (.bak-20261030-encbackup) now runs new tools/encrypted_state_backup.sh instead of plaintext offsite_backup.sh.
-- Encrypted (openssl AES-256-CBC + PBKDF2 200k, passphrase ~/.tfo_secrets/offsite_backup.pass, 600), ledgers+state only (state/, reports/*.json|jsonl, kraken_bot/*.json, ~/.tfo_swing* sqlite/status), secret patterns excluded AND listing checked (refuses on match); decrypt self-test; remote sha256 verify; keep 14.
-- Dest: existing droplet 168.144.170.165:/root/tfo_backups/enc. Daily (launchd com.tfo.offsite-backup, 20h min gap). First run 20:43:50 WITA ok, 960M, 6538 files.
+- Encrypted (openssl AES-256-CBC + PBKDF2 200k). Passphrase file and destination are in the untracked offsite env, not in this log. Ledgers+state only (state/, reports/*.json|jsonl, kraken_bot/*.json, ~/.tfo_swing* sqlite/status), secret patterns excluded AND listing checked (refuses on match); decrypt self-test; remote sha256 verify; keep 14.
+- Dest: configured offsite directory (host, login and key path are not published). Daily (launchd com.tfo.offsite-backup, 20h min gap). First run 20:43:50 WITA ok, 960M, 6538 files.
 
 ## 2026-10-30 ~20:48 WITA — droplet plaintext backup purge (Brett 20:45 WITA: "delete them if they aren't useful")
 - Verified enc/state_20261030_123842Z.tar.gz.enc on droplet: sha256 864056c7…1639c matches the sha logged at local creation (offsite_backup.log 12:43:50Z).

@@ -37,6 +37,11 @@ for pl in glob.glob(os.path.expanduser("~/Library/LaunchAgents/com.tfo.*.plist")
         m = max([os.path.getmtime(x) for x in (d.get("StandardOutPath"), d.get("StandardErrorPath")) if x and os.path.exists(x)] or [0])
         if False and m and NOW - m > max(3 * iv, 3600) and iv < 86400: stale.append("%s log %dmin old (every %ds)" % (lab, (NOW - m) / 60, iv))
 put("launchd", "red" if bad else ("amber" if stale else "green"), "; ".join(bad + stale)[:1500] or "%d jobs loaded, all clean" % len(ll))
+try:
+    _lr = subprocess.run([sys.executable, os.path.join(os.path.dirname(os.path.abspath(__file__)), "launchd_reconcile.py")], capture_output=True, text=True, timeout=30)
+    put("launchd_repo_drift", "green" if _lr.returncode == 0 else "amber", ((_lr.stdout or _lr.stderr) or "ok")[:500])
+except Exception as _e:
+    put("launchd_repo_drift", "amber", "check error %s" % type(_e).__name__)
 
 # 2 dashboards reachable
 for name, url in [("warroom_18812", "http://127.0.0.1:18812/healthz"), ("veteran_18860", "http://127.0.0.1:18860/"), ("v2_18813", "http://127.0.0.1:18813/")]:
@@ -185,7 +190,7 @@ try:
 except Exception as e: put("should_be_trading", "amber", "check error %s" % e)
 # prune >48h
 for d in glob.glob(os.path.join(BASE, "reports/health_shots/*")):
-    if os.path.isdir(d) and NOW - os.path.getmtime(d) > 48 * 3600 and re.match(r"\d{8}-\d{4}$", os.path.basename(d)): shutil.rmtree(d, ignore_errors=True)
+    if os.path.isdir(d) and NOW - os.path.getmtime(d) > 48 * 3600 and re.match(r"\d{8}-\d{4}", os.path.basename(d)): shutil.rmtree(d, ignore_errors=True)
 out["overall"] = "red" if any(v["status"] == "red" for v in out["items"].values()) else ("amber" if any(v["status"] == "amber" for v in out["items"].values()) else "green")
 json.dump(out, open(os.path.join(SHOTS, "sweep.json"), "w"), indent=1)
 json.dump(out, open(os.path.join(BASE, "state", "health_overlord.json"), "w"), indent=1)

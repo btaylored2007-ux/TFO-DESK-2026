@@ -33,9 +33,24 @@ def touch_fill(t, b, sg):
 def now_utc(): return dt.datetime.now(UTC)
 def atomic(p, o):
     os.makedirs(os.path.dirname(p), exist_ok=True); t = f"{p}.{os.getpid()}.tmp"; json.dump(o, open(t, "w"), indent=1, default=str); os.replace(t, p)
-def load(p, d):
-    try: return json.load(open(p))
-    except Exception: return d
+class LedgerUnreadable(RuntimeError):
+    """The ledger file is on disk but cannot be parsed. Callers must not write a default book over it."""
+
+def load(p, d, strict=False):
+    """Missing file -> default (a new book). Present but unreadable -> default, unless strict.
+
+    strict=True is for ledgers that will be written back: a truncated or corrupt file raises
+    LedgerUnreadable and the caller must not replace it with an empty book.
+    """
+    if not os.path.exists(p):
+        return d
+    try:
+        with open(p) as f:
+            return json.load(f)
+    except Exception as e:
+        if strict:
+            raise LedgerUnreadable("ledger EXISTS but is unreadable — NOT replaced with an empty book: %s (%s)" % (p, type(e).__name__)) from e
+        return d
 def book_open(trades):
     """audit H8: the ONE max-open definition (per book) shared with the hunt48 engines: FILLED/PARTIAL rows of this book only."""
     return sum(t.get("status") in ("FILLED", "PARTIAL") for t in trades)
@@ -138,7 +153,7 @@ def step(t, bars, now, open_slots, rule="close", giveback=False, news=None, engi
     if t["status"] == "CLOSED": t["net_usd"] = round(t["realised_usd"] - t["est_cost_usd"], 2); t["net_aud"] = round(t["net_usd"] / AUDUSD, 2)
     return open_slots
 def run(now=None, fetch=bars_yf, cal=None, base=BASE):
-    now = now or now_utc(); L = load(LEDGER, dict(book="CALENDAR_PAPER_BENCH", paper_only=True, trades=[]))
+    now = now or now_utc(); L = load(LEDGER, dict(book="CALENDAR_PAPER_BENCH", paper_only=True, trades=[]), strict=True)
     cal = cal or load(os.path.join(base, "static", "event_calendar.json"), {})
     active = {t["sym"] for t in L["trades"] if t["status"] in ("ARMED", "FILLED")}
     for s in cal.get("staged", []):

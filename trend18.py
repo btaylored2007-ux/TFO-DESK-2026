@@ -895,6 +895,14 @@ def room_report(plan, L, g, base_usd, fi=None):
 def book_fill(L, r, utc, tag, quote_meta):
     q, px, kind, inst = float(r["order_qty"]), float(r["px"]), r["kind"], r["inst"]
     if q == 0: return None
+    if q > 0:
+        try:
+            import book_kill
+            _blocked, _why = book_kill.firm_halt_blocks_entry("trend18")
+            if _blocked:
+                log("ENTRY REFUSED firm halt %s: %s" % (inst, _why)); return None
+        except Exception:
+            pass
     notional = abs(q) * px; fee = round(notional * COST_SIDE[kind], 2)
     cur = float(L["holdings"].get(inst, 0.0)); avg = float(L["entry_px"].get(inst) or 0)
     realised = 0.0

@@ -50,6 +50,12 @@ def firm_state():
 
 def gates(sym, usd, theme):
     fails = []; now = dt.datetime.now(UTC); u = sym.upper()
+    try:
+        import book_kill
+        _blocked, _why = book_kill.firm_halt_blocks_entry("tfo_buy")
+        if _blocked: fails.append(_why)
+    except Exception:
+        pass
     _vr = v1_venues.entry_block_reason(sym, now)
     if _vr: fails.append(_vr)
     if u in CLOSED_NAMES or u.split(".")[0] in CLOSED_NAMES: fails.append("closed name")
@@ -161,6 +167,14 @@ def _cap_log_path():
     return risk_caps.LOG_PATH if os.path.abspath(R) == os.path.abspath(os.path.join(BASE, "reports")) else os.path.join(R, "risk_cap_log.jsonl")
 
 def execute(sym, usd, theme, label, why, q, risk_cap=None):
+    try:
+        import book_kill
+        _blocked, _why = book_kill.firm_halt_blocks_entry("tfo_buy")
+        if _blocked: raise SystemExit("refused: " + _why)
+    except SystemExit:
+        raise
+    except Exception:
+        pass
     now = dt.datetime.now(UTC); utc = now.strftime("%Y-%m-%dT%H:%M:%SZ"); tid = "HT-" + uuid.uuid4().hex[:10]
     v1_venues.require_entry_allowed(sym, now)  # hard stop even if a caller skipped gates()
     _cap = risk_caps.planned_loss_cap_usd(SHARK_SIZING_STOP, **risk_caps.theme_params(theme))  # Brett 2026-10-09: entry-engine theme $150k

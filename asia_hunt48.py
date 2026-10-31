@@ -227,12 +227,21 @@ def _track_fetch(f):   # 2026-10-29 TFO 11:12 WITA fix 2 (additive): record late
         return b
     return g
 def run(mkt, now=None, fetch=None, base=BASE, force=False, live=live_px):
+    import desk_lock
+    with desk_lock.ledger_lock("hunt48_%s" % mkt):
+        return _run_hunt_asia(mkt, now, fetch, base, force, live)
+def _run_hunt_asia(mkt, now=None, fetch=None, base=BASE, force=False, live=live_px):
     if fetch is None:   # 2026-10-30 paidbars: paid-first hourly bars (EODHD where it matches Yahoo exactly), Yahoo CB.bars_yf fallback; source logged
         import paid_bars as PB; fetch = lambda y, s: PB.hourly(y, s, CB.bars_yf)
     fetch = _track_fetch(fetch)
     now = now or CB.now_utc(); M = AM.MARKETS[mkt]; SD, LEDGER, STATUS = paths(mkt, base)
     rows = load_rows(mkt, base); earn, halted = load_events(mkt, base); fx = fx_aud(mkt, rows)
-    L = CB.load(LEDGER, dict(book=f"HUNT48_{mkt.upper()}", market=M["name"], paper_only=True, capital_aud=CAPITAL_AUD, ccy=M["ccy"], trades=[]))
+    L = CB.load(LEDGER, dict(book=f"HUNT48_{mkt.upper()}", market=M["name"], paper_only=True, capital_aud=CAPITAL_AUD, ccy=M["ccy"], trades=[]), strict=True)
+    try:
+        import book_kill
+        _halt, _why = book_kill.firm_halt_blocks_entry("hunt48_%s" % mkt)
+    except Exception:
+        _halt, _why = False, "ok"
     T = L["trades"]; nid = lambda: max([t["id"] for t in T] or [0]) + 1
     today = local_day(mkt, now); open_today = session_open(mkt, today) if trading_day(mkt, today) else None
     nxt_open = open_today if (open_today and now < open_today) else session_open(mkt, next_td(mkt, today))
@@ -344,6 +353,7 @@ def run(mkt, now=None, fetch=None, base=BASE, force=False, live=live_px):
             ok4, why4 = IR_checks(mkt, cand, now)
             if not ok4: t["bench_note"] = "intraday open-time checks: " + "; ".join(why4)[:200]; continue
         arm_at = open_today if can_arm else now
+        if _halt: t["bench_note"] = "firm halt: " + _why; continue
         t.update({k: cand[k] for k in ("trigger", "max_fill", "stop", "t1", "t2", "shares")}, status="ARMED", promoted_utc=now.isoformat(), cleared_wita=wday(now),
                  armed_utc=arm_at.isoformat(), armed_wita=w(arm_at), intraday_rescan=(w(now) if not can_arm else None), live_px=lp, room_R=cand.get("room_R"), room_basis=cand.get("room_basis"))
         t.pop("bench_note", None)
@@ -357,6 +367,8 @@ def run(mkt, now=None, fetch=None, base=BASE, force=False, live=live_px):
     if in_hours(mkt, now, 75) or force:
         for t in [t for t in T if t["status"] in ("ARMED", "FILLED")]:
             if dt.datetime.fromisoformat(t["armed_utc"]) > now: continue
+            if _halt and t["status"] == "ARMED":
+                t["bench_note"] = "firm halt: " + _why; continue
             try:
                 bars = fetch(t["yahoo"], dt.datetime.fromisoformat(t["armed_utc"])); was = t["status"] == "FILLED"
                 if t["status"] == "ARMED": bars = [b for b in bars if b["t"] <= session_close(mkt, local_day(mkt, dt.datetime.fromisoformat(t["armed_utc"]))) + dt.timedelta(minutes=65)]   # day arm

@@ -1,19 +1,22 @@
 #!/bin/bash
 # 2026-10-30 enccode (Brett: no plaintext to droplet). ENCRYPTED CODE backup, sibling of encrypted_state_backup.sh. Daily.
-# Replaces the code part of retired plaintext offsite_backup.sh tier1. Dest droplet /root/tfo_backups/enc (code_*.tar.gz.enc), keep 7.
-# Same openssl AES-256-CBC+PBKDF2 200k, passphrase file ~/.tfo_secrets/offsite_backup.pass (never printed). Same secret exclusion + refuse-on-match.
+# Replaces the code part of retired plaintext offsite_backup.sh tier1. Keep 7 code archives.
+# Same cipher and the same untracked env file as encrypted_state_backup.sh. Root SSH is refused.
 # Scope: MultiVenueDesk + KrakenQuantDesk source/config/docs files (<2MB). Excludes .git, backups, data/, reports/, state/ (state is in
 # encrypted_state_backup.sh), logs, codex_cutover_*, caches, sqlite/db/parquet, research/work/handover json data.
-# Restore: openssl enc -d -aes-256-cbc -pbkdf2 -iter 200000 -pass file:PASSFILE -in X.tar.gz.enc | tar xzf -
 set -uo pipefail
 DESK="/Users/test/Applications/MultiVenueDesk"; APPS="/Users/test/Applications"
-KEY="$HOME/.ssh/id_ed25519_backup"; HOST="root@168.144.170.165"; PORT=8443; REMOTE="/root/tfo_backups/enc"
-PASS="$HOME/.tfo_secrets/offsite_backup.pass"
+CFG="${OFFSITE_BACKUP_ENV:-$HOME/.tfo_secrets/offsite_backup.env}"
 LOG="$DESK/reports/offsite_backup.log"; ST="$DESK/reports/offsite_code_backup_status.json"; MARK="$DESK/reports/.offsite_backup_state"
 STAMP=$(date -u +%Y%m%d_%H%M%SZ); KEEP=7; MINGAP=${ENC_BACKUP_MINGAP:-72000}
 say(){ echo "$(date -u '+%F %T')Z enccode: $*" >> "$LOG"; }
-status(){ printf '{"ok":%s,"at_utc":"%s","detail":"%s","dest":"%s:%s","encryption":"openssl aes-256-cbc pbkdf2 200k"}\n' "$1" "$(date -u +%FT%TZ)" "$2" "${HOST#*@}" "$REMOTE" > "$ST"; }
+status(){ printf '{"ok":%s,"at_utc":"%s","detail":"%s","encryption":"openssl aes-256-cbc pbkdf2 200k"}\n' "$1" "$(date -u +%FT%TZ)" "$2" > "$ST"; }
 fail(){ say "ERROR: $*"; status false "$*"; exit 1; }
+[ -f "$CFG" ] || fail "offsite config missing"
+set -a; . "$CFG"; set +a
+HOST="${OFFSITE_SSH_HOST:?}"; PORT="${OFFSITE_SSH_PORT:?}"; KEY="${OFFSITE_SSH_KEY:?}"
+REMOTE="${OFFSITE_REMOTE_DIR:?}"; PASS="${OFFSITE_PASSFILE:?}"
+if [ "${HOST%%@*}" = "root" ]; then fail "root SSH is refused"; fi
 LAST=$(grep '^enccode ' "$MARK" 2>/dev/null | tail -1 | awk '{print $2}'); NOW=$(date +%s)
 if [ -n "${LAST:-}" ] && [ $((NOW-LAST)) -lt "$MINGAP" ] && [ "${1:-}" != "--force" ]; then say "skip: last ok $(( (NOW-LAST)/3600 ))h ago (daily)"; exit 0; fi
 [ -s "$PASS" ] || fail "passphrase file missing"
