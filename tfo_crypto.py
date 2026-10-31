@@ -566,7 +566,7 @@ def cmd_scan(n):
         bid, ask, last, opn = float(t["b"][0]), float(t["a"][0]), float(t["c"][0]), float(t["o"])
         if bid <= 0 or ask <= 0 or opn <= 0: continue
         dv = float(t["v"][1]) * float(t["p"][1]); sp = (ask - bid) / ((ask + bid) / 2) * 1e4
-        out.append({"pair": ws.replace("XBT", "BTC") if False else ws, "dollar_vol24": round(dv), "spread_bp": round(sp, 1), "chg_pct": round(100 * (last / opn - 1), 2), "max_clip_5pct": round(0.05 * dv)})
+        out.append({"pair": ws, "dollar_vol24": round(dv), "spread_bp": round(sp, 1), "chg_pct": round(100 * (last / opn - 1), 2), "max_clip_5pct": round(0.05 * dv)})
     out = [o for o in out if o["pair"] not in NOT_TRADES and o["spread_bp"] < 20 and o["dollar_vol24"] > 2e6]
     out.sort(key=lambda o: -o["dollar_vol24"])
     for o in out[:n]: print(json.dumps(o))

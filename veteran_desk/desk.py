@@ -720,20 +720,19 @@ def mark(asof=None):
             if vet: t["shadow_status"] = t["status"]; t["status"] = "vetoed"
     _wj(os.path.join(_fwd_dir(), "forward_trades.json"), T); return T
 def _mark_one(t, c, asof, au):
-    if True:
-        if t["status"] in ("closed", "cancelled"): return   # cancelled = book/queue cancelled unfilled: never marked or scored (TFO HT 2026-10-28)
-        bars = [b for b in P.bars_asof(c, t["ticker"], asof, 400) if b[6] > t["registered_utc"]]; L = t["side"] == "LONG"
-        for d, o, h, l, cl, v, kn in bars:
-            if t["status"] == "pending_trigger":
-                if (L and h >= t["entry"]) or (not L and l <= t["entry"]): t.update(status="open", opened=d)
-                elif len([b for b in bars if b[0] <= d]) >= 3: t.update(status="closed", outcome="never_triggered", pnl_aud=0, closed=d); break
-                else: continue
-            hit_s = (L and l <= t["stop"]) or (not L and h >= t["stop"]); hit_t = (L and h >= t["target"]) or (not L and l <= t["target"])
-            age = len([b for b in bars if b[0] >= t.get("opened", d) and b[0] <= d])
-            px = t["stop"] if hit_s else t["target"] if hit_t else (cl if age >= t["horizon_days"] else None)
-            if px is not None:
-                g = (px - t["entry"]) * t["shares"] * (1 if L else -1); g = g if P.venue_of(t["ticker"]) == "ASX" else g / au
-                t.update(status="closed", exit=px, closed=d, outcome="stop" if hit_s else "target" if hit_t else "time", gross_aud=round(g, 2), pnl_aud=round(g - t["cost_aud"], 2)); break
+    if t["status"] in ("closed", "cancelled"): return   # cancelled = book/queue cancelled unfilled: never marked or scored (TFO HT 2026-10-28)
+    bars = [b for b in P.bars_asof(c, t["ticker"], asof, 400) if b[6] > t["registered_utc"]]; L = t["side"] == "LONG"
+    for d, o, h, l, cl, v, kn in bars:
+        if t["status"] == "pending_trigger":
+            if (L and h >= t["entry"]) or (not L and l <= t["entry"]): t.update(status="open", opened=d)
+            elif len([b for b in bars if b[0] <= d]) >= 3: t.update(status="closed", outcome="never_triggered", pnl_aud=0, closed=d); break
+            else: continue
+        hit_s = (L and l <= t["stop"]) or (not L and h >= t["stop"]); hit_t = (L and h >= t["target"]) or (not L and l <= t["target"])
+        age = len([b for b in bars if b[0] >= t.get("opened", d) and b[0] <= d])
+        px = t["stop"] if hit_s else t["target"] if hit_t else (cl if age >= t["horizon_days"] else None)
+        if px is not None:
+            g = (px - t["entry"]) * t["shares"] * (1 if L else -1); g = g if P.venue_of(t["ticker"]) == "ASX" else g / au
+            t.update(status="closed", exit=px, closed=d, outcome="stop" if hit_s else "target" if hit_t else "time", gross_aud=round(g, 2), pnl_aud=round(g - t["cost_aud"], 2)); break
 PROMOTION = dict(rule="GPT strict (merged plan item 6)", min_forward_trades=100, min_months=6, min_independent_clusters=50, must_survive_doubled_costs=True,
                  max_risk_raise_per_review=0.25, below_30_trades="NO VERDICT (never ranked)", replay_counts=False)
 def score():

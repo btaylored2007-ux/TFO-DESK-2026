@@ -518,14 +518,6 @@ def llm_review(role, items):
 
 def claude_probe():
     return "RETIRED", "Claude retired by Brett 2026-10-29 08:33 WITA"  # 2026-10-29 Brett: Claude retired (fix: run() unpacks (status, note))
-    if CLAUDE_RETIRED: return "RETIRED", "Claude retired by Brett 2026-10-29 08:33 WITA (state/config/claude_retired.json)"
-    if "--no-claude" in sys.argv or not os.path.exists(CLAUDE_BIN): return "PENDING_LOGIN", "not run / binary missing"
-    try:
-        r = subprocess.run([CLAUDE_BIN, "-p", "--model", "opus", "Reply with the single word OK"], capture_output=True, text=True, timeout=90)
-        txt = (r.stdout + r.stderr)[:300]
-        if r.returncode == 0 and "OK" in r.stdout: return "READY", txt.strip()
-        return "PENDING_LOGIN", txt.strip().replace("\n", " ")
-    except Exception as e: return "PENDING_LOGIN", str(e)[:200]
 
 # ---------- driver ----------
 def run():
@@ -625,20 +617,8 @@ def parse_claude_verdicts(text):
 CLAUDE_STATE = {"status": "not_tried"}
 CLAUDE_TIMEOUT_S = int(os.environ.get("CLEARANCE_CLAUDE_TIMEOUT_S", "120"))   # 20:47 trim: 300 -> 120s   # 2026-10-28 health (d): 900 -> 300s; expired login/hang -> PENDING, GPT + desk carry on
 def claude_review(prompt_text, out_dir=None):
-    CLAUDE_STATE.update(status="RETIRED"); return {}  # 2026-10-29 Brett: Claude retired
-    if CLAUDE_RETIRED: CLAUDE_STATE.update(status="RETIRED"); return {}
-    """Claude CLI (logged in) external review, same prompt/line format as GPT. {} on any failure (fail closed). Never prints keys."""
-    if "--no-claude" in sys.argv or not os.path.exists(CLAUDE_BIN): CLAUDE_STATE.update(status="PENDING_LOGIN"); return {}
-    out_dir = out_dir or OUT
-    try:
-        full = (prompt_text or "") + "\n\n" + SETUP_ONLY_RULES + "\n\nIMPORTANT: Reply with ONLY lines of the form `BOOK TICKER PASS|FAIL reason` (one per candidate). No preamble."
-        r = subprocess.run([CLAUDE_BIN, "-p", "--model", "opus"], input=full, capture_output=True, text=True, timeout=CLAUDE_TIMEOUT_S, cwd=out_dir)
-        open(os.path.join(out_dir, "claude_raw.md"), "w").write(r.stdout or "")
-        parsed = parse_claude_verdicts(r.stdout or "")
-        CLAUDE_STATE.update(status="ok" if parsed else "PENDING", n=sum(len(v) for v in parsed.values()), err=None if parsed else f"rc={r.returncode} no lines parsed")
-        return parsed
-    except Exception as e:
-        CLAUDE_STATE.update(status="PENDING", err=f"{type(e).__name__}"[:80]); return {}
+    """Claude review is retired (Brett 2026-10-29). Always {}. Fail closed."""
+    CLAUDE_STATE.update(status="RETIRED"); return {}
 def apply_claude_verdicts(ext, parsed):
     n = 0
     for book, rows in (parsed or {}).items():

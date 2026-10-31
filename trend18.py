@@ -677,29 +677,6 @@ def plan_orders(sig, base_usd, scale, L, etf_px, btc_q, powder_avail=0.0, mf_pow
             "mf_current_usd": round(mf_val, 2), "mf_budget_usd": round(budget, 2), "mf_powder_allowed": bool(mf_powder),
             "mf_missing_prices": mf_missing, "no_add_tickers": sorted(no_add)}
 
-def fit_orders(plan, avail):
-    """Scale TREND buys down pro rata so cash need <= avail. MF buys are dropped first (they replace T-bills)."""
-    for r in plan["rows"]:
-        if r["leg"] == "mf" and r["side"] == "BUY":
-            r.update(order_qty=0, notional_usd=0.0, cost_usd=0.0, side="-", fit_note="MF buy dropped first")
-    sells_net = sum(r["notional_usd"] - r["cost_usd"] for r in plan["rows"] if r["side"] == "SELL")
-    buy_gross = sum(r["notional_usd"] + r["cost_usd"] for r in plan["rows"] if r["side"] == "BUY")
-    room = avail + sells_net
-    f = 1.0
-    if buy_gross > room and buy_gross > 0:
-        f = max(0.0, room / buy_gross)
-        for r in plan["rows"]:
-            if r["side"] != "BUY": continue
-            q = r["order_qty"] * f
-            q = math.floor(q) if r["kind"] == "etf" else math.floor(q * 1e5) / 1e5
-            r["order_qty"] = q; r["notional_usd"] = round(q * r["px"], 2); r["cost_usd"] = round(r["notional_usd"] * COST_SIDE[r["kind"]], 2)
-            r["fit_factor"] = round(f, 4)
-            if q <= 0: r["side"] = "-"
-    plan["buys_usd"] = round(sum(r["notional_usd"] for r in plan["rows"] if r["side"] == "BUY"), 2)
-    plan["costs_usd"] = round(sum(r["cost_usd"] for r in plan["rows"] if r["side"] != "-"), 2)
-    plan["fit_factor"] = round(f, 4)
-    return plan, f
-
 # ------------------------------------------------------------------ funding gap rule (2026-10-29)
 def audusd_now():
     try:
@@ -817,53 +794,9 @@ def print_funding(d):
     print("   -> %s: %s" % (d["mode"], d["summary"]))
     print("   powder draw $%s; reserve after $%s (%.2f%% intact)" % ("{:,.2f}".format(d["powder_draw_usd"]), "{:,.2f}".format(d["reserve_after_usd"]), d["reserve_intact_pct"]))
 
-def funding_candidates():
-    """Existing positions ranked weakest / most redundant with trend18 first. Report only; never sells."""
-    sys.path.insert(0, BASE)
-    try:
-        import tfo_buy; twins, semis = set(tfo_buy.TWINS), set(tfo_buy.SEMIS)
-    except Exception: twins, semis = set(), set()
-    fb = json.load(open(os.path.join(REPORTS, "fundamental_book.json")))
-    out = []
-    for sym, p in fb.get("positions", {}).items():
-        if p.get("side", "long") != "long": continue
-        e0 = float(p.get("rail_orig_entry_usd") or p["entry_px_usd"]); px = float(p.get("mark_usd") or e0)
-        ret = px / e0 - 1; usd = float(p["units"]) * px; theme = str(p.get("ht_theme") or p.get("sector") or "")
-        venue = "US" if "." not in sym else sym.rsplit(".", 1)[1]
-        redundant = None
-        if sym in twins or sym in semis or theme in ("mega-tech", "semis", "us-tech", "nasdaq") or sym in ("META", "AAPL", "MSFT", "NVDA", "GOOGL", "AMZN"):
-            redundant = "duplicates TQQQ/UPRO (US mega-cap tech / Nasdaq beta)"
-        elif "gold" in theme.lower():
-            redundant = "duplicates UGL (gold)"
-        near_stop = ret <= -0.03
-        score = (0 if redundant and venue == "US" else 1 if near_stop and venue == "US" else 2 if near_stop else 3 if redundant else 4, ret)
-        try:  # what tfo_ticket books (desk_costs: commission + SEC/TAF, no spread)
-            import desk_costs
-            desk_fee = float(desk_costs.fill_fees(sym, "sell", float(p["units"]), px, p.get("mark"), p.get("entry_ccy"), now_utc())["fees_usd"])
-        except Exception:
-            desk_fee = None
-        # HARD RULE cost model: 12.5bp per side. tfo_ticket books desk_costs; trend18 books the true-up to 12.5bp in the sleeve.
-        fee = max(usd * COST_SIDE["etf"], desk_fee or 0.0)
-        fee_src = "12.5bp model (hard rule); desk_costs books $%.2f, sleeve books the true-up" % (desk_fee or 0.0)
-        out.append({"sym": sym, "venue": venue, "book": "fundamental_book", "usd": round(usd, 2), "ret_from_fill_pct": round(ret * 100, 2),
-                    "theme": theme, "redundant": redundant, "near_stop": near_stop, "entry_utc": p.get("entry_utc"),
-                    "est_exit_cost_usd": round(fee, 2), "est_exit_cost_src": fee_src,
-                    "desk_costs_fee_usd": None if desk_fee is None else round(desk_fee, 2),
-                    "rail_stop_px_usd": round(e0 * 0.95, 4), "_score": score})
-    out.sort(key=lambda r: r["_score"])
-    for r in out: r.pop("_score")
-    return out
-
 def build_funding_plan(shortfall, buffer_usd, cands):
-    raise SystemExit(NO_OTHER_BOOK_SALES)   # 2026-10-29: other books are never staged for sale to fund Trend18
-    picked, cum = [], 0.0
-    for c in cands:
-        if cum >= shortfall + buffer_usd: break
-        picked.append({**c, "action": "FLAT", "when": "US: paired with the trend18 entry at the Mon 5 Oct close (06:50 AEDT Tue)" if c["venue"] == "US" else "ASX: Mon 5 Oct after the opening auction (10:10 AEDT)"})
-        cum += c["usd"] - c["est_exit_cost_usd"]
-    return {"created_utc": iso(), "shortfall_usd": round(shortfall, 2), "buffer_usd": round(buffer_usd, 2),
-            "covered_usd": round(cum, 2), "sales": picked, "authority": "Brett authorised liquidating existing positions to make room for trend18 (3 Oct 2026); sell only what is still needed at execution time",
-            "rule": "Sold only by trend18.py --sell-staged at a live regular-session price via tfo_ticket (FLAT), and only while the funding gap remains. No backdated fills."}
+    """RETIRED 2026-10-29: other books are never staged for sale to fund Trend18."""
+    raise SystemExit(NO_OTHER_BOOK_SALES)
 
 def firm_inputs(g):
     unres, avail = powder_available(g)
@@ -928,40 +861,6 @@ def book_fill(L, r, utc, tag, quote_meta):
 def sell_staged(venue_filter, need_usd, execute):
     """RETIRED 2026-10-29: Trend18 never sells another book's position (Brett 3 Oct authority; TFO Risk 29 Oct)."""
     raise SystemExit(NO_OTHER_BOOK_SALES)
-    if need_usd <= 0: print("FUNDING: no gap; staged sales not needed"); return 0.0, []
-    if not os.path.exists(PLAN): print("FUNDING: no funding plan at %s" % PLAN); return 0.0, []
-    plan = json.load(open(PLAN)); raised = 0.0; done = []
-    sys.path.insert(0, BASE); import tfo_ticket
-    for s in plan.get("sales", []):
-        if raised >= need_usd: break
-        if venue_filter and s["venue"] != venue_filter: continue
-        if s.get("executed_utc"): continue
-        rows = [r for r in tfo_ticket.scan({s["sym"]}) if r["sym"] == s["sym"] and r["book"] == s["book"]]
-        if not rows: print("FUNDING: %s no longer held; skipped" % s["sym"]); continue
-        r = rows[0]
-        if r.get("rail") and r.get("status") == "READY":
-            print("FUNDING: %s has its own rail %s READY; leave it to the rail runner" % (s["sym"], r["rail"])); continue
-        why = r.get("why")
-        if r.get("status") == "NO_QUOTE" or why:
-            print("FUNDING: %s BLOCKED (%s); not sold" % (s["sym"], why or r.get("status"))); continue
-        est = float(r["px_usd"]) * float(json.load(open(os.path.join(REPORTS, "fundamental_book.json")))["positions"][s["sym"]]["units"])
-        if not execute:
-            print("FUNDING PREVIEW: would FLAT %s ~$%.0f at %.4f (%s, ret %.2f%%); exit cost at 12.5bp ~$%.2f (tfo_ticket books desk_costs, sleeve books the true-up)"
-                  % (s["sym"], est, r["px_usd"], r.get("tape"), r["ret_orig_pct"], est * COST_SIDE["etf"])); raised += est; continue
-        r = {**r, "rail": "FLAT", "status": "READY", "exit_rule": "trend18_funding_flat (Brett-authorised liquidation for trend18, 3 Oct 2026)"}
-        line = tfo_ticket.execute(r)
-        if line:
-            print(line); raised += est; s["executed_utc"] = iso(); s["exec_line"] = line; done.append(s["sym"])
-            try:   # LOG syd(2 tokens) act sym sold px tape book principal proceeds pnl fees
-                tok = line.split(); proceeds, fees = float(tok[-3]), float(tok[-1])
-                s["proceeds_usd"], s["fees_booked_usd"] = proceeds, fees
-                s["cost_trueup_usd"] = round(max(0.0, proceeds * COST_SIDE["etf"] - fees), 2); s["trueup_applied"] = False
-                print("FUNDING: %s exit cost true-up to 12.5bp: $%.2f (booked in the sleeve at the next execute)" % (s["sym"], s["cost_trueup_usd"]))
-            except Exception as e:
-                s["cost_trueup_usd"] = round(est * COST_SIDE["etf"], 2); s["trueup_applied"] = False; s["trueup_note"] = "parse fail %s; full 12.5bp" % e
-            log("FUNDING SALE %s" % line)
-    if execute and done: atomic_json(PLAN, plan)
-    return raised, done
 
 # ------------------------------------------------------------------ commands
 def get_prices(args, asof=None, execute=False):
@@ -1362,12 +1261,8 @@ def exposure_snapshot(L, projected=None):
     return snap
 
 def cmd_sell_staged_only(args):
+    """RETIRED 2026-10-29: Trend18 never sells another book's position."""
     raise SystemExit(NO_OTHER_BOOK_SALES)
-    L = load_ledger(); g = load_powder()
-    st = json.load(open(STAGE_OUT)) if os.path.exists(STAGE_OUT) else None
-    need = args.need_usd if args.need_usd is not None else ((st or {}).get("room") or {}).get("needed_from_sales_usd", 0)
-    raised, done = sell_staged(args.venue, need, execute=args.execute_sales)
-    print("raised ~$%.0f from %s" % (raised, done or "nothing"))
 
 def _regime_now(snap):
     """Exposure-snapshot regime with the CURRENT label text/fee figures overlaid (snapshots written before a fee change keep old text)."""

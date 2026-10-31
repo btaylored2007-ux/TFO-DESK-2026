@@ -247,7 +247,6 @@ def run_session(conn, counters):
         counters["disconnects"] += 1
         health(conn, "disconnect",
                "session lasted %.0fs" % (time.time() - connected_at))
-    return connected_at
 
 
 def main_loop():

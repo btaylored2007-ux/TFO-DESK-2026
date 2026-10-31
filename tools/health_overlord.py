@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """TFO health overlord sweep (Brett order 2026-10-28 19:15/19:18 WITA). Read-only checks +
 full-page dashboard screenshots. PAPER ONLY. Never touches keys, orders, Betfair, :8798, KDESK."""
-import os, sys, json, glob, time, re, subprocess, shutil, socket, urllib.request, datetime, plistlib, py_compile
+import os, sys, json, glob, time, re, subprocess, shutil, socket, urllib.request, datetime, plistlib
 BASE = os.path.expanduser("~/Applications/MultiVenueDesk")
 NOW = time.time()
 STAMP = datetime.datetime.now().strftime("%Y%m%d-%H%M")

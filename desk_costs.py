@@ -198,13 +198,6 @@ def fill_fees(sym, side, qty, px_usd, px_native=None, ccy=None, when=None, liqui
             "bps": round(1e4 * fees / notional, 4), "schedule": SCHEDULE_ID}
 
 
-def round_trip_bps(sym, px_usd=100.0, notional_usd=100000.0, when=None):
-    """Buy+sell cost in bps of notional (for research / backtests)."""
-    q = notional_usd / px_usd
-    f = fill_fees(sym, "buy", q, px_usd, when=when)["fees_usd"] + fill_fees(sym, "sell", q, px_usd, when=when)["fees_usd"]
-    return 1e4 * f / notional_usd
-
-
 def schedule_table():
     rows = []
     for sym, px in (("XBT/USD", 60000.0), ("AAPL", 200.0), ("BARC.L", 3.0), ("0700.HK", 60.0), ("BHP.AX", 30.0), ("SAP.DE", 250.0), ("MC.PA", 700.0)):

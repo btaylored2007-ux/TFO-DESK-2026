@@ -211,7 +211,7 @@ def place(e, c, live):
                margin_needed_aud=round(need, 2), reason=e["reason"], signal_bar=e["signal_bar"], client_id=cid, live=live, test_status=D.STATUS.get(e["design"]))
     if not live: rec["event"] = "entry_dry"; log(rec); return "dry"
     try:
-        prior = S.api("GET", S.acct(f"/orders/@{cid}")) if True else None
+        prior = S.api("GET", S.acct(f"/orders/@{cid}"))
         if prior.get("order"): log(dict(event="duplicate_skip", client_id=cid)); return "skip:already_sent"
     except Exception: pass
     try:

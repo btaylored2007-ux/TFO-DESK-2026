@@ -3446,56 +3446,53 @@ def _build_all():
 def _pw_compute():
     from private_wealth_monitor import build
     obj = build()
-    if True:
-        if True:
-            pass
-            try:  # 2026-09-28 blocked-rail watchdog: small neutral header indicator
-                import rail_watchdog
-                obj["rail_watchdog"] = rail_watchdog.summary()
-            except Exception as exc2:
-                obj["rail_watchdog"] = {"status": "UNKNOWN", "alert_count": 0, "alerts": [], "note": str(exc2)[:120]}
-            try:  # 2026-10-02 PAPER funder-fee ledger (funder_fee.py): Funder panel on the Overview
-                import funder_fee
-                obj["funder"] = funder_fee.summary()
-            except Exception as exc3:
-                obj["funder"] = {"status": "UNAVAILABLE", "error": str(exc3)[:160]}
-            try:  # 2026-10-03 DEEP18 trend sleeve (trend18.py): PAPER sleeve inside firm equity; read-only summary
-                import trend18
-                obj["trend18"] = trend18.summary()
-            except Exception as exc5:
-                obj["trend18"] = {"status": "UNAVAILABLE", "error": str(exc5)[:160]}
-            try:  # 2026-10-28 TREND-CORE A$1m AUD paper (path B, not firm equity): read-only status
-                import trend_core
-                obj["trend_core"] = trend_core.write_status()
-                obj["trend_core"]["status"] = "OK"
-            except Exception as exc_tc:
-                obj["trend_core"] = {"status": "UNAVAILABLE", "error": str(exc_tc)[:160], "paper_only": True, "in_firm_equity": False}
-            try:  # 2026-10-03 DEEP18 round-3 forward tests (deep18_fwd.py): PAPER SHADOW, read-only, NOT firm equity
-                import deep18_fwd
-                obj["deep18_fwd"] = deep18_fwd.summary_all(120)
-            except Exception as exc6:
-                obj["deep18_fwd"] = {"status": "UNAVAILABLE", "error": str(exc6)[:160]}
-            try:  # 2026-10-03 DEEP19 near-miss shadows (deep19_fwd.py): did NOT pass, $0 desk capital, read-only
-                import deep19_fwd
-                obj["deep19_fwd"] = deep19_fwd.summary_all(120)
-            except Exception as exc8:
-                obj["deep19_fwd"] = {"status": "UNAVAILABLE", "error": str(exc8)[:160], "paper_shadow_only": True}
-            try:  # 2026-10-04 OANDA PRACTICE sleeve (oanda_sleeve.py -> state/oanda/snapshot.json): PAPER, practice account, NOT desk equity
-                import importlib, oanda_panel
-                obj["oanda_paper"] = importlib.reload(oanda_panel).summary()
-            except Exception as exc9:
-                obj["oanda_paper"] = {"status": "UNAVAILABLE", "error": str(exc9)[:160], "paper_only": True}
-            try:  # 2026-10-03 CRYPTO20 T05: PAPER SHADOW, read-only, NOT firm equity
-                import crypto20_fwd
-                obj["crypto20_fwd"] = crypto20_fwd.summary()
-            except Exception as exc7:
-                obj["crypto20_fwd"] = {"status": "UNAVAILABLE", "error": str(exc7)[:160], "paper_shadow_only": True}
-            try:  # 2026-10-02 SHADOW 2x Nasdaq combo (shadow_nasdaq2x.py): read-only, NOT firm equity
-                import shadow_nasdaq2x
-                obj["shadow"] = shadow_nasdaq2x.summary()
-            except Exception as exc4:
-                obj["shadow"] = {"status": "UNAVAILABLE", "error": str(exc4)[:160]}
-            return obj
+    try:  # 2026-09-28 blocked-rail watchdog: small neutral header indicator
+        import rail_watchdog
+        obj["rail_watchdog"] = rail_watchdog.summary()
+    except Exception as exc2:
+        obj["rail_watchdog"] = {"status": "UNKNOWN", "alert_count": 0, "alerts": [], "note": str(exc2)[:120]}
+    try:  # 2026-10-02 PAPER funder-fee ledger (funder_fee.py): Funder panel on the Overview
+        import funder_fee
+        obj["funder"] = funder_fee.summary()
+    except Exception as exc3:
+        obj["funder"] = {"status": "UNAVAILABLE", "error": str(exc3)[:160]}
+    try:  # 2026-10-03 DEEP18 trend sleeve (trend18.py): PAPER sleeve inside firm equity; read-only summary
+        import trend18
+        obj["trend18"] = trend18.summary()
+    except Exception as exc5:
+        obj["trend18"] = {"status": "UNAVAILABLE", "error": str(exc5)[:160]}
+    try:  # 2026-10-28 TREND-CORE A$1m AUD paper (path B, not firm equity): read-only status
+        import trend_core
+        obj["trend_core"] = trend_core.write_status()
+        obj["trend_core"]["status"] = "OK"
+    except Exception as exc_tc:
+        obj["trend_core"] = {"status": "UNAVAILABLE", "error": str(exc_tc)[:160], "paper_only": True, "in_firm_equity": False}
+    try:  # 2026-10-03 DEEP18 round-3 forward tests (deep18_fwd.py): PAPER SHADOW, read-only, NOT firm equity
+        import deep18_fwd
+        obj["deep18_fwd"] = deep18_fwd.summary_all(120)
+    except Exception as exc6:
+        obj["deep18_fwd"] = {"status": "UNAVAILABLE", "error": str(exc6)[:160]}
+    try:  # 2026-10-03 DEEP19 near-miss shadows (deep19_fwd.py): did NOT pass, $0 desk capital, read-only
+        import deep19_fwd
+        obj["deep19_fwd"] = deep19_fwd.summary_all(120)
+    except Exception as exc8:
+        obj["deep19_fwd"] = {"status": "UNAVAILABLE", "error": str(exc8)[:160], "paper_shadow_only": True}
+    try:  # 2026-10-04 OANDA PRACTICE sleeve (oanda_sleeve.py -> state/oanda/snapshot.json): PAPER, practice account, NOT desk equity
+        import importlib, oanda_panel
+        obj["oanda_paper"] = importlib.reload(oanda_panel).summary()
+    except Exception as exc9:
+        obj["oanda_paper"] = {"status": "UNAVAILABLE", "error": str(exc9)[:160], "paper_only": True}
+    try:  # 2026-10-03 CRYPTO20 T05: PAPER SHADOW, read-only, NOT firm equity
+        import crypto20_fwd
+        obj["crypto20_fwd"] = crypto20_fwd.summary()
+    except Exception as exc7:
+        obj["crypto20_fwd"] = {"status": "UNAVAILABLE", "error": str(exc7)[:160], "paper_shadow_only": True}
+    try:  # 2026-10-02 SHADOW 2x Nasdaq combo (shadow_nasdaq2x.py): read-only, NOT firm equity
+        import shadow_nasdaq2x
+        obj["shadow"] = shadow_nasdaq2x.summary()
+    except Exception as exc4:
+        obj["shadow"] = {"status": "UNAVAILABLE", "error": str(exc4)[:160]}
+    return obj
 
 # 2026-10-12 stale-while-revalidate cache for /api/private-wealth (build() parses ~1400 JSON files, ~6s).
 import threading as _pw_threading, time as _pw_time
