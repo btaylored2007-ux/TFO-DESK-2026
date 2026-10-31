@@ -7,7 +7,9 @@ import oanda_aggro, warroom_markets
 
 class AggroActive(Base):
     def test_live_config_active_ruleset_aggro(self):
-        c = json.load(open(os.path.join(ROOT, "state", "oanda", "config.json")))
+        p = os.path.join(ROOT, "state", "oanda", "config.json")
+        if not os.path.exists(p): self.skipTest("live state/oanda/config.json is not in the code-only tree (TEST_TRIAGE.md)")
+        c = json.load(open(p))
         self.assertEqual(c["active_ruleset"], "AGGRO"); self.assertIn("Brett", c["active_ruleset_note"])
 
     def test_design_sleeve_opens_nothing_and_logs(self):
@@ -20,11 +22,15 @@ class AggroActive(Base):
         self.assertEqual(self.m.place_entry(self.entry("EUR_USD"), live=False), "dry")
 
     def test_aggro_rules_stop_and_risk(self):
-        c = oanda_aggro.cfg(); self.assertLessEqual(c["risk_pct"], 0.03); self.assertLessEqual(c["open_risk_cap_pct"], 0.25)
+        c = oanda_aggro.cfg(); self.assertLessEqual(c["risk_pct"], 0.02); self.assertLessEqual(c["max_open"], 4); self.assertLessEqual(c["open_risk_cap_pct"], 0.25)
         src = open(os.path.join(ROOT, "oanda_aggro.py")).read(); self.assertIn("stopLossOnFill", src); self.assertIn('"tag": TAG', src)
         self.assertTrue(c["live"])
 
     def test_warroom_card_shows_aggro(self):
+        p = os.path.join(ROOT, "state", "oanda", "config.json")
+        if not os.path.exists(p):
+            self.assertEqual(warroom_markets.oanda_ruleset(), "DESIGN")   # no live ruleset file -> design sleeve, not a guessed AGGRO
+            return
         self.assertEqual(warroom_markets.oanda_ruleset(), "AGGRO")
 
 

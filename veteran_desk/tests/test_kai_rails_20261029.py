@@ -19,7 +19,9 @@ def test_clip_caps():
     r, q, rj = BK.crypto_clip(5000, 10.0, 100.0, EQ, "A"); assert abs(q * 100 - 50000) < 1e-6 and rj is None and r == 5000
     r, q, rj = BK.crypto_clip(5000, 2.0, 100.0, EQ, "A"); assert abs(q * 100 - 50000) < 1e-6 and r == 1000 and rj == "below_crypto_floor"
     r, q, rj = BK.crypto_clip(10000, 5.0, 100.0, EQ, "A+"); assert abs(q * 100 - 100000) < 1e-6 and r == 5000 and rj is None
-def test_wide_atr_sized_down_not_skipped():
+def test_wide_atr_sized_down_not_skipped(monkeypatch):
+    from veteran_desk import desk as DK
+    monkeypatch.setattr(DK, "sweep_row_for", lambda t: {"vol24h_aud": 1e9})   # no live Kraken sweep in this tree
     r = g(P0(ticker="KRAKEN:SOLUSD", stop=C - 8 * A, target=C + 20 * A))
     assert not any("not a stop" in x for x in r["reasons"]), r["reasons"]
     assert any("sized down toward 0.5%" in w for w in r["warnings"])

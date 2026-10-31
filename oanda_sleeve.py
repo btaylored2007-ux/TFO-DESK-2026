@@ -54,7 +54,7 @@ ENTRY_DISABLED_DESIGNS = set()   # set in state/oanda/config.json (OXL2 since 17
 def aggro_active(c=None): return str((c or {}).get("active_ruleset") or "DESIGN").upper() == "AGGRO"
 def entry_disabled(c=None):
     return set(ENTRY_DISABLED_DESIGNS) | set((c or {}).get("entry_disabled_designs") or [])
-DEFAULT_CFG = {"risk_pct": 0.005, "risk_cap_pct": 0.02, "max_trades": 8, "ccy_net_cap_pct": 0.015, "open_risk_cap_pct": 0.04, "margin_cap_frac": 0.50, "atr_mult": 2.0, "spread_mult_max": 3.0,
+DEFAULT_CFG = {"risk_pct": 0.005, "risk_cap_pct": 0.02, "max_trades": 4, "ccy_net_cap_pct": 0.015, "open_risk_cap_pct": 0.04, "margin_cap_frac": 0.50, "atr_mult": 2.0, "spread_mult_max": 3.0,
                "start_nav_aud": 50829.70, "halt_dd_frac": 0.10, "designs": ["OXL1", "OXL2", "OXF1"], "live": True,
                "spread_cap_bp": 10.0, "reopen_blackout_min": 60,   # 5 Oct 2026 fill-quality rails (RULE_LOG.md)
                # 12 Oct 2026 GPT blueprint (RULE_LOG.md): C vol cap, E cost gate, F trend trail
@@ -91,7 +91,7 @@ def cfg():
         import oanda_scale_gate as _g; c["risk_pct"] = min(c["risk_pct"], max(_g.allowed_risk_pct(ST), ov or 0.0))
     except Exception: c["risk_pct"] = min(c["risk_pct"], ov if ov else 0.005)
     c["funder_override_risk_pct"] = ov
-    c["max_trades"] = min(int(c["max_trades"]), 10)         # rail (12 Oct 2026: 4 -> 8; 27 Oct 2026 19:02 WITA Brett 'OANDA: 10 trades at 1% each, raise open-risk cap to 10%': 8 -> 10, PAPER)
+    c["max_trades"] = min(int(c["max_trades"]), 4)          # rail: at most 4 open on the book (was 10 on 27 Oct 2026; current rule is 4)
     c["ccy_net_cap_pct"] = min(float(c.get("ccy_net_cap_pct", 0.015)), 0.015)    # rail (12 Oct 2026)
     c["open_risk_cap_pct"] = min(float(c.get("open_risk_cap_pct", 0.04)), 0.10)  # rail (12 Oct 2026 4%; 27 Oct 2026 19:02 WITA Brett: book 4% -> 10%, PAPER)
     c["margin_cap_frac"] = min(float(c["margin_cap_frac"]), 0.50)  # rail
@@ -106,8 +106,8 @@ def cfg():
     c["max_spread_atr"] = min(float(c.get("max_spread_atr", 0.05)), 0.05)    # rail (12 Oct 2026)
     c["cmdty_risk_pct"] = min(float(c.get("cmdty_risk_pct", 0.01)), 0.01)                     # rail (16 Oct 2026 21:03, Brett): <= 1%
     c["cmdty_open_risk_cap_pct"] = min(float(c.get("cmdty_open_risk_cap_pct", 0.04)), 0.04)   # rail
-    c["cmdty_max_trades"] = min(int(c.get("cmdty_max_trades", 6)), 6)                          # rail
-    c["total_max_trades"] = min(int(c.get("total_max_trades", 10)), 10)   # rail (audit H15, Brett 27 Oct 2026 19:35 WITA): max 10 open TFO trades across ALL buckets (book + trend + cmdty); per-bucket 10/4/6 still apply
+    c["cmdty_max_trades"] = min(int(c.get("cmdty_max_trades", 4)), 4)                          # rail: bucket cannot exceed the 4-open OANDA cap
+    c["total_max_trades"] = min(int(c.get("total_max_trades", 4)), 4)   # rail: at most 4 open TFO trades across ALL buckets (book + trend + cmdty)
     c["cmdty_ccy_net_cap_pct"] = min(float(c.get("cmdty_ccy_net_cap_pct", 0.03)), 0.03)       # rail
     c["total_open_risk_cap_pct"] = min(float(c.get("total_open_risk_cap_pct", 0.08)), 0.10)   # rail (16 Oct 2026): whole sleeve <= 8%; 27 Oct 2026 19:07 WITA Brett 'Raise the OANDA sleeve-wide cap to 10%': <= 10% (PAPER)
     return c

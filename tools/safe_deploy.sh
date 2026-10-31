@@ -3,8 +3,13 @@
 # Usage: tools/safe_deploy.sh [--dry-run] [--tag TAG] [--note TEXT] ITEM...
 #   ITEM = DEST            gate a file already edited in place (backup = its current state)
 #   ITEM = SRC:DEST        back up DEST, copy staged SRC over DEST, then gate
-# Steps: tick-window refuse -> lock -> .bak -> py_compile -> veteran_desk tests vs
-#        tools/test_baseline.json -> restore all + exit 1 on any new failure, else DEPLOY_LOG.md entry.
+# Steps: tick-window refuse -> lock -> .bak -> py_compile -> tests/ + veteran_desk/tests
+#        vs tools/test_baseline.json -> restore all + exit 1 on any failure not in the
+#        baseline, else DEPLOY_LOG.md entry.
+# The tick window is the single gate already in this script (and written up by the
+# exec-speed deploy): start :04:00 or later, and start+SAFE_DEPLOY_RUNTIME_S must finish
+# before the next quarter. With the default 450s runtime that is :04:00 through :07:29.
+# Do not add a second window check.
 # --dry-run: runs every check, then restores originals and prints the log entry instead of writing it.
 # Env (testing only): SAFE_DEPLOY_BASELINE=path, SAFE_DEPLOY_MINUTE=NN (honoured only with --dry-run).
 set -u
@@ -56,9 +61,14 @@ done
 for d in "${DESTS[@]}"; do case "$d" in *.py)
   $PY -m py_compile "$d" 2>&1 || fail "py_compile $d"; log "py_compile ok $d";; esac; done
 
-# 4. tests vs baseline
-OUT=$(mktemp -t safe_deploy); log "running veteran_desk/tests ..."
-$PY -m pytest veteran_desk/tests -q -p no:cacheprovider -rfE > "$OUT" 2>&1; RC=$?
+# 4. tests vs baseline. known_failures is empty once the suite is green: any failure rolls back.
+#    Two pytest processes so veteran_desk/tests/conftest.py (live-path guard) does not wrap tests/.
+#    Secrets are not loaded. TFO_TEST_OFFLINE refuses non-localhost sockets, same as CI.
+OUT=$(mktemp -t safe_deploy); log "running tests/ ..."
+TFO_TEST_OFFLINE=1 $PY -m pytest tests -q -p no:cacheprovider -rfE --continue-on-collection-errors > "$OUT" 2>&1; RC1=$?
+log "running veteran_desk/tests ..."
+TFO_TEST_OFFLINE=1 $PY -m pytest veteran_desk/tests -q -p no:cacheprovider -rfE --continue-on-collection-errors >> "$OUT" 2>&1; RC2=$?
+RC=0; [ "$RC1" -eq 0 ] && [ "$RC2" -eq 0 ] || RC=1
 SUMMARY=$(grep -E '(passed|failed|error)' "$OUT" | tail -1)
 CMP=$($PY - "$BASE" "$OUT" <<'PYEOF'
 import json, re, sys

@@ -14,8 +14,8 @@ Seat agents and Marcus agents MUST NOT edit these files. Send TFO a change reque
 
 ## How to deploy
 `tools/safe_deploy.sh [--dry-run] [--tag TAG] [--note TEXT] FILE | STAGED_SRC:FILE ...`
-- Refuses during tick windows (:00–03, :15–18, :30–33, :45–48) and in the 2 min before each.
+- Deploy window (already the only window check in `tools/safe_deploy.sh`; the exec-speed gate uses this same rule, it is not a second clock): tick windows are the first 4 minutes of every quarter hour. A deploy may start only at :04:00 or later, and the whole run must finish before the next quarter. Expected runtime is `SAFE_DEPLOY_RUNTIME_S` (default 450s), so the legal start with that default is **:04:00 through :07:29** of each quarter.
 - One deploy at a time: `tools/deploy.lock` (pid-owned; stale only if the pid is dead).
-- Timestamped `.bak-YYYYMMDD-HHMMSS-TAG` per file, `py_compile`, then veteran_desk tests vs `tools/test_baseline.json`.
-- Any new failure -> automatic restore of all files, exit 1. Pass -> entry in DEPLOY_LOG.md.
-- Change the baseline only when a known failure is fixed or deliberately accepted; log why in DEPLOY_LOG.md.
+- Timestamped `.bak-YYYYMMDD-HHMMSS-TAG` per file, `py_compile`, then `tests/` and `veteran_desk/tests` vs `tools/test_baseline.json`.
+- The baseline `known_failures` list is empty. Any failure rolls every file back and exits 1. Pass -> entry in DEPLOY_LOG.md.
+- Do not put a test back on the baseline to make a deploy green. Fix the test or the code and record it in TEST_TRIAGE.md.

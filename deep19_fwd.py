@@ -78,7 +78,7 @@ TESTS = {
 }
 S01_LABEL = "UNPROVEN SHADOW: failed in-sample, $0 desk capital"
 S01_SPEC_SHA = "f9f8d6b8bcb08941bafef436d1511ee52f791ff9f458b29e55e9022e57695fe5"   # TFO Equity research/deep19/equity_events/S01_spinoff spec (hash-locked)
-SEC_UA = {"User-Agent": __import__("json").load(open(__import__("os").path.expanduser("~/Applications/MultiVenueDesk/research_controls/sec_contact.json")))["user_agent"]}
+SEC_UA = {"User-Agent": __import__("sec_contact").user_agent()}
 S01_SEED = os.path.join(BASE, "research", "deep19", "fwd", "s01_seed_spincos.csv")
 S01 = dict(k=20, H=120, wmax=0.10, min_px=2.0, min_adv=2e6, delist_ret=-0.10)
 S01_PANEL_END = dt.date(2026, 10, 1)   # last date of TFO Equity's Alpaca panel; seed first bars up to here are Equity's own

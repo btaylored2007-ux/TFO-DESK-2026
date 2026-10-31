@@ -38,7 +38,7 @@ import argparse
 import json
 import urllib.request
 
-UA = {"User-Agent": __import__("json").load(open(__import__("os").path.expanduser("~/Applications/MultiVenueDesk/research_controls/sec_contact.json")))["user_agent"]}
+UA = {"User-Agent": __import__("sec_contact").user_agent()}
 
 # Defensible ranges, stated as ranges because they are not precisely knowable.
 # index -> (aggregate index market cap USD grid, indexed AUM USD grid, weighting)

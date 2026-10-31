@@ -3,7 +3,9 @@ rank penalty only, never a block. Kraken keeps the venue regime. No network (pur
 import os, sys, importlib.util, unittest
 import pandas as pd
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-_spec = importlib.util.spec_from_file_location("run_scan_rowdir", os.path.join(ROOT, "state", "calendar", "ranker", "run_scan.py"))
+_rs = os.path.join(ROOT, "state", "calendar", "ranker", "run_scan.py")
+if not os.path.exists(_rs): _rs = os.path.join(ROOT, "staged_fixes", "tforul", "ranker", "run_scan.py")
+_spec = importlib.util.spec_from_file_location("run_scan_rowdir", _rs)
 RS = importlib.util.module_from_spec(_spec); _spec.loader.exec_module(RS)
 def row(sym="AAA", venue="ibkr", px=110, m50=100, stack=3, mstack=0, rs20=5.0, score=3.0, short_score=1.0):
     return dict(sym=sym, venue=venue, px=px, m50=m50, stack=stack, rs20=rs20, score=score, short_score=short_score, _mirror=dict(stack=mstack))

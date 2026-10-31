@@ -7,7 +7,7 @@ catalyst_flag = any of: |surprise| >= 5% with report <=10d, up/downgrade <=5d, r
 Writes state/catalyst_capture/<YYYYMMDD WITA>.json (atomic). hunt_orchestrator.us_build_plan reads it: +CAT_BONUS to score."""
 import csv, datetime as dt, glob, json, os, sys, time, urllib.request
 BASE = os.environ.get("DESK_BASE", os.path.dirname(os.path.abspath(__file__))); sys.path.insert(0, BASE)
-OUT = os.path.join(BASE, "state", "catalyst_capture"); UA = {"User-Agent": __import__("json").load(open(__import__("os").path.expanduser("~/Applications/MultiVenueDesk/research_controls/sec_contact.json")))["user_agent"]}
+OUT = os.path.join(BASE, "state", "catalyst_capture"); UA = {"User-Agent": __import__("sec_contact").user_agent()}
 CAND_POOL = 150; RELVOL_MIN = 2.0; SURPRISE_MIN = 5.0
 WITA = dt.timezone(dt.timedelta(hours=8))
 def fnum(x):

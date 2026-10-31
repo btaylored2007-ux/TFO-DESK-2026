@@ -4,6 +4,33 @@ Every write path (open w/a/x/+, os.open O_CREAT/O_WRONLY/O_RDWR, os.replace/rena
 write raises PermissionError AND is recorded, so a swallowed exception still fails the session. Session end also re-checks mtimes of key live files."""
 import builtins, io, os, sys, pytest
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+# Code-only tree has no live book. A synthetic empty seat book lets unit tests copy a template.
+# Created only when the real file is absent, and removed at session end so a live ledger is never overwritten.
+_SYN_BOOK = os.path.join(ROOT, "reports", "veteran_desk_book.json")
+_SYN_MADE = False
+if not os.path.exists(_SYN_BOOK):
+    os.makedirs(os.path.dirname(_SYN_BOOK), exist_ok=True)
+    _traders = ["energy", "essentials_utilities", "banks", "healthcare", "macro", "news_filings", "price_action", "crypto", "fx_commodities", "tech_ai_infra", "trend"]
+    def _seat():
+        return dict(seed_aud=500000.0, cash_aud=500000.0, equity_aud=500000.0, positions={}, closed=[], commission_expense_aud=0.0, commission_forfeit_credit_aud=0.0)
+    json_mod = __import__("json")
+    json_mod.dump(dict(book="veteran_desk", paper_only=True, label="synthetic test book", ccy_native="AUD", seed_aud=500000.0 * len(_traders),
+                       audusd=0.65, seats={s: _seat() for s in _traders}, hedge={"disabled": True}, kill_switch={"state": "OK"},
+                       peak_equity_aud=None, capital_events=[], holdings={}), open(_SYN_BOOK, "w"))
+    _SYN_MADE = True
+for _d in ("top10", "grades", "wakes", "hb", "second_look/gpt", "second_look/grok", "runs"):
+    os.makedirs(os.path.join(ROOT, "state", "vd_engine", _d), exist_ok=True)
+_NEWS = os.path.join(ROOT, "state", "veteran_desk", "news.json")
+_FIRM = os.path.join(ROOT, "reports", "firm_risk.json")
+_MADE_NEWS = _MADE_FIRM = False
+if not os.path.exists(_NEWS):
+    os.makedirs(os.path.dirname(_NEWS), exist_ok=True)
+    __import__("json").dump({"regime": {"flag": "risk-off"}}, open(_NEWS, "w"))
+    _MADE_NEWS = True
+if not os.path.exists(_FIRM):
+    os.makedirs(os.path.dirname(_FIRM), exist_ok=True)
+    __import__("json").dump({"level": "OK", "new_entries_halted": False}, open(_FIRM, "w"))
+    _MADE_FIRM = True
 LIVE = [os.path.realpath(os.path.join(ROOT, d)) for d in ("state", "reports", "logs", "data")]
 KEY = ["state/veteran_desk_payouts.json", "state/veteran_desk/KILL_ALERT.json", "reports/veteran_desk_book.json", "state/veteran_desk/forward_trades.json",
        "state/veteran_desk/leaderboard.json", "state/veteran_desk/latest.json", "state/veteran_desk/head_of_desk.json", "state/veteran_desk/price_alerts.jsonl",
@@ -43,13 +70,24 @@ def _redirect():
     from veteran_desk import feeds as FD, payouts as PY, leaderboard as LB
     FD.FH = os.path.join(TMP, "feeds_health.json"); FD.CG_CACHE = os.path.join(TMP, "coingecko_cache.json")
     import shutil
-    if os.path.exists(PY.DEFAULT_OUT_PATH): shutil.copyfile(PY.DEFAULT_OUT_PATH, os.path.join(TMP, "veteran_desk_payouts.json"))   # read-only copy of live
-    PY.DEFAULT_OUT_PATH = os.path.join(TMP, "veteran_desk_payouts.json"); LB.LIVE = os.path.join(TMP, "leaderboard.json")
+    _pdest = os.path.join(TMP, "veteran_desk_payouts.json")
+    if os.path.exists(PY.DEFAULT_OUT_PATH): shutil.copyfile(PY.DEFAULT_OUT_PATH, _pdest)   # read-only copy of live
+    else: __import__("json").dump({}, open(_pdest, "w"))
+    PY.DEFAULT_OUT_PATH = _pdest; LB.LIVE = os.path.join(TMP, "leaderboard.json")
     import funder_gate as FG
     FG._lock = lambda: contextlib.nullcontext()   # shared desk_lock lives under live reports/; tests use tmp queues only
 _redirect()
 def pytest_sessionfinish(session, exitstatus):
     after = _sig(); changed = [k for k in KEY if after[k] != _BEFORE[k]]
+    if _SYN_MADE:
+        try: os.remove(_SYN_BOOK)
+        except OSError: pass
+    if _MADE_NEWS:
+        try: os.remove(_NEWS)
+        except OSError: pass
+    if _MADE_FIRM:
+        try: os.remove(_FIRM)
+        except OSError: pass
     if VIOLATIONS or changed:
         sys.stderr.write("\nTEST GUARD FAILED - live writes: %s ; key files changed during session: %s\n" % (VIOLATIONS[:20], changed))
         session.exitstatus = 1
@@ -81,6 +119,16 @@ def _no_real_revguard_webhook(monkeypatch, tmp_path_factory):
         if hasattr(req, "get_header") and req.get_header("Authorization"): raise RuntimeError("TEST GUARD: authorized POST blocked")
         return _real(req, *a, **k)
     monkeypatch.setattr(urllib.request, "urlopen", _guard)
+@pytest.fixture(autouse=True)
+def _borrow_without_live_snapshot(monkeypatch, request):
+    """Shorts fail closed without state/ibkr_borrow.json. That file is a live locate snapshot, not in this tree.
+    test_execution_rules checks the real fail-closed path and is left alone."""
+    if "test_execution_rules" in request.node.nodeid:
+        return
+    if os.path.exists(os.path.join(ROOT, "state", "ibkr_borrow.json")):
+        return
+    from veteran_desk import execution_rules as XR
+    monkeypatch.setattr(XR, "borrow_check", lambda *a, **k: dict(ok=True, fee_pa=0.01, available=10**9, htb=False, why="no live borrow file"))
 
 @pytest.fixture(autouse=True)
 def _seatcap_legacy(request, monkeypatch):

@@ -18,8 +18,8 @@ class SharkHalf(unittest.TestCase):
 
     def test_gate_present_before_quote(self):
         src = inspect.getsource(tfo_buy.gates)
-        self.assertIn("shark_max_clip(eq)", src)
-        self.assertLess(src.index("shark_max_clip(eq)"), src.index("fetch_prices"))
+        self.assertIn("shark_max_clip(seq)", src)   # sizes off firm equity ex veteran_desk, not the raw eq local
+        self.assertLess(src.index("shark_max_clip(seq)"), src.index("fetch_prices"))
 
     def test_watchlist_caps_equity_not_crypto(self):
         self.assertAlmostEqual(tfo_watchlist.shark_cap(1.8e6), 180000.0)

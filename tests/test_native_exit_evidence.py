@@ -1,10 +1,15 @@
 import copy
+import os
 import sys
 import time
 import unittest
 from contextlib import ExitStack
 from unittest.mock import patch
 
+_FLOOR = "/Users/test/Applications/KrakenQuantDesk/kraken_floor.py"
+if not os.path.exists(_FLOOR):
+    import pytest
+    pytest.skip("kraken_floor lives in KrakenQuantDesk, which is not in this tree. See TEST_TRIAGE.md.", allow_module_level=True)
 sys.path.insert(0, '/Users/test/Applications/KrakenQuantDesk')
 import kraken_floor as k
 import replica_floor as r

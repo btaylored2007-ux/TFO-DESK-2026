@@ -24,6 +24,6 @@ def test_margin_uses_real_broker_room(tmp_path, monkeypatch):
 
 def test_caps_scale_with_base(tmp_path, monkeypatch):
     _setup(tmp_path, monkeypatch)
-    c = A.cfg(); assert c["risk_pct"] == 0.03 and c["open_risk_cap_pct"] == 0.25
+    c = A.cfg(); assert c["risk_pct"] == 0.02 and c["open_risk_cap_pct"] == 0.25
     assert c["group_cap"]["METALS"] == 0.06 and c["usd_cap_pct"] == 0.09
-    assert round(c["risk_pct"] * A.capital_nav({"NAV": "51545.22"}), 2) == 4546.36
+    assert round(c["risk_pct"] * A.capital_nav({"NAV": "51545.22"}), 2) == 3030.90

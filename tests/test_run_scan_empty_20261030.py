@@ -3,7 +3,9 @@ import os, sys, importlib.util, pytest
 import pandas as pd
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 def _rs():
-    spec = importlib.util.spec_from_file_location("run_scan_t", os.path.join(ROOT, "state", "calendar", "ranker", "run_scan.py"))
+    p = os.path.join(ROOT, "state", "calendar", "ranker", "run_scan.py")
+    if not os.path.exists(p): p = os.path.join(ROOT, "staged_fixes", "tforul", "ranker", "run_scan.py")
+    spec = importlib.util.spec_from_file_location("run_scan_t", p)
     m = importlib.util.module_from_spec(spec); spec.loader.exec_module(m); return m
 def test_empty_frame_exits_2(capsys):
     m = _rs()

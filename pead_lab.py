@@ -71,7 +71,7 @@ RECEIPT = os.path.join(BASE, "reports", "pead_lab.json")
 NOTE = os.path.join(BASE, "reports", "research_pead.md")
 
 HOUSE_PRIOR_TRIALS = 1227          # HUNT_BACKLOG.md, 2026-08-14
-UA = __import__("json").load(open(__import__("os").path.expanduser("~/Applications/MultiVenueDesk/research_controls/sec_contact.json")))["user_agent"]
+UA = __import__("sec_contact").user_agent()
 N_UNIVERSE = 400
 SEED = 20260816
 VOL_TARGET = 0.10

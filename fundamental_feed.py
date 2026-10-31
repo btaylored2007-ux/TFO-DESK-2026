@@ -56,7 +56,7 @@ CACHE = os.path.join(BASE, "reports", "feed_cache")
 ENV_FILE = os.path.expanduser("~/.config/tfo/feed.env")
 
 # SEC requires a descriptive UA with contact. Not a credential.
-SEC_UA = __import__("json").load(open(__import__("os").path.expanduser("~/Applications/MultiVenueDesk/research_controls/sec_contact.json")))["user_agent"]
+SEC_UA = __import__("sec_contact").user_agent()
 SEC_RATE_SLEEP = 0.12          # SEC asks <=10 req/s; stay well under
 
 # A source is DEGRADED after this many consecutive failures. Chosen low on

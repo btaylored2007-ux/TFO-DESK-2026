@@ -7,7 +7,7 @@ from datetime import datetime
 from zoneinfo import ZoneInfo
 from pathlib import Path
 
-ROOT = Path("/Users/test/Applications/MultiVenueDesk")
+ROOT = Path(__file__).resolve().parent   # on the Mac this is /Users/test/Applications/MultiVenueDesk; CI has no /Users/test
 REPORTS = ROOT / "reports"
 ROLLBACK = REPORTS / "revisions" / "rollback"
 ROLLBACK.mkdir(parents=True, exist_ok=True)

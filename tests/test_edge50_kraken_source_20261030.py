@@ -1,8 +1,11 @@
 """edge50kraken 2026-10-30: Kraken daily OHLC primary for CRYPTO_TR, Yahoo fallback; signal unchanged. Mocks only, no network, temp state."""
 import os, sys, tempfile, importlib
+import pytest
 import numpy as np, pandas as pd
 os.environ['EDGE50_STATE']=tempfile.mkdtemp()
 FWD=os.environ.get('EDGE50_FWD_DIR',os.path.join(os.path.dirname(os.path.abspath(__file__)),'..','research','edge50','fwd'))
+if not os.path.exists(os.path.join(os.path.abspath(FWD), 'edge50_fwd.py')):
+    pytest.skip('edge50_fwd is not in the code-only export (research/edge50/fwd). See TEST_TRIAGE.md.', allow_module_level=True)
 sys.path.insert(0,os.path.abspath(FWD))
 E=importlib.import_module('edge50_fwd')
 IDX=pd.date_range('2026-06-01','2026-10-30',freq='D')

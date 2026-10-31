@@ -19,7 +19,7 @@ BASE = os.environ.get("DESK_BASE", os.path.dirname(os.path.abspath(__file__)))
 CD = os.path.join(BASE, "state", "calendar"); IN = os.path.join(CD, "inputs")
 OUT_STATIC = os.path.join(BASE, "static", "event_calendar.json")
 UTC = dt.timezone.utc; WITA = ZoneInfo("Asia/Makassar"); ET = ZoneInfo("America/New_York")
-SEC_UA = __import__("json").load(open(__import__("os").path.expanduser("~/Applications/MultiVenueDesk/research_controls/sec_contact.json")))["user_agent"]
+SEC_UA = __import__("sec_contact").user_agent()
 BROWSER_UA = "Mozilla/5.0 (Macintosh) AppleWebKit/537.36 Chrome/128 Safari/537.36"
 HORIZON_H = 72
 FOMC_UTC = dt.datetime(2026, 10, 28, 18, 0, tzinfo=UTC)          # Thu 29 Oct 02:00 WITA (Brett)

@@ -418,7 +418,8 @@ def case_H7_ledger_is_written_before_any_event(monkeypatch, tmp_path):
         return real(kind, **kw)
     monkeypatch.setattr(H, "event", spy)
     H.apply_plan(_plan(tmp_path, set=[dict(SPEC, ticker="BBB"), dict(SPEC, ticker="NEW2")]), now)
-    assert seen and all(s.get("BBB") == "ARMED" and s.get("NEW2") == "ARMED" for _, s in seen)
+    posted = [(k, s) for k, s in seen if k != "us_book_cap_check"]   # the 60% cap check reads the book before the arm is written
+    assert posted and all(s.get("BBB") == "ARMED" and s.get("NEW2") == "ARMED" for _, s in posted)
 
 
 # ============================================================ H8: max 3 open is PER BOOK (calendar + ASX benches)
@@ -717,10 +718,10 @@ class H15OandaTotalCapLocks(unittest.TestCase):
         ins = ins or ("XPD_USD" if design == "OXP1" else "EUR_JPY")
         return self.m.place_entry(dict(design=design, ins=ins, dir=1, risk_pct=0.005, stop_dist=0.01, floor_sp=1e-4, close=1.0), False)
     def test_H15_rail_is_10_can_be_lowered_never_raised(self):
-        self.assertEqual(self.m.cfg()["total_max_trades"], 10)
-        for v, want in ((25, 10), (10, 10), (6, 6)):
+        self.assertEqual(self.m.cfg()["total_max_trades"], 4)
+        for v, want in ((25, 4), (4, 4), (3, 3)):
             json.dump({"total_max_trades": v}, open(self.m.CFG, "w")); self.assertEqual(self.m.cfg()["total_max_trades"], want)
-        self._open(4, 2, 0); self.assertEqual(self._try("OXL2"), "skip:total_max_trades")     # lowered to 6: 6 open blocks
+        self._open(3, 1, 0); self.assertEqual(self._try("OXL2"), "skip:total_max_trades")     # 4 open blocks the next
     def test_H15_sweep_every_bucket_mix_never_exceeds_ten(self):
         c = self.m.cfg(); lim = dict(OXL2=c["max_trades"], OXF1=c["trend_max_trades"], OXP1=c["cmdty_max_trades"])
         n_checked = 0
@@ -730,16 +731,16 @@ class H15OandaTotalCapLocks(unittest.TestCase):
                     self._open(b, t, k); n = b + t + k; own = dict(OXL2=b, OXF1=t, OXP1=k)
                     for d in ("OXL2", "OXF1", "OXP1"):
                         r = self._try(d); n_checked += 1
-                        if n >= 10: self.assertEqual(r, "skip:total_max_trades", (b, t, k, d))
+                        if n >= 4: self.assertEqual(r, "skip:total_max_trades", (b, t, k, d))
                         else:
                             self.assertNotIn("total_max_trades", r, (b, t, k, d))
                             if own[d] >= lim[d]: self.assertTrue(r.endswith("max_trades"), (b, t, k, d, r))
         self.assertGreater(n_checked, 900)
     def test_H15_other_owners_and_protected_trades_do_not_count(self):
-        self._open(9, 0, 0); self.open += [self._t(90, "USD_JPY", "X", tag="AGGRO"), dict(self._t(91, "EUR_USD", "OXL2"), id="61365")]
+        self._open(3, 0, 0); self.open += [self._t(90, "USD_JPY", "X", tag="AGGRO"), dict(self._t(91, "EUR_USD", "OXL2"), id="61365")]
         self.assertNotIn("total_max_trades", self._try("OXF1"))
     def test_H15_pending_exit_defers_instead_of_dropping(self):
-        self._open(6, 2, 2)
+        self._open(2, 2, 0)   # 4 open, under each bucket cap, so the total-cap defer is what fires
         json.dump({"exits": [{"instrument": "EUR_GBP", "trade_id": "100"}]}, open(os.path.join(self.m.ST, self.m.EXITS), "w"))
         self.assertEqual(self._try("OXL2"), "defer:total_max_trades_exit_pending")
     def test_H15_only_one_tfo_entry_path_exists(self):
