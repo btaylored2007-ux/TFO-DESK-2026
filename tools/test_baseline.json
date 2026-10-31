@@ -1,33 +1,7 @@
 {
   "suite": "veteran_desk/tests",
-  "recorded": "2026-10-31 ~00:38 WITA",
-  "note": "Live tfo_a1pct_20261031 (A default 1%) already on book.py broke sizing tests vs 2026-10-30 baseline; absorbing those as known so unrelated paid-feed deploys can proceed. New failures beyond this list still roll back.",
+  "recorded": "2026-10-30 WITA",
   "known_failures": [
-    "veteran_desk/tests/test_book_payouts.py::test_tick_arms_only_ticked_with_stop_and_2to5pct_risk",
-    "veteran_desk/tests/test_book_pretrade.py::test_passes_and_records",
-    "veteran_desk/tests/test_costmodel_hold_20261030.py::test_fullflat_3R_held_closed_but_fires_open",
-    "veteran_desk/tests/test_costmodel_hold_20261030.py::test_giveback_fires_open_held_closed",
-    "veteran_desk/tests/test_costmodel_hold_20261030.py::test_revguard_held_closed",
-    "veteran_desk/tests/test_fx_listing_sizing_20261029.py::test_2800hk_old_vs_new",
-    "veteran_desk/tests/test_fx_settlement_20261029.py::test_round_trip_cash_via_tick",
-    "veteran_desk/tests/test_hedge_staged_20261029.py::test_legacy_close_then_stage1_and_offhours_hold",
-    "veteran_desk/tests/test_hedge_staged_20261029.py::test_step_up_down_off_and_cap",
-    "veteran_desk/tests/test_insufficient_cash_20261029.py::test_arm_passes_when_cash_covers_notional_plus_cost",
-    "veteran_desk/tests/test_insufficient_cash_20261029.py::test_arm_rejects_insufficient_cash_and_never_resizes",
-    "veteran_desk/tests/test_kai_rails_20261029.py::test_other_seats_unchanged",
-    "veteran_desk/tests/test_krakenfx_20261029.py::test_usdkrw_theo_case_risk",
-    "veteran_desk/tests/test_offhours_rebook_20261028.py::test_flag_then_rebook",
-    "veteran_desk/tests/test_offhours_rebook_20261028.py::test_session_open",
-    "veteran_desk/tests/test_one_sizing.py::test_band",
-    "veteran_desk/tests/test_one_sizing.py::test_cut_toward_2pct_never_below",
-    "veteran_desk/tests/test_railfix_20261029.py::test_risk_plan_grades_and_cap",
-    "veteran_desk/tests/test_railfix_20261029.py::test_risk_plan_rejects_sub_floor",
-    "veteran_desk/tests/test_review_20261030.py::test_flexible_a_band",
-    "veteran_desk/tests/test_review_20261030.py::test_missing_lessons_respected_halves",
-    "veteran_desk/tests/test_review_20261030.py::test_override_half_size",
-    "veteran_desk/tests/test_review_20261030.py::test_vd_stern_review",
-    "veteran_desk/tests/test_seatcap_gapguard_20261030.py::test_etf_cap_75",
-    "veteran_desk/tests/test_stalefill_20261029.py::test_tse_closed_no_fill",
-    "veteran_desk/tests/test_unknown_posture_20261028.py::test_unknown_pauses_arms_holds_fills_keeps_stops"
+    "veteran_desk/tests/test_fx_settlement_20261029.py::test_round_trip_cash_via_tick"
   ]
 }

@@ -81,20 +81,36 @@ class TestSleeveAccounting(unittest.TestCase):
         # ~$30 a full-turnover recharge would cost.
         self.assertLess(c2, 0.5)
 
+    def _clear_firm(self):
+        import json, tempfile, time
+        from unittest.mock import patch
+        import book_kill
+        td = tempfile.mkdtemp()
+        p = os.path.join(td, "firm.json")
+        json.dump({"epoch": time.time(), "new_entries_halted": False, "level": "OK",
+                   "drawdown_valid": True, "capital_accounting_valid": True}, open(p, "w"))
+        book_kill._FIRM_CACHE.update({"epoch": 0.0, "val": None})
+        return patch.object(book_kill, "FIRM_STATE", p)
+
     def test_kill_rule_freezes_at_minus_30(self):
         import tournament as tn
+        import book_kill
+        self.assertEqual(tn.KILL_DD_PCT, book_kill.KILL_DD_PCT)
+        self.assertEqual(book_kill.KILL_DD_PCT, -18.0)
         s = self._sleeve()
-        tn.set_holdings(s, {"A": 1.0}, {"A": 100.0}, 0.0)
-        tn.mark(s, {"A": 69.0})     # -31%
+        with self._clear_firm():
+            tn.set_holdings(s, {"A": 1.0}, {"A": 100.0}, 0.0)
+            tn.mark(s, {"A": 80.0})     # -20%, through the pinned -18% kill (the old -30% rail is gone)
         self.assertTrue(s["frozen"])
         self.assertIn("kill rule", s.get("frozen_reason", ""))
 
     def test_mark_tracks_peak_and_dd(self):
         import tournament as tn
         s = self._sleeve()
-        tn.set_holdings(s, {"A": 1.0}, {"A": 100.0}, 0.0)
-        tn.mark(s, {"A": 120.0})
-        tn.mark(s, {"A": 108.0})
+        with self._clear_firm():
+            tn.set_holdings(s, {"A": 1.0}, {"A": 100.0}, 0.0)
+            tn.mark(s, {"A": 120.0})
+            tn.mark(s, {"A": 108.0})
         self.assertAlmostEqual(s["dd_pct"], -10.0, delta=0.2)
         self.assertFalse(s["frozen"])
 

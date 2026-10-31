@@ -155,7 +155,15 @@ def _orders(L, targets, px, fx):
 
 def _book(L, orders, px, fx, reason):
     fills = []
+    _halt = False
+    try:
+        import book_kill
+        _halt, _why = book_kill.firm_halt_blocks_entry("trend_core_global")
+    except Exception:
+        _halt, _why = False, "ok"
     for i, dq, pr, kind, grp in orders:
+        if _halt and dq > 0:
+            tc.log("ENTRY REFUSED firm halt %s: %s" % (i, _why)); continue
         notional = abs(dq) * pr / fx; cost = notional * tc.COST[kind]
         cash = L["cash_aud"] + (notional if dq < 0 else -notional) - cost
         if dq > 0 and cash < tc.SPARE_AUD - 1:   # A$50k spare never deployed: clip buy

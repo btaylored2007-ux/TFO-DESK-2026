@@ -103,6 +103,11 @@ run carry_monitor.py     "$DESK"
 # ARCHIVED 2026-09-25 (HT Option A; paper-trading step removed, book archived via book_archive.py): run carry_paper_desk.py  "$DESK"
 run carry_hurdle_monitor.py "$DESK" # read-only; legacy funding remains flagged, never guessed
 run "tournament.py --board" "$DESK"   # 2026-09-25 HT: sleeve tick disabled (capacity_probe archived; all other sleeves retired); board only
+# Firm halt is published before any entry-capable book. Uses ledgers as of the previous
+# tick (same freshness the old end-of-tick placement gave the next tick's entries) and
+# is no longer the step most likely to be dropped when the 25-minute budget runs out.
+# Floors and books read reports/firm_risk_state.json before opening. Exits are never blocked.
+run firm_risk.py         "$DESK"
 # RETIRED 2026-09-19 — growth_book archived; do not resurrect
 # run growth_book.py       "$DESK"
 # RETIRED 2026-09-19: archived empty worldwide_gap_book, registry removed.
@@ -148,12 +153,11 @@ run trend_core_shadow.py  "$DESK"   # 2026-10-28 TREND-CORE SHADOW profit-taking
 run "trend_core_global.py rebalance-if-due" "$DESK"   # 2026-10-28 TREND-CORE global widening + SPEC: executes 28 Oct US open (>=09:45 ET) only after rebook done-file; live prices only; locked + executed flag = once
 run "essentials_book.py mark" "$DESK"   # 2026-10-28 ESSENTIALS A$1m AUD paper (not firm equity): fill staged at next open (live px), re-mark, stops/spec halt flags
 run risk_engine.py       "$DESK"
-run firm_risk.py         "$DESK"   # firm equity/peak/drawdown + the two firm triggers
+# firm_risk.py runs near the top of the tick, before entry-capable books.
 run tfo_daily_pnl.py     "$DESK"   # record flow-adjusted daily USD P&L and %; reporting only
-                                    # (FIRM_RISK_AMENDMENT.md, funder-directed 2026-08-27).
-                                    # MUST run before the floors below: they read its
-                                    # halt flag before opening a NEW position. WARN at
-                                    # -10%, HALT-NEW-ENTRIES at -20%, NEVER liquidates.
+                                    # (FIRM_RISK_AMENDMENT.md). firm_risk.py already ran
+                                    # before the entry books. Floors still read that halt
+                                    # flag. WARN at -10%, HALT-NEW-ENTRIES at -20%, NEVER liquidates.
 run exposure_dial.py     "$DESK"   # registered dial 21e05244c53d4e77: cheap no-op when fresh (<20h)
 run profitability_controls.py "$DESK" # read-only fully loaded NAV / concentration / allocation audit
 run "carry_economic_hurdle_lab.py --collect --incremental" "$DESK" # finite preregistered research; public settled data; NO orders or capital
@@ -220,7 +224,24 @@ cd "$DESK"
 if [ -d .git ]; then
   LASTC=$(git log -1 --format=%ct 2>/dev/null || echo 0)
   if [ $(( $(date +%s) - LASTC )) -gt 79200 ]; then
-    git add -A >/dev/null 2>&1
+    # Explicit allow-list. Never `git add -A`: health captures, DOM dumps and
+    # anything an agent drops in the tree must not be committed or pushed.
+    git add -u -- \
+      .gitignore .github desk_tick.sh launchd ops tools tests tests_watchlist \
+      veteran_desk macpatches \
+      '*.py' '*.md' '*.sh' '*.plist' '*.html' \
+      'reports/*.json' 'reports/*.csv' 'reports/*.jsonl' 'reports/*.md' 'reports/tournament' \
+      'static/*.json' 'static/*.html' 'static/*.csv' \
+      'state/*.json' 'state/*.md' \
+      >/dev/null 2>&1 || true
+    git add -- \
+      .gitignore .github desk_tick.sh launchd ops tools tests tests_watchlist \
+      veteran_desk macpatches \
+      '*.py' '*.md' '*.sh' '*.plist' '*.html' \
+      'reports/*.json' 'reports/*.csv' 'reports/*.jsonl' 'reports/*.md' 'reports/tournament' \
+      'static/*.json' 'static/*.html' 'static/*.csv' \
+      'state/*.json' 'state/*.md' \
+      >/dev/null 2>&1 || true
     git -c user.name="Taylor Family Office" -c user.email="desk@tfo.local" \
         commit -q -m "Daily firm snapshot $(date +%F)" >/dev/null 2>&1
     if git remote get-url origin >/dev/null 2>&1; then

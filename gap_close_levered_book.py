@@ -72,10 +72,11 @@ def _mark(b, last):
     b["drawdown_basis"] = "flow-adjusted: (equity - net capital transfers since peak) / peak"
     b["equity"] = round(eq, 2)
     b["drawdown_pct"] = round((adj / peak - 1) * 100, 3) if peak else 0
-    # kill -35%
-    if b["drawdown_pct"] <= -35.0:
+    # kill at book_kill.KILL_DD_PCT (KILL_THRESHOLD_AMENDMENT.md). Was a hardcoded -35.
+    import book_kill
+    if b["drawdown_pct"] <= book_kill.KILL_DD_PCT:
         b["frozen"] = True
-        b["frozen_reason"] = "sleeve kill -35%"
+        b["frozen_reason"] = "sleeve kill %.0f%%" % book_kill.KILL_DD_PCT
     return b
 
 if __name__ == "__main__":

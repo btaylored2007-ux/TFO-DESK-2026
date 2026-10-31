@@ -78,9 +78,9 @@ def test_fill_books_when_cash_suffices():
     ce = BK.leg_cost_aud(x, 40.0, 260, AU, None, "entry"); assert abs(x["cost_aud"] - round(ce, 2)) < 1e-9
     assert abs(B["cash_aud"] - (20000 - n - ce)) < 0.01
 def test_fill_fx_exempt_only_cost_leaves_cash():
-    pos = {"FX1": dict(id="FX1", seat="macro", ticker="EURUSD=X", side="LONG", entry=1.1100, stop=1.0989, target=1.1433, shares=100000, risk_aud=10.0, status="armed",
+    pos = {"FX1": dict(id="FX1", seat="macro", ticker="EURUSD=X", side="LONG", entry=1.1100, stop=1.0989, target=1.1433, shares=1000, risk_aud=10.0, status="armed",
                        armed_utc=(T - dt.timedelta(minutes=30)).isoformat(), venue="FX", sleeve="core", order_type="limit")}
-    D, _ = _tick(_book("macro", 500, pos), marks={"EURUSD=X": dict(last=1.1090, hi=1.1095, lo=1.1085)})   # notional ~A$170k vs A$500 cash
+    D, _ = _tick(_book("macro", 500, pos), marks={"EURUSD=X": dict(last=1.1090, hi=1.1095, lo=1.1085)})   # notional still above the A$500 cash; FX debits cost only. Size stays inside the 5% fill-time cap.
     x = D["seats"]["macro"]["positions"]["FX1"]
     assert x["status"] == "open" and x["fill"] == 1.1100 and D["seats"]["macro"]["cash_aud"] > 0
 # ---------- off-hours rebook ----------

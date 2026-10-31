@@ -181,12 +181,21 @@ def _track_fetch(f):   # 2026-10-29 TFO 11:12 WITA fix 2 (additive): record late
         return b
     return g
 def run(now=None, fetch=None, base=BASE, force=False):
+    import desk_lock
+    with desk_lock.ledger_lock("hunt48_asx"):
+        return _run_hunt_asx(now, fetch, base, force)
+def _run_hunt_asx(now=None, fetch=None, base=BASE, force=False):
     if fetch is None:   # 2026-10-30 paidbars: paid-first hourly bars (EODHD where it matches Yahoo exactly), Yahoo CB.bars_yf fallback; source logged
         import paid_bars as PB; fetch = lambda y, s: PB.hourly(y, s, CB.bars_yf)
     fetch = _track_fetch(fetch)
     now = now or CB.now_utc(); rows = load_rows(base); ann, earn, halted = load_events(base, now)
     SD, LEDGER, STATUS = paths(base)   # noqa: N806 — local shadows of module defaults, keyed off `base`
-    L = CB.load(LEDGER, dict(book="HUNT48_ASX", paper_only=True, capital_aud=CAPITAL_AUD, ccy="AUD", trades=[]))
+    L = CB.load(LEDGER, dict(book="HUNT48_ASX", paper_only=True, capital_aud=CAPITAL_AUD, ccy="AUD", trades=[]), strict=True)
+    try:
+        import book_kill
+        _halt, _why = book_kill.firm_halt_blocks_entry("hunt48_asx")
+    except Exception:
+        _halt, _why = False, "ok"
     T = L["trades"]; nid = lambda: max([t["id"] for t in T] or [0]) + 1
     valid_from = valid_from_for(now) if not in_hours(now) or now.astimezone(SYD).hour >= 15 else None
     CL = clearance(now, base); VT = VV.load("asx", now, base)    # GPT/Claude verdicts (same files as the US books); missing/stale -> every name vetoed
@@ -283,6 +292,7 @@ def run(now=None, fetch=None, base=BASE, force=False):
             if not ok4: t["bench_note"] = "intraday open-time checks: " + "; ".join(why4)[:200]; continue
             t.update(armed_utc=now.isoformat(), armed_wita=w(now), intraday_rescan=w(now))
         if valid_from and dt.datetime.fromisoformat(t["armed_utc"]) > valid_from: t.update(armed_utc=valid_from.isoformat(), armed_wita=w(valid_from))
+        if _halt: t["bench_note"] = "firm halt: " + _why; continue
         t["status"] = "ARMED"; t["promoted_utc"] = now.isoformat(); t.pop("bench_note", None)
     # 3b) bench capped at MAX_BENCH (lowest score beyond 15 -> DISARMED 'bench full'; kept in ledger, never deleted)
     for t in sorted([t for t in T if t["status"] == "BENCH"], key=lambda t: -t["score"])[HR.max_bench("asx", MAX_BENCH, os.path.join(base, "state")):]:
@@ -298,6 +308,8 @@ def run(now=None, fetch=None, base=BASE, force=False):
     if in_hours(now) or force:
         for t in [t for t in T if t["status"] in ("ARMED", "FILLED")]:
             if dt.datetime.fromisoformat(t["armed_utc"]) > now: continue
+            if _halt and t["status"] == "ARMED":
+                t["bench_note"] = "firm halt: " + _why; continue
             try:
                 bars = fetch(t["yahoo"], dt.datetime.fromisoformat(t["armed_utc"]))
                 if t["status"] == "ARMED": bars = [b for b in bars if b["t"] <= session_close(dt.datetime.fromisoformat(t["armed_utc"]).astimezone(SYD).date()) + dt.timedelta(minutes=65)]   # day arm (2026-10-27 audit, = asia_hunt48)

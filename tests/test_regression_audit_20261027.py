@@ -612,7 +612,6 @@ def case_GAP_C1_extension_lands_on_the_next_ny_session_close(monkeypatch, fill_d
     assert nte.date() == d and (nte.hour, nte.minute) == ((12, 55) if d.isoformat() in H.NYSE_EARLY else (15, 55)), nte
 
 
-@xfail(reason="VERIFY.md H5-WEAK: fill recheck fails OPEN when even 1 share exceeds the A$ cap", strict=False)
 def case_GAP_H5_oversized_fill_with_zero_affordable_shares_never_becomes_a_position():
     now = _ny(2026, 11, 4, 10, 0)
     t = dict(ticker="Z", direction="short", status="ARMED", armed_utc=(now - dt.timedelta(hours=1)).isoformat(), trigger=5000.0,
@@ -621,7 +620,6 @@ def case_GAP_H5_oversized_fill_with_zero_affordable_shares_never_becomes_a_posit
     assert k != "filled" or abs(t["entry"] - t["stop"]) * t["shares"] / 0.70 <= 2500 + 1e-6
 
 
-@xfail(reason="VERIFY.md H5-WEAK: missing AUDUSD skips the fill-time risk recheck (should fail closed)", strict=False)
 def case_GAP_H5_missing_fx_never_fills_unchecked():
     now = _ny(2026, 11, 4, 10, 0)
     t = dict(ticker="Z", direction="short", status="ARMED", armed_utc=(now - dt.timedelta(hours=1)).isoformat(), trigger=50.0,
@@ -631,7 +629,6 @@ def case_GAP_H5_missing_fx_never_fills_unchecked():
 
 
 
-@xfail(reason="VERIFY.md H1 note: a NaN bar open (yfinance gap row) turns the stop fill into NaN P&L", strict=False)
 def case_GAP_H1_nan_open_never_produces_nan_pnl():
     t = _cbt("long")
     CB.step(t, [dict(t=_T0 + dt.timedelta(hours=1), o=float("nan"), h=96.0, l=94.0, c=95.5)], _T0 + dt.timedelta(hours=2), 3)
@@ -640,12 +637,10 @@ def case_GAP_H1_nan_open_never_produces_nan_pnl():
 
 
 
-@xfail(reason="VERIFY.md H11 note (Codex): a cache dated in the future has negative age and is accepted as fresh", strict=False)
 def case_GAP_H11_future_dated_borrow_cache_is_not_evidence(monkeypatch, tmp_path):
     _borrow_cache(tmp_path, monkeypatch, -240); assert _REAL_HAS_BORROW("XYZ", 1) is False
 
 
-@xfail(reason="VERIFY.md H2/M4 note (Codex): rows with NaN high/low count toward the 200-bar minimum and hide structure", strict=False)
 def case_GAP_H2_nan_daily_rows_never_count_as_history():
     nan = float("nan"); t = dict(SPEC, max_fill=49.9, stop=52.0, t2=45.0, shares=800)
     rc = H.room_check(t, [dict(h=nan, l=nan, c=nan)] * 250); assert rc["ok"] is False

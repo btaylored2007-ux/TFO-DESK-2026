@@ -47,7 +47,9 @@ class PowderLock(unittest.TestCase):
         self.g.fetch = lambda: pd.DataFrame({"TQQQ": [10.0]})
         b = json.load(open(self.g.BOOK)); b["cash"] = 60000.0; json.dump(b, open(self.g.BOOK, "w"))
         self.g.tick(); b = json.load(open(self.g.BOOK))
-        self.assertTrue(b["frozen"]); self.assertEqual(b["frozen_reason"], "sleeve kill -35%")
+        import book_kill
+        self.assertEqual(book_kill.KILL_DD_PCT, -18.0)
+        self.assertTrue(b["frozen"]); self.assertEqual(b["frozen_reason"], "sleeve kill %.0f%%" % book_kill.KILL_DD_PCT)
 
 if __name__ == "__main__":
     unittest.main()

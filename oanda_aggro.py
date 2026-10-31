@@ -175,6 +175,14 @@ def set_stop(t, price, reason, live):
     except Exception as ex: rec.update(event="stop_update_failed", error=str(ex)[:300])
     log(rec); return rec["event"] == "stop_update"
 def place(e, c, live):
+    try:
+        import book_kill
+        _blocked, _why = book_kill.firm_halt_blocks_entry("oanda_aggro")
+        if _blocked:
+            log(dict(event="entry_blocked_firm_halt", instrument=e.get("ins"), design=e.get("design"), why=_why))
+            return "skip:firm_halt"
+    except Exception:
+        pass
     if S.RG.entries_blocked(S.ST):   # 25 Oct 2026: OANDA reconcile failing > 2 h -> no new entries (account-wide)
         log(dict(event="entry_blocked_reconcile", instrument=e.get("ins"), design=e.get("design"))); return "defer:reconcile_blocked"
     a = S.summary(); nav = capital_nav(a); tr = S.open_trades()

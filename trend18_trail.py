@@ -67,11 +67,16 @@ def levels(L, hist, audusd, today=None):
 
 def check(L, S, hist, audusd, week_label, today=None):
     lv = levels(L, hist, audusd, today); S["pos"] = lv; new = []
+    held = [inst for inst in TRAIL if float((L.get("holdings") or {}).get(inst) or 0) > 0]
+    missing = [inst for inst in held if inst not in hist]
     if week_label and S.get("last_week_checked") != week_label:
         for inst, r in lv.items():
             if r["triggered"] and inst not in S["pending"] and inst not in S["stopped"]:
                 S["pending"].append(inst); new.append(inst)
-        S["last_week_checked"] = week_label
+        # A week is checked only when every held name was actually priced. A missing
+        # download must not skip the 20% trail until next Friday.
+        if not missing:
+            S["last_week_checked"] = week_label
     return new
 
 def execute_pending(L, S, quote_fn, btc_quote_fn=None):

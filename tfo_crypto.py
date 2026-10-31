@@ -376,6 +376,12 @@ def clip_heat():
 def gates(pair, usd, theme):
     from tfo_buy import firm_state, sizing_eq
     fails = []; b = book()
+    try:
+        import book_kill
+        _blocked, _why = book_kill.firm_halt_blocks_entry("tfo_crypto")
+        if _blocked: fails.append(_why)
+    except Exception:
+        pass
     if pair in NOT_TRADES: fails.append("stablecoin/FX is cash, not a clip")
     from tfo_ticket import CLOSED_NAMES as _CN  # 2026-09-30: crypto gate now honours Brett closed-book list
     if str(pair).upper().split("/")[0] in _CN: fails.append("closed name")
@@ -515,6 +521,13 @@ def resting_entries(b, g, now, execute, lines):
         if outcome is None and now.timestamp() > exp and prs is not None: outcome = "expired"
         if outcome is None and now.timestamp() > exp + MAKER_ENTRY_TTL_S: outcome = "expired"   # gate F7: feed down past 2x TTL -> expire on the clock
         if outcome == "fill" and OPENS_DISABLED: outcome = "archived_cancel"   # 2026-10-30 archive lock: never fill into a position; reservation returned
+        if outcome == "fill":
+            try:
+                import book_kill
+                _blocked, _why = book_kill.firm_halt_blocks_entry("tfo_crypto")
+                if _blocked: outcome = "firm_halt"   # reservation returns; the position is not opened
+            except Exception:
+                pass
         print("RESTING %-10s %s limit %.8g -> %s" % (pair, r["ticket_id"], r["limit_px"], outcome or "open"))
         if not execute or outcome is None: continue
         if outcome == "fill": lines.append(_fill_entry(b, pair, r, utc))

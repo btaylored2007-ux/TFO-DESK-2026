@@ -23,6 +23,8 @@ import json
 import os
 import sys
 import time
+import book_kill
+KILL_DD_PCT = book_kill.KILL_DD_PCT   # KILL_THRESHOLD_AMENDMENT.md: the number lives in book_kill only
 import urllib.request
 import warnings
 
@@ -172,9 +174,9 @@ def mark(s, px):
     s["equity"] = round(eq, 2)
     s["peak"] = max(s.get("peak", eq), eq)
     s["dd_pct"] = round((eq / s["peak"] - 1.0) * 100, 2)
-    if s["dd_pct"] <= -30 and not s["frozen"]:
+    if s["dd_pct"] <= KILL_DD_PCT and not s["frozen"]:
         s["frozen"] = True
-        s["frozen_reason"] = "kill rule: drawdown %.1f%% <= -30%%" % s["dd_pct"]
+        s["frozen_reason"] = "kill rule: drawdown %.1f%% <= %.0f%%" % (s["dd_pct"], KILL_DD_PCT)
     return eq
 
 
@@ -545,9 +547,9 @@ def tick_covered_call_etf(s):
     s["equity"] = round(eq, 2)
     s["peak"] = max(s.get("peak", eq), eq)
     s["dd_pct"] = round((eq / s["peak"] - 1) * 100, 2)
-    if s["dd_pct"] <= -30 and not s["frozen"]:
+    if s["dd_pct"] <= KILL_DD_PCT and not s["frozen"]:
         s["frozen"] = True
-        s["frozen_reason"] = "kill rule: drawdown %.1f%%" % s["dd_pct"]
+        s["frozen_reason"] = "kill rule: drawdown %.1f%% <= %.0f%%" % (s["dd_pct"], KILL_DD_PCT)
     return "; ".join(msgs) if msgs else None
 
 

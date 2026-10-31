@@ -1079,6 +1079,56 @@ def _apply_documented_starts(books):
     return books
 
 
+def _load_hunt48(key, label, rel, ccy="AUD"):
+    """Hunt48 ledger {capital_aud|sleeve_aud, trades}. Absent file is not an error (CM-048).
+    A present unreadable file is an error and is never treated as zero equity."""
+    path = os.path.join(BASE, rel)
+    if not os.path.exists(path):
+        return None
+    b = _book(key, label, "hunt", path, ccy)
+    d = jf(path)
+    if not isinstance(d, dict):
+        b["error"] = "ledger EXISTS but is unreadable — NOT counted as zero"
+        return b
+    cap = None
+    for k in ("capital_aud", "sleeve_aud"):
+        if isinstance(d.get(k), (int, float)) and not isinstance(d.get(k), bool):
+            cap = float(d[k]); break
+    trades = d.get("trades") if isinstance(d.get("trades"), list) else []
+    filled = [t for t in trades if isinstance(t, dict) and t.get("status") == "FILLED"]
+    status_rel = "static/%s_status.json" % key
+    st_path = os.path.join(BASE, status_rel)
+    st = jf(st_path) if os.path.exists(st_path) else None
+    rate, fxerr = _usd_rates([ccy])
+    fx = rate.get(ccy) if ccy != "USD" else 1.0
+    if ccy != "USD" and not fx:
+        b["error"] = "no USD rate for %s (%s) — book UNREADABLE, never assumed USD" % (ccy, fxerr or "rate missing")
+        return b
+    fx = float(fx or 1.0)
+    if isinstance(st, dict) and isinstance(st.get("equity_aud"), (int, float)) and not isinstance(st.get("equity_aud"), bool):
+        eq_aud = float(st["equity_aud"]); basis = "status equity_aud"
+    elif isinstance(cap, (int, float)) and not filled:
+        closed = sum(float(t["net_aud"]) for t in trades if isinstance(t, dict) and t.get("status") == "CLOSED" and isinstance(t.get("net_aud"), (int, float)))
+        eq_aud = float(cap) + closed; basis = "capital_aud plus closed net_aud"
+    elif isinstance(cap, (int, float)) and isinstance(st, dict) and isinstance(st.get("pnl_since_entry_aud"), (int, float)):
+        eq_aud = float(cap) + float(st["pnl_since_entry_aud"]); basis = "capital plus status pnl_since_entry_aud"
+    else:
+        b["error"] = "hunt ledger has FILLED trades but no published equity — NOT counted as zero"
+        return b
+    b["equity_usd"] = eq_aud * fx
+    b["equity_basis"] = basis
+    b["start_usd"] = (float(cap) * fx) if isinstance(cap, (int, float)) else None
+    b["asof"] = d.get("updated_utc") or d.get("updated") or (st or {}).get("updated_utc")
+    for t in filled:
+        sym = str(t.get("sym") or t.get("ticker") or "?")
+        qty = t.get("qty_open") or t.get("open_qty") or t.get("shares") or 0
+        n = t.get("notional_aud")
+        val = abs(float(n)) * fx if isinstance(n, (int, float)) else 0.0
+        side = "short" if str(t.get("direction") or "").lower() == "short" else "long"
+        b["positions"].append(_pos(key, sym, sym, qty, val, "hunt open notional", fx, side))
+    return b
+
+
 def registry():
     """Every book with live capital. Tournament sleeves are globbed, so a new
     sleeve is covered the moment it writes a ledger — coverage cannot silently
@@ -1203,6 +1253,20 @@ def registry():
     # 2026-08-05 landed in the firm record instead of leaving with the book.
     # Verified zero-balance archives (book_archive.py) leave the registry only
     # while their ledgers re-verify; firm_capital_flows carries their basis.
+    for _hk, _hl, _hr in (
+        ("hunt48_asx", "HUNT48 ASX", "state/hunt48_asx/ledger.json"),
+        ("hunt48_jp", "HUNT48 Japan", "state/hunt48_jp/ledger.json"),
+        ("hunt48_hk", "HUNT48 Hong Kong", "state/hunt48_hk/ledger.json"),
+        ("hunt48_sg", "HUNT48 Singapore", "state/hunt48_sg/ledger.json"),
+        ("hunt48_kr", "HUNT48 Korea", "state/hunt48_kr/ledger.json"),
+        ("hunt48_tw", "HUNT48 Taiwan", "state/hunt48_tw/ledger.json"),
+        ("hunt48_lse", "HUNT48 London", "state/hunt48_lse/ledger.json"),
+        ("hunt48_short", "HUNT48 US short", "state/hunt48_short/ledger.json"),
+        ("hunt48_short_gpt", "HUNT48 US GPT short", "state/hunt48_short_gpt/ledger.json"),
+    ):
+        _hb = _load_hunt48(_hk, _hl, _hr, "AUD")
+        if _hb is not None:
+            out.append(_hb)
     import book_archive
     archived = book_archive.verified_archives()
     out = [b for b in out if b.get("key") not in archived]
@@ -1218,7 +1282,7 @@ def registry():
 # impossible to miss instead of impossible to see.
 # ---------------------------------------------------------------------------
 LEDGER_HINTS = ("cash", "positions", "holdings", "desks", "equity", "nav",
-                "marked_equity", "start_cash")
+                "marked_equity", "start_cash", "capital_aud", "equity_aud", "sleeve_aud")
 AUDIT_SKIP = ("backup", "/corpus/", ".bak", "snapshot", "_history",
               "shadow", "/tmp/", "preregistration", "/archive/",
               "archive/",
@@ -1331,6 +1395,17 @@ SEPARATE_BOOK_LEDGERS = {
     "state/theme_exposure.json": ("theme_exposure", "Theme exposure warn-only overlay, no capital (theme_exposure.py)", "theme_exposure.py"),
     # 2026-10-30 Brett 19:16 WITA: Taylor Hedge Fund is a SEPARATE desk with its own fresh paper book (not V1 firm capital).
     "state/thf/thf_book.json": ("thf", "Taylor Hedge Fund separate paper book (THF desk)", "Brett 30 Oct 2026 19:16 WITA order"),
+    # Status mirrors of hunt48 books. The ledgers are in registry() (firm equity). These files
+    # are the same books' published status and must not be counted twice.
+    "static/hunt48_asx_status.json": ("hunt48_asx", "HUNT48 ASX status mirror", "asx_hunt48.py"),
+    "static/hunt48_jp_status.json": ("hunt48_jp", "HUNT48 Japan status mirror", "asia_hunt48.py"),
+    "static/hunt48_hk_status.json": ("hunt48_hk", "HUNT48 Hong Kong status mirror", "asia_hunt48.py"),
+    "static/hunt48_sg_status.json": ("hunt48_sg", "HUNT48 Singapore status mirror", "asia_hunt48.py"),
+    "static/hunt48_kr_status.json": ("hunt48_kr", "HUNT48 Korea status mirror", "asia_hunt48.py"),
+    "static/hunt48_tw_status.json": ("hunt48_tw", "HUNT48 Taiwan status mirror", "asia_hunt48.py"),
+    "static/hunt48_lse_status.json": ("hunt48_lse", "HUNT48 London status mirror", "asia_hunt48.py"),
+    "static/hunt48_short_status.json": ("hunt48_short", "HUNT48 US short status mirror", "hunt48_short_paper.py"),
+    "static/hunt48_short_gpt_status.json": ("hunt48_short_gpt", "HUNT48 US GPT short status mirror", "hunt48_short_paper.py"),
 }
 
 
@@ -1442,8 +1517,11 @@ def coverage_audit(books=None, verbose=True):
                 if not any(h in d for h in LEDGER_HINTS):
                     continue
                 # ledger-SHAPED. Is there anything actually in it?
-                cash = d.get("cash") or d.get("marked_equity") or d.get("nav") or 0
+                cash = (d.get("cash") or d.get("marked_equity") or d.get("nav")
+                        or d.get("capital_aud") or d.get("equity_aud") or d.get("sleeve_aud") or 0)
                 pos = d.get("positions") or d.get("holdings") or d.get("desks") or {}
+                if not pos and isinstance(d.get("trades"), list) and d.get("trades"):
+                    pos = d["trades"]
                 try:
                     cash = float(cash)
                 except Exception:
