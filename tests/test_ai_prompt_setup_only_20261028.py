@@ -6,7 +6,7 @@ class P(unittest.TestCase):
         r = HC.SETUP_ONLY_RULES
         for w in ("trend", "catalyst", "volume", "liquidity", "chart structure", "event risk", "FIXED BY THE FUNDER", "R-multiple", "break-even", "must cite"): self.assertIn(w, r)
     def test_used_in_all_three_prompt_sites(self):
-        self.assertEqual(open(HC.__file__).read().count("SETUP_ONLY_RULES"), 4)  # def + external prompt + codex + claude
+        self.assertEqual(open(HC.__file__).read().count("SETUP_ONLY_RULES"), 3)  # def + external prompt + codex; Claude prompt removed 2026-10-29 (retired, was unreachable)
     def test_shape_only_fail_ignored(self):
         p = HC.parse_gpt_verdicts("main AAA FAIL 0.31R reward vs 8% risk, break-even 73%\nmain BBB FAIL downtrend below 50dma, thin volume")
         self.assertEqual(p["main"]["AAA"]["GPT"], "UNKNOWN"); self.assertEqual(p["main"]["BBB"]["GPT"], "FAIL")

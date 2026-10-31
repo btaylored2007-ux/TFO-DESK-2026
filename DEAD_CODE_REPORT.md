@@ -31,7 +31,7 @@ Vulture marked these at 100%. Each one is an unconditional `return` / `raise` / 
 | Location | What was unreachable | Why it is safe |
 |---|---|---|
 | `hunt_clearance.claude_probe` | Statements after `return "RETIRED", ...` | Claude was retired 2026-10-29. Callers already receive `RETIRED`. Tests that still expect `PENDING` from `claude_review` were already failing on that early return; deleting the tail does not change it. |
-| `hunt_clearance.claude_review` | Statements after `CLAUDE_STATE.update(status="RETIRED"); return {}` | Same. |
+| `hunt_clearance.claude_review` | Statements after `CLAUDE_STATE.update(status="RETIRED"); return {}`, including the only remaining use of `SETUP_ONLY_RULES` on the Claude path | Same. `tests/test_ai_prompt_setup_only_20261028.py` counted that dead occurrence (4 = definition + two live prompts + Claude). It now expects 3. |
 | `veteran_desk.llm_backend.backend` | Codex/`revert_at` block after `return "grok_queue"` | Brett 22:29 WITA 30 Oct: every desk is Grok. The function already always returns `grok_queue`. |
 | `trend18.build_funding_plan`, `sell_staged`, `cmd_sell_staged_only` | Bodies after `raise SystemExit(NO_OTHER_BOOK_SALES)` | The raise is the live rule (TFO Risk 29 Oct: Trend18 never sells another book). `tests/test_trend18_funding_no_other_books_20261029.py` asserts that `SystemExit`. The dead sale loop cannot run. |
 | `trend18.fit_orders`, `trend18.funding_candidates` | Whole functions | No caller. `resolve_funding` replaced `fit_orders`. `funding_candidates()` is the old other-book sale ranker; the funding test asserts `cmd_stage` does not call it. Not a string dispatch. |
