@@ -206,6 +206,10 @@ def pack(c, seat, asof):
             out["filings_8k"] = [FD.edgar_8k_text(dict(r)) for r in R if r["sym"] in mine][:10] + [dict(r, text=r.get("text")) for r in R if r["sym"] not in mine and r.get("text")][:6]
             out["filings_8k_note"] = "8-Ks filed last 2 days (EDGAR). items: 2.02 results, 1.01 material agreement, 5.02 officer change, 8.01 other, 7.01 Reg FD. text = first 1,500 chars of the filing. Only names in your universe/ranked list are tradable here."
         except Exception as x: out["filings_8k_note"] = "edgar 8-K fetch failed: %s" % type(x).__name__
+    try:   # advisory per-ticker feature store (read snapshot only; a missing file does not block the pack)
+        from plan48.scanner.advise import pack_note
+        pack_note(out, [f["sym"] for f in F], seat.get("seat"))
+    except Exception as x: out["seat_features_note"] = "feature store unread (%s); advisory, not a block" % type(x).__name__
     return out
 # ---------------- model calls (foreground subprocess, never background) ----------------
 CLAUDE_RETIRED = os.path.exists(os.path.join(BASE, "state", "config", "claude_retired.json")) or os.environ.get("TFO_CLAUDE_OFF") == "1"

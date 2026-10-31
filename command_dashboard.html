@@ -293,6 +293,15 @@ function r(){fetch('/static/scorecard_weekly.json?t='+Date.now()).then(x=>x.json
 let h='<table style="border-collapse:collapse;width:100%;font-size:11px"><tr>'+['Book','P&L after costs','Benchmark','Bench A$','Excess','Sample','Flag'].map(c=>'<th style="text-align:left;border-bottom:1px solid #555;padding:2px 6px">'+c+'</th>').join('')+'</tr>';
 (j.books||[]).forEach(b=>{const c=b.flag.startsWith('CUT')?'#e55':(b.flag=='WATCH'?'#fa3':'#3c3');h+='<tr>'+[b.book,a(b.pnl_aud),b.benchmark,a(b.bench_pnl_aud),a(b.excess_aud),b.sample_text,'<b style="color:'+c+'">'+b.flag+'</b> '+(b.flag_reasons||[]).join('; ')].map(v=>'<td style="padding:2px 6px;border-bottom:1px solid #333;white-space:normal;vertical-align:top">'+v+'</td>').join('')+'</tr>'});
 document.getElementById('sc_body').innerHTML=h+'</table>';const R=j.rules||{};document.getElementById('sc_rules').textContent='Pre-committed: '+(R.R1_underperform||'')+' ('+Math.round((R.underperf_pct||0)*100)+'%, floor A$'+(R.underperf_floor_aud||0).toLocaleString()+', min '+R.min_sample_trades+' trades / '+R.min_sample_sessions+' sessions); '+(R.R2_no_fills||'')}).catch(e=>{document.getElementById('sc_body').textContent='scorecard feed unavailable'})}r();setInterval(r,300000)})();</script>
+<!-- DATA QUALITY v1 2026-10-31 (PAPER, advisory only; plan48/scanner/data_quality.py -> static/data_quality.json). A dead feed never blocks a trade. -->
+<div id="dqcard" style="margin:8px;max-width:calc(100vw - 16px);box-sizing:border-box;padding:10px;border:2px solid #69c;border-radius:8px;overflow-x:auto"><b>Data quality · PAPER · advisory (never blocks a trade or an exit)</b> <span id="dq_upd" class="lbl"></span>
+<div id="dq_body" style="font-size:12px">loading…</div></div>
+<script>(function(){function r(){fetch('/static/data_quality.json?t='+Date.now()).then(function(x){if(!x.ok)throw new Error('missing');return x.json();}).then(function(j){document.getElementById('dq_upd').textContent=(j.generated_utc||j.status||'')+(j.blocks_trade?' · BLOCK':' · does not block');
+var feeds=j.feeds||{}, names=Object.keys(feeds).sort();
+if(!names.length){document.getElementById('dq_body').textContent=j.note||'no feed rows yet';return;}
+var h='<table style="border-collapse:collapse;width:100%;font-size:11px"><tr>'+['Feed','Fresh','Stale','Missing','Nulls','Errors'].map(function(c){return '<th style="text-align:left;border-bottom:1px solid #555;padding:2px 6px">'+c+'</th>';}).join('')+'</tr>';
+names.forEach(function(n){var f=feeds[n]||{};h+='<tr>'+[n,f.fresh,f.stale,f.missing,f.nulls,(f.errors||[]).join('; ')||'—'].map(function(v){return '<td style="padding:2px 6px;border-bottom:1px solid #333;white-space:normal;vertical-align:top">'+v+'</td>';}).join('')+'</tr>';});
+document.getElementById('dq_body').innerHTML=h+'</table>';}).catch(function(){document.getElementById('dq_upd').textContent='';document.getElementById('dq_body').textContent='no data-quality file yet (advisory; trades are not blocked)';});}r();setInterval(r,60000);})();</script>
 <div id="wc">
  <div style="display:flex;align-items:center;justify-content:space-between;gap:8px"><h1>War Room</h1><a href="http://100.127.19.45:18870/" style="margin-left:10px;font-size:13px">Taylor Hedge Fund →</a><span class="paper">PAPER ONLY</span></div>
  <div class="muted" id="wcupd">Loading…</div>
@@ -1018,6 +1027,11 @@ var o=document.getElementById('plan48');if(o){document.getElementById('h48old').
       <thead><tr><th>Research stream</th><th class="num">Hypotheses</th><th>Verdict</th></tr></thead>
       <tbody><tr><td colspan="3" class="dim">loading…</td></tr></tbody>
     </table></div>
+  </section>
+
+  <section>
+    <h2>Data quality <span class="meta">advisory · never blocks</span></h2>
+    <div id="dq-feeds"><span class="dim">loading…</span></div>
   </section>
 
   <section>
@@ -2029,6 +2043,16 @@ function renderWarroom(d){
         ? `<div class="note">All traps READY (≥21d). Waiting on a research ticket to open, not more calendar days.</div>`
         : `<div class="note">Datasets accumulating toward testability. The scheduled task announces the moment one is ready.</div>`;
     })();
+  }
+  const dq = $("#dq-feeds");
+  if(dq){
+    const Q = w.data_quality || {};
+    const feeds = Q.feeds || {};
+    const names = Object.keys(feeds).sort();
+    dq.innerHTML = names.length ? `<table><thead><tr><th>Feed</th><th class="num">Fresh</th><th class="num">Stale</th><th class="num">Missing</th><th class="num">Nulls</th><th>Errors</th></tr></thead><tbody>`
+      + names.map(n=>{const f=feeds[n]||{};return `<tr><td>${esc(n)}</td><td class="num">${f.fresh??"—"}</td><td class="num">${f.stale??"—"}</td><td class="num">${f.missing??"—"}</td><td class="num">${f.nulls??"—"}</td><td class="dim">${esc((f.errors||[]).join("; ")||"—")}</td></tr>`;}).join("")
+      + `</tbody></table><div class="note">${esc(Q.note||"Advisory. A dead feed does not block a trade.")}</div>`
+      : `<span class="dim">${esc(Q.note||"no data-quality file yet")}</span>`;
   }
   const wr = $("#wire");
   if(wr && w.wire){

@@ -243,8 +243,15 @@ def warroom():
         pass
 
     total = sum(x["n"] for x in streams if x["n"])
+    try:
+        dq = json.load(open(os.path.join(BASE, "state", "data_quality.json")))
+        if not isinstance(dq, dict): dq = {"status": "missing", "feeds": {}}
+    except Exception:
+        dq = {"status": "missing", "feeds": {}, "note": "no data-quality file yet"}
+    dq["advisory"] = True
+    dq["blocks_trade"] = False
     return {"streams": streams, "total_hypotheses": total, "traps": traps,
-            "wire": wire}
+            "wire": wire, "data_quality": dq}
 
 
 _PX_CACHE = {"crypto": [0.0, {}], "equity": [0.0, {}]}

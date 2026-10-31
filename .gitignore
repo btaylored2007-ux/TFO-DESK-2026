@@ -28,5 +28,7 @@ data/pit/*.sqlite*
 data/history/*.sqlite*
 *.sqlite.bak-*
 state/hunt_orch/us_scan/**/*.pkl
+plan48/scanner/closed_trades.jsonl
+plan48/scanner/attribution.json
 *.parquet
 work/oanda_v3/*.json
