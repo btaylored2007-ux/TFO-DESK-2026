@@ -57,10 +57,20 @@ class TestTrendCore(unittest.TestCase):
         self.assertNotIn("TREND-CORE", names)
 
     def test_enter_is_noop(self):
-        import trend_core as tc
-        L1 = tc.load()
-        eq1 = L1["equity_aud"]
-        L2, fills = tc.enter(dry_run=False)
+        # A code-only tree has no entered book. load() would create an empty one and enter()
+        # would try to mark BTC. This locks the already-entered path on a temp ledger.
+        import tempfile, trend_core as tc
+        d = tempfile.mkdtemp(); path = os.path.join(d, "trend_core.json"); status = os.path.join(d, "status.json")
+        L = tc.new_ledger(); L["scale_current"] = 1.0; L["equity_aud"] = 1_000_000.0
+        L["holdings"]["UPRO"] = 10.0
+        tc.atomic_json(path, L)
+        old_l, old_s = tc.LEDGER, tc.STATUS
+        tc.LEDGER, tc.STATUS = path, status
+        try:
+            L1 = tc.load(); eq1 = L1["equity_aud"]
+            L2, fills = tc.enter(dry_run=False)
+        finally:
+            tc.LEDGER, tc.STATUS = old_l, old_s
         self.assertEqual(fills, [])
         self.assertAlmostEqual(float(L2["equity_aud"]), float(eq1), places=2)
 
