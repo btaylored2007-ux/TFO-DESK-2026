@@ -241,6 +241,10 @@ def weekly(use_llm=True, llm=None):
             r["model_critique"] = {k: dict(status=v["status"], view=v.get("view") or v.get("text") or v.get("why")) for k, v in ask_both(pr, 300, llm).items()}
         out["seats"][s] = r
         _wj(os.path.join(_sd(s), "proposals_latest.json"), r)
+    try:   # hunt scanner closes (plan48/scanner/closed_trades.jsonl) plus signal attribution. Read only. Rails unchanged.
+        from plan48.scanner.learning import hunt_summary
+        out["hunt_scanner"] = hunt_summary()
+    except Exception as e: out["hunt_scanner"] = dict(advisory=True, blocks_trade=False, error=type(e).__name__)
     _wj(WEEKLY, out); return out
 def _cand_path(seat): return os.path.join(_sd(seat), "candidates.json")
 def approve(seat, pid, by):

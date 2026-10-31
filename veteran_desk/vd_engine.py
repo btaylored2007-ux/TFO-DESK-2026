@@ -404,7 +404,12 @@ def score_all():
                 x["history"] = history_check(seat, F[x["sym"]]); x["earnings_block"] = earnings_block(x["sym"])
                 x["market_open"] = market_open(x["market"], t)
                 x["wake_ok"] = bool(x["history"].get("wake_ok")) and not x["earnings_block"] and x["market_open"] and x["bar_age_d"] <= (2 if x["market"] == "CRYPTO" else 4)
-        out[seat] = dict(seat=seat, trader=cfg["name"], weights=dict(zip(PILLARS, cfg["w"])), scanned=len(syms), top10=res[:10],
+        regime_tag = dict(tag="unknown", seat=seat, advisory=True, blocks_trade=False, missing=True)
+        try:   # advisory feature store: candidates, regime tag, earnings flag. Never changes grade, floors, wake_ok or a rail.
+            from plan48.scanner.advise import annotate_rows
+            regime_tag = annotate_rows(seat, res, now=t)
+        except Exception: pass
+        out[seat] = dict(seat=seat, trader=cfg["name"], weights=dict(zip(PILLARS, cfg["w"])), scanned=len(syms), top10=res[:10], regime_tag=regime_tag,
                          n_A=sum(1 for x in res if x["grade"] == "A"), n_Aplus=sum(1 for x in res if x["grade"] == "A+"), n_B=sum(1 for x in res if x["grade"] == "B"),
                          grades={x["sym"].upper(): x["grade"] for x in res}, utc=t.isoformat(), version=VERSION)
     return out

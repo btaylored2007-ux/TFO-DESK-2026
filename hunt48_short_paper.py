@@ -794,6 +794,14 @@ def us_rth(now):
     ny = now.astimezone(ZoneInfo("America/New_York"))
     return ny.weekday() < 5 and dt.time(9, 30) <= ny.time() <= dt.time(16, 5)
 
+def _learn_close(t, ledger, now, events=None):
+    """Append a closed hunt trade for the weekly self-tune. Never mutates the trade and never raises into the tick."""
+    try:
+        if os.environ.get("PYTEST_CURRENT_TEST") and not os.environ.get("TFO_HUNT_CLOSED"): return
+        from plan48.scanner.learning import record_close
+        record_close(dict(t, book=BOOK or "main"), ledger, now, events)
+    except Exception: pass
+
 def tick(force=False):
     L = json.load(open(LEDGER)); now = now_utc(); fx = live_audusd(L["audusd_armed"]); rth = us_rth(now)
     # 2026-10-28 Brett 10:37 FUNDER GATE: ARMED (not funder-approved) -> awaiting_funder + state/funder_queue.json; ticks applied here, before any fill
@@ -858,10 +866,13 @@ def tick(force=False):
                 if k: event(k, ticker=t["ticker"], entry=t.get("entry"), shadow_entry=t.get("shadow_entry"), bench=bool(t.get("bench")))
             if t["status"] == "FILLED" and t.get("pending_cover") and b:   # discretionary cut: cover ALL at current RTH price
                 _cover(t, t["open_qty"], b[-1]["c"], t["pending_cover"], now); t.update(status="CLOSED", exit_reason=t.pop("pending_cover"))
-                event("discretionary_cover", ticker=t["ticker"], exits=t["exits"][-1:]); continue
+                event("discretionary_cover", ticker=t["ticker"], exits=t["exits"][-1:]); _learn_close(t, L, now, ["discretionary_cover"]); continue
             if t["status"] == "FILLED":   # audit H9: stops/T1 first; daily bars lazily + optional (failure = no extension, never skips stops)
-                for k in manage(t, b, now, None, daily_fn=(lambda tk=t["ticker"]: bars_daily(tk))): event(k, ticker=t["ticker"], exits=t["exits"][-1:] or None)
+                _ev = []
+                for k in manage(t, b, now, None, daily_fn=(lambda tk=t["ticker"]: bars_daily(tk))):
+                    event(k, ticker=t["ticker"], exits=t["exits"][-1:] or None); _ev.append(k)
                 if t.pop("daily_error", None): event("daily_data_error", ticker=t["ticker"], note="no extension this tick")
+                if t["status"] in ("CLOSED", "STOPPED"): _learn_close(t, L, now, _ev)
         except Exception as e: t["data_error"] = str(e)[:120]; event("data_error", ticker=t["ticker"], e=str(e)[:120])
     write_status(L, fx, now); atomic(LEDGER, L)
 
