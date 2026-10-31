@@ -259,8 +259,8 @@ def persist_trails(rows):
 
 def refresh_marks(cache):
     """2026-09-28 HT #3: after the rail cycle, re-strike ledger marks (tfo_equity_refresh.refresh(write=True)).
-    Light: reuses this cycle's native quotes (no duplicate Yahoo calls); only symbols the rail did not quote
-    (powder/probe holdings, mark_ticker aliases) are fetched. Valuation only: no fills, flows or entry edits.
+    Light: reuses this cycle's native quotes (no duplicate paid/Yahoo calls); only symbols the rail did not quote
+    (powder/probe holdings, mark_ticker aliases) are fetched via mark_fetcher (paid primary). Valuation only: no fills, flows or entry edits.
     Never raises into the rail runner."""
     if not MARK_REFRESH_ENABLED:
         return None
@@ -270,7 +270,7 @@ def refresh_marks(cache):
         def fetcher(sym):
             q = cache.get(sym)
             if q: return copy.deepcopy(q)
-            fetched.append(sym); return ter.fetch_quote(sym)
+            fetched.append(sym); return ter.mark_fetcher(sym)
         rep = ter.refresh(write=True, reports=ter.REPORTS, fetcher=fetcher, extra_locks=MARK_REFRESH_LOCKS, backup_prefix=MARK_REFRESH_BACKUP_PREFIX)
         pruned = ter.prune_backups(MARK_REFRESH_BACKUP_PREFIX, MARK_REFRESH_KEEP_AUTO_BACKUPS, reports=ter.REPORTS)
         unav = sorted(s for b in rep["books"].values() for s in b.get("unavailable") or [])

@@ -1,9 +1,13 @@
 #!/usr/bin/env python3
-"""Timestamped public equity valuations, with no orders or accounting flows.
+"""Timestamped equity valuations, with no orders or accounting flows.
 
 Run with --write to refresh existing PAPER ledgers. The default only writes the
 quote/audit report. Original fills, units, cash, capital, realised P&L, costs and
 closed records are preserved. Extended-hours marks are valuation-only.
+
+Marks go through mark_fetcher: Massive (US) and the EODHD Cboe Europe websocket
+when that consumer is healthy, then the paid_feeds FMP path, and Yahoo only as
+the fallback. fetch_quote itself stays the Yahoo chart call.
 """
 import argparse
 import concurrent.futures
@@ -128,8 +132,17 @@ def parse_chart(symbol, payload, fetched_at=None):
             "currentTradingPeriod": periods}
 
 
+def mark_fetcher(symbol):
+    """Paid primary for main-book marks: Massive US, EODHD EU websocket, FMP where wired. Yahoo only if paid_feeds falls back or cannot be imported."""
+    try:
+        import paid_feeds
+        return paid_feeds.fetch_quote(symbol)
+    except Exception:
+        return fetch_quote(symbol)
+
+
 def fetch_quote(symbol):
-    """Native quote only; six-second request timeout, no ledger writes or FX."""
+    """Yahoo chart only. Callers that mark the book use mark_fetcher. Six-second timeout, no ledger writes or FX."""
     url = ("https://query1.finance.yahoo.com/v8/finance/chart/"
            + urllib.parse.quote(symbol, safe="")
            + "?interval=1m&range=1d&includePrePost=true")
@@ -304,7 +317,7 @@ def fetch_fx_evidence(currencies):
 
 
 def collect_quotes(symbols, fetcher=None, fx_provider=None):
-    fetcher = fetcher or fetch_quote
+    fetcher = fetcher or mark_fetcher
     quotes, failures = {}, {}
     with concurrent.futures.ThreadPoolExecutor(max_workers=4) as pool:
         pending = {pool.submit(fetcher, symbol): symbol for symbol in sorted(set(symbols))}

@@ -38,6 +38,22 @@ def short_cap(sym):
     if not r: return dict(capped=True, max_grade="A", why="no borrow row for %s" % sym)
     if not (r.get("ok") and (r.get("available") or 0) > 0): return dict(capped=True, blocked=True, max_grade=None, why="borrow refused/none available")
     return dict(capped=False, max_grade="A+", fee_pa=r.get("fee_pa"), available=r.get("available"))
+def dash(path=None):
+    """Read-only borrow freshness for the THF dashboard. Does not pull FTP or rewrite the cache."""
+    now = dt.datetime.now(dt.timezone.utc)
+    us = _j(path or os.path.join(B, "state", "ibkr_borrow.json"))
+    age = None
+    try:
+        u = dt.datetime.fromisoformat(str(us.get("updated_utc")).replace("Z", "+00:00"))
+        if u.tzinfo is None: u = u.replace(tzinfo=dt.timezone.utc)
+        age = (now - u).total_seconds() / 3600.0
+    except Exception: age = None
+    usn = len(((us.get("us") or {}).get("names") or {})); asxn = len(((us.get("asx") or {}).get("names") or {}))
+    fresh = age is not None and -5 / 60 <= age <= 24 and (usn or asxn) > 0
+    return dict(status="fresh" if fresh else ("stale" if us.get("updated_utc") else "missing"), fresh_24h=bool(fresh),
+                age_h=None if age is None else round(age, 2), updated_utc=us.get("updated_utc"), us_names=usn, asx_names=asxn,
+                src="state/ibkr_borrow.json",
+                note="IBKR public FTP snapshot already pulled by ibkr_costs.py (state/ibkr_borrow.json). This card only reports freshness.")
 if __name__ == "__main__":
     J = build(); print(json.dumps(dict(capped_markets=J["capped_markets"], usable={k: v["rows"] for k, v in J["markets"].items() if v["usable"]})))
     for s in ("AAPL", "BHP.AX", "HSBA.L", "RELIANCE.NS", "005930.KS"): print(s, short_cap(s))

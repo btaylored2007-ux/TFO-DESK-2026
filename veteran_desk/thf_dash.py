@@ -116,15 +116,35 @@ def build():
     nf = sum(len(v) for v in fails_by_seat.values())
     if nf: broken.append(dict(sev="red", what="Model calls failed today: %d of %d (%s)" % (nf, len(calls), ", ".join("%s %d" % (k, len(v)) for k, v in sorted(fails_by_seat.items())))))
     if failed_wakes: broken.append(dict(sev="red", what="Wakes failed today (no model answer / rc!=0): " + ", ".join(sorted(failed_wakes)[-5:])))
+    fc = feed_cards(); bw, pf = fc["borrow"], fc["paid_feeds"]; eu, iv = pf.get("eu_ws") or {}, pf.get("intraday") or {}
+    if not bw.get("fresh_24h"): broken.append(dict(sev="amber", what="IBKR borrow %s (age %sh). Shorts fail closed once the file is older than 24h." % (bw.get("status"), bw.get("age_h"))))
+    if not eu.get("healthy"): broken.append(dict(sev="amber", what="EU/LSE websocket not healthy (%s); Yahoo is the EU mark fallback" % (eu.get("why") or "down")))
+    if not (iv.get("n_1m") or iv.get("n_5m") or iv.get("n_15m")): broken.append(dict(sev="amber", what="No 1m/5m/15m bars in data/intraday/bars.sqlite yet"))
     C = rj(os.path.join(ST, "wake_counts.json"), {}) or {}
     if VDM: C = dict(C, total=len(calls), seat=calls_by_seat, note="VD: model rounds today (engine wakes book to THF)")
-    S.update(model_calls=dict(today=len(calls), failed=nf, by_seat_failed={k: len(v) for k, v in fails_by_seat.items()}), cards=cards, wakes=WL[:40], wake_counts=C, caps=dict(per_seat=6, total=40), health=dict(engine=hb, engine_age_min=age(hb.get("utc")), deadman=dm, deadman_age_min=age(dm.get("utc")), overlord=ov, overlord_age_min=age(ov.get("utc"))),
+    S.update(borrow=bw, paid_feeds=pf, model_calls=dict(today=len(calls), failed=nf, by_seat_failed={k: len(v) for k, v in fails_by_seat.items()}), cards=cards, wakes=WL[:40], wake_counts=C, caps=dict(per_seat=6, total=40), health=dict(engine=hb, engine_age_min=age(hb.get("utc")), deadman=dm, deadman_age_min=age(dm.get("utc")), overlord=ov, overlord_age_min=age(ov.get("utc"))),
              coverage=cov, gate_overlord=go, broken=broken, grok_queue=tail(os.path.join(ST, "grok_second_look_queue.jsonl"), 20), links=dict(vd_dash=VD_DASH, classic=("/classic" if VDM else None), war_room=WAR_ROOM, leaderboard="#leaderboard"),
              built_utc=now.isoformat(), build_secs=round(time.time() - t, 2), first_top10=rj(os.path.join(ST, "first_top10.json")))
     S = clean(S)
     # Unique tmp avoids ENOENT when two builds finish near each other; lock still serializes the critical path.
     tmp = "%s.tmp.%s.%s" % (CACHE, os.getpid(), threading.get_ident())
     json.dump(S, open(tmp, "w"), default=str); os.replace(tmp, CACHE); return S
+def feed_cards():
+    """Borrow freshness + paid-mark health for the dashboard. Read-only; does not pull FTP or open a websocket."""
+    try:
+        from veteran_desk.borrow_status import dash as bd
+        borrow = bd()
+    except Exception as e: borrow = dict(status="error", fresh_24h=False, error=type(e).__name__)
+    paid = {}
+    try:
+        from veteran_desk import eodhd_eu_ws as EU
+        paid["eu_ws"] = EU.health()
+    except Exception as e: paid["eu_ws"] = dict(healthy=False, why=type(e).__name__)
+    try:
+        from veteran_desk import intraday_store as IB
+        paid["intraday"] = IB.health()
+    except Exception as e: paid["intraday"] = dict(present=False, error=type(e).__name__)
+    return dict(borrow=borrow, paid_feeds=paid)
 def state():
     global _MEM, _MEM_T
     now = time.monotonic()

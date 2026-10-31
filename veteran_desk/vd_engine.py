@@ -184,6 +184,10 @@ def feats(c, u, t, bench):
              gap=(O[-1] / C[-2] - 1) if C[-2] else 0.0, gap_hold=(C[-1] >= O[-1]) if O[-1] > C[-2] else (C[-1] <= O[-1]),
              prev_close=C[-2], prev_high=H[-2], prev_low=L[-2])
     if m == "CRYPTO" and u.get("k24"): f["chg_since_open"] = u["k24"].get("chg_pct_since_open")
+    try:
+        from veteran_desk import intraday_store as _IB
+        _IB.attach(f)
+    except Exception: pass
     f["_rows"] = rows
     return f, None
 # ---------------- seat signals (Marcus 17:10) ----------------
@@ -678,13 +682,25 @@ def coverage():
     last = {}
     for s, f in F.items(): last[f["last_date"]] = last.get(f["last_date"], 0) + 1
     sect = sum(1 for u in U.values() if u["cls"] == "EQ" and u.get("sector"))
-    gaps = [dict(sev="red" if max(last or {"": 0}) < (wita().date() - dt.timedelta(days=1)).isoformat() else "amber", what="PIT daily bars end %s (newest bar across scored names); intraday bars not in pit" % max(last or {"n/a": 0})),
-            dict(sev="amber", what="Yahoo EU/UK quotes run 15-20 min late"),
+    gaps = [dict(sev="red" if max(last or {"": 0}) < (wita().date() - dt.timedelta(days=1)).isoformat() else "amber", what="PIT daily bars end %s (newest bar across scored names); intraday bars live in data/intraday/bars.sqlite, not pit" % max(last or {"n/a": 0})),
             dict(sev="amber", what="FX: %d of %d OANDA-book pairs scored have no volume (OTC) - volume pillar off for them" % (by.get("FX (OANDA book)", {}).get("no_volume", 0), by.get("FX (OANDA book)", {}).get("scored", 0))),
             dict(sev="amber", what="Sector tags on %d of %d cleared equities (sector seats only see tagged names + hand lists)" % (sect, sum(1 for u in U.values() if u["cls"] == "EQ"))),
-            dict(sev="amber", what="No borrow data in the engine (shorts checked by gate/book only)"),
-            dict(sev="amber", what="No 1h/5m bars: RVOL is daily (not time-of-day); Kai 1h breakout uses daily proxy"),
             dict(sev="amber", what="Earnings calendar: %s" % ("loaded" if CTX_CACHE.get("earn") else "no earnings file found - print-in-window block unverified"))]
+    try:
+        from veteran_desk import eodhd_eu_ws as _EU
+        _eh = _EU.health()
+        if not _eh.get("healthy"): gaps.append(dict(sev="amber", what="Yahoo EU/UK quotes run 15-20 min late (EODHD Cboe Europe websocket not healthy: %s)" % (_eh.get("why") or "down")))
+    except Exception: gaps.append(dict(sev="amber", what="Yahoo EU/UK quotes run 15-20 min late"))
+    try:
+        from veteran_desk import intraday_store as _IB
+        _ih = _IB.health()
+        if not (_ih.get("n_1m") or _ih.get("n_5m") or _ih.get("n_15m")): gaps.append(dict(sev="amber", what="No 1m/5m/15m rows in data/intraday/bars.sqlite yet; RVOL stays daily until tools/intraday_bars_pull.py runs"))
+    except Exception: gaps.append(dict(sev="amber", what="No 1m/5m/15m rows in data/intraday/bars.sqlite yet"))
+    try:
+        from veteran_desk.borrow_status import dash as _bd
+        _b = _bd()
+        if not _b.get("fresh_24h"): gaps.append(dict(sev="amber", what="IBKR borrow file %s (age_h=%s); shorts fail closed until state/ibkr_borrow.json is <24h" % (_b.get("status"), _b.get("age_h"))))
+    except Exception: gaps.append(dict(sev="amber", what="IBKR borrow freshness unreadable"))
     o = dict(utc=now().isoformat(), store_built_utc=STORE["built_utc"], store_secs=STORE["secs"], by_market=by, bar_dates=dict(sorted(last.items())[-6:]), gaps=gaps,
              totals=dict(universe=len(U), scored=len(F), filtered=sum(1 for r in rej.values() if "bars" not in r), errors=STORE.get("n_err", 0)))
     wj(os.path.join(ST, "coverage.json"), o); return o
