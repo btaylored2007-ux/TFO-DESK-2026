@@ -1,0 +1,9 @@
+[Unit]
+Description=TFO THF guardian check every 90s, including a watchdog over the daemon
+[Timer]
+OnBootSec=40
+OnUnitActiveSec=90
+AccuracySec=5
+Persistent=true
+[Install]
+WantedBy=timers.target

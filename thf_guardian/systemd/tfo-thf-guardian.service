@@ -1,0 +1,14 @@
+[Unit]
+Description=TFO THF guardian inbox and check loop (PAPER, localhost only)
+After=network-online.target
+[Service]
+Type=simple
+User=tfo
+WorkingDirectory=/opt/tfo/live/thf
+Environment=THF_DESK=1 PYTHONUNBUFFERED=1 PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=/opt/tfo/live/thf
+Environment=THF_GUARDIAN_PAPER=1
+ExecStart=/opt/tfo/venv/bin/python -m thf_guardian.daemon
+Restart=always
+RestartSec=10
+[Install]
+WantedBy=multi-user.target
