@@ -1,0 +1,9 @@
+[Unit]
+Description=TFO THF guardian oneshot check (PAPER). Not Restart=always: that would tight-loop a oneshot and fight the timer.
+[Service]
+Type=oneshot
+User=tfo
+WorkingDirectory=/opt/tfo/live/thf
+Environment=THF_DESK=1 PYTHONPATH=/opt/tfo/live/thf THF_GUARDIAN_PAPER=1
+ExecStart=/opt/tfo/venv/bin/python -m thf_guardian.daemon --once
+TimeoutStartSec=120
