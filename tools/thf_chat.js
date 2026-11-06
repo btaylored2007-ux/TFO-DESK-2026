@@ -79,7 +79,6 @@ CSS+=".dc-commandbar{display:flex;gap:6px;flex-wrap:wrap;padding:4px 0 8px}.dc-c
 // Keep the conversation readable when the phone is held sideways; all existing controls remain available.
 CSS+="@media(max-height:480px) and (min-width:600px){#dchat .dc-hd{min-height:44px;padding:4px 10px;padding-top:max(4px,env(safe-area-inset-top))}#dchat .dc-hd h2{font-size:17px}#dchat .dc-hd>.dc-ic,#dchat .dc-hd>.dc-av{width:32px;height:32px}#dchat .dc-ais{padding:4px 10px}#dchat .dc-comp{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:6px;padding:4px 8px;padding-bottom:max(8px,env(safe-area-inset-bottom))}#dchat .dc-commandbar{grid-column:1;grid-row:1;flex-wrap:nowrap;overflow-x:auto;min-width:0;margin:0;padding:0;scrollbar-width:none}#dchat .dc-pills{grid-column:2;grid-row:1;min-width:0;margin:0;padding:0}#dchat #dc-command-panel,#dchat #dc-rbw,#dchat .dc-in{grid-column:1/-1}#dchat #dc-command-panel:empty,#dchat #dc-rbw:empty{display:none}#dchat #dc-to{max-width:160px}#dchat .dc-pl .lbl{display:none}}";
 if(!document.getElementById("dc-css")){var st=document.createElement("style");st.id="dc-css";st.textContent=CSS;document.head.appendChild(st)}
-var AIL={auto:"Auto",claude:"Claude",chatgpt:"ChatGPT",grok:"Grok",deepseek:"DeepSeek API",deepseek_api:"DeepSeek API",super:"All four"};
 var MARK='<svg class=tt-mark viewBox="0 0 32 32" aria-hidden="true"><rect x="2.5" y="2.5" width="27" height="27" rx="6" fill="none" stroke="currentColor" stroke-width="2"/><path d="M9 11.5h14M16 11.5V22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square"/></svg>';
 var MON=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 function LS(k){try{return localStorage.getItem(k)}catch(e){return null}}function LSs(k,v){try{localStorage.setItem(k,v)}catch(e){}}
@@ -106,12 +105,10 @@ function saveRead(){LSs("dc-read",JSON.stringify(READ))}
 function nearBottom(){var l=$("#dc-log");return!l||l.scrollHeight-l.scrollTop-l.clientHeight<90}
 function scrollBottom(){var l=$("#dc-log");if(l)l.scrollTop=l.scrollHeight}
 function note(t){var n=$("#dc-note");if(n)n.textContent=t||""}
-/* ---------- AI status chips (B20a): Claude / ChatGPT / Grok, green up - amber cooling - red off ---------- */
-function aisWord(a){return a.state==="busy"?"busy":a.state==="up"?"up":a.state==="cooling"?"cooling":a.state==="down"?"off":"?"}
-function dotColor(a){var known={up:"#1d5c38",down:"#8c2f2f",cooling:"#8a5a12",busy:"#8a5a12",unknown:"#8a5a12"};return known[a.state]||"#3e5160"}
-function aisHtml(){if(!S.ais)return"";return'<div class="dc-ais'+(S.aisX?" x":"")+'" id=dc-ais title="Model status. A dot is not a promise the model will answer.">'+S.ais.map(function(a){var word=aisWord(a);return'<span class="dc-ai st-'+(a.state||"unknown")+'" title="'+esc(a.note||word)+'"><i style="background:'+dotColor(a)+'"></i><b>'+esc(a.name)+'</b> '+esc(word)+(a.model?" "+esc(a.model):"")+'</span>'}).join("")+'</div>'}
-function drawAis(){var w=$("#dc-aisw");if(w)w.innerHTML=aisHtml()}
-async function loadAis(){S.aisAt=Date.now();try{var r=await fetch("/api/ai_status",{cache:"no-store"});if(!r.ok)return;S.ais=(await r.json()).ais||null;drawAis()}catch(e){}}
+/* Retail chat does not request or paint provider status. No query string changes that. */
+function aisHtml(){return ""}
+function drawAis(){}
+function loadAis(){}
 /* ---------- home ---------- */
 function renderHome(){S.view="home";
 var head=HUB
@@ -133,7 +130,7 @@ var h='<div class=dc-sheet id=dc-sheet><div>';for(var k in g)if(g[k].length)h+='
 h+='</div></div>';root.insertAdjacentHTML("beforeend",h);S.sheet=true}
 function closeSheet(){var s=$("#dc-sheet");if(s)s.remove();S.sheet=false}
 /* ---------- thread ---------- */
-function sub(m){if(!m)return"";var s=m.desk||"";if(m.status)s+=" · "+(m.status.mode==="brain"?(m.status.model||"brain"):m.status.mode==="brain_down"?"brain down":(m.status.model||m.status.mode||""));return s}
+function sub(m){if(!m)return"";return m.desk||""}
 function ph(m){if(!m)return"Message…";if(!m.can_send)return"No inbox for this seat yet";if(m.id==="ALL")return"Message the desk";if(m.id.indexOf("adv:")===0)return"Ask "+m.name;return"Reply "+(m.id==="head_trader"?"HEAD TRADER":m.name)}
 function toSel(){var cs=S.home?S.home.chats.filter(function(c){return c.id.indexOf("adv:")!==0||c.id===S.chat}):[],g={Desk:[],Admins:[],Traders:[],Advisors:[]};cs.forEach(function(c){(c.id==="ALL"?g.Desk:c.id.indexOf("adv:")===0?g.Advisors:c.admin?g.Admins:g.Traders).push(c)});
 var h='<select class=dc-pl id=dc-to title="To">';if(!cs.length)h+='<option value="'+esc(S.chat)+'">To: '+esc(S.meta?S.meta.name:S.chat)+'</option>';
@@ -203,8 +200,8 @@ function rowHtml(r){if(r.kd==="noise")return S.noise?'<div class=dc-nz>'+esc(r.n
 if(r.kd==="relay")return'<details class=dc-rl'+(S.noise?" open":"")+'><summary>✉ From '+esc(r.nm)+(r.to&&r.to!=="ALL"&&r.to!=="brett"?' → To '+esc((chatById(r.to)||{}).name||r.to):'')+' · '+esc(fmtT(r.ts))+'</summary><div class=dc-b>'+linkify(esc(r.text))+imgs(r)+'</div></details>';
 var me=r.kd==="me",t=r.text||"",rq="",qm=/\n?\|\| \u21a9 replying to ([^\n]*)$/.exec(t);if(qm){rq=qm[1];t=t.slice(0,qm.index)}var lng=t.length>900,meta=[],lk=liked(r),sl=S.sel===r.k;
 var who=me?"":((S.chat==="ALL"||r.f!==S.chat)?'<div class=dc-who><span class=dc-av style="background:'+esc(colorOf(r.f))+'">'+esc(initial(r.nm))+'</span>'+esc(r.nm)+'</div>':"");
-if(me){if(S.chat==="ALL"||(r.to&&r.to!==S.chat))meta.push("to "+esc(r.to==="ALL"?"All desk":(chatById(r.to)||{}).name||r.to));if(r.ai)meta.push('<span class="dc-chip sp">'+esc(AIL[r.ai]||r.ai)+'</span>')}
-else{if(r.to&&r.to!=="brett"&&r.to!=="ALL"&&r.to!==r.f)meta.push('From '+esc(r.nm)+' → To '+esc(r.to==="all"?"All desk":(chatById(r.to)||{}).name||r.to));if(r.code)meta.push('<span class="dc-chip cd">code reply · AI was down</span>');else if(r.mode&&r.mode!=="funder"&&r.mode!=="advisor")meta.push('<span class=dc-chip>'+esc(r.mode)+'</span>')}
+if(me){if(S.chat==="ALL"||(r.to&&r.to!==S.chat))meta.push("to "+esc(r.to==="ALL"?"All desk":(chatById(r.to)||{}).name||r.to))}
+else{if(r.to&&r.to!=="brett"&&r.to!=="ALL"&&r.to!==r.f)meta.push('From '+esc(r.nm)+' → To '+esc(r.to==="all"?"All desk":(chatById(r.to)||{}).name||r.to));if(r.code)meta.push('<span class="dc-chip cd">Saved reply</span>')}
 meta.push(esc(fmtT(r.ts)));
 return'<div class="dc-m'+(me?" me":"")+(sl?" sel":"")+'" data-k="'+r.k+'">'+who+'<div class="dc-b'+(lng?" clip":"")+'">'+(rq?'<div class=dc-q>\u21a9 '+esc(rq)+'</div>':r.q?'<div class=dc-q>'+esc(r.q)+'</div>':"")+linkify(esc(t))+imgs(r)+'</div>'+(lk?'<div class=dc-lk title="You liked this">\u2764\ufe0f</div>':"")+(lng?'<button class=dc-more>show more ▾</button>':"")+(sl?'<div class=dc-acts><button data-act=like data-k="'+r.k+'">'+(lk?"\ud83d\udc94 Unlike":"\u2764\ufe0f Like")+'</button><button data-act=reply data-k="'+r.k+'">\u21a9 Reply</button><button data-act=copy data-k="'+r.k+'">\u29c9 Copy</button></div>':"")+'<div class=dc-mt>'+meta.join(" · ")+'</div></div>'}
 function fillRows(){var log=$("#dc-log");if(!log)return;var rows=S.rows,out=[],day="",i=0,lastGrp=-1;
@@ -260,7 +257,7 @@ async function pollThread(){if(S.busy||S.view!=="thread")return;S.busy=true;try{
 S.after=j.next;S.pending=j.pending;S.meta=j.chat;if(j.rows.length){var atB=nearBottom();S.rows=S.rows.concat(j.rows);if(j.rows.some(function(x){return x.kd!=="me"}))S.localPend=0;markRead();fillRows();if(atB)scrollBottom()}renderTyp();updateHeader()}catch(e){}finally{S.busy=false}}
 function markRead(){if(!S.rows.length)return;var k=S.rows[S.rows.length-1].k;if((READ[S.chat]||0)<k){READ[S.chat]=k;saveRead()}}
 function goHome(){S.view="home";S.chat=null;if(S.rec){try{S.rec.stop()}catch(e){}}if(PAGE&&location.hash)history.replaceState(null,"",location.pathname);renderHome();loadHome()}
-function tick(){var pane=root.closest(".pane");if(document.hidden||(!PAGE&&pane&&!pane.classList.contains("on")&&!document.body.classList.contains("all")))return;if(S.commandOpen&&Date.now()-(S.toolsAt||0)>15000)loadCommands();if(Date.now()-S.aisAt>30000)loadAis();if(S.view==="home")loadHome();else{pollThread();if(Date.now()-(S.homeAt||0)>15000){S.homeAt=Date.now();loadHome()}}}
+function tick(){var pane=root.closest(".pane");if(document.hidden||(!PAGE&&pane&&!pane.classList.contains("on")&&!document.body.classList.contains("all")))return;if(S.commandOpen&&Date.now()-(S.toolsAt||0)>15000)loadCommands();if(S.view==="home")loadHome();else{pollThread();if(Date.now()-(S.homeAt||0)>15000){S.homeAt=Date.now();loadHome()}}}
 /* ---------- events (one delegated listener) ---------- */
 root.addEventListener("click",function(e){var t=e.target.closest("button,a,summary");if(!t)return;var id=t.id;if(t.dataset&&t.dataset.act){act(t.dataset.act,+t.dataset.k);return}
 if(id==="dc-new"){sheet();return}if(t.classList.contains("dc-sheet")){closeSheet();return}
@@ -274,12 +271,12 @@ if(id==="dc-nz"){S.noise=!S.noise;LSs("dc-noise",S.noise?"1":"0");t.classList.to
 if(id==="dc-older"){var f=S.rows.length?S.rows[0].k:0;if(f)loadThread(f);return}
 if(t.classList.contains("dc-more")&&!id){var b=t.previousElementSibling;if(b){var c=b.classList.toggle("clip");t.textContent=c?"show more ▾":"show less ▴"}return}
 if(t.parentElement&&t.parentElement.classList.contains("th")&&t.dataset.i!=null){S.imgs.splice(+t.dataset.i,1);renderPrev();return}});
-root.addEventListener("click",function(e){if(e.target.id==="dc-sheet")closeSheet();if(e.target.closest&&e.target.closest("#dc-ais")){S.aisX=!S.aisX;LSs("dc-ais-x",S.aisX?"1":"0");drawAis()}});
+root.addEventListener("click",function(e){if(e.target.id==="dc-sheet")closeSheet()});
 root.addEventListener("click",function(e){if(S.view!=="thread"||e.target.closest("button,a,summary,textarea,input,select"))return;var m=e.target.closest(".dc-m");if(!m||!m.dataset.k)return;try{if(String(window.getSelection&&window.getSelection()||""))return}catch(x){}var k=+m.dataset.k,n=Date.now();if(S.lastTap&&S.lastTap.k===k&&n-S.lastTap.t<380){S.lastTap=null;S.sel=0;toggleLike(k);return}S.lastTap={k:k,t:n};S.sel=S.sel===k?0:k;redraw()});   /* heartreply_20261103: tap = actions, double-tap = heart */
 document.addEventListener("visibilitychange",function(){if(!document.hidden)tick()});
 if(PAGE)window.addEventListener("hashchange",function(){var m=/^#c=(.+)$/.exec(location.hash||"");if(m){openChat(decodeURIComponent(m[1]))}else if(S.view!=="home")goHome()});
 var m0=PAGE?/^#c=(.+)$/.exec(location.hash||""):null;
-loadAis();if(m0){renderHome();loadHome().then(function(){openChat(decodeURIComponent(m0[1]))})}else{renderHome();loadHome()}
+if(m0){renderHome();loadHome().then(function(){openChat(decodeURIComponent(m0[1]))})}else{renderHome();loadHome()}
 // Fit the embedded pane above the dashboard navigation and mobile keyboard.
 // Full-screen chat owns its viewport and keeps its existing layout.
 function fitEmbed(){
