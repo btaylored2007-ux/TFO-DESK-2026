@@ -72,7 +72,7 @@ def test_matched_calls_use_the_four_client_entrypoints_and_do_not_start_on_failu
 
 def test_paired_answers_start_the_clock_and_a_restart_does_not_repeat_them(tmp_path, monkeypatch):
     calls = _install_clients(monkeypatch, {name: "ready " + name for name in SAMPLER.CALLS})
-    monkeypatch.setattr(SAMPLER, "ensure_coverage", lambda root, now=None: [])
+    monkeypatch.setattr(SAMPLER, "ensure_coverage", lambda root, now=None, resample_after_s=0: [])
     _enable(tmp_path, jobs=1)
     SAMPLER.enqueue(str(tmp_path), dict(task_id="pair-1", seat="banks", role="trader", task_class="research_review",
                                        data_asof=NOW, prompt="same prompt", source="test"))
@@ -137,6 +137,26 @@ def test_lesson_trace_survives_a_new_process(tmp_path):
     out = subprocess.check_output([sys.executable, str(reader)], cwd="/agent/repos/TFO-DESK-2026", text=True, env=env)
     states = {item["seat"]: item["state"] for item in json.loads(out)}
     assert states["banks"] != "no_evidence" and len(states) == 18
+
+
+def test_finished_seats_are_sampled_again_after_the_interval(tmp_path):
+    root = str(tmp_path)
+    SAMPLER._append(SAMPLER.jobs_path(root), dict(event="finished", task_id="old", seat="banks",
+                                                utc="2026-11-06T00:00:00+00:00"))
+    added = SAMPLER.ensure_coverage(root, now="2026-11-06T12:00:00+00:00", resample_after_s=3600)
+    seats = {row["seat"] for row in added}
+    assert "banks" in seats and len(seats) == 18
+    recent = SAMPLER.ensure_coverage(root, now="2026-11-06T12:00:00+00:00", resample_after_s=3600)
+    assert recent == []
+
+
+def test_production_log_does_not_start_the_comparison(tmp_path):
+    path = tmp_path / "production.jsonl"
+    BENCH.note_production(dict(task_id="p", seat="banks", role="trader", task_class="hunt",
+                               prompt="Schema: {}", data_asof=NOW, text="stand aside", provider="claude"), str(path))
+    row = json.loads(path.read_text().splitlines()[-1])
+    assert row["shadow_calls"] == 0 and row["kind"] == "production_inference"
+    assert BENCH.window_status([row])["started"] is False
 
 
 def test_fixture_rows_do_not_open_the_window():

@@ -1,0 +1,487 @@
+[
+  {
+    "path": "veteran_desk/book.py",
+    "payload_sha256": "b4453b503f33e34110519bf4d7a9bf391ecc2802edbd87acca3e77dc96b7e891",
+    "base_sha256": [
+      "b4453b503f33e34110519bf4d7a9bf391ecc2802edbd87acca3e77dc96b7e891"
+    ],
+    "book_protected": true
+  },
+  {
+    "path": "veteran_desk/research_mandate.py",
+    "payload_sha256": "ebffd2dc4f9c83f010995dadea85c2b3c06efe3adab1a7c468b64d72f70c0ba0",
+    "base_sha256": [],
+    "book_protected": false
+  },
+  {
+    "path": "veteran_desk/thf_shadow_bench.py",
+    "payload_sha256": "957539fa9d52ac1d63e3fb9c7064e0d54aae6af88f687f01b477afaf3795e3fa",
+    "base_sha256": [],
+    "book_protected": false
+  },
+  {
+    "path": "veteran_desk/thf_shadow_sampler.py",
+    "payload_sha256": "27d49d68c98b9d1691bc0f0881e77f1e7796e2af6fdc5c658943859f5e8668a4",
+    "base_sha256": [],
+    "book_protected": false
+  },
+  {
+    "path": "veteran_desk/lesson_trace.py",
+    "payload_sha256": "4771ecc9e567c881bb50c27c9330a13acbd7d375dec40730984dd291129e2813",
+    "base_sha256": [],
+    "book_protected": false
+  },
+  {
+    "path": "veteran_desk/feed_health.py",
+    "payload_sha256": "f44734c552d7cb4f751df9d039f414ec19ed9229a01a618f9673a24738a41edb",
+    "base_sha256": [],
+    "book_protected": false
+  },
+  {
+    "path": "veteran_desk/seat_brain.py",
+    "payload_sha256": "dcb25dddadc5b8c2bfd3e36607b98a785912596cba94911baf39f8b7eb87cc31",
+    "base_sha256": [
+      "a41b554fdca333365a1c2ba1aa9fff5fc3228696f490f2c141b809f3a53b5624",
+      "dcb25dddadc5b8c2bfd3e36607b98a785912596cba94911baf39f8b7eb87cc31"
+    ],
+    "book_protected": false
+  },
+  {
+    "path": "veteran_desk/thf_round.py",
+    "payload_sha256": "8ee00fb7519b2c27b5b32b98e56b29d42d3faa0528f7004e5772ad839b5c78f6",
+    "base_sha256": [
+      "883e38fd12a411f6c813b043d331b70d6e7e41dc59f5c7da9fe72cca969dad94",
+      "de11e34e68d068ed21b33c631daad965e6660422e1349cdd0e4b155e01b38121"
+    ],
+    "book_protected": false
+  },
+  {
+    "path": "veteran_desk/thf_msgdesk.py",
+    "payload_sha256": "9607803a718f16041a712544bea1582df7e153a8286cb695b03c92f5ea12376e",
+    "base_sha256": [
+      "a81024f6f58c11855abada95c0f61b6497155c23c76517635c00aa1c2b58000b"
+    ],
+    "book_protected": false
+  },
+  {
+    "path": "veteran_desk/desk.py",
+    "payload_sha256": "670a55e65f52e6730561f0bac46248ccdee965680444aaff62384e2252124dd4",
+    "base_sha256": [
+      "c5d24291f0418a7e64bccc749b73e6e21ebd930147b6b0fae16a2d81eba4b677"
+    ],
+    "book_protected": false
+  },
+  {
+    "path": "veteran_desk/session_expiry.py",
+    "payload_sha256": "865c232ef1c16e982be1ba3d51a47c410021c5cdb0999757e772fbc2622d74f8",
+    "base_sha256": [],
+    "book_protected": false
+  },
+  {
+    "path": "veteran_desk/b_tight.py",
+    "payload_sha256": "dc2a6b42267965d80c3f9c4f4247e48dd030fe69801feadc0bf05faeb807060e",
+    "base_sha256": [],
+    "book_protected": false
+  },
+  {
+    "path": "veteran_desk/bridge_maintenance.py",
+    "payload_sha256": "56874d5f12cd667486b6cfbe15a29e50837bbdc39f7a50678e3f018f50bf43fd",
+    "base_sha256": [],
+    "book_protected": false
+  },
+  {
+    "path": "veteran_desk/thf_http.py",
+    "payload_sha256": "f42e153507e89ec11bc1de9aa500318b5389503ef0fec2fe24ca3572db777bbd",
+    "base_sha256": [],
+    "book_protected": false
+  },
+  {
+    "path": "veteran_desk/seat_risk.py",
+    "payload_sha256": "d9730a749d92be4c528e5135d0125bed6c6c868dc0128fd31140bddd80b7edac",
+    "base_sha256": [],
+    "book_protected": false
+  },
+  {
+    "path": "veteran_desk/pit_fx_sgp.py",
+    "payload_sha256": "5c5b2f2904a289a2855ec6713ad1eb3be087929ed81b2bdd29cedaab22955ebd",
+    "base_sha256": [],
+    "book_protected": false
+  },
+  {
+    "path": "asia_intraday_sgp.py",
+    "payload_sha256": "19faf0f88d003317e75174561f7dd6ca95c6060efac8559c2317a8a16d6b1f3f",
+    "base_sha256": [],
+    "book_protected": false
+  },
+  {
+    "path": "thf_feedkeeper.py",
+    "payload_sha256": "dad09f369fe1fe7c7eb063456771920975cf62bb7417ede582b87a5e7c0bc7a3",
+    "base_sha256": [],
+    "book_protected": false
+  },
+  {
+    "path": "tools/intraday_bars_pull.py",
+    "payload_sha256": "0d5aade3efb3377a8815aaea8bf077651daafa15dfd181a1a34588dc4bb95289",
+    "base_sha256": [],
+    "book_protected": false
+  },
+  {
+    "path": "tools/thf_chat.js",
+    "payload_sha256": "be70ff4ae236b3df78451ecfffb159dd987c3bda42475faeb0752cf0ccedad73",
+    "base_sha256": [
+      "a83e22766f11850ec02ebbbefa41b2693475309ca9e2bd574b38e6deb7ab28f6",
+      "711c78961ac08b3416705023820154beae6e43d9fa7094a72ad2e6b24ec79a0a"
+    ],
+    "book_protected": false
+  },
+  {
+    "path": "tools/thf_eli10.html",
+    "payload_sha256": "62cc36e072889caa3d6250ae667b5360502c7d20547f01dff3e294cceb71504b",
+    "base_sha256": [],
+    "book_protected": false
+  },
+  {
+    "path": "tools/thf_eli10.js",
+    "payload_sha256": "9493deb9a5e889d9ffa8cf445deda501a0d88ca63f2a5cd6290b858d82386ad4",
+    "base_sha256": [],
+    "book_protected": false
+  },
+  {
+    "path": "tools/thf_chat_page.html",
+    "payload_sha256": "644acf8e3df755809d16cfc1a1475ba508a313cdec227533aeb1917d5112ece3",
+    "base_sha256": [],
+    "book_protected": false
+  },
+  {
+    "path": "tools/thf_chat.html",
+    "payload_sha256": "4a42f9eecddcb7c080a60fa4c114bb544e684938f9f23897d19e85effb4705f1",
+    "base_sha256": [],
+    "book_protected": false
+  },
+  {
+    "path": "assets/brand/mark.svg",
+    "payload_sha256": "b3dece78623cfca158093da6980c35e1d8cc539c26bd7d1167a4b6462a7c098e",
+    "base_sha256": [],
+    "book_protected": false
+  },
+  {
+    "path": "assets/brand/wordmark.svg",
+    "payload_sha256": "bf4b5fec58d0ab756e5e7746108ae767d935618d35f3b0acc69b266b795ebfb8",
+    "base_sha256": [],
+    "book_protected": false
+  },
+  {
+    "path": "assets/brand/favicon.svg",
+    "payload_sha256": "5301387bedb29b6ae93332f1177203f500a8e58d629d33adbc46b6a1777a2513",
+    "base_sha256": [],
+    "book_protected": false
+  },
+  {
+    "path": "assets/brand/tokens.css",
+    "payload_sha256": "60939ab65627ae012fb4075a867280ee172dbbd7dd6f0a4746d4e22d44794144",
+    "base_sha256": [],
+    "book_protected": false
+  },
+  {
+    "path": "deploy/incremental_20261106/tfo-thf-shadow.service",
+    "payload_sha256": "0d56c6dce437149a2c1429f1c42f9db881a3a568483ff8bb6d887d4b747c8aff",
+    "base_sha256": [],
+    "book_protected": false
+  },
+  {
+    "path": "deploy/incremental_20261106/tfo-thf-shadow.timer",
+    "payload_sha256": "70c8d6e4260b605ae2843fdefd82db4ffab036a0c244a6902ada028594a3e0dc",
+    "base_sha256": [],
+    "book_protected": false
+  },
+  {
+    "path": "state/thf/shadow_sampler.json",
+    "payload_sha256": "b954cd38057b26c7d2b1728a9bfd8d3b0e8aaa3bb50fa444da71bc987618823c",
+    "base_sha256": [],
+    "book_protected": false
+  },
+  {
+    "path": "tfo_equity_refresh.py",
+    "payload_sha256": "6d098ebe2e6512e863dec9c432b59647e2812e9929d917f67deeaee127bceaaa",
+    "base_sha256": [
+      "438c93940ae7a4ddde0a4e7c471072f94fe782a99dfbe6fe25d9732ba6541137"
+    ],
+    "book_protected": false
+  },
+  {
+    "path": "thf_guardian/__init__.py",
+    "payload_sha256": "4855b54a70e3f7aee54001172c9e191ec19d8d91edd07d4c6cd0c7ec749f396f",
+    "base_sha256": [],
+    "book_protected": false
+  },
+  {
+    "path": "thf_guardian/ai_mode.py",
+    "payload_sha256": "4a4357c9f324c68e955e577a76a0b3fae74f5ee0218d81e69d151dd8f95bc4a9",
+    "base_sha256": [],
+    "book_protected": false
+  },
+  {
+    "path": "thf_guardian/arm_guard.py",
+    "payload_sha256": "5aa29906d2008897c8e9ef69c2e27df7cc70c1dc5e190d91a9f7205b30d81baf",
+    "base_sha256": [],
+    "book_protected": false
+  },
+  {
+    "path": "thf_guardian/config.py",
+    "payload_sha256": "3dd427d815a724a61b62cfa12b3eac38472e0ad742249548d805afd190f8d6d1",
+    "base_sha256": [],
+    "book_protected": false
+  },
+  {
+    "path": "thf_guardian/seats.py",
+    "payload_sha256": "55058d8797ce70bd203ee4b19644d9a55140947f67cb69f295e34ce1893ea288",
+    "base_sha256": [],
+    "book_protected": false
+  },
+  {
+    "path": "thf_guardian/util.py",
+    "payload_sha256": "c2e455835ca31defcd413e7843325cb34263d97fe821b2fce97414618f69a2a4",
+    "base_sha256": [],
+    "book_protected": false
+  },
+  {
+    "path": "tools/bars_snapshot.py",
+    "payload_sha256": "35308d00ec2f831f01d57f8eabd355fe01deeb887b4889cfc4eb73424dd54c46",
+    "base_sha256": [],
+    "book_protected": false
+  },
+  {
+    "path": "tools/thf_dash_refresh.sh",
+    "payload_sha256": "530d15d937295d81ab2065e801b47b46dd2a24bcee5a707c72eb15b4881ecf19",
+    "base_sha256": [],
+    "book_protected": false
+  },
+  {
+    "path": "veteran_desk/ai_readiness.py",
+    "payload_sha256": "37ba8d3a3fbaa762c16e5625fbef9dac189ec7db39b9d4f5db62addf1f71b97e",
+    "base_sha256": [],
+    "book_protected": false
+  },
+  {
+    "path": "veteran_desk/arm_last.py",
+    "payload_sha256": "0309f9ba7695dface309c7d17b35417c9713958e6c4f7b6ea79cc332e22777e1",
+    "base_sha256": [],
+    "book_protected": false
+  },
+  {
+    "path": "veteran_desk/brain_hb.py",
+    "payload_sha256": "f4439a6d712ddab2ae53685550076ec401bb55ddd59d6e7fa6578a0a59d4f409",
+    "base_sha256": [],
+    "book_protected": false
+  },
+  {
+    "path": "veteran_desk/catalyst_stream.py",
+    "payload_sha256": "38ab4c8b5f9996b22ce118faed88895f3383d9996ebc0a67678b8dc6de0fceba",
+    "base_sha256": [],
+    "book_protected": false
+  },
+  {
+    "path": "veteran_desk/cfo_report.py",
+    "payload_sha256": "bce5e29fcd4b3e5df85b2c627416b91d7b97163139dfdae92adb93ffbdb499b1",
+    "base_sha256": [],
+    "book_protected": false
+  },
+  {
+    "path": "veteran_desk/crypto_live.py",
+    "payload_sha256": "2efad87c381ae774e494d66d9443bc59bc8d8b330d7151309b850f63d9d89df1",
+    "base_sha256": [],
+    "book_protected": false
+  },
+  {
+    "path": "veteran_desk/day_clock.py",
+    "payload_sha256": "916fc67467ba1c3c5aa0c1c10ef0247ddd5f75c91b370033f84171f84a1689df",
+    "base_sha256": [],
+    "book_protected": false
+  },
+  {
+    "path": "veteran_desk/engineering_deepseek.py",
+    "payload_sha256": "442c0b7f665e8e887280dc473b42cfdb67acfe0bed52022adbf368a5144bca01",
+    "base_sha256": [],
+    "book_protected": false
+  },
+  {
+    "path": "veteran_desk/execution_rules.py",
+    "payload_sha256": "c1bde58a7f8a8b8a1408a2d06ca7db877e4e5187ccc45a8513c30aaaa15c3290",
+    "base_sha256": [
+      "61abf73035bd88a471695009eda9bdb329efd97dcc0747c89e1d1a5fcdefb77f"
+    ],
+    "book_protected": false
+  },
+  {
+    "path": "veteran_desk/filing_freshness.py",
+    "payload_sha256": "58f4282b1a3d91baddc42244068c3111fa200cd6682de0171cf69ebcfe2b2328",
+    "base_sha256": [],
+    "book_protected": false
+  },
+  {
+    "path": "veteran_desk/fixer_work.py",
+    "payload_sha256": "ffb5562a1f4b50ed618b1f6a731e30e0280a02c0a9763f06d42f90454aef82e4",
+    "base_sha256": [],
+    "book_protected": false
+  },
+  {
+    "path": "veteran_desk/fut_roll.py",
+    "payload_sha256": "5c4bd0f1f9b4b7618f1168dbeae623372b364af329df2693efafe148ce1b5ffd",
+    "base_sha256": [
+      "fbb71eb33b5d9cacf0d42cbf2e54bc5c0e1194c9e65cc9d72874ae127e5a13d9"
+    ],
+    "book_protected": false
+  },
+  {
+    "path": "veteran_desk/gate_v2.py",
+    "payload_sha256": "2326feaa522d4c9de014d1523435aeb8ab83fd817e45396448beb50363446d54",
+    "base_sha256": [
+      "6a76df04ecda13287d212afa0adb5706967603ceb44293f412444cdc9cc2d476"
+    ],
+    "book_protected": false
+  },
+  {
+    "path": "veteran_desk/headline_subject.py",
+    "payload_sha256": "771985f14ef3193aa42f715af173d39ff8c65a4e9bec6eda03259cf2136d3e99",
+    "base_sha256": [],
+    "book_protected": false
+  },
+  {
+    "path": "veteran_desk/leaderboard.py",
+    "payload_sha256": "9200be762b6c4064588538a8bf785cea18ba5304d26bdeaf886cad4b12d40421",
+    "base_sha256": [
+      "b502c7d66ab7f347c6c35f7c94abf0b123a5f5a28fa4b027ac875e46207b7e64"
+    ],
+    "book_protected": false
+  },
+  {
+    "path": "veteran_desk/live_ctx.py",
+    "payload_sha256": "d8c20f8bb3d02c6d1def6d7a649d9061d8503608d454ff15b0cad76bcd1bcf66",
+    "base_sha256": [
+      "54f448cdd731502f862b332a12a14441351fa9f5e22bff92cf9035a71169f34b"
+    ],
+    "book_protected": false
+  },
+  {
+    "path": "veteran_desk/my_positions.py",
+    "payload_sha256": "03bd1f10abb2c2bc4f1beb15710fdf2e2cb537e8644d5fcf130306d5841e392a",
+    "base_sha256": [],
+    "book_protected": false
+  },
+  {
+    "path": "veteran_desk/news_desk.py",
+    "payload_sha256": "1db278009d570130578d656cbf38273307bd8bd362bc641ea76458b250e70d98",
+    "base_sha256": [
+      "ada173eb29b9194927debe071f5f127b2b25502787e0d2ae2fb6db789c67dab3"
+    ],
+    "book_protected": false
+  },
+  {
+    "path": "veteran_desk/pack_fit.py",
+    "payload_sha256": "4f1ee194b926e47aba8d73f4954f0642ae56f5006f902df2a571532243bb03fe",
+    "base_sha256": [],
+    "book_protected": false
+  },
+  {
+    "path": "veteran_desk/pit.py",
+    "payload_sha256": "d5a614e580a2f3effa53ee65a1de7ef3195559bdf0f8069fbcae5aa8c08aeb8c",
+    "base_sha256": [
+      "2b2578bdc76ab4d46e4fcea89b719f6a8ee137afa70ba7ba36b497cf1dc7cb42"
+    ],
+    "book_protected": false
+  },
+  {
+    "path": "veteran_desk/pit_splits.py",
+    "payload_sha256": "e4db6753f3b4f391fc9e129720a8da3bec770a28208356498af8940ae5cdffe9",
+    "base_sha256": [],
+    "book_protected": false
+  },
+  {
+    "path": "veteran_desk/pnl_light.py",
+    "payload_sha256": "ba24d6ac32b8579ec32524ed4bf4c5d5a500066fc49c244bc3a9533f2c3811eb",
+    "base_sha256": [],
+    "book_protected": false
+  },
+  {
+    "path": "veteran_desk/provider_rotation.py",
+    "payload_sha256": "5af65015bcab926c8f52579f9051bb453db5315a1358d91fb8f18e6e8ecfe1ba",
+    "base_sha256": [],
+    "book_protected": false
+  },
+  {
+    "path": "veteran_desk/scan_universe.py",
+    "payload_sha256": "420ffe8e98845e0fa164424770120259b48e51e19acb54203f7f5571826d1552",
+    "base_sha256": [
+      "cb0c069e09b2eb48f7c4fc15b0608b1f182f7fa6f6c11b90b95090d6c59fd9b9"
+    ],
+    "book_protected": false
+  },
+  {
+    "path": "veteran_desk/seat_registry.py",
+    "payload_sha256": "44455cc12c2d81df2b1aa176b8094ecfe1538744662b2057d64b71947bf83de9",
+    "base_sha256": [],
+    "book_protected": false
+  },
+  {
+    "path": "veteran_desk/sec_forms.py",
+    "payload_sha256": "4d56e7a488a46d8f54e26918ef5cec4b01fa52d3a5bf908567373d7ed6a8e1ee",
+    "base_sha256": [],
+    "book_protected": false
+  },
+  {
+    "path": "veteran_desk/small_coin.py",
+    "payload_sha256": "cd6f91786cd6cab3ade1dc3af0ab069384da66b85f27bdd952a4480c047fea1f",
+    "base_sha256": [],
+    "book_protected": false
+  },
+  {
+    "path": "veteran_desk/strategy_lab.py",
+    "payload_sha256": "ccda93a2918578854f1edd4483fb7d7b533cb7247633cbd7c8aa9ad385fee37b",
+    "base_sha256": [],
+    "book_protected": false
+  },
+  {
+    "path": "veteran_desk/thf_charts.py",
+    "payload_sha256": "9a64658179cdfc059fb723c8a6e33f2740e653cda5d1e326e165d302a311e6be",
+    "base_sha256": [],
+    "book_protected": false
+  },
+  {
+    "path": "veteran_desk/thf_crypto_feed.py",
+    "payload_sha256": "9f2feca32b46eae458764d952a2ea8b11db08857e0839dd8693ad097a7e38ab4",
+    "base_sha256": [],
+    "book_protected": false
+  },
+  {
+    "path": "veteran_desk/thf_exdiv.py",
+    "payload_sha256": "72cad86c16356c997bdfc66177ae9704a0f9bc170d8569b132d335a7833a985f",
+    "base_sha256": [],
+    "book_protected": false
+  },
+  {
+    "path": "veteran_desk/thf_paid_pack.py",
+    "payload_sha256": "7cd8a3155221955100c6a692b60f35dc956b464835dc5a12f4842e87946a3c93",
+    "base_sha256": [
+      "155a908e8c7cd8a968bd0220bc8240beef7c79c8a99cab20fc9f140dc838d935"
+    ],
+    "book_protected": false
+  },
+  {
+    "path": "veteran_desk/thf_prompt_catalog.py",
+    "payload_sha256": "e40a3caf2c56d2a64723ffdf94dcd5e05d89450d24ec951b1b77846e6eae6728",
+    "base_sha256": [],
+    "book_protected": false
+  },
+  {
+    "path": "veteran_desk/thf_scan.py",
+    "payload_sha256": "d40aa84c128cd21a360acf16f7afadb239fc7da0366783fb9614323de35f71f1",
+    "base_sha256": [],
+    "book_protected": false
+  },
+  {
+    "path": "veteran_desk/thf_ticker.py",
+    "payload_sha256": "087be9af42f79c2ad9446672468619588fd3002fa3b3fcbeac9b5feb35f089d6",
+    "base_sha256": [],
+    "book_protected": false
+  }
+]

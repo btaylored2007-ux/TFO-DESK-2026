@@ -155,13 +155,13 @@ def enqueue(root, job):
     return row
 
 
-def enqueue_production_prompt(root, seat, prompt, data_asof, task_id, role="trader"):
-    """Queue the desk prompt. Does not call a provider."""
+def enqueue_production_prompt(root, seat, prompt, data_asof, task_id, role="trader", task_class="production_proposal"):
+    """Queue the desk prompt for the four-provider sampler. Does not call a provider."""
     if not root:
         return None
     return enqueue(root, dict(
-        task_id=task_id, seat=seat, role=role, task_class="production_proposal",
-        data_asof=data_asof, prompt=prompt, source="thf_round"))
+        task_id=task_id, seat=seat, role=role, task_class=task_class,
+        data_asof=data_asof, prompt=prompt, source="production_prompt"))
 
 
 def _events(root):
@@ -198,22 +198,47 @@ def pending_jobs(root):
     return out
 
 
-def ensure_coverage(root, now=None):
-    """One role-appropriate job per seat when that seat has nothing queued."""
-    now = now or _now()
-    seen = {row.get("seat") for row in _events(root)}
+def _parse_utc(value):
+    try:
+        seen = dt.datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+    except (TypeError, ValueError):
+        return None
+    if seen.tzinfo is None:
+        seen = seen.replace(tzinfo=dt.timezone.utc)
+    return seen
+
+
+def _latest_by_seat(root):
+    latest = {}
+    for row in _events(root):
+        seat = row.get("seat")
+        if seat:
+            latest[seat] = row
+    return latest
+
+
+def ensure_coverage(root, now=None, resample_after_s=6 * 3600):
+    """Queue every seat, then again after resample_after_s once the previous job finished."""
+    now_text = now or _now()
+    now_dt = _parse_utc(now_text) or dt.datetime.now(dt.timezone.utc)
+    latest = _latest_by_seat(root)
     added = []
     for seat in LT.SEATS:
-        if seat in seen:
+        row = latest.get(seat)
+        if row and row.get("event") != "finished":
             continue
+        if row and row.get("event") == "finished":
+            then = _parse_utc(row.get("utc"))
+            if then is not None and (now_dt - then).total_seconds() < float(resample_after_s):
+                continue
         if seat in LT.TRADERS:
             role, task_class = "trader", "research_review"
         else:
             role, task_class = "admin", ADMIN_TASKS[seat]
         body = task_body(seat, task_class)
         added.append(enqueue(root, dict(
-            task_id="coverage-%s-%s" % (seat, str(now)[:10]), seat=seat, role=role,
-            task_class=task_class, data_asof=now, prompt=shadow_prompt(task_class, seat, role, now, body),
+            task_id="coverage-%s-%s" % (seat, now_text), seat=seat, role=role,
+            task_class=task_class, data_asof=now_text, prompt=shadow_prompt(task_class, seat, role, now_text, body),
             source="coverage")))
     return added
 
@@ -257,7 +282,7 @@ def once(root, now=None):
         status["availability"] = "pending_configuration" if config.get("reason") else "disabled"
         _write_status(root, status)
         return status
-    ensure_coverage(root, now=now)
+    ensure_coverage(root, now=now, resample_after_s=int(config.get("resample_after_s") or 6 * 3600))
     timeout = int(config.get("provider_timeout_s") or 90)
     ran = 0
     for job in pending_jobs(root)[:int(config.get("max_jobs_per_run") or 1)]:
@@ -275,8 +300,12 @@ def once(root, now=None):
             samples.append(json.loads(line))
     except (OSError, ValueError):
         samples = []
-    status["window"] = BENCH.window_status(samples)
-    status["recommendation"] = BENCH.recommend([row for row in samples if row.get("scored")])
+    window = BENCH.window_status([row for row in samples if row.get("kind") == "shadow_evaluation"])
+    status["window"] = window
+    status["seats_expected"] = len(LT.SEATS)
+    status["pending_jobs"] = len(pending_jobs(root))
+    status["comparison"] = "paired rows in shadow_samples.jsonl only; a production log with shadow_calls 0 is not the trial"
+    status["recommendation"] = BENCH.recommend([row for row in samples if row.get("scored") and row.get("kind") == "shadow_evaluation"])
     status["recommendation"]["global_winner"] = None
     _write_status(root, status)
     return status

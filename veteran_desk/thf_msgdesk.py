@@ -752,17 +752,19 @@ def _ready_choice(seat,msg):
         failures.append(name+":"+why)
     raise RuntimeError("; ".join(failures) or "no AI available")
 
-def _trace_answer(seat, msg, d):
-    """Record prompt citation and the answer already produced. Does not call another model."""
+def _trace_answer(seat, msg, d, prompt=None):
+    """Record the lesson citation and queue the same prompt for the four-provider sampler. Does not call a provider."""
     testing = bool(os.environ.get("PYTEST_CURRENT_TEST"))
     trace = os.environ.get("THF_LESSON_TRACE")
     shadow = os.environ.get("THF_SHADOW_LOG")
-    if testing and not trace and not shadow:
+    sample_root = os.environ.get("THF_SHADOW_ROOT")
+    if testing and not trace and not shadow and not sample_root:
         return d
     if not testing:
         root = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "state", "thf")
         trace = trace or os.path.join(root, "lesson_trace.jsonl")
         shadow = shadow or os.path.join(root, "shadow_bench.jsonl")
+        sample_root = sample_root or os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     try:
         if trace:
             from veteran_desk import seat_brain as _SB
@@ -772,6 +774,10 @@ def _trace_answer(seat, msg, d):
             _BX.note_production(dict(task_id=(msg or {}).get("id"), seat=seat, role="chat", task_class="chat",
                                      prompt="chat", data_asof=now(), text=str((d or {}).get("reply") or ""),
                                      provider=(d or {}).get("_brain") or "unknown"), shadow)
+        if sample_root and prompt:
+            from veteran_desk import thf_shadow_sampler as _SH
+            _SH.enqueue_production_prompt(sample_root, seat, prompt, now(), str((msg or {}).get("id") or "chat"),
+                                         role="chat", task_class="chat")
     except Exception:
         pass
     return d
@@ -786,11 +792,11 @@ def ask(seat, msg, ctx):
     ai = AR.resolve(msg.get("ai"), seat)
     if ai == "super":   # SUPER POWER: every available AI in parallel + one synth pass
         r = AR.super_power(p, seat, imgs, json_reply=True, **(_chat_options(seat,msg) if _command_mode(msg)=="learn" else dict(wait_for_slot=True) if _interactive_wait(msg) else {})); d = _parse_reply(r["text"])
-        d["reply"] = str(d.get("reply") or "").rstrip() + AR.footer(r); d["_brain"] = r["brain"]; d["_errs"] = []; d["_mail_ids"] = mail_ids; return _trace_answer(seat, msg, d)
+        d["reply"] = str(d.get("reply") or "").rstrip() + AR.footer(r); d["_brain"] = r["brain"]; d["_errs"] = []; d["_mail_ids"] = mail_ids; return _trace_answer(seat, msg, d, p)
     if ai != "auto":
         r = AR.chain(p, ai, seat, imgs, **_chat_options(seat,msg)); d = _parse_reply(r["text"]); d["_brain"] = r["brain"]; d["_errs"] = r["errs"]; d["_mail_ids"] = mail_ids
         if r["brain"] != ai: d["reply"] = str(d.get("reply") or "") + "\n(picked %s unavailable -> answered by %s)" % (AR.LABEL.get(ai, ai), AR.LABEL.get(r["brain"], r["brain"]))
-        return _trace_answer(seat, msg, d)
+        return _trace_answer(seat, msg, d, p)
     # chatimg_20261102 vision order: Claude (pixels via Read) -> ChatGPT (Playwright attach) -> seat/Grok text-only
     _prio = "low" if str(msg.get("text") or "").startswith(("FROM SEAT ", "IDEA from ")) else "high"   # capq_20261103: Brett's own messages get the reserved Claude slots
     def _claude_p(seat_, p_, images=None, _sw=None):   # capq_20261103: pass the tier; a caller-swapped _claude without 'prio' (tests/mocks) still works
@@ -822,7 +828,7 @@ def ask(seat, msg, ctx):
             fn=lambda seat_,prompt_,images=None:_chatgpt(seat_,prompt_,images,**_chat_options(seat,msg))
         try:
             out = _tcall(name, (lambda: fn(seat, p, imgs)) if name in ("claude", "chatgpt") and imgs else (lambda: fn(seat, p)), _budget(name, imgs))   # nonblock_20261102 hard per-AI timeout; seatagents_20261103 longer for vision
-            d = _parse_reply(out); ROT.record(name,True,channel="chat_auto",request_id=msg.get("id")); d["_brain"] = name; d["_model"] = getattr(out, "model", None) or _model_label(name); d["_errs"] = errs; d["_mail_ids"] = mail_ids; _CD.mark_ok(name); return _trace_answer(seat, msg, d)
+            d = _parse_reply(out); ROT.record(name,True,channel="chat_auto",request_id=msg.get("id")); d["_brain"] = name; d["_model"] = getattr(out, "model", None) or _model_label(name); d["_errs"] = errs; d["_mail_ids"] = mail_ids; _CD.mark_ok(name); return _trace_answer(seat, msg, d, p)
         except Exception as x:
             if _BM.is_hold(x): raise
             ROT.record(name,False,channel="chat_auto",request_id=msg.get("id"),error=x)

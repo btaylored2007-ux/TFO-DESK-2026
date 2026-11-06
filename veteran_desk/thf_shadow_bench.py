@@ -105,7 +105,7 @@ def note_production(task, path):
                output_hash=_hash(text) if text else None, preview=redact(text)[:180],
                score=score_output(task.get("prompt") or "", text, None), ok=bool(text),
                tokens="unknown", cost_usd="unknown", latency_ms="unknown", first_token_ms="unknown",
-               shadow_calls=0)
+               shadow_calls=0, kind="production_inference")
     os.makedirs(os.path.dirname(path), exist_ok=True)
     with open(path, "a", encoding="utf-8") as handle:
         handle.write(json.dumps(row, default=str) + "\n")

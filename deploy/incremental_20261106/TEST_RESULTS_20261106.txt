@@ -1,0 +1,15 @@
+Scoped acceptance run on this workspace. Not a Singapore run.
+
+Command:
+
+python3 -m pytest tests/test_bank07_20261106.py tests/test_fillfix_20261103.py veteran_desk/tests/test_review_20261030.py::test_half_risk_a_allowed_at_1pct veteran_desk/tests/test_autonomy_runtime_20261106.py veteran_desk/tests/test_autonomy_integration_20261106.py veteran_desk/tests/test_learning_retry_durable.py veteran_desk/tests/test_shadow_sampler_20261106.py veteran_desk/tests/test_research_and_shadow_20261106.py veteran_desk/tests/test_lesson_trace_20261106.py veteran_desk/tests/test_integrated_paths_20261106.py veteran_desk/tests/test_feed_health_20261106.py veteran_desk/tests/test_hub_brand_20261106.py veteran_desk/tests/test_incremental_deploy_20261106.py veteran_desk/tests/test_live_bank_snapshot_20261106.py veteran_desk/tests/test_intent_routing_20261104.py::RoutingIntegration::test_advisor_uses_original_intent_and_respects_ask -q --tb=line
+
+Result: 1 failed, 126 passed, 3 subtests passed in 2.84s.
+
+The one failure is test_intent_routing_20261104.py::RoutingIntegration::test_advisor_uses_original_intent_and_respects_ask
+FileNotFoundError: queue_answerer_sgp.py. The file was not invented and the test was not skipped.
+
+Chat renderer: node veteran_desk/tests/fixtures/chat_simple_ui_20261106.js tools/thf_chat.js
+Result: 6 scenarios passed, requests mocked.
+
+veteran_desk/book.py sha256 b4453b503f33e34110519bf4d7a9bf391ecc2802edbd87acca3e77dc96b7e891
