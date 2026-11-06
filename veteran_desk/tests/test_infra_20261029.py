@@ -37,7 +37,9 @@ def test_aud_per_unit_still_uses_listing_ccy_for_jp_hk():
     finally:
         BK.ccy_per_aud = real
 
-def test_prior_close_rejects_bogus_previous_close():
+def test_prior_close_rejects_bogus_previous_close(tmp_path, monkeypatch):
+    from veteran_desk.tests.isolated_pit import open_pit
+    open_pit(tmp_path, monkeypatch)
     # bar 1000, previousClose 700 (= -30%) -> use bar
     r = FD.prior_close("7203.T", yahoo_prev=700.0, bar_close=1000.0, max_div=0.05)
     assert r["close"] == 1000.0 and r["src"] == "daily_bar" and r.get("rejected_prev") == 700.0

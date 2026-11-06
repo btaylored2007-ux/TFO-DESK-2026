@@ -8,6 +8,21 @@ def test_guard_blocks_live_and_allows_tmp():
     assert len(C.VIOLATIONS) == n + 2
     del C.VIOLATIONS[n:]   # expected probes, not real violations
     p = os.path.join(tempfile.mkdtemp(), "ok.json"); open(p, "w").write("{}"); assert open(p).read() == "{}"
+    from veteran_desk import pit as P
+    live = os.path.join(C.ROOT, "data", "pit", "pit.sqlite")
+    old = P.DB; P.DB = live
+    try:
+        with pytest.raises(PermissionError): P.con()
+    finally:
+        P.DB = old
+    assert any("pit" in str(v) for v in C.VIOLATIONS[n:]), C.VIOLATIONS[n:]
+    del C.VIOLATIONS[n:]
+    tmp = tempfile.mkdtemp(); P.DB = os.path.join(tmp, "pit.sqlite")
+    try:
+        c = P.con(); assert c.execute("select count(*) from bars").fetchone()[0] == 0; c.close()
+    finally:
+        P.DB = old
+    assert not os.path.isdir(os.path.join(C.ROOT, "data", "pit"))
     live_book = os.path.join(C.ROOT, "reports", "veteran_desk_book.json")
     try:
         assert open(live_book).read(1)   # a present live book may be read

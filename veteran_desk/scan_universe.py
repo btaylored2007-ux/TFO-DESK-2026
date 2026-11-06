@@ -102,9 +102,10 @@ def _intl():
 def _dead():
     try: return set((json.load(open(os.path.join(P.BASE, "data", "pit", "refresh_stale_report.json"))).get("fail") or {}).keys())
     except Exception: return set()
+KRAKEN_24H = os.path.join(P.BASE, "state", "veteran_desk", "kraken_24h_all.json")
 def kraken_liquid():
     """Kai's universe: veteran_desk/kraken_sweep.py output (DoH, 24h value) - liquid, non-stablecoin, non-fiat bases."""
-    try: K = json.load(open(os.path.join(P.BASE, "state", "veteran_desk", "kraken_24h_all.json")))
+    try: K = json.load(open(KRAKEN_24H))
     except Exception: return None, 0
     ps = K.get("pairs") or []
     L = ["KRAKEN:" + x["alt"] for x in ps if x.get("liquid") and not any(x["alt"].startswith(b) for b in STABLE) and not P.banned("KRAKEN:" + x["alt"])]

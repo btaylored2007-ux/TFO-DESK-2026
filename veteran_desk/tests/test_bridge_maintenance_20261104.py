@@ -178,6 +178,8 @@ class MaintenanceTests(unittest.TestCase):
             with self.assertRaises(B.MaintenanceHold):CG.ask('prompt')
             self.assertEqual(CG._T,[]);opened.assert_not_called()
     def test_client_second_guard_rolls_back_reserved_quota(self):
+        """Hold after the first guard rolls the reserved slot back and opens nothing.
+        The delivery probe is behind that recheck; the last recheck is still immediately before the POST."""
         CG._T[:]=[];real=B.client_guard;calls=[]
         def guard():
             calls.append(1)
