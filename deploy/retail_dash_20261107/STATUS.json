@@ -1,0 +1,37 @@
+{
+  "phase": "prepared",
+  "status": "WAITING_CAPTURE",
+  "singapore_deployed": false,
+  "verified_live": false,
+  "restart": "not performed",
+  "package": "deploy/retail_dash_20261107",
+  "ui_pr": "https://github.com/btaylored2007-ux/TFO-DESK-2026/pull/19",
+  "known_base_commit": "2c45d1a28a894578ca015f06ea7065c2d22f9c6a",
+  "dependency_closure": {
+    "leaf_files": [
+      "tools/thf_eli10.html",
+      "tools/thf_eli10.js",
+      "tools/thf_chat.js",
+      "tools/thf_chat_page.html"
+    ],
+    "server_files_whole_copy_only_when_base_hash_matches": [
+      "veteran_desk/thf_dash.py",
+      "veteran_desk/thf_chat_home.py"
+    ],
+    "why_those_two_are_not_leaf_patches": "PR 19 changes a brand allow-list in the dashboard router and an unread-cap flag in chat home. Those modules also carry the upgrade-branch body. This package copies them only when the captured bytes are exactly the recorded base, or already the recorded target. Any other captured hash stops the release.",
+    "brand_bytes": "favicon, mark, wordmark, and tokens.css install only when absent or already identical. A different captured brand file blocks.",
+    "new_file": "assets/brand/apple-touch-icon.png",
+    "not_copied": "PR 18 ancestry, book, engine, tick, risk rails, AI bridges, tenant billing, bakeoff"
+  },
+  "acceptance": {
+    "home_trades_seats_health_chat": "source-checked only",
+    "live_pnl_clock": "not verified",
+    "navigation": "source-checked only",
+    "composer_advanced_controls": "source-checked only",
+    "upload_routing_and_sender_labels": "source-checked only",
+    "brand_assets_serve": "unit-checked on a loopback handler, not on 18870",
+    "ai_plumbing_hidden": "source-checked only",
+    "stale_missing_urgent_honest": "source-checked only",
+    "singapore_forward_test": "not run"
+  }
+}
