@@ -52,8 +52,11 @@ def _redirect():
     from veteran_desk import feeds as FD, payouts as PY, leaderboard as LB
     FD.FH = os.path.join(TMP, "feeds_health.json"); FD.CG_CACHE = os.path.join(TMP, "coingecko_cache.json")
     import shutil
-    if os.path.exists(PY.DEFAULT_OUT_PATH): shutil.copyfile(PY.DEFAULT_OUT_PATH, os.path.join(TMP, "veteran_desk_payouts.json"))   # read-only copy of live
-    PY.DEFAULT_OUT_PATH = os.path.join(TMP, "veteran_desk_payouts.json"); LB.LIVE = os.path.join(TMP, "leaderboard.json")
+    dest = os.path.join(TMP, "veteran_desk_payouts.json")
+    if os.path.exists(PY.DEFAULT_OUT_PATH): shutil.copyfile(PY.DEFAULT_OUT_PATH, dest)   # read-only copy of live
+    elif not os.path.exists(dest):
+        with open(dest, "w") as fh: fh.write('{"seats":{}}\n')   # no owner ledger in this checkout
+    PY.DEFAULT_OUT_PATH = dest; LB.LIVE = os.path.join(TMP, "leaderboard.json")
     import funder_gate as FG
     FG._lock = lambda: contextlib.nullcontext()   # shared desk_lock lives under live reports/; tests use tmp queues only
 _redirect()
@@ -69,6 +72,20 @@ def _no_live_writes():
     if new: pytest.fail("TEST GUARD: test wrote live paths: %s" % new[:5], pytrace=False)
 _PINNED = [("veteran_desk.payouts", a) for a in ("DEFAULT_OUT_PATH", "DEFAULT_FWD_PATH", "DEFAULT_SCORE_PATH")] + [("veteran_desk.leaderboard", "LIVE"), ("veteran_desk.feeds", "FH"), ("veteran_desk.feeds", "CG_CACHE"),
            ("veteran_desk.book", "BOOK"), ("veteran_desk.book", "now"), ("veteran_desk.book", "HEDGE_ARCHIVE"), ("veteran_desk.book", "KILL_ALERT_PATH")]
+_BOOK_CLOCKS = ("session_open", "posture", "firm_ok", "in_open_window")
+_BOOK_ORIG = {}
+@pytest.fixture(autouse=True)
+def _book_clocks_do_not_leak():
+    """A failed test must not leave session_open or posture replaced for the next test."""
+    import veteran_desk.book as BK
+    if not _BOOK_ORIG:
+        for name in _BOOK_CLOCKS:
+            _BOOK_ORIG[name] = getattr(BK, name)
+    for name, fn in _BOOK_ORIG.items():
+        setattr(BK, name, fn)
+    yield
+    for name, fn in _BOOK_ORIG.items():
+        setattr(BK, name, fn)
 @pytest.fixture(autouse=True)
 def _restore_module_paths():
     """Tests that repoint module paths without restoring them must not leak into later tests."""

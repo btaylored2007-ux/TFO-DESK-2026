@@ -15,6 +15,8 @@ def _run(side, entry, bar, ot=None, tk="EURUSD=X"):
     p = os.path.join(tmp, "b.json"); json.dump(D, open(p, "w")); q = os.path.join(tmp, "q.json"); json.dump({"entries": {}}, open(q, "w"))
     try:
         BK.BOOK = p; BK.now = lambda: T; BK.fallback_quote = lambda s: None
+        # No news regime file in this checkout. Unknown regime holds every fill, so the limit rule never runs.
+        BK.posture = lambda: ("calm", "risk-off")
         D = BK.tick(price_fn=lambda s: dict(bar, asof=T.isoformat()) if s == tk else None, au=0.70, queue_path=q)
     finally: BK.BOOK, BK.now, BK.fallback_quote = old
     return D["seats"]["macro"]["positions"].get("T1") or {}
