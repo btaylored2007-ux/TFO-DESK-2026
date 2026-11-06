@@ -1,0 +1,19 @@
+{
+  "book_must_remain": "b4453b503f33e34110519bf4d7a9bf391ecc2802edbd87acca3e77dc96b7e891",
+  "files": [
+    {
+      "path": "veteran_desk/seat_registry.py",
+      "payload_sha256": "1a60960fed89087ebe2bb1fe995523a634cb92715432d486bcaf70c827b39623",
+      "base_sha256": [
+        "44455cc12c2d81df2b1aa176b8094ecfe1538744662b2057d64b71947bf83de9"
+      ]
+    },
+    {
+      "path": "veteran_desk/thf_funder.py",
+      "payload_sha256": "34f36deea4da138c25ed94088c5d0c55b526d6261ccff6d128bf16eb9ab3be9a",
+      "base_sha256": [
+        "6a5bd148bb5ffdb81b94ef242a53f565a21388dbe5e08b949e9959c9809cca2c"
+      ]
+    }
+  ]
+}
