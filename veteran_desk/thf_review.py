@@ -67,7 +67,7 @@ def prompt_line(seat, round_id):
             t = ("\nSTERN REVIEW (%s standing order, Brett 30 Oct 19:32 WITA): your seat is DOWN A$%s (week-to-date A$%s, since inception A$%s). Where it went wrong: %s. "
                  "Read your lessons above and own it. You MUST add to your JSON a field \"recovery_plan\": {\"loss_aud\":num,\"what_went_wrong\":str,\"mitigation\":str,\"clawback_within_rails\":str,\"no_revenge_no_oversize_no_C\":true} - it is reported to Marcus. "
                  "Clawback only inside the rails: no revenge trades, no oversizing, no C setups, stop on every trade, A 1-2%% (1%% ok until proven, never force up) / A+ 4%% / cap 5%%." % ("THF" if active() else "Veteran Desk", "{:,.0f}".format(-loss), "{:,.0f}".format(wtd), "{:,.0f}".format(inc), _went_wrong(s)))
-            if st.get("half_risk"): t += " HALF RISK IN FORCE: red %d straight rounds - your risk is halved until you post a green round (A at half sizes to the 1%% floor - allowed, never rejected; non-A below 2%% is rejected; A+ 4%% -> 2%%)." % st["red_streak"]
+            if st.get("half_risk"): t += " HALF RISK IN FORCE: red %d straight rounds - your risk is halved until you post a green round (A at half sizes to the 1%% floor - allowed, never rejected; non-A below the floor is sized up to the floor; A+ 4%% -> 2%%)." % st["red_streak"]
             elif st.get("red_streak"): t += " Red %d straight round(s); at %d you drop to half risk." % (st["red_streak"], RED_ROUNDS_HALF)
             return t + "\n"
         if inc > 0.5 or wtd > 0.5:

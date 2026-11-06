@@ -1,56 +1,25 @@
-# THF half-bank at net +0.7R
+# Half-bank status — 2026-11-06
 
-Status: **code and unit tests in this commit. Not deployed. Not observed on the Singapore runtime.**
+The running Singapore tick already half-banks at **net +0.7R**. This repository must not replace that file with an older copy or with a second policy module.
 
-## What the live snapshot actually contains
+## Verified from the attached live snapshot (not from a restart we ran)
 
-The 2026-11-06 sanitized baseline (`docs/live_baseline_20261106/`) includes `veteran_desk/seat_cli.py`, which can record a manual partial close by calling `book.mark_half_banked`. It does **not** decide the +0.7R threshold.
+- Execution: `tfo-thf-tick.timer` every 2 minutes → `run_thf_tick_sgp.sh` → `python -m veteran_desk.book tick`.
+- `vd_engine` does not write the book rails.
+- Live `veteran_desk/book.py` sha256 `b4453b503f33e34110519bf4d7a9bf391ecc2802edbd87acca3e77dc96b7e891`.
+- Constants in that file: `RAIL_BANK_R = 0.7`, `RAIL_BANK_ALL_POSITIONS = True`, `RAIL_BANK_R_SEAT = {}`, rule id `bank07_20261106`.
+- `RAIL_HALF_R = 2.0` remains a separate gross high-water / target path inside the same once-only half block. After `t1_done`, that block does not sell another half.
+- A second call to `mark_half_banked` when `t1_done` is already set labels the event `quarter_bank` and sets `t2_done`. That is the existing manual-partial behavior, not a new remainder rule. The automatic quarter is still `t2_trigger` at net R >= 2.
+- Reported BGA fill: 14,507 of 29,015 (integer half; 29,015 // 2 = 14,507, residual 14,508), reason 0.7R, stop tightened. That row was not replayed in this workspace.
+- QBE `risk_aud = 0` does not replace `r0`. `bank_trigger` uses `net_R` from the original stop (`risk0_aud`), not the `risk_aud` field. If costs cannot be priced, net R stays unknown; do not invent it.
+- Droplet test named in the snapshot: `tests/test_bank07_20261106.py`, 7 passed, 1.51s. This workspace did **not** rerun it. The helper `test_fillfix_20261103.py` was not in the archive.
 
-The automatic decision runs in `veteran_desk/book.py` `tick`. **That file is not in the live snapshot.** This commit does not replace it and does not claim the running tick was inspected.
+## What this checkout can and cannot import
 
-## What the stale GitHub `book.py` does (not verified as live)
+The parked live file is `docs/live_bank07/book.py` (same hash). It is not installed as `veteran_desk/book.py` here because that module imports `session_expiry`, `b_tight`, `small_coin`, `seat_risk`, `eodhd_eu_ws`, and `pit_fx_sgp`, which are not in this tree. Copying it into the package breaks import. The GitHub `veteran_desk/book.py` still has the older `RAIL_BANK_R = 1.0`. **Do not deploy that older file onto the droplet.**
 
-Read only as the old mirror, not as production proof:
+Exact files needed before this repo can load the live tick: `veteran_desk/session_expiry.py`, `veteran_desk/b_tight.py`, `veteran_desk/small_coin.py`, `veteran_desk/seat_risk.py`, `veteran_desk/eodhd_eu_ws.py`, `veteran_desk/pit_fx_sgp.py`, and `tests/test_fillfix_20261103.py`.
 
-- `RAIL_HALF_R = 2.0` banks on **gross** `peak_fav_R` (price versus the initial stop, fees ignored).
-- `bank_trigger` banks grade A/A+ when **net** R >= `1.0` (`trend` >= `1.5`).
-- `tfo_bank_rail_scanner.py` half-banks a different sleeve at **>= +2% of deploy basis**. That percent rule is not the THF R rule.
+## Parallel module
 
-Those three must not be mixed. Gross R, net R, and percent of notional are different.
-
-## Rule implemented here
-
-`veteran_desk/thf_half_bank.py`
-
-- Trigger: **net R >= 0.7**, long and short, exact boundary included.
-- Net R = signed price P&L on **filled** units, minus booked entry cost, minus exit cost at this quote, minus borrow accrued, divided by `abs(fill - initial_stop) * filled units`.
-- Initial stop is immutable. A trailed stop does not shrink the risk basis and is not loosened.
-- Half is 50% of **filled** units, floored, once only. Requested size is recorded and not used.
-- A second call, a retry, or a process restart that reloads the marker does not bank again.
-- Missing quote, stale quote (older than 15 minutes), closed session, or unknown cost does not bank and does not invent a number.
-- Gross R and percent-of-notional are reported and do not trigger.
-- Stop and target are unchanged. T2, giveback, full-flat and trailing constants are not edited.
-- No ledger write, no live order, no backdated fill.
-
-## Exact file still required before this can run in the engine
-
-From `/opt/tfo/live/thf` (the droplet copy, not GitHub):
-
-- `veteran_desk/book.py` (the tick that currently half-banks)
-- any local helper that tick uses for `net_R`, `partial_close`, and quote age, if they are not inside that file
-
-Do not deploy this repository's `veteran_desk/book.py` over the droplet. It is the stale mirror.
-
-## Hook to apply only after the live file hash is checked
-
-Inside the live tick, before the existing half-bank block, call `thf_half_bank.decide` with the position, a quote that includes `price`, `asof`, `stale`, and `session_open`, and the entry/exit costs the tick already computed. If `decision["bank"]` is true, close `decision["shares_to_bank"]` through the existing `partial_close` and then `apply_decision` so the marker is stored. If the decision reason is `stale_quote`, `cost_unknown`, or `gross_reached_0.7_but_net_did_not`, do not fall through to the +2% scanner or to gross `peak_fav_R >= 2`.
-
-Until that live file is patched and restarted under its own base-hash check, the running engine is unchanged.
-
-## Tests
-
-`veteran_desk/tests/test_thf_half_bank_20261106.py` (8 passed in this workspace: boundaries, long/short, gross-versus-net, +2% ignored, filled-versus-requested, once-only restart, odd lot, stale quote, trailed stop, reimport).
-
-## Rollback
-
-Remove `veteran_desk/thf_half_bank.py`. Nothing else in the running tick imports it until the live `book.py` hook exists. If that hook was added, restore the backed-up `book.py` whose sha256 was recorded at deploy time.
+`veteran_desk/thf_half_bank.py` was drafted before this snapshot arrived. It is removed. Do not install it beside the live tick.
