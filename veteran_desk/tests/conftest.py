@@ -39,6 +39,15 @@ _BEFORE = _sig()
 import contextlib, tempfile
 TMP = tempfile.mkdtemp(prefix="vd_tests_")
 sys.path.insert(0, ROOT)
+# vd_engine creates state/vd_engine/* at import. Point that one import at this temp dir, then
+# restore the module constants. The guard still rejects a later live write.
+import veteran_desk.pit as _PIT
+_PIT_BASE = _PIT.BASE
+_PIT.BASE = TMP
+import veteran_desk.vd_engine as _VD_ENGINE
+_PIT.BASE = _PIT_BASE
+_VD_ENGINE.BASE = _PIT_BASE
+_VD_ENGINE.ST = os.path.join(_PIT_BASE, "state", "vd_engine")
 def _redirect():
     from veteran_desk import feeds as FD, payouts as PY, leaderboard as LB
     FD.FH = os.path.join(TMP, "feeds_health.json"); FD.CG_CACHE = os.path.join(TMP, "coingecko_cache.json")

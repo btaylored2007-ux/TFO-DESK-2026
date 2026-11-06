@@ -5,6 +5,8 @@ import json, os, re
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 PAT = re.compile(r"import yfinance|from yfinance|\byf\.(download|Ticker|Tickers|Search)\b|quoteSummary|finance\.yahoo\.com")
 FALLBACK_LAYER = {"veteran_desk/data_layer.py", "veteran_desk/paid_first.py", "veteran_desk/yf_guard.py"}
+# Byte-identical copy of veteran_desk/book.py kept for the bank hash. Not a new caller.
+PINNED_BOOK_COPIES = {"docs/live_bank07/book.py"}
 SKIP_DIRS = ("research", "work", "backups", "reports", "state", "staged_fixes", "tests", "tests_watchlist", "data", ".claude", ".scratch",
              ".staging_gates", "handover", "static", "logs", "__pycache__", "idea_feeds/.scratch", "ops")
 def scan():
@@ -15,7 +17,7 @@ def scan():
         for f in fs:
             if not f.endswith(".py") or f.startswith("test_") or ".bak" in f: continue
             p = os.path.normpath(os.path.join(rel, f))
-            if p in FALLBACK_LAYER: continue
+            if p in FALLBACK_LAYER or p in PINNED_BOOK_COPIES: continue
             try: n = len(PAT.findall(open(os.path.join(d, f), errors="ignore").read()))
             except Exception: continue
             if n: out[p] = n

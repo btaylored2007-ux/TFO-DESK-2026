@@ -1,10 +1,11 @@
 import datetime as dt, json, os, sys, tempfile, copy
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 from veteran_desk import book as BK
+from veteran_desk.tests.synthetic_book import skeleton
 U = dt.timezone.utc; T = dt.datetime(2026, 10, 28, 18, 45, tzinfo=U)   # US + FX open, past open window
 def _run(side, entry, bar, ot=None, tk="EURUSD=X"):
     tmp = tempfile.mkdtemp(); old = (BK.BOOK, BK.now, BK.fallback_quote)
-    D = copy.deepcopy(json.load(open(BK._REAL_BOOK)))
+    D = copy.deepcopy(skeleton())
     for B in D["seats"].values(): B["positions"] = {}
     D["hedge"] = {}; D["peak_equity_aud"] = 1.0; D["kill_switch"] = dict(state="OK")   # fixer 2026-10-29: clearing live positions must not trip the -12% kill switch
     pos = dict(id="T1", seat="macro", ticker=tk, side=side, entry=entry, stop=entry * (1.01 if side == "SHORT" else .99), target=entry * (.97 if side == "SHORT" else 1.03), shares=1000, risk_aud=10.0,

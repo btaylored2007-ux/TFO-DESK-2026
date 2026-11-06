@@ -1,0 +1,1234 @@
+{
+  "environment": "CPython 3.12.3, pytest 9.2.0, Linux",
+  "commands": [
+    "git fetch origin main && git worktree add --detach /tmp/thf-main origin/main && git worktree add --detach /tmp/thf-head 98cf8a0f6752ac84bb0345ad97c51c73ee6cc629",
+    "cd /tmp/thf-main && python3 -m pytest veteran_desk/tests --continue-on-collection-errors -q --tb=line --junitxml=/tmp/junit-main.xml",
+    "cd /tmp/thf-head && python3 -m pytest veteran_desk/tests --continue-on-collection-errors -q --tb=line --junitxml=/tmp/junit-head.xml",
+    "cd /tmp/thf-head && python3 -m pytest veteran_desk/tests --continue-on-collection-errors -q --tb=line --junitxml=/tmp/junit-after.xml"
+  ],
+  "baseline_main": {
+    "sha": "b77e4d4b692ac17a3ee4327024af9ee563627010",
+    "junit_counts": {
+      "error": 13,
+      "passed": 307,
+      "failed": 95
+    }
+  },
+  "branch_before_fixes": {
+    "sha": "98cf8a0f6752ac84bb0345ad97c51c73ee6cc629",
+    "pytest_tail": "153 failed, 605 passed, 6 warnings, 14 errors, 6 subtests passed",
+    "junit_counts": {
+      "error": 14,
+      "passed": 604,
+      "failed": 146
+    }
+  },
+  "branch_after_fixes": {
+    "sha_parent": "98cf8a0f6752ac84bb0345ad97c51c73ee6cc629",
+    "pytest_tail": "75 failed, 699 passed, 6 warnings, 10 errors, 6 subtests passed",
+    "junit_counts": {
+      "error": 10,
+      "passed": 698,
+      "failed": 68
+    }
+  },
+  "book_sha256": "b4453b503f33e34110519bf4d7a9bf391ecc2802edbd87acca3e77dc96b7e891",
+  "bind_archive_not_replaced": true,
+  "no_deploy_archive": "No deployed module was changed. The fixes are tests, conftest import isolation, and an empty synthetic book. Live vd_engine and book hashes were not guessed.",
+  "cited_dirty_workspace_run_not_used_as_baseline": "The earlier 751 passed / 141 failed / 15 errors run included uncommitted llm_backend.py, local_llm.py, seat_cli.py, vd_engine.py and untracked tests. It is not the paired baseline.",
+  "residual_class_counts": {
+    "missing_dependency": 24,
+    "unclassified": 28,
+    "proven_preexisting": 15,
+    "missing_fixture": 3,
+    "import_side_effect": 8
+  },
+  "residual_nodes": [
+    {
+      "node": "::veteran_desk.tests.test_hub_brand_20261106",
+      "status_after": "error",
+      "class": "missing_dependency",
+      "why": "Node is not on origin/main b77e4d4. Import or collection failed. Not marked preexisting.",
+      "branch_message": "collection failure",
+      "baseline_status": null,
+      "baseline_message": null,
+      "baseline_sha": "b77e4d4b692ac17a3ee4327024af9ee563627010"
+    },
+    {
+      "node": "::veteran_desk.tests.test_intent_routing_20261104",
+      "status_after": "error",
+      "class": "missing_dependency",
+      "why": "Node is not on origin/main b77e4d4. Import or collection failed. Not marked preexisting.",
+      "branch_message": "collection failure",
+      "baseline_status": null,
+      "baseline_message": null,
+      "baseline_sha": "b77e4d4b692ac17a3ee4327024af9ee563627010"
+    },
+    {
+      "node": "veteran_desk.tests.test_a1pct_20261031::test_cut_non_a_below_2pct_rejected_never_1pct",
+      "status_after": "failed",
+      "class": "unclassified",
+      "why": "Protected book sizes a cut grade B up to the 1% floor instead of rejecting below_2pct_nonA_floor. Book was not edited.",
+      "branch_message": "assert (0.01 == 0)",
+      "baseline_status": "passed",
+      "baseline_message": "",
+      "baseline_sha": "b77e4d4b692ac17a3ee4327024af9ee563627010"
+    },
+    {
+      "node": "veteran_desk.tests.test_a1pct_20261031::test_non_a_2pct_and_aplus_4pct",
+      "status_after": "failed",
+      "class": "unclassified",
+      "why": "Protected book sizes grade B at half of 2% (risk_plan, 'grade B at HALF SIZE'). Test still expects 2%. Not the 0.7R bank. Book was not edited.",
+      "branch_message": "assert 0.01 < 1e-09  +  where 0.01 = abs((0.01 - 0.02))",
+      "baseline_status": "passed",
+      "baseline_message": "",
+      "baseline_sha": "b77e4d4b692ac17a3ee4327024af9ee563627010"
+    },
+    {
+      "node": "veteran_desk.tests.test_ai_status_stall_20261106::test_busy_and_timed_out_chatgpt_are_not_shown_as_up",
+      "status_after": "failed",
+      "class": "missing_dependency",
+      "why": "Node is not on origin/main b77e4d4. Import or collection failed. Not marked preexisting.",
+      "branch_message": "ModuleNotFoundError: No module named 'veteran_desk.thf_home'",
+      "baseline_status": null,
+      "baseline_message": null,
+      "baseline_sha": "b77e4d4b692ac17a3ee4327024af9ee563627010"
+    },
+    {
+      "node": "veteran_desk.tests.test_ai_status_stall_20261106::test_fresh_signed_in_chatgpt_with_a_good_ask_is_up",
+      "status_after": "failed",
+      "class": "missing_dependency",
+      "why": "Node is not on origin/main b77e4d4. Import or collection failed. Not marked preexisting.",
+      "branch_message": "ModuleNotFoundError: No module named 'veteran_desk.thf_home'",
+      "baseline_status": null,
+      "baseline_message": null,
+      "baseline_sha": "b77e4d4b692ac17a3ee4327024af9ee563627010"
+    },
+    {
+      "node": "veteran_desk.tests.test_ai_status_stall_20261106::test_stale_grok_success_is_unknown_and_names_the_old_timeout",
+      "status_after": "failed",
+      "class": "missing_dependency",
+      "why": "Node is not on origin/main b77e4d4. Import or collection failed. Not marked preexisting.",
+      "branch_message": "ModuleNotFoundError: No module named 'veteran_desk.thf_home'",
+      "baseline_status": null,
+      "baseline_message": null,
+      "baseline_sha": "b77e4d4b692ac17a3ee4327024af9ee563627010"
+    },
+    {
+      "node": "veteran_desk.tests.test_autonomy_home_20261106.AutonomyHomeTests::test_180_second_freshness_boundary_does_not_keep_an_old_green_status",
+      "status_after": "failed",
+      "class": "missing_dependency",
+      "why": "Node is not on origin/main b77e4d4. Failure is a missing file. Not marked preexisting.",
+      "branch_message": "FileNotFoundError: [Errno 2] No such file or directory: '/tmp/thf-head/veteran_desk/thf_home.py'",
+      "baseline_status": null,
+      "baseline_message": null,
+      "baseline_sha": "b77e4d4b692ac17a3ee4327024af9ee563627010"
+    },
+    {
+      "node": "veteran_desk.tests.test_autonomy_home_20261106.AutonomyHomeTests::test_fresh_report_preserves_observed_trade_counts_and_plain_summaries",
+      "status_after": "failed",
+      "class": "missing_dependency",
+      "why": "Node is not on origin/main b77e4d4. Failure is a missing file. Not marked preexisting.",
+      "branch_message": "FileNotFoundError: [Errno 2] No such file or directory: '/tmp/thf-head/veteran_desk/thf_home.py'",
+      "baseline_status": null,
+      "baseline_message": null,
+      "baseline_sha": "b77e4d4b692ac17a3ee4327024af9ee563627010"
+    },
+    {
+      "node": "veteran_desk.tests.test_autonomy_home_20261106.AutonomyHomeTests::test_future_clock_and_unreadable_or_oversized_reports_cannot_claim_ready",
+      "status_after": "failed",
+      "class": "missing_dependency",
+      "why": "Node is not on origin/main b77e4d4. Failure is a missing file. Not marked preexisting.",
+      "branch_message": "FileNotFoundError: [Errno 2] No such file or directory: '/tmp/thf-head/veteran_desk/thf_home.py'",
+      "baseline_status": null,
+      "baseline_message": null,
+      "baseline_sha": "b77e4d4b692ac17a3ee4327024af9ee563627010"
+    },
+    {
+      "node": "veteran_desk.tests.test_autonomy_home_20261106.AutonomyHomeTests::test_home_includes_the_same_verified_autonomy_report",
+      "status_after": "failed",
+      "class": "missing_dependency",
+      "why": "Node is not on origin/main b77e4d4. Failure is a missing file. Not marked preexisting.",
+      "branch_message": "FileNotFoundError: [Errno 2] No such file or directory: '/tmp/thf-head/veteran_desk/thf_home.py'",
+      "baseline_status": null,
+      "baseline_message": null,
+      "baseline_sha": "b77e4d4b692ac17a3ee4327024af9ee563627010"
+    },
+    {
+      "node": "veteran_desk.tests.test_autonomy_home_20261106.AutonomyHomeTests::test_invalid_json_schema_or_naive_clock_is_waiting",
+      "status_after": "failed",
+      "class": "missing_dependency",
+      "why": "Node is not on origin/main b77e4d4. Failure is a missing file. Not marked preexisting.",
+      "branch_message": "FileNotFoundError: [Errno 2] No such file or directory: '/tmp/thf-head/veteran_desk/thf_home.py'",
+      "baseline_status": null,
+      "baseline_message": null,
+      "baseline_sha": "b77e4d4b692ac17a3ee4327024af9ee563627010"
+    },
+    {
+      "node": "veteran_desk.tests.test_autonomy_home_20261106.AutonomyHomeTests::test_missing_or_bad_counts_never_become_zero_or_healthy",
+      "status_after": "failed",
+      "class": "missing_dependency",
+      "why": "Node is not on origin/main b77e4d4. Failure is a missing file. Not marked preexisting.",
+      "branch_message": "FileNotFoundError: [Errno 2] No such file or directory: '/tmp/thf-head/veteran_desk/thf_home.py'",
+      "baseline_status": null,
+      "baseline_message": null,
+      "baseline_sha": "b77e4d4b692ac17a3ee4327024af9ee563627010"
+    },
+    {
+      "node": "veteran_desk.tests.test_autonomy_home_20261106.AutonomyHomeTests::test_missing_status_is_waiting_and_does_not_create_files_or_invent_zero_counts",
+      "status_after": "failed",
+      "class": "missing_dependency",
+      "why": "Node is not on origin/main b77e4d4. Failure is a missing file. Not marked preexisting.",
+      "branch_message": "FileNotFoundError: [Errno 2] No such file or directory: '/tmp/thf-head/veteran_desk/thf_home.py'",
+      "baseline_status": null,
+      "baseline_message": null,
+      "baseline_sha": "b77e4d4b692ac17a3ee4327024af9ee563627010"
+    },
+    {
+      "node": "veteran_desk.tests.test_autonomy_home_20261106.AutonomyHomeTests::test_reader_uses_live_data_root_and_keeps_accepted_code_assets_separate",
+      "status_after": "failed",
+      "class": "missing_dependency",
+      "why": "Node is not on origin/main b77e4d4. Failure is a missing file. Not marked preexisting.",
+      "branch_message": "FileNotFoundError: [Errno 2] No such file or directory: '/tmp/thf-head/veteran_desk/thf_home.py'",
+      "baseline_status": null,
+      "baseline_message": null,
+      "baseline_sha": "b77e4d4b692ac17a3ee4327024af9ee563627010"
+    },
+    {
+      "node": "veteran_desk.tests.test_autonomy_home_20261106.AutonomyHomeTests::test_red_current_report_remains_red",
+      "status_after": "failed",
+      "class": "missing_dependency",
+      "why": "Node is not on origin/main b77e4d4. Failure is a missing file. Not marked preexisting.",
+      "branch_message": "FileNotFoundError: [Errno 2] No such file or directory: '/tmp/thf-head/veteran_desk/thf_home.py'",
+      "baseline_status": null,
+      "baseline_message": null,
+      "baseline_sha": "b77e4d4b692ac17a3ee4327024af9ee563627010"
+    },
+    {
+      "node": "veteran_desk.tests.test_autonomy_home_20261106.AutonomyHomeTests::test_wins_and_losses_cannot_exceed_completed_trades",
+      "status_after": "failed",
+      "class": "missing_dependency",
+      "why": "Node is not on origin/main b77e4d4. Failure is a missing file. Not marked preexisting.",
+      "branch_message": "FileNotFoundError: [Errno 2] No such file or directory: '/tmp/thf-head/veteran_desk/thf_home.py'",
+      "baseline_status": null,
+      "baseline_message": null,
+      "baseline_sha": "b77e4d4b692ac17a3ee4327024af9ee563627010"
+    },
+    {
+      "node": "veteran_desk.tests.test_autonomy_integration_20261106::test_chat_prompt_keeps_current_owner_request_and_intact_recent_peer_context",
+      "status_after": "failed",
+      "class": "missing_dependency",
+      "why": "Node is not on origin/main b77e4d4. Failure is a missing file. Not marked preexisting.",
+      "branch_message": "FileNotFoundError: [Errno 2] No such file or directory: '/tmp/thf-head/veteran_desk/communication_protocol.py'",
+      "baseline_status": null,
+      "baseline_message": null,
+      "baseline_sha": "b77e4d4b692ac17a3ee4327024af9ee563627010"
+    },
+    {
+      "node": "veteran_desk.tests.test_autonomy_integration_20261106::test_handler_to_actual_prompt_preserves_latest_peer_and_route_ids",
+      "status_after": "failed",
+      "class": "missing_dependency",
+      "why": "Node is not on origin/main b77e4d4. Failure is a missing file. Not marked preexisting.",
+      "branch_message": "FileNotFoundError: [Errno 2] No such file or directory: '/tmp/thf-head/veteran_desk/communication_protocol.py'",
+      "baseline_status": null,
+      "baseline_message": null,
+      "baseline_sha": "b77e4d4b692ac17a3ee4327024af9ee563627010"
+    },
+    {
+      "node": "veteran_desk.tests.test_autonomy_integration_20261106::test_scheduled_head_trader_cancel_during_provider_has_no_inline_or_outer_actions",
+      "status_after": "failed",
+      "class": "unclassified",
+      "why": "Node is not on origin/main b77e4d4, so there is no paired baseline.",
+      "branch_message": "IndexError: 2",
+      "baseline_status": null,
+      "baseline_message": null,
+      "baseline_sha": "b77e4d4b692ac17a3ee4327024af9ee563627010"
+    },
+    {
+      "node": "veteran_desk.tests.test_book_payouts::test_tick_arms_only_ticked_with_stop_and_2to5pct_risk",
+      "status_after": "failed",
+      "class": "proven_preexisting",
+      "why": "Same failure text on origin/main b77e4d4 and this branch after path and address normalisation.",
+      "branch_message": "AssertionError: assert ('awaiting_funder' == 'armed'      - armed   + awaiting_funder)",
+      "baseline_status": "failed",
+      "baseline_message": "AssertionError: assert ('awaiting_funder' == 'armed'      - armed   + awaiting_funder)",
+      "baseline_sha": "b77e4d4b692ac17a3ee4327024af9ee563627010"
+    },
+    {
+      "node": "veteran_desk.tests.test_book_weekly_hook::test_tick_writes_weekly_beside_temp_book_only",
+      "status_after": "failed",
+      "class": "proven_preexisting",
+      "why": "Same failure text on origin/main b77e4d4 and this branch after path and address normalisation.",
+      "branch_message": "AssertionError: OperationalError: unable to open database file assert 'weekly_score_error' not in {'book': 'veteran_desk', 'label': 'TFO Veteran Desk - per-seat paper books (auto-arm, PAPER)', 'paper_only': True, 'ccy_native': 'AUD', ...}",
+      "baseline_status": "failed",
+      "baseline_message": "AssertionError: OperationalError: unable to open database file assert 'weekly_score_error' not in {'book': 'veteran_desk', 'label': 'TFO Veteran Desk - per-seat paper books (auto-arm, PAPER)', 'paper_only': True, 'ccy_native': 'AUD', ...}",
+      "baseline_sha": "b77e4d4b692ac17a3ee4327024af9ee563627010"
+    },
+    {
+      "node": "veteran_desk.tests.test_bridge_maintenance_20261104.MaintenanceTests::test_client_second_guard_rolls_back_reserved_quota",
+      "status_after": "failed",
+      "class": "unclassified",
+      "why": "Node is not on origin/main b77e4d4, so there is no paired baseline.",
+      "branch_message": "AssertionError: Expected 'urlopen' to not have been called. Called 1 times. Calls: [call('http://127.0.0.1:18891/health', timeout=5), call().read()].",
+      "baseline_status": null,
+      "baseline_message": null,
+      "baseline_sha": "b77e4d4b692ac17a3ee4327024af9ee563627010"
+    },
+    {
+      "node": "veteran_desk.tests.test_bridge_maintenance_20261104.ReviewRegressionTests::test_router_propagates_maintenance_without_cooldown",
+      "status_after": "failed",
+      "class": "missing_dependency",
+      "why": "Node is not on origin/main b77e4d4. Import or collection failed. Not marked preexisting.",
+      "branch_message": "ImportError: cannot import name 'ai_router' from 'veteran_desk' (/tmp/thf-head/veteran_desk/__init__.py)",
+      "baseline_status": null,
+      "baseline_message": null,
+      "baseline_sha": "b77e4d4b692ac17a3ee4327024af9ee563627010"
+    },
+    {
+      "node": "veteran_desk.tests.test_bridge_maintenance_20261104.ReviewRegressionTests::test_super_canonical_provider_fallback_propagates_permit_and_attempt",
+      "status_after": "failed",
+      "class": "missing_dependency",
+      "why": "Node is not on origin/main b77e4d4. Import or collection failed. Not marked preexisting.",
+      "branch_message": "ImportError: cannot import name 'ai_router' from 'veteran_desk' (/tmp/thf-head/veteran_desk/__init__.py)",
+      "baseline_status": null,
+      "baseline_message": null,
+      "baseline_sha": "b77e4d4b692ac17a3ee4327024af9ee563627010"
+    },
+    {
+      "node": "veteran_desk.tests.test_costmodel_hold_20261030::test_fullflat_3R_held_closed_but_fires_open",
+      "status_after": "failed",
+      "class": "unclassified",
+      "why": "Both trees fail this node, but the messages differ, so it is not marked preexisting.",
+      "branch_message": "AssertionError: assert (not False and 'open' == 'open'  +  where False = any(<generator object test_fullflat_3R_held_closed_but_fires_open.<locals>.<genexpr> at 0x7f85e6e2f5e0>)        open and 'premarket_print' == 'market_closed'      - market_closed   + premarket_print)",
+      "baseline_status": "failed",
+      "baseline_message": "FileNotFoundError: [Errno 2] No such file or directory: '/tmp/thf-main/reports/veteran_desk_book.json'",
+      "baseline_sha": "b77e4d4b692ac17a3ee4327024af9ee563627010"
+    },
+    {
+      "node": "veteran_desk.tests.test_costmodel_hold_20261030::test_giveback_fires_open_held_closed",
+      "status_after": "failed",
+      "class": "unclassified",
+      "why": "Both trees fail this node, but the messages differ, so it is not marked preexisting.",
+      "branch_message": "AssertionError: assert ('rail_giveback_protect' not in ['rail_giveback_protect'])  +  where ['rail_giveback_protect'] = _names([('P1', 'rail_giveback_protect', 101.0)])",
+      "baseline_status": "failed",
+      "baseline_message": "FileNotFoundError: [Errno 2] No such file or directory: '/tmp/thf-main/reports/veteran_desk_book.json'",
+      "baseline_sha": "b77e4d4b692ac17a3ee4327024af9ee563627010"
+    },
+    {
+      "node": "veteran_desk.tests.test_datalayer_20261030::test_paid_first_frame_shape_and_adjust",
+      "status_after": "failed",
+      "class": "missing_fixture",
+      "why": "Same missing-path error on origin/main and this branch.",
+      "branch_message": "ModuleNotFoundError: No module named 'pandas'",
+      "baseline_status": "failed",
+      "baseline_message": "ModuleNotFoundError: No module named 'pandas'",
+      "baseline_sha": "b77e4d4b692ac17a3ee4327024af9ee563627010"
+    },
+    {
+      "node": "veteran_desk.tests.test_dedupe_arm_20261028::test_dedupe",
+      "status_after": "failed",
+      "class": "proven_preexisting",
+      "why": "Same failure text on origin/main b77e4d4 and this branch after path and address normalisation.",
+      "branch_message": "KeyError: 'A'",
+      "baseline_status": "failed",
+      "baseline_message": "KeyError: 'A'",
+      "baseline_sha": "b77e4d4b692ac17a3ee4327024af9ee563627010"
+    },
+    {
+      "node": "veteran_desk.tests.test_desk::test_blocks",
+      "status_after": "failed",
+      "class": "unclassified",
+      "why": "desk.risk_gate_v1 allows grade B at half size (line comment histsize 2026-10-31). The other blocks in this test still fail closed. Desk was not edited.",
+      "branch_message": "assert not True",
+      "baseline_status": "passed",
+      "baseline_message": "",
+      "baseline_sha": "b77e4d4b692ac17a3ee4327024af9ee563627010"
+    },
+    {
+      "node": "veteran_desk.tests.test_desk::test_full_pipeline_mocked_llm_temp_queue",
+      "status_after": "failed",
+      "class": "missing_fixture",
+      "why": "Same missing-path error on origin/main and this branch.",
+      "branch_message": "FileNotFoundError: [Errno 2] No such file or directory: '/tmp/thf-head/state/funder_queue.json'",
+      "baseline_status": "failed",
+      "baseline_message": "FileNotFoundError: [Errno 2] No such file or directory: '/tmp/thf-main/state/funder_queue.json'",
+      "baseline_sha": "b77e4d4b692ac17a3ee4327024af9ee563627010"
+    },
+    {
+      "node": "veteran_desk.tests.test_desk::test_scorecard_shape",
+      "status_after": "error",
+      "class": "import_side_effect",
+      "why": "Same guard or collection error on origin/main and this branch. The guard was not weakened.",
+      "branch_message": "failed on teardown with \"Failed: TEST GUARD: test wrote live paths: [('os.makedirs', '/tmp/thf-head/data/pit')]\"",
+      "baseline_status": "error",
+      "baseline_message": "failed on teardown with \"Failed: TEST GUARD: test wrote live paths: [('os.makedirs', '/tmp/thf-main/data/pit')]\"",
+      "baseline_sha": "b77e4d4b692ac17a3ee4327024af9ee563627010"
+    },
+    {
+      "node": "veteran_desk.tests.test_e2e_autoarm::test_e2e",
+      "status_after": "failed",
+      "class": "unclassified",
+      "why": "Both trees fail this node, but the messages differ, so it is not marked preexisting.",
+      "branch_message": "FileNotFoundError: [Errno 2] No such file or directory: '/tmp/vd_tests_bn5nwxq7/veteran_desk_payouts.json'",
+      "baseline_status": "error",
+      "baseline_message": "failed on teardown with \"Failed: TEST GUARD: test wrote live paths: [('os.makedirs', '/tmp/thf-main/data/pit')]\"",
+      "baseline_sha": "b77e4d4b692ac17a3ee4327024af9ee563627010"
+    },
+    {
+      "node": "veteran_desk.tests.test_floor_fix_20261029::test_crypto_floor_half_pct",
+      "status_after": "failed",
+      "class": "unclassified",
+      "why": "risk_plan size-and-let-in returns no below_crypto_floor reject. Book was not edited.",
+      "branch_message": "AssertionError: assert None == 'below_crypto_floor'",
+      "baseline_status": "passed",
+      "baseline_message": "",
+      "baseline_sha": "b77e4d4b692ac17a3ee4327024af9ee563627010"
+    },
+    {
+      "node": "veteran_desk.tests.test_fwd_cancelled_20261028::test_cancelled_never_marked",
+      "status_after": "error",
+      "class": "import_side_effect",
+      "why": "Same guard or collection error on origin/main and this branch. The guard was not weakened.",
+      "branch_message": "failed on teardown with \"Failed: TEST GUARD: test wrote live paths: [('os.makedirs', '/tmp/thf-head/data/pit')]\"",
+      "baseline_status": "error",
+      "baseline_message": "failed on teardown with \"Failed: TEST GUARD: test wrote live paths: [('os.makedirs', '/tmp/thf-main/data/pit')]\"",
+      "baseline_sha": "b77e4d4b692ac17a3ee4327024af9ee563627010"
+    },
+    {
+      "node": "veteran_desk.tests.test_fx_settlement_20261029::test_round_trip_cash_via_tick",
+      "status_after": "failed",
+      "class": "unclassified",
+      "why": "First fill stays open. Cash differs from COST_RT[FX]/2 by A$97.74. Not explained as the 0.7R bank. Book was not edited.",
+      "branch_message": "AssertionError: assert ('open' == 'open'        open and 97.73999999999069 < 0.01)  +  where 97.73999999999069 = abs((499986.0 - (500000 - (1596285.7142857143 * 7.000000000000001e-05))))",
+      "baseline_status": "passed",
+      "baseline_message": "",
+      "baseline_sha": "b77e4d4b692ac17a3ee4327024af9ee563627010"
+    },
+    {
+      "node": "veteran_desk.tests.test_gate_stale_crypto_hkd_20261029::test_crypto_history_atr_is_coin_scale_not_etf",
+      "status_after": "failed",
+      "class": "proven_preexisting",
+      "why": "Same failure text on origin/main b77e4d4 and this branch after path and address normalisation.",
+      "branch_message": "IndexError: index 0 is out of bounds for axis 0 with size 0",
+      "baseline_status": "failed",
+      "baseline_message": "IndexError: index 0 is out of bounds for axis 0 with size 0",
+      "baseline_sha": "b77e4d4b692ac17a3ee4327024af9ee563627010"
+    },
+    {
+      "node": "veteran_desk.tests.test_gate_v2::test_base_rate_negative_blocks",
+      "status_after": "failed",
+      "class": "unclassified",
+      "why": "gate_v2 comment says history sets size and does not block. The test still expects a block. Gate was not edited.",
+      "branch_message": "assert (not True)",
+      "baseline_status": "passed",
+      "baseline_message": "",
+      "baseline_sha": "b77e4d4b692ac17a3ee4327024af9ee563627010"
+    },
+    {
+      "node": "veteran_desk.tests.test_gate_v2::test_hard_rules_kept",
+      "status_after": "failed",
+      "class": "unclassified",
+      "why": "One hard-rule assertion now passes. Grade B is sized, not blocked, in gate_v2. Gate was not edited.",
+      "branch_message": "assert not True",
+      "baseline_status": "passed",
+      "baseline_message": "",
+      "baseline_sha": "b77e4d4b692ac17a3ee4327024af9ee563627010"
+    },
+    {
+      "node": "veteran_desk.tests.test_gate_v2::test_never_arms",
+      "status_after": "failed",
+      "class": "unclassified",
+      "why": "armed and can_arm stay false. needs_brett_tick is now false (gate_v2 return). Not the 0.7R bank.",
+      "branch_message": "assert (False is False and False is False and False is True)",
+      "baseline_status": "passed",
+      "baseline_message": "",
+      "baseline_sha": "b77e4d4b692ac17a3ee4327024af9ee563627010"
+    },
+    {
+      "node": "veteran_desk.tests.test_guard_live_paths_20261029::test_guard_blocks_live_and_allows_tmp",
+      "status_after": "failed",
+      "class": "missing_fixture",
+      "why": "Same FileNotFoundError for reports/veteran_desk_book.json on origin/main and this branch. No owner ledger was fetched.",
+      "branch_message": "FileNotFoundError: [Errno 2] No such file or directory: '/tmp/thf-head/reports/veteran_desk_book.json'",
+      "baseline_status": "failed",
+      "baseline_message": "FileNotFoundError: [Errno 2] No such file or directory: '/tmp/thf-main/reports/veteran_desk_book.json'",
+      "baseline_sha": "b77e4d4b692ac17a3ee4327024af9ee563627010"
+    },
+    {
+      "node": "veteran_desk.tests.test_hedge_staged_20261029::test_legacy_close_then_stage1_and_offhours_hold",
+      "status_after": "failed",
+      "class": "proven_preexisting",
+      "why": "Same failure text on origin/main b77e4d4 and this branch after path and address normalisation.",
+      "branch_message": "AssertionError: assert (None)  +  where None = <built-in method get of dict object at 0x7f85e6eabf00>('close_pending')  +    where <built-in method get of dict object at 0x7f85e6eabf00> = {'stage': 1, 'tranches': [{'stage': 1, 'premium_aud': 2500.0, 'value_aud': 2500.0, 'entry_cost_aud': 25.0, ...}], 'gross_open_aud': 400000.0, 'gross_pct': 40.0, ...}.get",
+      "baseline_status": "failed",
+      "baseline_message": "AssertionError: assert (None)  +  where None = <built-in method get of dict object at 0x7f0ebcd3df00>('close_pending')  +    where <built-in method get of dict object at 0x7f0ebcd3df00> = {'stage': 1, 'tranches': [{'stage': 1, 'premium_aud': 2500.0, 'value_aud': 2500.0, 'entry_cost_aud': 25.0, ...}], 'gross_open_aud': 400000.0, 'gross_pct': 40.0, ...}.get",
+      "baseline_sha": "b77e4d4b692ac17a3ee4327024af9ee563627010"
+    },
+    {
+      "node": "veteran_desk.tests.test_hedge_staged_20261029::test_step_up_down_off_and_cap",
+      "status_after": "failed",
+      "class": "proven_preexisting",
+      "why": "Same failure text on origin/main b77e4d4 and this branch after path and address normalisation.",
+      "branch_message": "assert (0 == 2)",
+      "baseline_status": "failed",
+      "baseline_message": "assert (0 == 2)",
+      "baseline_sha": "b77e4d4b692ac17a3ee4327024af9ee563627010"
+    },
+    {
+      "node": "veteran_desk.tests.test_infra_20261029::test_prior_close_rejects_bogus_previous_close",
+      "status_after": "error",
+      "class": "import_side_effect",
+      "why": "Same guard or collection error on origin/main and this branch. The guard was not weakened.",
+      "branch_message": "failed on teardown with \"Failed: TEST GUARD: test wrote live paths: [('os.makedirs', '/tmp/thf-head/data/pit')]\"",
+      "baseline_status": "error",
+      "baseline_message": "failed on teardown with \"Failed: TEST GUARD: test wrote live paths: [('os.makedirs', '/tmp/thf-main/data/pit')]\"",
+      "baseline_sha": "b77e4d4b692ac17a3ee4327024af9ee563627010"
+    },
+    {
+      "node": "veteran_desk.tests.test_kai_floor_tol_20261029::test_genuine_0p4pct_rejected",
+      "status_after": "failed",
+      "class": "unclassified",
+      "why": "Both trees fail this node, but the messages differ, so it is not marked preexisting.",
+      "branch_message": "AssertionError: assert ({'id': 'VET-K-1', 'seat': 'crypto', 'ticker': 'KRAKEN:SOLUSD', 'side': 'LONG', ...} is None)",
+      "baseline_status": "failed",
+      "baseline_message": "FileNotFoundError: [Errno 2] No such file or directory: '/tmp/thf-main/reports/veteran_desk_book.json'",
+      "baseline_sha": "b77e4d4b692ac17a3ee4327024af9ee563627010"
+    },
+    {
+      "node": "veteran_desk.tests.test_kai_rails_20261029::test_below_floor_rejected",
+      "status_after": "failed",
+      "class": "unclassified",
+      "why": "Crypto risk_plan no longer rejects below 0.5%; it sizes up. Book was not edited.",
+      "branch_message": "AssertionError: assert (None == 'below_crypto_floor')",
+      "baseline_status": "passed",
+      "baseline_message": "",
+      "baseline_sha": "b77e4d4b692ac17a3ee4327024af9ee563627010"
+    },
+    {
+      "node": "veteran_desk.tests.test_kai_rails_20261029::test_other_seats_unchanged",
+      "status_after": "failed",
+      "class": "unclassified",
+      "why": "Grade B pct is 0.01 in the protected book, test expects 0.02. Book was not edited.",
+      "branch_message": "assert (0.01 == 0.01 and 0.01 == 0.02)",
+      "baseline_status": "passed",
+      "baseline_message": "",
+      "baseline_sha": "b77e4d4b692ac17a3ee4327024af9ee563627010"
+    },
+    {
+      "node": "veteran_desk.tests.test_kai_rails_20261029::test_wide_atr_sized_down_not_skipped",
+      "status_after": "failed",
+      "class": "proven_preexisting",
+      "why": "Same failure text on origin/main b77e4d4 and this branch after path and address normalisation.",
+      "branch_message": "AssertionError: ['Kraken 24h traded value A$0 < A$500000 floor (live sweep: pair not in sweep)'] assert False",
+      "baseline_status": "failed",
+      "baseline_message": "AssertionError: ['Kraken 24h traded value A$0 < A$500000 floor (live sweep: pair not in sweep)'] assert False",
+      "baseline_sha": "b77e4d4b692ac17a3ee4327024af9ee563627010"
+    },
+    {
+      "node": "veteran_desk.tests.test_krakenfx_20261029::test_usdkrw_theo_case_risk",
+      "status_after": "failed",
+      "class": "unclassified",
+      "why": "Quantity uses grade B risk_aud 5000, test expects 10000. The FX unit conversion assertion above it is separate. Book was not edited.",
+      "branch_message": "assert 4999.985934065934 == 10000 \u00b1 10      comparison failed   Obtained: 4999.985934065934   Expected: 10000 \u00b1 10",
+      "baseline_status": "passed",
+      "baseline_message": "",
+      "baseline_sha": "b77e4d4b692ac17a3ee4327024af9ee563627010"
+    },
+    {
+      "node": "veteran_desk.tests.test_learning_retry_durable.RecordLearningTests::test_exact_ref_and_structured_fields",
+      "status_after": "failed",
+      "class": "missing_dependency",
+      "why": "Node is not on origin/main b77e4d4. Failure is a missing file. Not marked preexisting.",
+      "branch_message": "FileNotFoundError: [Errno 2] No such file or directory: '/tmp/thf-head/veteran_desk/thf_chat_tasks.py'",
+      "baseline_status": null,
+      "baseline_message": null,
+      "baseline_sha": "b77e4d4b692ac17a3ee4327024af9ee563627010"
+    },
+    {
+      "node": "veteran_desk.tests.test_no_rearm_20261028::test_cancelled_never_rearms",
+      "status_after": "failed",
+      "class": "proven_preexisting",
+      "why": "Same failure text on origin/main b77e4d4 and this branch after path and address normalisation.",
+      "branch_message": "AssertionError: assert ('A' in {})",
+      "baseline_status": "failed",
+      "baseline_message": "AssertionError: assert ('A' in {})",
+      "baseline_sha": "b77e4d4b692ac17a3ee4327024af9ee563627010"
+    },
+    {
+      "node": "veteran_desk.tests.test_offhours_rebook_20261028::test_flag_then_rebook",
+      "status_after": "failed",
+      "class": "proven_preexisting",
+      "why": "Same failure text on origin/main b77e4d4 and this branch after path and address normalisation.",
+      "branch_message": "KeyError: 'off_hours_fill'",
+      "baseline_status": "failed",
+      "baseline_message": "KeyError: 'off_hours_fill'",
+      "baseline_sha": "b77e4d4b692ac17a3ee4327024af9ee563627010"
+    },
+    {
+      "node": "veteran_desk.tests.test_offhours_rebook_20261028::test_session_open",
+      "status_after": "failed",
+      "class": "proven_preexisting",
+      "why": "Same failure text on origin/main b77e4d4 and this branch after path and address normalisation.",
+      "branch_message": "AssertionError: assert not True  +  where True = <function test_tick_arms_only_ticked_with_stop_and_2to5pct_risk.<locals>.<lambda> at 0x7f85e990fce0>('US', datetime.datetime(2026, 10, 28, 12, 16, tzinfo=datetime.timezone.utc))  +    where <function test_tick_arms_only_ticked_with_stop_and_2to5pct_risk.<locals>.<lambda> at 0x7f85e990fce0> = BK.session_open [+2 more lines; full report in element text]",
+      "baseline_status": "failed",
+      "baseline_message": "AssertionError: assert not True  +  where True = <function test_tick_arms_only_ticked_with_stop_and_2to5pct_risk.<locals>.<lambda> at 0x7f0ebedcc4a0>('US', datetime.datetime(2026, 10, 28, 12, 16, tzinfo=datetime.timezone.utc))  +    where <function test_tick_arms_only_ticked_with_stop_and_2to5pct_risk.<locals>.<lambda> at 0x7f0ebedcc4a0> = BK.session_open [+2 more lines; full report in element text]",
+      "baseline_sha": "b77e4d4b692ac17a3ee4327024af9ee563627010"
+    },
+    {
+      "node": "veteran_desk.tests.test_one_sizing::test_band",
+      "status_after": "failed",
+      "class": "unclassified",
+      "why": "Grade B risk_aud is 5000, test expects 10000. A and A+ assertions in the same test are the failing conjunction. Book was not edited.",
+      "branch_message": "assert (5000.0 == 5000 and 5000.0 == 10000)",
+      "baseline_status": "passed",
+      "baseline_message": "",
+      "baseline_sha": "b77e4d4b692ac17a3ee4327024af9ee563627010"
+    },
+    {
+      "node": "veteran_desk.tests.test_one_sizing::test_cut_toward_2pct_never_below",
+      "status_after": "failed",
+      "class": "unclassified",
+      "why": "Cut grade B is sized to 1%, not rejected. Book was not edited.",
+      "branch_message": "assert (0.01 == 0)",
+      "baseline_status": "passed",
+      "baseline_message": "",
+      "baseline_sha": "b77e4d4b692ac17a3ee4327024af9ee563627010"
+    },
+    {
+      "node": "veteran_desk.tests.test_railfix_20261029::test_crypto_seat_floor_kept",
+      "status_after": "failed",
+      "class": "unclassified",
+      "why": "risk_plan does not return below_crypto_floor. Book was not edited.",
+      "branch_message": "AssertionError: assert None == 'below_crypto_floor'",
+      "baseline_status": "passed",
+      "baseline_message": "",
+      "baseline_sha": "b77e4d4b692ac17a3ee4327024af9ee563627010"
+    },
+    {
+      "node": "veteran_desk.tests.test_railfix_20261029::test_rebook_below_floor_rejected_not_lifted",
+      "status_after": "failed",
+      "class": "unclassified",
+      "why": "Both trees fail this node, but the messages differ, so it is not marked preexisting.",
+      "branch_message": "AssertionError: assert ('P1' not in {'P1': {'id': 'P1', 'seat': 'energy', 'ticker': 'XLE', 'side': 'LONG', ...}} or 'open' == 'cancelled'      - cancelled   + open)",
+      "baseline_status": "failed",
+      "baseline_message": "FileNotFoundError: [Errno 2] No such file or directory: '/tmp/thf-main/reports/veteran_desk_book.json'",
+      "baseline_sha": "b77e4d4b692ac17a3ee4327024af9ee563627010"
+    },
+    {
+      "node": "veteran_desk.tests.test_railfix_20261029::test_risk_plan_rejects_sub_floor",
+      "status_after": "failed",
+      "class": "unclassified",
+      "why": "risk_plan does not return below_2pct_nonA_floor for this cut. Book was not edited.",
+      "branch_message": "AssertionError: assert (None == 'below_2pct_nonA_floor')",
+      "baseline_status": "passed",
+      "baseline_message": "",
+      "baseline_sha": "b77e4d4b692ac17a3ee4327024af9ee563627010"
+    },
+    {
+      "node": "veteran_desk.tests.test_scan_breadth_20261029::test_crypto_seat_uses_kraken_24h",
+      "status_after": "error",
+      "class": "import_side_effect",
+      "why": "Same guard or collection error on origin/main and this branch. The guard was not weakened.",
+      "branch_message": "failed on teardown with \"Failed: TEST GUARD: test wrote live paths: [('os.makedirs', '/tmp/thf-head/data/pit')]\"",
+      "baseline_status": "error",
+      "baseline_message": "failed on teardown with \"Failed: TEST GUARD: test wrote live paths: [('os.makedirs', '/tmp/thf-main/data/pit')]\"",
+      "baseline_sha": "b77e4d4b692ac17a3ee4327024af9ee563627010"
+    },
+    {
+      "node": "veteran_desk.tests.test_scan_breadth_20261029::test_dead_names_dropped",
+      "status_after": "failed",
+      "class": "proven_preexisting",
+      "why": "Same failure text on origin/main b77e4d4 and this branch after path and address normalisation.",
+      "branch_message": "TypeError: 'NoneType' object is not subscriptable",
+      "baseline_status": "failed",
+      "baseline_message": "TypeError: 'NoneType' object is not subscriptable",
+      "baseline_sha": "b77e4d4b692ac17a3ee4327024af9ee563627010"
+    },
+    {
+      "node": "veteran_desk.tests.test_scan_breadth_20261029::test_news_has_asia",
+      "status_after": "failed",
+      "class": "proven_preexisting",
+      "why": "Same failure text on origin/main b77e4d4 and this branch after path and address normalisation.",
+      "branch_message": "TypeError: 'NoneType' object is not iterable",
+      "baseline_status": "failed",
+      "baseline_message": "TypeError: 'NoneType' object is not iterable",
+      "baseline_sha": "b77e4d4b692ac17a3ee4327024af9ee563627010"
+    },
+    {
+      "node": "veteran_desk.tests.test_scan_breadth_20261029::test_pack_scan_line_and_topn",
+      "status_after": "error",
+      "class": "import_side_effect",
+      "why": "Same guard or collection error on origin/main and this branch. The guard was not weakened.",
+      "branch_message": "failed on teardown with \"Failed: TEST GUARD: test wrote live paths: [('os.makedirs', '/tmp/thf-head/data/pit')]\"",
+      "baseline_status": "error",
+      "baseline_message": "failed on teardown with \"Failed: TEST GUARD: test wrote live paths: [('os.makedirs', '/tmp/thf-main/data/pit')]\"",
+      "baseline_sha": "b77e4d4b692ac17a3ee4327024af9ee563627010"
+    },
+    {
+      "node": "veteran_desk.tests.test_scan_breadth_20261029::test_pack_trend_not_swamped_by_crypto",
+      "status_after": "error",
+      "class": "import_side_effect",
+      "why": "Same guard or collection error on origin/main and this branch. The guard was not weakened.",
+      "branch_message": "failed on teardown with \"Failed: TEST GUARD: test wrote live paths: [('os.makedirs', '/tmp/thf-head/data/pit')]\"",
+      "baseline_status": "error",
+      "baseline_message": "failed on teardown with \"Failed: TEST GUARD: test wrote live paths: [('os.makedirs', '/tmp/thf-main/data/pit')]\"",
+      "baseline_sha": "b77e4d4b692ac17a3ee4327024af9ee563627010"
+    },
+    {
+      "node": "veteran_desk.tests.test_scan_breadth_20261029::test_scan_file_exists_and_cleared",
+      "status_after": "failed",
+      "class": "proven_preexisting",
+      "why": "Same failure text on origin/main b77e4d4 and this branch after path and address normalisation.",
+      "branch_message": "AssertionError: None assert (None)",
+      "baseline_status": "failed",
+      "baseline_message": "AssertionError: None assert (None)",
+      "baseline_sha": "b77e4d4b692ac17a3ee4327024af9ee563627010"
+    },
+    {
+      "node": "veteran_desk.tests.test_scan_breadth_20261029::test_seat_list_broad_ge_500",
+      "status_after": "failed",
+      "class": "proven_preexisting",
+      "why": "Same failure text on origin/main b77e4d4 and this branch after path and address normalisation.",
+      "branch_message": "TypeError: object of type 'NoneType' has no len()",
+      "baseline_status": "failed",
+      "baseline_message": "TypeError: object of type 'NoneType' has no len()",
+      "baseline_sha": "b77e4d4b692ac17a3ee4327024af9ee563627010"
+    },
+    {
+      "node": "veteran_desk.tests.test_scan_breadth_20261029::test_seat_list_sector_or_full",
+      "status_after": "failed",
+      "class": "proven_preexisting",
+      "why": "Same failure text on origin/main b77e4d4 and this branch after path and address normalisation.",
+      "branch_message": "TypeError: object of type 'NoneType' has no len()",
+      "baseline_status": "failed",
+      "baseline_message": "TypeError: object of type 'NoneType' has no len()",
+      "baseline_sha": "b77e4d4b692ac17a3ee4327024af9ee563627010"
+    },
+    {
+      "node": "veteran_desk.tests.test_stalefill_20261029::test_tse_closed_no_fill",
+      "status_after": "failed",
+      "class": "unclassified",
+      "why": "Both trees fail this node, but the messages differ, so it is not marked preexisting.",
+      "branch_message": "AssertionError: assert ('armed' == 'armed'        armed and 'session closed' in 'Sam Okafor: price 300 min old (> 15 = venue delay 0 + 5) - no fill on a stale price, order still working')",
+      "baseline_status": "failed",
+      "baseline_message": "FileNotFoundError: [Errno 2] No such file or directory: '/tmp/thf-main/reports/veteran_desk_book.json'",
+      "baseline_sha": "b77e4d4b692ac17a3ee4327024af9ee563627010"
+    },
+    {
+      "node": "veteran_desk.tests.test_thf_deepseek_all_seats_20261105::test_alias_picker_and_broadcast_use_api_for_authorised_roles",
+      "status_after": "failed",
+      "class": "missing_dependency",
+      "why": "Node is not on origin/main b77e4d4. Import or collection failed. Not marked preexisting.",
+      "branch_message": "ImportError: cannot import name 'ai_router' from 'veteran_desk' (/tmp/thf-head/veteran_desk/__init__.py)",
+      "baseline_status": null,
+      "baseline_message": null,
+      "baseline_sha": "b77e4d4b692ac17a3ee4327024af9ee563627010"
+    },
+    {
+      "node": "veteran_desk.tests.test_thf_deepseek_all_seats_20261105::test_native_trader_fast_path_uses_api_without_other_models",
+      "status_after": "failed",
+      "class": "missing_dependency",
+      "why": "Node is not on origin/main b77e4d4. Import or collection failed. Not marked preexisting.",
+      "branch_message": "AttributeError: <module 'veteran_desk.llm_backend' from '/tmp/thf-head/veteran_desk/llm_backend.py'> has no attribute 'BRAIN_LOG'",
+      "baseline_status": null,
+      "baseline_message": null,
+      "baseline_sha": "b77e4d4b692ac17a3ee4327024af9ee563627010"
+    },
+    {
+      "node": "veteran_desk.tests.test_thf_deepseek_api_20261105::test_dashboard_status_and_message_keep_explicit_deepseek_identity",
+      "status_after": "failed",
+      "class": "missing_dependency",
+      "why": "Node is not on origin/main b77e4d4. Import or collection failed. Not marked preexisting.",
+      "branch_message": "ModuleNotFoundError: No module named 'veteran_desk.thf_home'",
+      "baseline_status": null,
+      "baseline_message": null,
+      "baseline_sha": "b77e4d4b692ac17a3ee4327024af9ee563627010"
+    },
+    {
+      "node": "veteran_desk.tests.test_thf_deepseek_api_20261105::test_explicit_deepseek_selection_and_truthful_unavailable_fallback",
+      "status_after": "failed",
+      "class": "missing_dependency",
+      "why": "Node is not on origin/main b77e4d4. Import or collection failed. Not marked preexisting.",
+      "branch_message": "ImportError: cannot import name 'ai_router' from 'veteran_desk' (/tmp/thf-head/veteran_desk/__init__.py)",
+      "baseline_status": null,
+      "baseline_message": null,
+      "baseline_sha": "b77e4d4b692ac17a3ee4327024af9ee563627010"
+    },
+    {
+      "node": "veteran_desk.tests.test_true_limit_20261029::test_buy_limit_never_above_limit",
+      "status_after": "failed",
+      "class": "unclassified",
+      "why": "Both trees fail this node, but the messages differ, so it is not marked preexisting.",
+      "branch_message": "AssertionError: assert ('armed' == 'open'      - open   + armed)",
+      "baseline_status": "failed",
+      "baseline_message": "FileNotFoundError: [Errno 2] No such file or directory: '/tmp/thf-main/reports/veteran_desk_book.json'",
+      "baseline_sha": "b77e4d4b692ac17a3ee4327024af9ee563627010"
+    },
+    {
+      "node": "veteran_desk.tests.test_true_limit_20261029::test_sell_limit_never_below_limit",
+      "status_after": "failed",
+      "class": "unclassified",
+      "why": "Both trees fail this node, but the messages differ, so it is not marked preexisting.",
+      "branch_message": "AssertionError: assert ('armed' == 'open'      - open   + armed)",
+      "baseline_status": "failed",
+      "baseline_message": "FileNotFoundError: [Errno 2] No such file or directory: '/tmp/thf-main/reports/veteran_desk_book.json'",
+      "baseline_sha": "b77e4d4b692ac17a3ee4327024af9ee563627010"
+    },
+    {
+      "node": "veteran_desk.tests.test_true_limit_20261029::test_stop_limit_explicit",
+      "status_after": "failed",
+      "class": "unclassified",
+      "why": "Both trees fail this node, but the messages differ, so it is not marked preexisting.",
+      "branch_message": "AssertionError: assert ('armed' == 'open'      - open   + armed)",
+      "baseline_status": "failed",
+      "baseline_message": "FileNotFoundError: [Errno 2] No such file or directory: '/tmp/thf-main/reports/veteran_desk_book.json'",
+      "baseline_sha": "b77e4d4b692ac17a3ee4327024af9ee563627010"
+    },
+    {
+      "node": "veteran_desk.tests.test_venuestale_20261029::test_lse_over_25_no_fill",
+      "status_after": "failed",
+      "class": "unclassified",
+      "why": "Both trees fail this node, but the messages differ, so it is not marked preexisting.",
+      "branch_message": "AssertionError: assert ('open' == 'armed'      - armed   + open)",
+      "baseline_status": "failed",
+      "baseline_message": "FileNotFoundError: [Errno 2] No such file or directory: '/tmp/thf-main/reports/veteran_desk_book.json'",
+      "baseline_sha": "b77e4d4b692ac17a3ee4327024af9ee563627010"
+    },
+    {
+      "node": "veteran_desk.tests.test_venuestale_20261029::test_realtime_venue_still_15",
+      "status_after": "failed",
+      "class": "unclassified",
+      "why": "Both trees fail this node, but the messages differ, so it is not marked preexisting.",
+      "branch_message": "AssertionError: assert ('open' == 'armed'      - armed   + open)",
+      "baseline_status": "failed",
+      "baseline_message": "FileNotFoundError: [Errno 2] No such file or directory: '/tmp/thf-main/reports/veteran_desk_book.json'",
+      "baseline_sha": "b77e4d4b692ac17a3ee4327024af9ee563627010"
+    },
+    {
+      "node": "veteran_desk.tests.test_withdraw_sticks_20261029::test_withdraw_landing_mid_tick_is_not_clobbered",
+      "status_after": "error",
+      "class": "import_side_effect",
+      "why": "Same guard or collection error on origin/main and this branch. The guard was not weakened.",
+      "branch_message": "failed on teardown with \"Failed: TEST GUARD: test wrote live paths: [('os.makedirs', '/tmp/thf-head/data/pit')]\"",
+      "baseline_status": "error",
+      "baseline_message": "failed on teardown with \"Failed: TEST GUARD: test wrote live paths: [('os.makedirs', '/tmp/thf-main/data/pit')]\"",
+      "baseline_sha": "b77e4d4b692ac17a3ee4327024af9ee563627010"
+    },
+    {
+      "node": "veteran_desk.tests.test_withdraw_sticks_20261029::test_withdrawn_after_arm_is_cancelled_and_never_rearmed",
+      "status_after": "error",
+      "class": "import_side_effect",
+      "why": "Same guard or collection error on origin/main and this branch. The guard was not weakened.",
+      "branch_message": "failed on teardown with \"Failed: TEST GUARD: test wrote live paths: [('os.makedirs', '/tmp/thf-head/data/pit')]\"",
+      "baseline_status": "error",
+      "baseline_message": "failed on teardown with \"Failed: TEST GUARD: test wrote live paths: [('os.makedirs', '/tmp/thf-main/data/pit')]\"",
+      "baseline_sha": "b77e4d4b692ac17a3ee4327024af9ee563627010"
+    }
+  ],
+  "nodes_failed_before_and_pass_after": [
+    {
+      "node": "veteran_desk.tests.test_a1pct_20261031::test_acked_arms",
+      "before_message": "FileNotFoundError: [Errno 2] No such file or directory: '/tmp/thf-head/reports/veteran_desk_book.json'",
+      "after": "passed"
+    },
+    {
+      "node": "veteran_desk.tests.test_a1pct_20261031::test_theme_oil_one_trade_across_seats",
+      "before_message": "FileNotFoundError: [Errno 2] No such file or directory: '/tmp/thf-head/reports/veteran_desk_book.json'",
+      "after": "passed"
+    },
+    {
+      "node": "veteran_desk.tests.test_a1pct_20261031::test_unacked_never_arms_then_expires",
+      "before_message": "FileNotFoundError: [Errno 2] No such file or directory: '/tmp/thf-head/reports/veteran_desk_book.json'",
+      "after": "passed"
+    },
+    {
+      "node": "veteran_desk.tests.test_bank1pct_20261029::test_crypto_net_uses_kraken_fees",
+      "before_message": "AssertionError: assert ('rail_0_7R_aud_scale_out' is None)  +  where 'rail_0_7R_aud_scale_out' = <function bank_trigger at 0x7fd2f51d0860>({'ticker': 'KRAKEN:XBTUSD', 'venue': 'CRYPTO', 'side': 'LONG', 'fill': 100.0, ...}, 105.0, 1)  +    where <function bank_trigger at 0x7fd2f51d0860> = BK.bank_tri",
+      "after": "passed"
+    },
+    {
+      "node": "veteran_desk.tests.test_bank1pct_20261029::test_giveback_a_fires_before_half",
+      "before_message": "FileNotFoundError: [Errno 2] No such file or directory: '/tmp/thf-head/reports/veteran_desk_book.json'",
+      "after": "passed"
+    },
+    {
+      "node": "veteran_desk.tests.test_bank1pct_20261029::test_giveback_b_and_c_in_tick",
+      "before_message": "FileNotFoundError: [Errno 2] No such file or directory: '/tmp/thf-head/reports/veteran_desk_book.json'",
+      "after": "passed"
+    },
+    {
+      "node": "veteran_desk.tests.test_bank1pct_20261029::test_grade_must_be_persisted",
+      "before_message": "AssertionError: assert 'rail_0_7R_aud_scale_out' is None  +  where 'rail_0_7R_aud_scale_out' = <function bank_trigger at 0x7fd2f51d0860>({'ticker': 'EURUSD=X', 'venue': 'FX', 'side': 'SHORT', 'fill': 1.1168, ...}, (1.1168 - 0.006), 0.65)  +    where <function bank_trigger at 0x7fd2f51d0860> = BK.ban",
+      "after": "passed"
+    },
+    {
+      "node": "veteran_desk.tests.test_bank1pct_20261029::test_theo_eurusd_1R_original_risk",
+      "before_message": "AssertionError: assert 'rail_0_7R_aud_scale_out' is None  +  where 'rail_0_7R_aud_scale_out' = <function bank_trigger at 0x7fd2f51d0860>({'ticker': 'EURUSD=X', 'venue': 'FX', 'side': 'SHORT', 'fill': 1.1168, ...}, (1.1168 - 0.004), 0.65)  +    where <function bank_trigger at 0x7fd2f51d0860> = BK.ban",
+      "after": "passed"
+    },
+    {
+      "node": "veteran_desk.tests.test_bank1pct_20261029::test_tick_banks_half_fee_floor_and_audit",
+      "before_message": "FileNotFoundError: [Errno 2] No such file or directory: '/tmp/thf-head/reports/veteran_desk_book.json'",
+      "after": "passed"
+    },
+    {
+      "node": "veteran_desk.tests.test_bank1pct_20261029::test_trend_seat_banks_at_1_5R",
+      "before_message": "AssertionError: assert 'rail_0_7R_aud_scale_out' is None  +  where 'rail_0_7R_aud_scale_out' = <function bank_trigger at 0x7fd2f51d0860>({'ticker': 'SPY', 'venue': 'US', 'side': 'LONG', 'fill': 100.0, ...}, 102.3, 1)  +    where <function bank_trigger at 0x7fd2f51d0860> = BK.bank_trigger",
+      "after": "passed"
+    },
+    {
+      "node": "veteran_desk.tests.test_costmodel_hold_20261030::test_adv_refreshed_even_when_atr_cached_today",
+      "before_message": "FileNotFoundError: [Errno 2] No such file or directory: '/tmp/thf-head/reports/veteran_desk_book.json'",
+      "after": "passed"
+    },
+    {
+      "node": "veteran_desk.tests.test_costmodel_hold_20261030::test_backstop_and_hard_stop_still_act_when_closed",
+      "before_message": "FileNotFoundError: [Errno 2] No such file or directory: '/tmp/thf-head/reports/veteran_desk_book.json'",
+      "after": "passed"
+    },
+    {
+      "node": "veteran_desk.tests.test_costmodel_hold_20261030::test_giveback_held_on_stale_mark_in_session",
+      "before_message": "FileNotFoundError: [Errno 2] No such file or directory: '/tmp/thf-head/reports/veteran_desk_book.json'",
+      "after": "passed"
+    },
+    {
+      "node": "veteran_desk.tests.test_costmodel_hold_20261030::test_rebaseline_once_shifts_peaks_by_exit_cost_delta",
+      "before_message": "FileNotFoundError: [Errno 2] No such file or directory: '/tmp/thf-head/reports/veteran_desk_book.json'",
+      "after": "passed"
+    },
+    {
+      "node": "veteran_desk.tests.test_costmodel_hold_20261030::test_revguard_held_closed",
+      "before_message": "FileNotFoundError: [Errno 2] No such file or directory: '/tmp/thf-head/reports/veteran_desk_book.json'",
+      "after": "passed"
+    },
+    {
+      "node": "veteran_desk.tests.test_exit_rail_20261029::test_giveback_flatten",
+      "before_message": "FileNotFoundError: [Errno 2] No such file or directory: '/tmp/thf-head/reports/veteran_desk_book.json'",
+      "after": "passed"
+    },
+    {
+      "node": "veteran_desk.tests.test_exit_rail_20261029::test_half_bank_at_2R_before_T1",
+      "before_message": "FileNotFoundError: [Errno 2] No such file or directory: '/tmp/thf-head/reports/veteran_desk_book.json'",
+      "after": "passed"
+    },
+    {
+      "node": "veteran_desk.tests.test_exit_rail_20261029::test_half_bank_at_T1_short_keeps_semantics",
+      "before_message": "FileNotFoundError: [Errno 2] No such file or directory: '/tmp/thf-head/reports/veteran_desk_book.json'",
+      "after": "passed"
+    },
+    {
+      "node": "veteran_desk.tests.test_exit_rail_20261029::test_hard_stop_wins",
+      "before_message": "FileNotFoundError: [Errno 2] No such file or directory: '/tmp/thf-head/reports/veteran_desk_book.json'",
+      "after": "passed"
+    },
+    {
+      "node": "veteran_desk.tests.test_exit_rail_20261029::test_legacy_fx_short",
+      "before_message": "FileNotFoundError: [Errno 2] No such file or directory: '/tmp/thf-head/reports/veteran_desk_book.json'",
+      "after": "passed"
+    },
+    {
+      "node": "veteran_desk.tests.test_exit_rail_20261029::test_legacy_open_gets_rail_and_scale_t1",
+      "before_message": "FileNotFoundError: [Errno 2] No such file or directory: '/tmp/thf-head/reports/veteran_desk_book.json'",
+      "after": "passed"
+    },
+    {
+      "node": "veteran_desk.tests.test_exit_rail_20261029::test_long_breakeven_at_1R",
+      "before_message": "FileNotFoundError: [Errno 2] No such file or directory: '/tmp/thf-head/reports/veteran_desk_book.json'",
+      "after": "passed"
+    },
+    {
+      "node": "veteran_desk.tests.test_exit_rail_20261029::test_never_widen",
+      "before_message": "FileNotFoundError: [Errno 2] No such file or directory: '/tmp/thf-head/reports/veteran_desk_book.json'",
+      "after": "passed"
+    },
+    {
+      "node": "veteran_desk.tests.test_exit_rail_20261029::test_partial_close_and_residual_guard",
+      "before_message": "FileNotFoundError: [Errno 2] No such file or directory: '/tmp/thf-head/reports/veteran_desk_book.json'",
+      "after": "passed"
+    },
+    {
+      "node": "veteran_desk.tests.test_exit_rail_20261029::test_short_breakeven_at_1R",
+      "before_message": "FileNotFoundError: [Errno 2] No such file or directory: '/tmp/thf-head/reports/veteran_desk_book.json'",
+      "after": "passed"
+    },
+    {
+      "node": "veteran_desk.tests.test_exit_rail_20261029::test_target_amend",
+      "before_message": "FileNotFoundError: [Errno 2] No such file or directory: '/tmp/thf-head/reports/veteran_desk_book.json'",
+      "after": "passed"
+    },
+    {
+      "node": "veteran_desk.tests.test_exit_rail_20261029::test_trail_long_and_min_distance",
+      "before_message": "FileNotFoundError: [Errno 2] No such file or directory: '/tmp/thf-head/reports/veteran_desk_book.json'",
+      "after": "passed"
+    },
+    {
+      "node": "veteran_desk.tests.test_exit_rail_20261029::test_trail_short",
+      "before_message": "FileNotFoundError: [Errno 2] No such file or directory: '/tmp/thf-head/reports/veteran_desk_book.json'",
+      "after": "passed"
+    },
+    {
+      "node": "veteran_desk.tests.test_infra_20261029::test_amend_stop_recalculates_risk_aud",
+      "before_message": "FileNotFoundError: [Errno 2] No such file or directory: '/tmp/thf-head/reports/veteran_desk_book.json'",
+      "after": "passed"
+    },
+    {
+      "node": "veteran_desk.tests.test_insufficient_cash_20261029::test_arm_passes_when_cash_covers_notional_plus_cost",
+      "before_message": "FileNotFoundError: [Errno 2] No such file or directory: '/tmp/thf-head/reports/veteran_desk_book.json'",
+      "after": "passed"
+    },
+    {
+      "node": "veteran_desk.tests.test_insufficient_cash_20261029::test_arm_rejects_insufficient_cash_and_never_resizes",
+      "before_message": "FileNotFoundError: [Errno 2] No such file or directory: '/tmp/thf-head/reports/veteran_desk_book.json'",
+      "after": "passed"
+    },
+    {
+      "node": "veteran_desk.tests.test_insufficient_cash_20261029::test_arm_short_needs_only_the_cost",
+      "before_message": "FileNotFoundError: [Errno 2] No such file or directory: '/tmp/thf-head/reports/veteran_desk_book.json'",
+      "after": "passed"
+    },
+    {
+      "node": "veteran_desk.tests.test_insufficient_cash_20261029::test_fill_books_when_cash_suffices",
+      "before_message": "FileNotFoundError: [Errno 2] No such file or directory: '/tmp/thf-head/reports/veteran_desk_book.json'",
+      "after": "passed"
+    },
+    {
+      "node": "veteran_desk.tests.test_insufficient_cash_20261029::test_fill_fx_exempt_only_cost_leaves_cash",
+      "before_message": "FileNotFoundError: [Errno 2] No such file or directory: '/tmp/thf-head/reports/veteran_desk_book.json'",
+      "after": "passed"
+    },
+    {
+      "node": "veteran_desk.tests.test_insufficient_cash_20261029::test_fill_rejects_insufficient_cash",
+      "before_message": "FileNotFoundError: [Errno 2] No such file or directory: '/tmp/thf-head/reports/veteran_desk_book.json'",
+      "after": "passed"
+    },
+    {
+      "node": "veteran_desk.tests.test_insufficient_cash_20261029::test_rebook_books_when_cash_suffices",
+      "before_message": "FileNotFoundError: [Errno 2] No such file or directory: '/tmp/thf-head/reports/veteran_desk_book.json'",
+      "after": "passed"
+    },
+    {
+      "node": "veteran_desk.tests.test_insufficient_cash_20261029::test_rebook_rejects_insufficient_cash",
+      "before_message": "FileNotFoundError: [Errno 2] No such file or directory: '/tmp/thf-head/reports/veteran_desk_book.json'",
+      "after": "passed"
+    },
+    {
+      "node": "veteran_desk.tests.test_kai_floor_tol_20261029::test_normal_arm_has_no_floor_note",
+      "before_message": "FileNotFoundError: [Errno 2] No such file or directory: '/tmp/thf-head/reports/veteran_desk_book.json'",
+      "after": "passed"
+    },
+    {
+      "node": "veteran_desk.tests.test_kai_floor_tol_20261029::test_rounding_shortfall_accepted",
+      "before_message": "FileNotFoundError: [Errno 2] No such file or directory: '/tmp/thf-head/reports/veteran_desk_book.json'",
+      "after": "passed"
+    },
+    {
+      "node": "veteran_desk.tests.test_kai_seat_grade_20261029::test_crypto_seat_gets_band",
+      "before_message": "FileNotFoundError: [Errno 2] No such file or directory: '/tmp/thf-head/reports/veteran_desk_book.json'",
+      "after": "passed"
+    },
+    {
+      "node": "veteran_desk.tests.test_kai_seat_grade_20261029::test_missing_grade_rejected",
+      "before_message": "FileNotFoundError: [Errno 2] No such file or directory: '/tmp/thf-head/reports/veteran_desk_book.json'",
+      "after": "passed"
+    },
+    {
+      "node": "veteran_desk.tests.test_kai_seat_grade_20261029::test_non_crypto_seat_kraken_keeps_2pct_floor",
+      "before_message": "FileNotFoundError: [Errno 2] No such file or directory: '/tmp/thf-head/reports/veteran_desk_book.json'",
+      "after": "passed"
+    },
+    {
+      "node": "veteran_desk.tests.test_kai_seat_grade_20261029::test_notional_caps_by_grade",
+      "before_message": "FileNotFoundError: [Errno 2] No such file or directory: '/tmp/thf-head/reports/veteran_desk_book.json'",
+      "after": "passed"
+    },
+    {
+      "node": "veteran_desk.tests.test_kai_soft_trim_20261029::test_crypto_A_after_expiry_not_trimmed",
+      "before_message": "FileNotFoundError: [Errno 2] No such file or directory: '/tmp/thf-head/reports/veteran_desk_book.json'",
+      "after": "passed"
+    },
+    {
+      "node": "veteran_desk.tests.test_kai_soft_trim_20261029::test_crypto_A_rejected_in_window",
+      "before_message": "FileNotFoundError: [Errno 2] No such file or directory: '/tmp/thf-head/reports/veteran_desk_book.json'",
+      "after": "passed"
+    },
+    {
+      "node": "veteran_desk.tests.test_kai_soft_trim_20261029::test_crypto_aplus_arms_in_window",
+      "before_message": "FileNotFoundError: [Errno 2] No such file or directory: '/tmp/thf-head/reports/veteran_desk_book.json'",
+      "after": "passed"
+    },
+    {
+      "node": "veteran_desk.tests.test_kai_soft_trim_20261029::test_existing_xmr_open_not_cancelled",
+      "before_message": "FileNotFoundError: [Errno 2] No such file or directory: '/tmp/thf-head/reports/veteran_desk_book.json'",
+      "after": "passed"
+    },
+    {
+      "node": "veteran_desk.tests.test_kai_soft_trim_20261029::test_expiry_boundary_fri_30_oct",
+      "before_message": "FileNotFoundError: [Errno 2] No such file or directory: '/tmp/thf-head/reports/veteran_desk_book.json'",
+      "after": "passed"
+    },
+    {
+      "node": "veteran_desk.tests.test_kai_soft_trim_20261029::test_non_crypto_A_unaffected",
+      "before_message": "FileNotFoundError: [Errno 2] No such file or directory: '/tmp/thf-head/reports/veteran_desk_book.json'",
+      "after": "passed"
+    },
+    {
+      "node": "veteran_desk.tests.test_learning::test_card_shape",
+      "before_message": "KeyError: 'gpt'",
+      "after": "passed"
+    },
+    {
+      "node": "veteran_desk.tests.test_learning::test_critique_async_one_model_never_blocks",
+      "before_message": "AssertionError: assert (['grok_queue', 'grok_queue'] == ['codex', 'codex']      At index 0 diff: 'grok_queue' != 'codex'   Use -v to get more diff)",
+      "after": "passed"
+    },
+    {
+      "node": "veteran_desk.tests.test_learning::test_daily_rolling_30_days",
+      "before_message": "assert ('GPT: MISSING' in '# Lessons - energy (rolling 30 days, PAPER, advisory; rails never loosen)\\n\\n## 2026-10-28\\n- TOP: No closed paper tr...- GROK: {\"verdict\": \"take\", \"one_line\": \"fine\", \"size_view\": \"ok\", \"risks\": [\"gap\"]}\\n\\n## 2026-10-20\\n- TOP: recent\\n')",
+      "after": "passed"
+    },
+    {
+      "node": "veteran_desk.tests.test_learning::test_journal_sync_idempotent_and_fields",
+      "before_message": "AssertionError: assert ['grok'] == ['gpt']      At index 0 diff: 'grok' != 'gpt'   Use -v to get more diff",
+      "after": "passed"
+    },
+    {
+      "node": "veteran_desk.tests.test_learning::test_sound_board_model_down_never_blocks_and_tags",
+      "before_message": "KeyError: 'gpt'",
+      "after": "passed"
+    },
+    {
+      "node": "veteran_desk.tests.test_mark_fallback_20261028::test_fallback_and_stale",
+      "before_message": "FileNotFoundError: [Errno 2] No such file or directory: '/tmp/thf-head/reports/veteran_desk_book.json'",
+      "after": "passed"
+    },
+    {
+      "node": "veteran_desk.tests.test_no_direct_yf_20261030::test_no_new_direct_yahoo_calls",
+      "before_message": "AssertionError: NEW direct Yahoo/yfinance calls outside veteran_desk/data_layer.py (file: (now, allowed)): {'docs/live_bank07/book.py': (17, 0)} assert not {'docs/live_bank07/book.py': (17, 0)}",
+      "after": "passed"
+    },
+    {
+      "node": "veteran_desk.tests.test_no_live_writes_20261029::test_temp_book_never_writes_live_state",
+      "before_message": "FileNotFoundError: [Errno 2] No such file or directory: '/tmp/thf-head/reports/veteran_desk_book.json'",
+      "after": "passed"
+    },
+    {
+      "node": "veteran_desk.tests.test_railfix_20261029::test_amend_short_fx_recomputes_risk_keeps_r0",
+      "before_message": "FileNotFoundError: [Errno 2] No such file or directory: '/tmp/thf-head/reports/veteran_desk_book.json'",
+      "after": "passed"
+    },
+    {
+      "node": "veteran_desk.tests.test_railfix_20261029::test_arm_rejects_sub_floor_idea",
+      "before_message": "FileNotFoundError: [Errno 2] No such file or directory: '/tmp/thf-head/reports/veteran_desk_book.json'",
+      "after": "passed"
+    },
+    {
+      "node": "veteran_desk.tests.test_railfix_20261029::test_fill_initialises_mark_and_rail",
+      "before_message": "FileNotFoundError: [Errno 2] No such file or directory: '/tmp/thf-head/reports/veteran_desk_book.json'",
+      "after": "passed"
+    },
+    {
+      "node": "veteran_desk.tests.test_railfix_20261029::test_long_limit_fills_at_limit_not_worse",
+      "before_message": "FileNotFoundError: [Errno 2] No such file or directory: '/tmp/thf-head/reports/veteran_desk_book.json'",
+      "after": "passed"
+    },
+    {
+      "node": "veteran_desk.tests.test_railfix_20261029::test_long_limit_gap_fills_better",
+      "before_message": "FileNotFoundError: [Errno 2] No such file or directory: '/tmp/thf-head/reports/veteran_desk_book.json'",
+      "after": "passed"
+    },
+    {
+      "node": "veteran_desk.tests.test_railfix_20261029::test_rebook_never_through_limit",
+      "before_message": "FileNotFoundError: [Errno 2] No such file or directory: '/tmp/thf-head/reports/veteran_desk_book.json'",
+      "after": "passed"
+    },
+    {
+      "node": "veteran_desk.tests.test_railfix_20261029::test_short_limit_fills_at_or_above",
+      "before_message": "FileNotFoundError: [Errno 2] No such file or directory: '/tmp/thf-head/reports/veteran_desk_book.json'",
+      "after": "passed"
+    },
+    {
+      "node": "veteran_desk.tests.test_seatcap_gapguard_20261030::test_cap_binds_A_sizes_not_rejects",
+      "before_message": "FileNotFoundError: [Errno 2] No such file or directory: '/tmp/thf-head/reports/veteran_desk_book.json'",
+      "after": "passed"
+    },
+    {
+      "node": "veteran_desk.tests.test_seatcap_gapguard_20261030::test_cap_cuts_to_40pct",
+      "before_message": "FileNotFoundError: [Errno 2] No such file or directory: '/tmp/thf-head/reports/veteran_desk_book.json'",
+      "after": "passed"
+    },
+    {
+      "node": "veteran_desk.tests.test_seatcap_gapguard_20261030::test_cap_rejects_when_risk_below_floor",
+      "before_message": "FileNotFoundError: [Errno 2] No such file or directory: '/tmp/thf-head/reports/veteran_desk_book.json'",
+      "after": "passed"
+    },
+    {
+      "node": "veteran_desk.tests.test_seatcap_gapguard_20261030::test_etf_cap_75",
+      "before_message": "FileNotFoundError: [Errno 2] No such file or directory: '/tmp/thf-head/reports/veteran_desk_book.json'",
+      "after": "passed"
+    },
+    {
+      "node": "veteran_desk.tests.test_seatcap_gapguard_20261030::test_gap_sizing_cuts_risk",
+      "before_message": "FileNotFoundError: [Errno 2] No such file or directory: '/tmp/thf-head/reports/veteran_desk_book.json'",
+      "after": "passed"
+    },
+    {
+      "node": "veteran_desk.tests.test_seatcap_gapguard_20261030::test_stop_entry_arms_as_stop_limit",
+      "before_message": "FileNotFoundError: [Errno 2] No such file or directory: '/tmp/thf-head/reports/veteran_desk_book.json'",
+      "after": "passed"
+    },
+    {
+      "node": "veteran_desk.tests.test_seatcap_gapguard_20261030::test_stop_entry_bad_level_rejected",
+      "before_message": "FileNotFoundError: [Errno 2] No such file or directory: '/tmp/thf-head/reports/veteran_desk_book.json'",
+      "after": "passed"
+    },
+    {
+      "node": "veteran_desk.tests.test_seatcap_gapguard_20261030::test_thin_dip_buy_needs_stabilisation",
+      "before_message": "FileNotFoundError: [Errno 2] No such file or directory: '/tmp/thf-head/reports/veteran_desk_book.json'",
+      "after": "passed"
+    },
+    {
+      "node": "veteran_desk.tests.test_seatmem_20261030::test_thf_gets_full_memory",
+      "before_message": "assert ('Core memory energy' in '\\nCORE MEMORY (mechanical history base rates; advisory, never loosens rails):\\nOwn THF outcomes are not supplied by t...},\\n \"earnings_reaction\": {\\n  \"n\": 0\\n },\\n \"vol_regime\": [\\n  {\\n   \"sym\": \"XOM\",\\n   \"pctile_5y\": 0.5\\n  }\\n ]\\n}\\n')",
+      "after": "passed"
+    },
+    {
+      "node": "veteran_desk.tests.test_stalefill_20261029::test_fresh_price_fills_in_session",
+      "before_message": "FileNotFoundError: [Errno 2] No such file or directory: '/tmp/thf-head/reports/veteran_desk_book.json'",
+      "after": "passed"
+    },
+    {
+      "node": "veteran_desk.tests.test_stalefill_20261029::test_room_under_1R_no_fill",
+      "before_message": "FileNotFoundError: [Errno 2] No such file or directory: '/tmp/thf-head/reports/veteran_desk_book.json'",
+      "after": "passed"
+    },
+    {
+      "node": "veteran_desk.tests.test_stalefill_20261029::test_stale_price_no_fill_in_session",
+      "before_message": "FileNotFoundError: [Errno 2] No such file or directory: '/tmp/thf-head/reports/veteran_desk_book.json'",
+      "after": "passed"
+    },
+    {
+      "node": "veteran_desk.tests.test_t1sync_20261029::test_partial_close_sets_t1_and_no_rebank",
+      "before_message": "FileNotFoundError: [Errno 2] No such file or directory: '/tmp/thf-head/reports/veteran_desk_book.json'",
+      "after": "passed"
+    },
+    {
+      "node": "veteran_desk.tests.test_venuestale_20261029::test_lse_20min_old_fills_and_logs",
+      "before_message": "FileNotFoundError: [Errno 2] No such file or directory: '/tmp/thf-head/reports/veteran_desk_book.json'",
+      "after": "passed"
+    }
+  ],
+  "scoped_acceptance": {
+    "command": "cd /tmp/thf-head && python3 -m pytest veteran_desk/tests/test_security_invariants_20261106.py veteran_desk/tests/test_tenant_foundation_20261106.py veteran_desk/tests/test_sequence_deploy_20261106.py veteran_desk/tests/test_learning_health_20261106.py veteran_desk/tests/test_live_bank_snapshot_20261106.py veteran_desk/tests/test_feed_health_20261106.py veteran_desk/tests/test_integrated_paths_20261106.py veteran_desk/tests/test_chat_img_20261106.py veteran_desk/tests/test_bank1pct_20261029.py veteran_desk/tests/test_exit_rail_20261029.py veteran_desk/tests/test_learning.py veteran_desk/tests/test_no_direct_yf_20261030.py -q --tb=line",
+    "result": "75 passed, 6 warnings",
+    "note": "This is not the whole veteran_desk suite."
+  },
+  "oanda_isolated": {
+    "command": "cd /tmp/thf-head && python3 -m pytest tests/test_oanda_api_retry_20261005.py tests/test_desk_doh.py -q --tb=line",
+    "result": "41 passed"
+  },
+  "oanda_under_desk_guard": {
+    "result": "36 failed, PermissionError TEST GUARD os.makedirs state/oanda. The guard was not changed."
+  },
+  "upgrade_regression_count": 0,
+  "obsolete_0_7r_retargeted_in": "nodes_failed_before_and_pass_after includes the half-bank tests whose assertions now require rail_0_7R_aud_scale_out, a price under 0.7R staying open, and bank_capped still opting out."
+}

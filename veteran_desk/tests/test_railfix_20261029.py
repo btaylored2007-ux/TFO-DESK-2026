@@ -3,6 +3,7 @@
 import datetime as dt, json, os, sys, tempfile, copy
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 from veteran_desk import book as BK, seat_cli as SC
+from veteran_desk.tests.synthetic_book import skeleton
 U = dt.timezone.utc; T = dt.datetime(2026, 10, 28, 18, 45, tzinfo=U)   # US + FX session open, past the open window
 
 # ---- 1. reject, don't lift ----
@@ -19,7 +20,7 @@ def test_crypto_seat_floor_kept():
     r = BK.risk_plan(500000, "A", mult=.2, floor=BK.RISK_CRYPTO_MIN); assert r["reject"] == "below_crypto_floor"
 
 def _book(pos=None, seat="energy"):
-    tmp = tempfile.mkdtemp(); D = copy.deepcopy(json.load(open(BK._REAL_BOOK)))
+    tmp = tempfile.mkdtemp(); D = copy.deepcopy(skeleton())
     for B in D["seats"].values(): B["positions"] = {}; B["closed"] = []; B["cash_aud"] = B["seed_aud"]
     D["hedge"] = {"disabled": True}; D["kill_switch"] = {"state": "OK"}; D["peak_equity_aud"] = None
     if pos: D["seats"][seat]["positions"][pos["id"]] = pos
