@@ -10,6 +10,11 @@ from veteran_desk.thf_http import wire_payload, etag_matches, mutation_error, js
 VDM = os.environ.get('DASH_MODE') == 'vd'
 ST = os.path.join(BASE, 'state', 'vd_engine')
 PORT = int(os.environ.get('THF_DASH_PORT', '18860' if VDM else '18870'))
+
+def listen_host():
+    """Loopback unless an operator sets THF_DASH_BIND. Nginx already proxies 18870 to 127.0.0.1."""
+    host = str(os.environ.get('THF_DASH_BIND', '127.0.0.1')).strip()
+    return host or '127.0.0.1'
 CACHE = os.path.join(ST, 'dash_cache_vd.json' if VDM else 'dash_cache.json')
 BOOK_REL = 'reports/veteran_desk_book.json' if VDM else 'state/thf/thf_book.json'
 VD_DASH = 'http://100.120.8.11:18860/'
@@ -609,4 +614,4 @@ def _checked_post(self):
 H.do_POST = _checked_post
 
 if __name__ == '__main__':
-    ThreadingHTTPServer(('0.0.0.0', PORT), H).serve_forever()
+    ThreadingHTTPServer((listen_host(), PORT), H).serve_forever()

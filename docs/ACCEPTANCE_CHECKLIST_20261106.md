@@ -42,3 +42,22 @@ The matched trial is `thf_shadow_sampler`, not a production-answer row with `sha
 ## Files still required
 
 See `docs/LIVE_SOURCE_REQUIREMENTS.md`. Production completion is not claimed.
+
+## Consolidated result, 6 Nov, after the host access audit
+
+The host audit `939cd5d9dbdd5dd063fbd174be972333c974619c1fcefc520367e032e2d7259f` shows the app process on `0.0.0.0:28870`, UFW default deny, and an explicit deny for 28870 on v4 and v6. Nginx listens on `100.120.8.11:18870` and proxies to `127.0.0.1:28870`. That is not an open-internet breach under those host rules. DigitalOcean's cloud firewall was not visible from the host. `check_pin` returns true. A PIN is not enforced. The nginx comment that says PIN-checked is stale.
+
+The dashboard source now defaults `listen_host()` to `127.0.0.1`. `THF_DASH_BIND` is the only override. The port stays `THF_DASH_PORT`. The owner URL stays the tailnet proxy on 18870. The archive is `deploy/dash_bind_20261106/thf-dash-bind-20261106.tar.gz`, sha256 `3b2d22af88468667e7a6cf86c3985cfe8f4e1e91c4e8696bef4cb6ed9ab82972`. It was not applied. Nginx and UFW were not edited. The unit file `/etc/systemd/system/tfo-dash-thf.service` was not in the handoff, so its `Environment=` lines are unverified. The last captured live `thf_dash.py` is `e77d367e97f6a149ef0890f49262d0599753e6fac85efceaeb944158d133e745`.
+
+Customer accounts stay off. `tenant_foundation.py` is not imported by the dashboard. There is no `revoke` method. A wrong password, an unknown email, an expired session, and a path-like upload name are refused by the dormant store. That is not a launched account system.
+
+Sequence apply, rollback, and reapply of the r2 main, r2 stall, runtime, DeepSeek transport, learning-health, and clock archives passed on a tree that held the protected book and one shadow sample. The role archive was not in that sequence. Book hash stayed `b4453b503f33e34110519bf4d7a9bf391ecc2802edbd87acca3e77dc96b7e891`.
+
+Commands on CPython 3.12, Linux, in `/agent/repos/TFO-DESK-2026`:
+
+- `python3 -m pytest veteran_desk/tests --continue-on-collection-errors -q --tb=line` → 751 passed, 141 failed, 15 errors, 148 subtests passed. Collection stops without that flag: five modules create `state/vd_engine/top10` at import or import a missing `supergrok_bridge`.
+- `python3 -m pytest tests/test_oanda_api_retry_20261005.py tests/test_desk_doh.py -q --tb=line` → 41 passed. These are practice-host unit tests. They are not a live-money probe.
+
+The 141 failures are mostly older book, fill, and rail tests. A sampled bank test stops on `FileNotFoundError` for `reports/veteran_desk_book.json`, which is not in this checkout. They are not evidence that the protected +0.7R book was changed. Three expectations were updated in this pass and then passed: the clock installer test now stages the `7049ffa` bytes, an unused admin is `waiting_for_work`, and the nightly readback test points `BASE` at a temp directory so the authority file is not written into the repo.
+
+Still open: phone browser end to end; the tailnet 403 from the box is the existing gate; the seven-day review is not due until 14 Nov 2026 08:00 WITA; cited and validated lesson rows were 0 at the last count; six admin seats are waiting for real work; `oanda_lab` is paused on numba; `hunt48_shorts` is off pending Brett; no customer launch.

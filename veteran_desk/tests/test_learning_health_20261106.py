@@ -142,7 +142,7 @@ def test_installer_replaces_the_recorded_bases_and_rolls_back(tmp_path):
     for rel in rels:
         dest = tmp_path / rel
         dest.parent.mkdir(parents=True, exist_ok=True)
-        dest.write_bytes(subprocess.check_output(["git", "show", "HEAD:" + rel], cwd=root))
+        dest.write_bytes(subprocess.check_output(["git", "show", "7049ffa:" + rel], cwd=root))
     result = subprocess.run([sys.executable, str(install), "--root", str(tmp_path), "--apply"],
                             cwd=root, text=True, capture_output=True, check=False)
     assert result.returncode == 0, result.stdout

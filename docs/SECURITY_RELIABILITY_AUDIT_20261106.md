@@ -6,9 +6,9 @@ This is a single-owner paper desk on a private tailnet. It is not a multi-custom
 
 | Area | Evidence | Boundary |
 |---|---|---|
-| Network gate | `nginx_safe/tfo-dash.conf.excerpt` listens only on `100.120.8.11` for ports 18860, 18870, and 18812. No `auth_basic`. | One private desk. Not an account system. |
+| Network gate | Nginx excerpt listens only on `100.120.8.11` for 18860, 18870, and 18812, and proxies 18870 to `127.0.0.1:28870`. The 6 Nov host audit shows UFW default deny, 28870 denied on v4 and v6, and 18870 allowed on tailscale0 only. DigitalOcean's cloud firewall was not visible from the host. | Not an open internet listener under those host rules. Not an account system. |
 | Mutations | `thf_http.mutation_error` rejects `Sec-Fetch-Site: cross-site` and a foreign `Origin`. A request with no `Origin` is not rejected. | Enough for the owner's own browser and curl on the tailnet. Not a login. |
-| Sessions | `thf_dash.py` sets no cookie and has no session id. `thf_funder.check_pin` always returns true; the PIN was removed 2 Nov. The nginx comment that says PIN-checked is stale. | Anyone who can open the tailnet can post as the funder. |
+| Sessions | `thf_dash.py` sets no cookie and has no session id. `check_pin` always returns true. That matches the 2 Nov removal. A nginx comment that says PIN-checked is stale and does not mean a PIN is enforced. | Anyone who can open the tailnet can post as the funder. |
 | Uploads | `POST /api/chat_img` is store-only, magic-byte checked, 8MB, id pattern `ci-…`. `img_read` refuses a path that leaves the directory. GET of an id is a normal GET under `location /`. | Images are not separated by customer. The 21:19 design upload matched its hash. The later missing screenshot was not that file. Phone browser use is still unchecked. |
 | Broker | `paid_feeds.py`, `pit_fx_sgp.py`, `oanda_sleeve.py`, and `desk_doh.py` name `api-fxpractice.oanda.com` and do not assign `api-fxtrade`. `oanda_sleeve.py` can POST `/orders` to that practice host. The THF book path logs `paper_order` with `paper_only`. | Practice-host orders are not a retail live account. This checkout does not prove the live process never calls the sleeve. |
 | Learning | Trace separates included, cited, and validated. A cited close is an outcome link, not an edge. Six admins have no traced turn. | Not a finished learning result. |
@@ -29,7 +29,7 @@ Not a small patch. Do not describe the current desk as tenant-isolated.
 - Posts without `Origin` are accepted. That matches tailnet curl. It is not a CSRF token.
 - Chat images are readable by anyone on the tailnet who has the id.
 - `oanda_sleeve.py` order POST is practice-host only. Whether the running THF process calls it was not observed here.
-- Python listens on `0.0.0.0` inside `thf_dash.py`. The nginx excerpt binds the public ports to the tailnet address. Firewall rules in front of `28870` were not in this checkout.
+- The app code used to bind `0.0.0.0`. Host rules already deny inbound 28870, and nginx uses loopback. The default bind is now `127.0.0.1` unless `THF_DASH_BIND` is set. The port still comes from `THF_DASH_PORT`. The unit file itself was not in this checkout.
 - Restart durability of the comparison clock is in the clock bundle now being deployed. This audit does not redeploy it.
 
 ## Not a code defect
@@ -39,11 +39,11 @@ Not a small patch. Do not describe the current desk as tenant-isolated.
 
 ## Paths not in this checkout
 
-Do not guess these. Read-only, if a later pass needs them:
+The 6 Nov host audit already recorded UFW and the nginx listen addresses. Still not in this tree:
 
-- The installed nginx file, to confirm it still matches `nginx_safe/tfo-dash.conf.excerpt`.
-- The host firewall for `127.0.0.1:28870` and `0.0.0.0:18870`.
-- Whether the live THF process imports `oanda_sleeve`.
+- `/etc/systemd/system/tfo-dash-thf.service` (the `Environment=` lines, including `THF_DASH_PORT`). The running process is on 28870, so the unit sets that port; this file was not attached.
+- DigitalOcean's cloud firewall.
+- Whether the live THF process imports `oanda_sleeve`. The practice host and its assert are in the source, and the host audit says the practice timers are enabled.
 
 ## Scope of this upgrade
 

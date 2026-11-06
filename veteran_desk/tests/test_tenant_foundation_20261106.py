@@ -80,6 +80,27 @@ def test_viewer_cannot_upload_and_member_cannot_administer(tmp_path):
     assert store.paper(viewer)["paper_only"] is True
     own = store.upload(member, "x.png", b"abc")
     assert store.read_upload(member, own["id"]) == b"abc"
+    with pytest.raises(T.Denied):
+        store.upload(member, "../paper.json", b"abc")
+    with pytest.raises(T.Denied):
+        store.read_upload(member, "../paper.json")
     rows = store.audit(viewer)
     assert rows and all(row["tenant_id"] == store.context(viewer)["tenant_id"] for row in rows)
     assert all(row["tenant_id"] != "tn_other" for row in rows)
+
+
+def test_bad_login_and_expired_session_are_refused(tmp_path):
+    store = _store(tmp_path)
+    store.provision_tenant("ada@example.com", "correct-horse-1", "Ada")
+    with pytest.raises(T.Denied):
+        store.login("ada@example.com", "wrong-password-9")
+    with pytest.raises(T.Denied):
+        store.login("nobody@example.com", "correct-horse-1")
+    token = store.login("ada@example.com", "correct-horse-1")
+    sessions = json.loads((tmp_path / "customers" / "sessions.json").read_text(encoding="utf-8"))
+    key = next(iter(sessions))
+    sessions[key]["expires"] = 1
+    (tmp_path / "customers" / "sessions.json").write_text(json.dumps(sessions), encoding="utf-8")
+    with pytest.raises(T.Denied):
+        store.paper(token)
+    assert not hasattr(store, "revoke")

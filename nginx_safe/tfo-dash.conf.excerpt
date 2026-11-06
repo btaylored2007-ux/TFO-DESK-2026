@@ -1,0 +1,55 @@
+# TFO dashboards READ-ONLY (PAPER). Tailnet only. Primary = droplet copy; backup = Mac; stale cache if both down.
+proxy_cache_path /var/cache/nginx/tfo levels=1:2 keys_zone=tfo:10m max_size=200m inactive=7d use_temp_path=off;
+upstream tfo_vd  { server 127.0.0.1:28860 max_fails=1 fail_timeout=15s; server 100.127.19.45:18860 backup; }
+upstream tfo_thf { server 127.0.0.1:28870 max_fails=0; }   # dasheli10_20261103 FIGURES: droplet only. Was max_fails=1 fail_timeout=15s + Mac backup: one failed connect (a dash restart) sent 15 s of traffic to the Mac dash (other code, other snapshot)
+map $server_port $tfo_fresh { 18870 1; default 0; }   # dasheli10_20261103: THF never served from the 5 s cache (see location /)
+upstream tfo_wr  { server 100.127.19.45:18812; }
+map $server_port $tfo_up { 18860 tfo_vd; 18870 tfo_thf; 18812 tfo_wr; }
+server {
+  gzip on; gzip_proxied any; gzip_comp_level 5; gzip_min_length 1024; gzip_types application/json text/css application/javascript text/plain;   # msgfix_20261102
+  listen 100.120.8.11:18860; listen 100.120.8.11:18870; listen 100.120.8.11:18812;
+  location ~ ^/api/(funder_msg|funder_ack|advisor_note|chat_react|seat_schedule)$ {   # tfo_funmsg_20261102: POST only for funder messages. The Nov 2 PIN check was removed in code (check_pin returns true); this comment must not be read as an enforced PIN. THF port only, never cached. pushhealth_20261103: + chat_react + seat_schedule.
+    if ($server_port != 18870) { return 404; }
+    limit_except POST { deny all; }
+    client_max_body_size 8k;
+    proxy_pass http://127.0.0.1:28870;
+    proxy_set_header Host $host;
+    proxy_cache off;
+    add_header Cache-Control "no-store" always;
+  }
+  location ~ ^/api/(advisor_thread|funder_msgs) {   # tfo_advnotes_20261102: GET only, never cached (threads must show new replies at once)
+    if ($server_port != 18870) { return 404; }
+    limit_except GET HEAD { deny all; }
+    proxy_pass http://127.0.0.1:28870;
+    proxy_set_header Host $host;
+    proxy_cache off;
+    add_header Cache-Control "no-store" always;
+  }
+  location = /api/chat_img {   # chatfix_20261103 (fixer3): chat image attach POST was 403 (fell into location / limit_except GET). JSON data_url or multipart/form-data; upstream caps the image at 8MB
+    if ($server_port != 18870) { return 404; }
+    limit_except POST { deny all; }
+    client_max_body_size 12m;
+    proxy_pass http://127.0.0.1:28870;
+    proxy_set_header Host $host;
+    proxy_read_timeout 60s;
+    proxy_cache off;
+    add_header Cache-Control "no-store" always;
+  }
+  location / {
+    limit_except GET HEAD { deny all; }
+    proxy_pass http://$tfo_up;
+    proxy_set_header Host $host;
+    proxy_connect_timeout 3s; proxy_read_timeout 60s;
+    proxy_next_upstream error timeout http_502 http_503 http_504;
+    proxy_cache tfo; proxy_cache_key "$server_port$request_uri";
+    proxy_cache_bypass $tfo_fresh; proxy_no_cache $tfo_fresh;   # dasheli10_20261103 FIGURES: stale-while-updating handed the first visitor an old copy (16:54 phone check got the 15:56 page); the THF dash keeps its state warm, so fresh is fast
+    proxy_ignore_headers Cache-Control Expires Set-Cookie;
+    proxy_cache_valid 200 5s;
+    proxy_cache_use_stale error timeout updating http_500 http_502 http_503 http_504;
+    proxy_cache_background_update on; proxy_cache_lock on;
+    add_header X-TFO-Mirror "read-only PAPER" always;
+    add_header X-TFO-Upstream $upstream_addr always;
+    add_header X-TFO-Cache $upstream_cache_status always;
+    add_header Cache-Control "no-store" always;
+  }
+}

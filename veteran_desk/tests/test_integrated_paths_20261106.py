@@ -66,7 +66,7 @@ def test_brain_then_chat_then_validated_check(tmp_path, monkeypatch):
     assert rows[-1]["level"] == "validated" and rows[-1]["evidence"]["check"] == "holdout_no_rule_change"
     states = {item["seat"]: item["state"] for item in LT.coverage(rows)}
     assert len(states) == 18 and states["banks"] == "validated_impact_recorded"
-    assert states["head_of_desk"] == "no_evidence"
+    assert states["head_of_desk"] == "waiting_for_work"
 
 def test_brain_records_outside_pytest_without_an_env_flag(tmp_path, monkeypatch):
     monkeypatch.setattr(SB, "DIR", str(tmp_path / "brains"))
