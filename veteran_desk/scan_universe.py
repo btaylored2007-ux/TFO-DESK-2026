@@ -206,15 +206,155 @@ def essentials_tags():
         S = json.load(open(os.path.join(P.BASE, "state", "essentials_screen.json")))
         return {d["tk"]: d.get("sleeve") or k for k in ("core", "spec") for d in S.get(k, []) if d.get("tk") and not d.get("why")}
     except Exception: return {}
-def _news_syms():
-    try: return set((json.load(open(os.path.join(P.BASE, "state", "veteran_desk", "news.json"))).get("asset_tags") or {}).keys())
+def _news_syms(asof=None):
+    try:
+        from veteran_desk.filing_freshness import wire_fresh
+        tags=json.load(open(os.path.join(P.BASE,"state","veteran_desk","news.json"))).get("asset_tags") or {}
+        return {sym for sym,rows in tags.items() if any(wire_fresh(row,asof) for row in rows or [])}
     except Exception: return set()
+# gradefix_20261103 (F4, news_filings 21:14 WITA ch-1793712178-11a1 defect B): a 'news hit' carried no form type, filed time or headline, so the
+# seat could not verify the filing it trades. news_hit(sym) = the newest record behind the flag (news.json asset_tags, else the EDGAR 8-K
+# cache), every field present or 'unknown: <reason>'. Read-only files; no network.
+import re as _re
+_ACC = _re.compile(r"(\d{10}-\d{2}-\d{6})|/(\d{18})/")
+def _news_src():
+    try: A = (json.load(open(os.path.join(P.BASE, "state", "veteran_desk", "news.json"))).get("asset_tags") or {})
+    except Exception: A = {}
+    K={}
+    try:
+        records=json.load(open(os.path.join(P.BASE,"state","veteran_desk","edgar_8k_cache.json"))).get("rows") or []
+        for row in sorted(records,key=lambda r:(str(r.get("accepted_utc") or r.get("filed") or ""),str(r.get("accession") or "")),reverse=True):
+            if row.get("sym"):K.setdefault(row["sym"],row)
+    except Exception:pass
+    return A, K
+def news_hit(sym, src=None, now=None):
+    """gradefix_20261103: dict(kind, form, items, filed_utc, filed_wita, accession, url, headline, source, age_h) for the newest record behind a news flag."""
+    A, K = src if src is not None else _news_src(); now = now or dt.datetime.now(dt.timezone.utc); U = "unknown: "
+    def _ts(x):
+        try: t = dt.datetime.fromisoformat(str(x).replace("Z", "+00:00")); return t if t.tzinfo else t.replace(tzinfo=dt.timezone.utc)
+        except Exception: return None
+    def _acc(url):
+        m = _ACC.search(str(url or ""))
+        if not m: return None
+        if m.group(1): return m.group(1)
+        d = m.group(2); return "%s-%s-%s" % (d[:10], d[10:12], d[12:])
+    items = sorted((A.get(sym) or []), key=lambda x: str(x.get("published_utc") or ""), reverse=True)
+    if items:
+        x = items[0]; url = x.get("link"); title = (x.get("title") or "").strip(); sec = "sec.gov/" in str(url or "")
+        t = _ts(x.get("published_utc")); acc = _acc(url) if sec else None
+        form = (title.split(" - ", 1)[0].strip() if sec and " - " in title else (U + "SEC record without a form prefix" if sec else U + "news wire item (%s), not an SEC filing" % (x.get("source") or "?")))
+        result=dict(kind="sec_filing" if sec else "news_wire", form=form, items=U + "no 8-K items in this record" if sec else U + "not an SEC filing",
+                    filed_utc=t.strftime("%Y-%m-%d %H:%M UTC") if t else U + "no timestamp in news.json", filed_wita=(t + dt.timedelta(hours=8)).strftime("%Y-%m-%d %H:%M WITA") if t else U + "no timestamp",
+                    accession=acc or (U + ("no accession in the EDGAR link" if sec else "not an SEC filing")), url=url or U + "no link in news.json",
+                    headline=title[:160] or U + "empty title", source=("EDGAR (news.json feed label '%s')" % x.get("source")) if sec else (x.get("source") or U + "no source"),
+                    age_h=round((now - t).total_seconds() / 3600, 1) if t else None, n_records=len(items))
+        if sec:
+            from veteran_desk.filing_freshness import annotate
+            fact=annotate(sym,dict(x,form=form,accession=acc,url=url),now)
+            for key in ("form","accepted_utc","report_date","event_date","amended","stale_event","fresh_filing","freshness_reason"):result[key]=fact.get(key)
+            if fact.get("accepted_utc"):
+                stamp=_ts(fact["accepted_utc"]);result.update(filed_utc=stamp.strftime("%Y-%m-%d %H:%M UTC"),filed_wita=stamp.astimezone(dt.timezone(dt.timedelta(hours=8))).strftime("%Y-%m-%d %H:%M WITA"),age_h=round((now-stamp).total_seconds()/3600,1))
+        return result
+    k = K.get(sym)
+    if k:
+        from veteran_desk.filing_freshness import annotate
+        k=annotate(sym,k,now);txt=re_ws(k.get("text") or "");public=str(k.get("filed") or "")
+        accepted=k.get("accepted_utc")
+        return dict(kind="sec_filing",form=k.get("form") or "unknown",items=", ".join(k.get("items") or []) or U+"EDGAR index lists no item numbers",filed_utc=accepted or U+"SEC EFTS supplies a public filing date only ("+public+")",filed_wita=(_ts(accepted)+dt.timedelta(hours=8)).strftime("%Y-%m-%d %H:%M WITA") if _ts(accepted) else U+"exact acceptance time unavailable",public_date=public,report_date=k.get("report_date"),amended=k.get("amended"),stale_event=k.get("stale_event"),fresh_filing=k.get("fresh_filing"),freshness_reason=k.get("freshness_reason"),accession=k.get("accession") or _acc(k.get("url")),url=k.get("url") or U+"no URL",headline=txt[:160] or U+"primary text not cached",source="SEC EFTS; exact acceptance when available from submissions cache",age_h=k.get("age_days")*24 if k.get("age_days") is not None else None,n_records=1)
+    return dict(kind=U + "no record", form=U + "flag set but no record found in news.json or the 8-K cache", items=U + "no record", filed_utc=U + "no record", filed_wita=U + "no record",
+                accession=U + "no record", url=U + "no record", headline=U + "no record", source=U + "no record", age_h=None, n_records=0)
+def re_ws(t): return " ".join(str(t).split())
+# volsplice_20261103 (17:58) blanked relvol on EVERY ranked name: its rule called any 20-bar window holding yahoo* rows before 2026-10-30
+# and yahoo_batch/eodhd/yahoo_sgp rows after it "mixed" - i.e. every window until ~1 Dec.
+# gradefix_20261103 (F3) MEASURED 3 Nov (Yahoo chart v8 re-fetch vs stored pit rows, same dates, 9,626 liquid names): old yahoo rows =
+# Yahoo's daily volume exactly (ratio 1.000); new yahoo_batch/eodhd_bulk_sgp/yahoo_sgp rows = the same consolidated daily share volume
+# (median 0.985; most within ~1%), but a row stored right at the close is never refreshed and can read off (p10 0.90, p90 1.01; ROR.L 11-02
+# 0.49x, XOM 0.79x; KRX up to 1.3x). ENDW/INOV/NVBW jumps are real (Yahoo shows the same 547,800 / 145,000 / 217,900). The off-basis feed
+# is ibkr_hist(TRADES,RTH) (161 LSE rows on 10-28, median 0.28x: EZJ.L 0.06x). The window was re-based to Yahoo final (vol_rebase.py).
+# Rule: volume ratios use ONE basis = the newest bar's family; other-family bars are dropped; fewer than VB_MIN of the window left ->
+# relvol None (fail closed, reason names the feeds). Rows re-based to Yahoo's final volume carry src '|vrebase' (veteran_desk/vol_rebase.py).
+VOL_BASIS_SINCE = os.environ.get("THF_VOL_BASIS_SINCE", "2026-10-30")   # gradefix_20261103: kept for callers; no longer a blanket splice
+VB_MIN = int(os.environ.get("THF_VOL_BASIS_MIN", "15"))
+def vol_family(src):
+    """gradefix_20261103: volume basis of one bar from its src tag."""
+    s = str(src or "").lower()
+    if "|vrebase" in s: return "consolidated"
+    if "oanda" in s: return "oanda_tick"   # FX: OANDA tick volume (oanda_practice_D_mid_sgp and yahoo_chart_v8_sgp+oanda_tickvol rows)
+    if s.startswith(("yahoo", "eodhd")): return "consolidated"
+    if s.startswith("ibkr"): return "ibkr_rth"
+    if s.startswith("kraken"): return "kraken"
+    return s.split("|")[0].split("(")[0].split("+")[0] or "unknown"
+def vol_basis(c, sym, rows, n=20):
+    """gradefix_20261103: (keep, note). keep = one bool per bar of rows[-n:] (True = same basis as the newest bar); keep None = no
+    consistent basis (relvol must stay None). note = None when the whole window is one basis."""
+    w = rows[-n:]
+    if not w: return None, "no bars"
+    try: q = dict(c.execute("SELECT date,src FROM bars WHERE sym=? AND date>=? AND date<=?", (sym, str(w[0][0]), str(w[-1][0]))).fetchall())
+    except Exception: return None, "vol_basis_unknown: bar source unreadable"
+    fam = [vol_family(q.get(str(r[0]))) for r in w]; keep = [f == fam[-1] for f in fam]
+    if all(keep): return keep, None
+    drop = ",".join(sorted(set(f for f, k in zip(fam, keep) if not k)))
+    if sum(keep) >= min(VB_MIN, len(w)) and sum(keep[-5:]) >= 3: return keep, "same-basis %d/%d bars (%s dropped)" % (sum(keep), len(w), drop)
+    return None, "vol_basis_mixed: %d/%d bars %s, rest %s (< %d same-basis)" % (sum(keep), len(w), fam[-1], drop, VB_MIN)
+def vol_basis_mixed(c, sym, rows, n=20):   # gradefix_20261103: True only when no consistent basis exists (was: any window spanning 10-30)
+    return vol_basis(c, sym, rows, n)[0] is None
+def relvol_same_basis(vo, keep):
+    """gradefix_20261103: avg volume of the last 5 same-basis bars / avg of the last 20 same-basis bars (keep aligned to vo[-len(keep):])."""
+    if keep is None: return None
+    w = [v for v, k in zip(vo[-len(keep):], keep) if k]; w5 = [v for v, k in zip(vo[-len(keep):][-5:], keep[-5:]) if k]
+    if not w or not w5: return None
+    if sum(w) <= 0: return 0.0   # no volume on this basis (e.g. Yahoo spot FX): 0.0 as before, never a pass
+    return max(0.0, min((sum(w5) / len(w5)) / (sum(w) / len(w)), 3.0))
+def rvol_gate(r, keep=None):
+    """gradefix_20261103: the B-gate's own measure (b_tight.rvol_from_rows: last completed bar / median of the 20 before it), same-basis bars."""
+    try:
+        from veteran_desk import b_tight as _BT
+        rows = r[-21:]
+        if keep is not None and len(keep) == len(rows): rows = [x for x, k in zip(rows, keep) if k]
+        return _BT.rvol_from_rows(rows)
+    except Exception: return None
+def bias_provenance(rows,got,asof,basis,latest=None):
+    """Label the completed-bar decision basis; a later 5% quote move is advisory only."""
+    supplied=latest is not None;latest={} if latest is None else latest
+    if not supplied and not os.environ.get("PYTEST_CURRENT_TEST"):
+        try:
+            import sqlite3
+            from veteran_desk import intraday_store as IB
+            c=sqlite3.connect("file:"+os.path.abspath(IB.path())+"?mode=ro",uri=True,timeout=.2)
+            try:
+                cutoff=int(asof.timestamp()*1000)-300000
+                for row in rows:
+                    quote=c.execute("SELECT ts,c,src FROM bars WHERE sym=? AND tf='5m' AND ts<=? ORDER BY ts DESC LIMIT 1",(row["sym"],cutoff)).fetchone()
+                    if quote:latest[row["sym"]]=quote
+            finally:c.close()
+        except Exception:pass
+    for row in rows:
+        bars=got.get(row["sym"]) or []
+        if not bars:continue
+        last=bars[-1];reference=last[4]
+        row.update(bias_source_date=last[0],bias_asof_utc=last[6] if len(last)>6 else None,bias_reference_close=reference,bias_basis=basis,bias_stale=False)
+        quote=latest.get(row["sym"])
+        if quote and reference and quote[0]/1000<=asof.timestamp():
+            qt=dt.datetime.fromtimestamp(quote[0]/1000,dt.timezone.utc)+dt.timedelta(minutes=5)
+            source=_filing_timestamp(last[6] if len(last)>6 else None)
+            if source and qt>source:
+                move=quote[1]/reference-1
+                row.update(bias_newer_price=quote[1],bias_newer_price_utc=qt.isoformat(),bias_newer_price_source=quote[2],bias_newer_move=round(move,4),bias_newer_price_age_min=round((asof-qt).total_seconds()/60,2),bias_stale=abs(move)>=.05 and (asof-qt).total_seconds()<=1200)
+        row["bias_note"]="Technical preference from the dated inputs; a later event or price requires a fresh review."
+    return rows
+def _filing_timestamp(value):
+    try:
+        value=dt.datetime.fromisoformat(str(value).replace("Z","+00:00"))
+        return value.replace(tzinfo=dt.timezone.utc) if value.tzinfo is None else value
+    except (ValueError,TypeError):return None
 def rank_candidates(c, syms, asof, n=120, extra_news=None, mode="default"):
     if mode in ("trend", "price_action"): return rank_dex(c, syms, asof, n, mode)
     """Score every liquid seat name; return (top n syms, rows, scored count). Candidate list only - never touches the gate."""
-    FR = _factor_rank(); NW = _news_syms() | set(extra_news or ()); rows = []; ES = essentials_tags()
+    FR = _factor_rank(); NW = _news_syms(asof) | set(extra_news or ()); rows = []; ES = essentials_tags()
+    _NS = _news_src()   # gradefix_20261103: records behind each news flag (news_hit)
+    got = P.bars_asof_many(c, syms, asof, 210)
     for s in syms:
-        r = P.bars_asof(c, s, asof, 210)
+        r = got.get(s) or []
         if len(r) < 64: continue
         cl = [x[4] for x in r]; vo = [x[5] or 0 for x in r]; last = cl[-1]
         if not last or not cl[-22] or not cl[-64]: continue
@@ -223,11 +363,14 @@ def rank_candidates(c, syms, asof, n=120, extra_news=None, mode="default"):
         up = (last > s50) + (s50 > s200) + (r3 > 0); dn = (last < s50) + (s50 < s200) + (r3 < 0)
         trend = max(up, dn) / 3.0 + min(abs(r3), 0.5)
         if abs(r1) > 0.25: trend -= 0.5   # extended = chase risk
-        v20 = sum(vo[-20:]) / 20.0; rv = (sum(vo[-5:]) / 5.0 / v20) if v20 > 0 else 0.0; rv = max(0.0, min(rv, 3.0))
+        keep, vnote = vol_basis(c, s, r, 21)   # gradefix_20261103: ONE volume basis (newest bar's feed family), see vol_basis
+        rv = relvol_same_basis(vo[-20:], keep[-20:] if keep else None); vb = keep is None
+        rb = rvol_gate(r, keep); rb = None if rb is None else round(rb, 2)
         nh = 1.0 if s in NW else 0.0; fr = FR.get(s, 0.0)
-        sc = trend + 0.5 * (rv - 1.0) + 1.0 * nh + 0.5 * fr
-        rows.append(dict(sym=s, score=round(sc, 3), trend=round(trend, 3), relvol=round(rv, 2), news=bool(nh), factor=round(fr, 2), bias="LONG" if up >= dn else "SHORT", unusual_vol=rv >= 2.0, essentials=ES.get(s)))
-    rows.sort(key=lambda x: -x["score"]); return [x["sym"] for x in rows[:n]], rows[:n], len(rows)
+        sc = trend + (0.0 if rv is None else 0.5 * (rv - 1.0)) + 1.0 * nh + 0.5 * fr
+        rows.append(dict(sym=s, score=round(sc, 3), trend=round(trend, 3), relvol=None if rv is None else round(rv, 2), news=bool(nh), factor=round(fr, 2), bias="LONG" if up >= dn else "SHORT", unusual_vol=(rv is not None and rv >= 2.0), essentials=ES.get(s), rvol_b=rb, **({"vol_reason": vnote} if vnote else {}), **({"news_hit": news_hit(s, _NS)} if nh else {})))   # gradefix_20261103: rvol_b = B-gate rvol; vol_reason = basis note
+    rows.sort(key=lambda x: -x["score"]); selected=bias_provenance(rows[:n],got,asof,"daily close/SMA50/SMA200/3-month return")
+    return [x["sym"] for x in selected],selected,len(rows)
 # ---- tfo_seatpipe_4_20261030: durable Yahoo sector fill for non-US liquid names (was a one-off /tmp script). Cached in sector_map_intl.json;
 # misses cached in sector_map_intl_miss.json and retried after 14 days. Throttled; daily via run_scan_refresh.sh. ----
 MISS = os.path.join(P.BASE, "data", "pit", "sector_map_intl_miss.json")
@@ -253,9 +396,9 @@ def fill_intl_sectors(limit=400, pause=0.3):
 
 # ---- tfo_seatpipe_dexsplit_20261030 (TFO 18:20 WITA): Dex seats rank differently. Candidate list only - gate untouched. ----
 def rank_dex(c, syms, asof, n=120, mode="trend"):
-    rows = []
+    rows = []; got = P.bars_asof_many(c, syms, asof, 260)
     for s in syms:
-        r = P.bars_asof(c, s, asof, 260)
+        r = got.get(s) or []
         if len(r) < 200: continue
         cl = [x[4] for x in r]; hi = [x[2] for x in r]; lo = [x[3] for x in r]; vo = [x[5] or 0 for x in r]; last = cl[-1]
         if not last or not all(cl[-k] for k in (22, 127, min(253, len(cl)))): continue
@@ -274,4 +417,5 @@ def rank_dex(c, syms, asof, n=120, mode="trend"):
             ext = abs(last - sum(cl[-20:]) / 20) / atr   # distance from SMA20 in ATRs
             sc = 0.6 * min(max(rv, rv5), 3.0) + (1.5 if (bo_up or bo_dn) else 0.0) - 0.5 * max(0.0, ext - 2.0)
             rows.append(dict(sym=s, score=round(sc, 3), rvol=round(rv, 2), rvol5=round(rv5, 2), breakout_hold="up" if bo_up else ("down" if bo_dn else None), atr_ext=round(ext, 2), unusual_vol=rv >= 2.0, bias="SHORT" if bo_dn else "LONG"))
-    rows.sort(key=lambda x: -x["score"]); return [x["sym"] for x in rows[:n]], rows[:n], len(rows)
+    rows.sort(key=lambda x: -x["score"]); selected=bias_provenance(rows[:n],got,asof,"12-1/6-1 momentum and daily trend" if mode=="trend" else "completed-bar volume and breakout hold")
+    return [x["sym"] for x in selected],selected,len(rows)

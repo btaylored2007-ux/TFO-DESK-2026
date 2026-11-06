@@ -122,8 +122,9 @@ def crypto_qty(entry, stop, risk_usd, lot_decimals=8, maker_in=True, taker_out=T
 def pre_trade(sym, side, qty, px, now=None, borrow_data=None):
     """Single hook for book.py: returns dict(ok, why, extra). Only shorts of cash equities need a locate; crypto spot shorts are refused (no margin borrow modelled)."""
     s = str(sym).upper(); short = str(side).upper() in ("SHORT", "SELL")
+    if s.startswith("PF_"): s = "KRAKEN:" + s   # tfo_pfshort_20261101: bare PF_ perp symbol = Kraken Futures
     if s.startswith("KRAKEN:"):
-        if short and not s.startswith("KRAKEN:PF_"): return dict(ok=False, why="Kraken spot short not modelled (use PF_ perp)")
+        if short and not s.startswith("KRAKEN:PF_"): return dict(ok=False, why="crypto short blocked: Kraken spot short not allowed - only Kraken Futures PF_ perps may be shorted (Brett 2026-11-01)")
         return dict(ok=True, why="crypto", fee_rt_pct=kraken_round_trip_pct())
     if s in FUTURES: return dict(ok=True, why="futures", margin_usd=futures_margin(s, px, qty))
     if s.endswith("=X"): return dict(ok=True, why="fx", pip=pip_size(s))

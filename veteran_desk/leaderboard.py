@@ -11,7 +11,7 @@ ANTI-GAMBLING GUARDS (Brett 20:23 WITA "Yes add that"): (1) weekly A$5k only to 
 all-time high-water mark (book seat pnl_hwm_aud) at week end; else next eligible seat; none eligible -> no winner. (2) a seat down more than 5%
 week-to-date (equity vs Monday open mark, ex capital added) sits out daily prizes for the rest of that week ("sitting out (DD)").
 Per-trade rails unchanged (2-5% risk cap, stop on every trade).
-  python3 -m veteran_desk.leaderboard cutoff | standings | init"""
+  python3 -m veteran_desk.leaderboard cutoff | standings | init | thf_open (THF_DESK=1: roll state/thf/leaderboard_open.json, lbopen_20261103)"""
 import datetime as dt, json, os, sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from veteran_desk import book as BK
@@ -35,36 +35,94 @@ def _seat_of_event(e):
     s = str(e.get("source", "")); return s.split("for seat ", 1)[1].split()[0] if "for seat " in s else None
 def seats_ranked(D): return [s for s in BK.TRADERS if s in D["seats"] and s not in EXCLUDE]
 def week_monday(t): w = window_start(t).astimezone(WITA).date(); return (w - dt.timedelta(days=w.weekday())).isoformat()
+LATE_MIN = 10          # lbopen_20261103: marks (re)built more than 10 min after the window opened are LATE - baseline comes from the equity log, never "equity now"
+SNAP_SLACK_MIN = 90    # the tick logs seat equity at most hourly: accept a log line up to 90 min after (failing that, before) the window open
+_SNAP_CACHE = {}
+def snapshots_path():
+    """Seat equity log read for opening marks. THF: the tick's own hourly log beside the THF book (thf_book.json.snapshots.jsonl, seat_weekly_score);
+    VD: state/veteran_desk/seat_equity_snapshots.jsonl. seatbrain_20261102: THF must never read VD snapshots (Nora open 507,500.54 bug)."""
+    return (BK.BOOK + ".snapshots.jsonl") if os.environ.get("THF_DESK") == "1" else os.path.join(SD, "seat_equity_snapshots.jsonl")
+def _snapshots():
+    p = snapshots_path()
+    try: st = os.stat(p); key = (st.st_mtime_ns, st.st_size)
+    except Exception: return []
+    c = _SNAP_CACHE.get(p)
+    if c and c[0] == key: return c[1]
+    rows = []
+    try:
+        for l in open(p):
+            if l.strip():
+                try: r = json.loads(l)
+                except Exception: continue
+                if isinstance(r, dict) and r.get("utc") and isinstance(r.get("seats"), dict): rows.append(r)
+    except Exception: rows = []
+    rows.sort(key=lambda r: r["utc"]); _SNAP_CACHE[p] = (key, rows); return rows
+def is_late(ws, t):
+    ws = ws if hasattr(ws, "isoformat") else dt.datetime.fromisoformat(str(ws))
+    return (t - ws).total_seconds() > LATE_MIN * 60
+def window_open_snapshot(ws, t, first_fill=None):
+    """lbopen_20261103: the equity-log line that stands for the OPENING MARK of the window starting at ws when the marks are rebuilt late.
+    First line at/after ws (within SNAP_SLACK_MIN and not after t); if the first in-window fill came before that line and an earlier line exists,
+    the last line before ws instead (pre-fill, entry costs count against the day); else the last line in the 90 min before ws. None = nothing usable."""
+    ws = ws if hasattr(ws, "isoformat") else dt.datetime.fromisoformat(str(ws)); ws_ = ws.isoformat()
+    lo = (ws - dt.timedelta(minutes=SNAP_SLACK_MIN)).isoformat(); hi = min(ws + dt.timedelta(minutes=SNAP_SLACK_MIN), t).isoformat()
+    rows = [r for r in _snapshots() if lo <= r["utc"] < hi]
+    pre = [r for r in rows if r["utc"] < ws_]; post = [r for r in rows if r["utc"] >= ws_]
+    if post and (not first_fill or first_fill >= post[0]["utc"] or not pre): return post[0]
+    return pre[-1] if pre else None
 def prefill_equity(B, ws, t):
     """Follow-up 1 (TFO HT 21:16): day baseline = seat equity BEFORE any fill inside the window, so entry costs count against the day.
     For each position/closed trade filled in [ws, t) the pre-fill equity is equity_at_mark + its entry cost (at the fill instant mark == fill price,
     so the only equity change a fill makes is its cost) minus any P/L accrued after the fill up to the mark. Simplest exact form available:
-    baseline = last snapshot taken before the first in-window fill if one exists, else current equity + in-window entry costs."""
+    baseline = last snapshot taken before the first in-window fill if one exists, else current equity + in-window entry costs.
+    lbopen_20261103 (Brett 3 Nov 15:09 WITA, every day P/L and WTD read A$0): rebuilt LATE (> LATE_MIN after the window open - the THF dash mirror
+    loses its leaderboard_open.json to the 15 s state rsync and rebuilt every baseline as 'equity now') the baseline is the equity-log line at the
+    window open (window_open_snapshot). A seat missing from that line returns (None, why): standings() then opens it at its seed (mid-window birth rule)."""
     ws_ = ws.isoformat() if hasattr(ws, "isoformat") else str(ws); t_ = t.isoformat()
     fills = []
     for p in list(B.get("positions", {}).values()) + list(B.get("closed", [])):
         fu = (p.get("off_hours_fill_audit") or {}).get("filled_utc") or p.get("filled_utc")
         if fu and ws_ <= fu < t_: fills.append((fu, float(p.get("cost_aud") or 0)))
     eq = float(B.get("equity_aud") or B["seed_aud"])
+    first = min(f[0] for f in fills) if fills else None
+    if is_late(ws, t):
+        r = window_open_snapshot(ws, t, first)
+        if r is not None:
+            v = (r["seats"].get(B.get("_seat")) or {}).get("equity_aud")
+            if v is None: return None, "not in equity log %s (opens at seed)" % r["utc"]
+            return float(v), "equity log %s (late rebuild, window open %s)" % (r["utc"], ws_)
     if not fills: return eq, None
-    first = min(f[0] for f in fills); snap = None
+    snap = None
     try:
-        for l in open(os.path.join(SD, "seat_equity_snapshots.jsonl")):
-            r = json.loads(l)
-            if ws_ <= r["utc"] < first and B.get("_seat") in r.get("seats", {}): snap = float(r["seats"][B["_seat"]]["equity_aud"])
+        for r in _snapshots():
+            if ws_ <= r["utc"] < first and B.get("_seat") in r["seats"]: snap = float(r["seats"][B["_seat"]]["equity_aud"])
     except Exception: pass
     if snap is not None: return snap, "snapshot before first fill %s" % first
     return eq + sum(c for _, c in fills), "equity + in-window entry costs"
-def open_marks(D, t, prev=None):
-    ws = window_start(t); eqs = {}; why = {}
+def open_marks(D, t, prev=None, taken=None):
+    """taken = actual time the marks were read (tfo-lbprize-1031): after cutoff's prize tick() the opening equity already holds the
+    prize, so taken_utc must be stamped AFTER that tick or standings() subtracts the prize a second time.
+    lbopen_20261103: rebuilt LATE -> taken_utc = the equity-log line's time (capital added after it is capital, not P/L) and a new week_open
+    mid-week comes from the log line at Monday's 06:00 WITA open, never from today's equity (that made every WTD read A$0)."""
+    ws = window_start(t); eqs = {}; why = {}; tk = (taken or t).isoformat()
+    r0 = window_open_snapshot(ws, t) if is_late(ws, t) else None
+    if r0 is not None: tk = r0["utc"]; why["_day"] = "late rebuild %s: baseline = equity log %s" % (t.isoformat(), r0["utc"])
     for s in seats_ranked(D):
-        B = dict(D["seats"][s], _seat=s); eqs[s], w = prefill_equity(B, ws, t)
+        B = dict(D["seats"][s], _seat=s); v, w = prefill_equity(B, ws, t)
+        if v is not None: eqs[s] = v
         if w: why[s] = w
     wo = (prev or {}).get("week_open")
-    if not wo or wo.get("monday") != week_monday(t): wo = dict(monday=week_monday(t), taken_utc=t.isoformat(), seats=dict(eqs), sat_out={})
+    if not wo or wo.get("monday") != week_monday(t):
+        mon_ws = ws - dt.timedelta(days=ws.astimezone(WITA).weekday()); wk = dict(eqs); wk_tk = tk; wk_why = None
+        rw = window_open_snapshot(mon_ws, t) if (mon_ws < ws and is_late(mon_ws, t)) else None
+        if rw is not None:
+            wk = {s: float(rw["seats"][s]["equity_aud"]) for s in seats_ranked(D) if (rw["seats"].get(s) or {}).get("equity_aud") is not None}
+            wk_tk = rw["utc"]; wk_why = "late rebuild: Monday open %s = equity log %s" % (mon_ws.astimezone(WITA).strftime("%Y-%m-%d %H:%M WITA"), rw["utc"])
+        wo = dict(monday=week_monday(t), taken_utc=wk_tk, seats=wk, sat_out={})
+        if wk_why: wo["baseline_why"] = wk_why
     for s in eqs: wo["seats"].setdefault(s, eqs[s])
-    return dict(week_open=wo, window_start_utc=window_start(t).isoformat(), window_start_wita=window_start(t).astimezone(WITA).strftime("%Y-%m-%d %H:%M WITA"),
-                taken_utc=t.isoformat(), seats=eqs, baseline="pre-fill mark (entry costs count against the day)", baseline_why=why)
+    return dict(week_open=wo, window_start_utc=ws.isoformat(), window_start_wita=ws.astimezone(WITA).strftime("%Y-%m-%d %H:%M WITA"),
+                taken_utc=tk, seats=eqs, baseline="pre-fill mark (entry costs count against the day)", baseline_why=why)
 def holds(D):
     why = []
     for s in seats_ranked(D):
@@ -95,8 +153,37 @@ def equity_mismatch(rows, Dfresh=None):
             a, b = r.get(k), V.get(k)
             if a is not None and b is not None and abs(float(a) - float(b)) > 1.0: why.append("EQUITY MISMATCH %s %s leaderboard %.2f vs seat_cli %.2f (>A$1)" % (r["seat"], k, float(a), float(b)))
     return why
+def _book_day_ok(D, t):
+    """lbfix_20261103: True when the book has rolled its own day window (book.day == the 06:00 WITA cutoff date for t)."""
+    try: return str(D.get("day") or "") == window_start(t).astimezone(WITA).date().isoformat()
+    except Exception: return False
+def week_open_from_snapshots(D, t):
+    """lbfix_20261103: week baseline = first per-seat equity snapshot at/after Monday 06:00 WITA of the window's week (<book>.snapshots.jsonl)."""
+    try:
+        mon = dt.date.fromisoformat(week_monday(t)); ws = dt.datetime.combine(mon, dt.time(CUTOFF_WITA[0], CUTOFF_WITA[1]), WITA).astimezone(UTC).isoformat()
+        best = None
+        for l in open(BK.BOOK + ".snapshots.jsonl"):
+            try: r = json.loads(l)
+            except Exception: continue
+            if str(r.get("utc", "")) >= ws: best = r; break
+        if not best: return None
+        return dict(monday=mon.isoformat(), taken_utc=best.get("utc"), src="book snapshots (lbfix_20261103)",
+                    seats={s_: float(v["equity_aud"]) for s_, v in (best.get("seats") or {}).items() if isinstance(v, dict) and v.get("equity_aud") is not None})
+    except Exception: return None
+def _marks_need_rebuild(O, t):
+    """lbopen_20261103: True when the opening marks were TAKEN late (> LATE_MIN after the window open) without an equity-log baseline - the dash-mirror
+    bug signature (baselines re-taken from current marks) - and the equity log has a line for the open to rebuild from."""
+    try: ws = dt.datetime.fromisoformat(str(O.get("window_start_utc"))); tk = dt.datetime.fromisoformat(str(O.get("taken_utc")))
+    except Exception: return False
+    if tk > t or not is_late(ws, tk) or any("equity log" in str(v) for v in (O.get("baseline_why") or {}).values()): return False   # tk > t: clock skew / simulated time (tests) - never a late take
+    return window_open_snapshot(ws, t) is not None
 def standings(D=None, O=None, t=None):
-    D = D or BK.load(); t = t or _now(); O = O or _rj(OPEN) or open_marks(D, t); ws = O["window_start_utc"]
+    D = D or BK.load(); t = t or _now(); O = O or _rj(OPEN) or open_marks(D, t)
+    if _marks_need_rebuild(O, t):   # lbopen_20261103: self-heal - rebuild day + week baselines from the equity log, keep the week's sticky DD sit-outs
+        O2 = open_marks(D, t, None); O2["week_open"]["sat_out"] = dict(((O.get("week_open") or {}).get("sat_out") or {})); O2["rebuilt_from"] = dict(taken_utc=O.get("taken_utc"), why="opening marks taken late without an equity-log baseline"); O = O2
+    ws = O["window_start_utc"]
+    use_book = bool(BK.THF) and _book_day_ok(D, t)   # lbfix_20261103 (THF only - Marcus 15:31: the VD prize leaderboard keeps Brett's 06:00 WITA opening-mark rule; book.day rolls at 00:00 WITA) (Brett 15:11 WITA 3 Nov "numbers not working"): the dash's opening-marks file was re-taken from CURRENT marks on every refresh (open == equity) -> day P/L A$0.
+    # lbopen_20261103: the real fix is in open_marks/prefill_equity (late rebuild = equity log at the 06:00 WITA open) + thf_roll_open after every THF tick; the book's day fields are a fallback only (see below).
     add = {}
     for e in D.get("capital_events", []):
         s = _seat_of_event(e)
@@ -106,9 +193,18 @@ def standings(D=None, O=None, t=None):
         B = D["seats"][s]; eq = float(BK.seat_view(B)["equity_aud"])   # fix 3/7: one source with seat_cli
         a = add.get(s, 0.0)
         op = float(O["seats"][s]) if s in O["seats"] else float(B["seed_aud"]) - a   # seat born mid-window opens at its seed (seed injection is capital, not P/L)
-        rows.append(dict(seat=s, open_equity_aud=round(op, 2), equity_aud=round(eq, 2), capital_added_aud=round(a, 2), day_pnl_aud=round(eq - op - a, 2),
+        day = round(eq - op - a, 2)
+        # lbopen_20261103 (HT, verified): the book rolls its day at the WITA calendar date (book.py tick: day = t.astimezone(WITA).date(); every seat's day_start_equity_aud
+        # equals the 16:00Z = 00:00 WITA equity-log line), NOT at the 06:00 WITA cutoff, so its today_pnl_aud is a different window from this leaderboard's (header says 06:00 WITA;
+        # at the 06:00 cutoff it would hold only 6 h of P/L and the VD prizes would be paid on that). The 06:00 baseline comes from open_marks (equity log at the open when rebuilt late);
+        # the book's day fields are only the fallback for a seat that has no opening mark at all.
+        if use_book and s not in O["seats"] and B.get("day_start_equity_aud") is not None and B.get("today_pnl_aud") is not None: op = float(B["day_start_equity_aud"]); day = round(float(B["today_pnl_aud"]), 2)   # lbfix_20261103 (fallback only, lbopen_20261103)
+        rows.append(dict(seat=s, open_equity_aud=round(op, 2), equity_aud=round(eq, 2), capital_added_aud=round(a, 2), day_pnl_aud=day,
                          open_trades=sum(1 for p in B["positions"].values() if p.get("status") == "open"), mark_missing=[p["ticker"] for p in B["positions"].values() if p.get("status") == "open" and p.get("mark_missing")]))
     wo = O.get("week_open") or {}; wadd = {}
+    if not (wo.get("seats")) or wo.get("monday") != week_monday(t) or all(abs(float(wo["seats"].get(r["seat"], 0) or 0) - r["equity_aud"]) < 0.005 for r in rows):   # lbfix_20261103: absent/stale/current-mark week baseline -> rebuild from the book's snapshots
+        wo2 = week_open_from_snapshots(D, t)
+        if wo2: wo2["sat_out"] = wo.get("sat_out") or {}; wo = wo2
     for e in D.get("capital_events", []):
         s_ = _seat_of_event(e)
         if s_ and str(e.get("utc", "")) > wo.get("taken_utc", "9"): wadd[s_] = wadd.get(s_, 0.0) + float(e.get("amount_aud") or 0)
@@ -144,6 +240,11 @@ def apply_prizes(D, au, t):
             if D.get("day_start_equity_aud") is not None: D["day_start_equity_aud"] += x
             D.setdefault("capital_events", []).append(dict(type="leaderboard_prize", award_id=aid, seat=w["seat"], rank=w["rank"], amount_aud=x, amount_usd=round(x * au, 2), utc=t.isoformat(),
                 source="daily leaderboard prize %s rank %d for seat %s (paper capital, not P&L)" % (a["day"], w["rank"], w["seat"]), authorised="Brett 2026-10-28 20:13 WITA"))
+            try:
+                import audit
+                audit.capital("veteran", {"type": "leaderboard_prize", "award_id": aid, "seat": w["seat"], "rank": w["rank"], "amount_aud": x, "paper_only": True})
+            except Exception:
+                pass
 def weekly(day, holds_now, D=None):
     """day = WITA date the daily window opened. Runs only when that is a Friday (US Friday session, cutoff Sat 06:00 WITA)."""
     d0 = dt.date.fromisoformat(day)
@@ -183,7 +284,7 @@ def cutoff(t=None, tick=True):
     t = t or _now(); os.makedirs(SD, exist_ok=True)
     D = BK.tick() if tick else BK.load()   # fresh real marks first
     O = _rj(OPEN)
-    if not O: O = open_marks(D, t); _wj(OPEN, O); return dict(ok=True, action="init", open=O)
+    if not O: O = open_marks(D, t, taken=_now()); _wj(OPEN, O); return dict(ok=True, action="init", open=O)
     day = dt.datetime.fromisoformat(O["window_start_utc"]).astimezone(WITA).date().isoformat()
     if any(a.get("day") == day and a.get("kind", "daily") == "daily" for a in _awards()): return dict(ok=True, action="already_done", day=day)
     if t < dt.datetime.fromisoformat(O["window_start_utc"]) + dt.timedelta(hours=20): return dict(ok=False, action="too_early", day=day, window_start=O["window_start_utc"])
@@ -202,11 +303,23 @@ def cutoff(t=None, tick=True):
         with open(AWARDS, "a") as fh: fh.write(json.dumps(wk, default=str) + "\n")
         rec["weekly"] = wk
     D = BK.tick() if (tick and (rec["status"] == "awarded" or (wk or {}).get("status") == "awarded")) else D   # apply prize capital now (idempotent)
-    _wj(OPEN, open_marks(D, t, O)); _wj(LIVE, standings(D, _rj(OPEN), t))
+    _wj(OPEN, open_marks(D, t, O, taken=_now() if tick else None)); _wj(LIVE, standings(D, _rj(OPEN), t))
     return dict(ok=True, action=rec["status"], record=rec)
+THF_OPEN = os.path.join(BK.THF_DIR, "leaderboard_open.json")   # lbopen_20261103: THF opening marks live beside the THF book (the dash mirror rsyncs state/thf)
+def thf_roll_open(t=None, force=False):
+    """lbopen_20261103 (Brett 3 Nov 15:09 WITA 'dashboard numbers not working'): keep state/thf/leaderboard_open.json current. Runs after every THF
+    tick (run_thf_tick_sgp.sh, THF_DESK=1): rolls the day marks when the 06:00 WITA window changed (on time = equity after that tick, exactly the VD
+    cutoff rule; late = equity log at the open) and the week marks on Monday. THF only; writes nothing but that file. PAPER."""
+    if not BK.THF: return dict(ok=False, error="THF_DESK=1 only (never the VD open marks)")
+    t = t or _now(); D = json.load(open(BK.BOOK)); prev = _rj(THF_OPEN)
+    cur = bool(prev) and prev.get("window_start_utc") == window_start(t).isoformat() and set(prev.get("seats") or {}) >= set(s for s in seats_ranked(D)) and (prev.get("week_open") or {}).get("monday") == week_monday(t)
+    if cur and not force: return dict(ok=True, action="current", window_start_wita=prev.get("window_start_wita"), taken_utc=prev.get("taken_utc"))
+    O = open_marks(D, t, prev, taken=_now()); _wj(THF_OPEN, O)
+    return dict(ok=True, action="rolled", window_start_wita=O["window_start_wita"], taken_utc=O["taken_utc"], seats=O["seats"], baseline_why=O.get("baseline_why"), week_open=O["week_open"])
 if __name__ == "__main__":
     c = (sys.argv[1:] or ["standings"])[0]
     if c == "cutoff": print(json.dumps(cutoff(), default=str))
+    elif c == "thf_open": print(json.dumps(thf_roll_open(force="--force" in sys.argv), default=str))   # lbopen_20261103
     elif c == "init":
         D = BK.load(); O = _rj(OPEN)
         if O: print(json.dumps(dict(ok=False, error="open marks already exist", open=O)))

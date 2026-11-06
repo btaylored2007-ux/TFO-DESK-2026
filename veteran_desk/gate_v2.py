@@ -1,8 +1,8 @@
-"""Veteran desk risk gate v2 (Ada Stroud). Code only, PAPER, NEVER arms; every pass still needs Brett's tick before book.py may open it.
+"""Veteran desk risk gate v2 (Ada Stroud). Code only, PAPER, NEVER arms itself; a pass is queued auto-approved and book.py arms it in the proposing seat's book (no Brett tick - Brett 2 Nov 20:20 WITA).
 2026-10-28 Brett: gate must not be too strict and must use all the point-in-time history.
 History: data/pit/pit.sqlite (read-only) with fallback to data/pit_staging/* (available_at_utc <= asof; no lookahead). Longest PIT series wins.
 HARD (block): banned asset, B grade, bad side, stop missing/wrong side/inside noise (<0.5 ATR) or absurdly wide (>6 ATR), R:R<min,
-  correlated-heat cap, ADV>5% (cannot get out), crypto short, borrow explicitly refused, kill switch FLAT, firm HALT,
+  correlated-heat cap, ADV>5% (cannot get out), crypto SPOT short (PF_ perp shorts allowed 2026-11-01), borrow explicitly refused, kill switch FLAT, firm HALT,
   history base rate clearly negative on enough samples, challenger-opposite AND advocate factual kill together.
 WARN (size-down, never block): missing data of any kind, stale data, one LLM objection, stop narrower than normal 10d noise, gap risk,
   moderate correlation, ADV 1-5%, mildly negative base rate, chop, chase."""
@@ -56,12 +56,50 @@ def _staging_rows(sym, asof):
 CRYPTO_ALIAS = {"BTC": "XBTUSD", "XBT": "XBTUSD", "ETH": "ETHUSD", "XRP": "XRPUSD", "SOL": "SOLUSD", "ADA": "ADAUSD", "LINK": "LINKUSD", "DOGE": "DOGEUSD", "LTC": "LTCUSD", "DOT": "DOTUSD", "AVAX": "AVAXUSD"}
 def canon(sym, crypto_hint=False):
     s = str(sym or "").upper().strip()
+    if s.startswith("PF_"): return "KRAKEN:" + s   # tfo_pfshort_20261101: Kraken Futures perp
     if s.startswith("KRAKEN:"): return s
     for sep in ("-USD", "/USD", "USD", "-AUD"):
         if s.endswith(sep) and s[: -len(sep)] in CRYPTO_ALIAS: return "KRAKEN:" + CRYPTO_ALIAS[s[: -len(sep)]]
     if s in ("XBTUSD", "ETHUSD", "XRPUSD", "SOLUSD"): return "KRAKEN:" + s
     if s in ("BTC", "XBT", "ETH", "XRP") or (crypto_hint and s in CRYPTO_ALIAS): return "KRAKEN:" + CRYPTO_ALIAS[s]   # bare BTC/ETH/XRP = the coins on this desk (US rows BTC/ETH/XRP are an ETF/stock)
     return sym
+# tfo_pfshort_20261101 (Brett/funder 2026-11-01 07:20 WITA, PAPER ONLY): crypto SHORTS allowed ONLY as Kraken Futures PF_ perpetuals.
+# Spot crypto shorts (and any other venue) stay blocked. PF_ shorts keep stop above entry, normal seat risk, heat/firm caps, funding in cost_R.
+PF_FUNDING_DEFAULT_H = 0.00005   # conservative relative funding per hour charged when the live Kraken Futures rate is unavailable (~0.12%/day)
+def is_pf_perp(sym):
+    s = str(sym or "").upper().strip()
+    return s.startswith("KRAKEN:PF_") or s.startswith("PF_")
+def pf_spot(sym):
+    """KRAKEN:PF_XBTUSD -> KRAKEN:XBTUSD (underlying Kraken spot series for history/liquidity). Non-PF unchanged."""
+    s = str(sym or "")
+    return "KRAKEN:" + s.upper().split("PF_", 1)[1] if is_pf_perp(s) else s
+def crypto_short_block(sym, venue):
+    """None if this SHORT may proceed on crypto rules, else the HARD reason. Only Kraken PF_ perps may be shorted."""
+    if venue != "CRYPTO": return None
+    if is_pf_perp(sym): return None
+    return "crypto short blocked: %s is spot/non-perp - crypto shorts allowed ONLY as Kraken Futures PF_ perps (e.g. PF_XBTUSD), Brett 2026-11-01" % sym
+def pf_funding_rate_h(sym, p=None):
+    """(relative funding per hour, source). Positive = longs pay shorts. Proposal value > live Kraken Futures ticker > conservative default."""
+    v = (p or {}).get("funding_rate_h")
+    if v is not None:
+        try: return float(v), "proposal"
+        except Exception: pass
+    if not os.environ.get("PYTEST_CURRENT_TEST"):
+        try:
+            from veteran_desk import feeds as FD
+            r = (FD.kraken_futures() or {}).get(str(sym).upper().split(":")[-1]) or {}
+            if r.get("funding_rate") is not None and r.get("mark"): return float(r["funding_rate"]) / float(r["mark"]), "kraken_futures live"
+        except Exception: pass
+    return None, "unavailable"
+def pf_short_cost(sym, e, s, horizon_days, p=None):
+    """Funding + fees for a PF_ short, per unit and in R. Funding we RECEIVE is never credited (conservative); unknown rate -> default charge."""
+    rate, src = pf_funding_rate_h(sym, p)
+    used = PF_FUNDING_DEFAULT_H if rate is None else max(0.0, -rate)   # shorts pay when rate < 0
+    fund_u = e * used * 24.0 * float(horizon_days)
+    rt_u = e * CT.est_rt_rate(sym, "CRYPTO", e)
+    dist = abs(s - e)
+    return dict(funding_rate_h=rate, funding_src=src, funding_charged_rate_h=used, horizon_days=horizon_days, funding_per_unit=round(fund_u, 8),
+                fees_per_unit=round(rt_u, 8), funding_R=round(fund_u / dist, 4) if dist else None, cost_R=round((fund_u + rt_u) / dist, 4) if dist else None)
 # 2026-10-29 stale-bar fix: grade on fresh bars. If the newest stored bar is behind the last finished session, top it up from Yahoo
 # (chart endpoint fallback, IBKR gaps) before grading. Only for live grading (asof within 2h of now); never in tests unless forced.
 FRESHEN = not os.environ.get("PYTEST_CURRENT_TEST")
@@ -88,7 +126,7 @@ def ccy_issue(sym, au=None, px_fn=None, ibkr_fn=None):
     except BK.FxUnavailable as x: return str(x)
 def history(sym, asof):
     """All bars knowable at asof. Returns (rows, source)."""
-    sym = canon(sym); freshen(sym, asof)
+    sym = pf_spot(canon(sym)); freshen(sym, asof)   # tfo_pfshort_20261101: PF_ perp grades on its Kraken spot series
     a = _sqlite_rows(sym, asof); b = _staging_rows(sym, asof) if len(a) < 2000 else []
     return (b, "pit_staging") if len(b) > len(a) else (a, "pit.sqlite")
 def _shift(x, k): return np.r_[np.full(k, np.nan), x[:-k]] if k < len(x) else np.full(len(x), np.nan)
@@ -177,11 +215,16 @@ def gate(p, f, chal, da, asof, run_risk_used=0, others=None, au=0.65, th=None, h
         H_(not _held, "Dex one-name rail: %s already held across Dex seats (%s)" % (t, ", ".join("%s %s" % x for x in _held[:3])))
     if venue == "CRYPTO":   # tfo_seatpipe_kaifloor_20261030 (TFO 18:20 WITA): every Kai proposal must clear A$500k on the LIVE Kraken 24h sweep (all ~623 USD pairs swept)
         try:
-            from veteran_desk import desk as _D; _r = _D.sweep_row_for(t)
+            from veteran_desk import desk as _D; _r = _D.sweep_row_for(pf_spot(t))
         except Exception: _r = None
         _v = float((_r or {}).get("vol24h_aud") or 0)
-        H_(_v >= T["min_value_aud"], "Kraken 24h traded value A$%.0f < A$%.0f floor (live sweep%s)" % (_v, T["min_value_aud"], "" if _r else ": pair not in sweep"))
-    H_(p.get("grade") in ("A+", "A"), "grade %s - B or worse is a pass (playbook)" % p.get("grade"))
+        try:   # tfo_smallcoin_20261101: tier coins clear on the 20d A$100k-500k band instead (desk applies 1/4 risk, 2% ADV cap)
+            from veteran_desk import small_coin as _SC; _sc_t = _SC.is_small(t)
+        except Exception: _sc_t = False
+        H_(_v >= T["min_value_aud"] or _sc_t, "Kraken 24h traded value A$%.0f < A$%.0f floor (live sweep%s)" % (_v, T["min_value_aud"], "" if _r else ": pair not in sweep"))
+    _sc_t = locals().get("_sc_t", False)
+    if p.get("grade") == "B": W("grade B - half size (Brett 31 Oct size-and-let-in)", .5)
+    elif p.get("grade") not in ("A+", "A", "B"): H_(False, "grade %s - C or worse is a pass (playbook)" % p.get("grade"))
     H_(side in ("LONG", "SHORT"), "bad side")
     H_(s > 0 and ((side == "LONG" and s < e < tg) or (side == "SHORT" and tg < e < s)), "stop missing or stop/target not on correct sides of entry")
     dist = abs(e - s); rr = abs(tg - e) / dist if dist else 0.0
@@ -250,9 +293,8 @@ def gate(p, f, chal, da, asof, run_risk_used=0, others=None, au=0.65, th=None, h
         nb = int(sel.sum()); exp = float(np.mean(R[sel])) if nb else None; wr = float(np.mean(R[sel] > 0)) if nb else None
         hs["base_rate"] = dict(n=nb, win_rate=round(wr, 3) if wr is not None else None, exp_R_net=round(exp, 3) if exp is not None else None, trend_state=int(cur), horizon_days=T["horizon"])
         if nb >= T["base_n_min"] and exp is not None:
-            H_(exp > T["base_block_exp"], "history: %d similar setups lost %.2fR on average (win %.0f%%) - real negative edge" % (nb, exp, wr * 100))
-            H_(exp >= 0, "history: similar setups negative (%.2fR, n=%d) - rejected, not lifted to the 2%% floor (Brett 29 Oct)" % (exp, nb))
-            if T["base_block_exp"] < exp <= T["base_half_exp"]: W("history: similar setups negative (%.2fR, n=%d): size x0.5" % (exp, nb), .5)
+            # histsize 2026-10-31 (Brett 31 Oct): history SETS SIZE, never blocks; sub-floor size-up + grade B half elsewhere
+            if exp <= T["base_half_exp"]: W("history: similar setups negative (%.2fR, n=%d): size x0.5" % (exp, nb), .5)
             elif T["base_half_exp"] < exp < T["base_soft_exp"]: W("history: similar setups slightly negative (%.2fR, n=%d): size x0.75" % (exp, nb), .75)
         elif nb < T["base_n_min"]: W("history: only %d similar setups - base rate unproven: size x0.75" % nb, .75)
         er = A["er"][-1]
@@ -277,7 +319,16 @@ def gate(p, f, chal, da, asof, run_risk_used=0, others=None, au=0.65, th=None, h
     elif d_kill: W("ADVISORY: devil's advocate factual objection: %s (x1.0, no block)" % str(da.get("fact"))[:240], 1.0)
     # --- venue rules ---
     if side == "SHORT":
-        if venue == "CRYPTO": hard.append("no crypto shorts on Kraken spot")
+        if venue == "CRYPTO":   # tfo_pfshort_20261101: PF_ perp only; stop above entry; funding in cost_R
+            _cb = crypto_short_block(t, venue)
+            if _cb: hard.append(_cb)
+            else:
+                H_(s > 0 and s > e > 0, "PF_ perp short needs a stop ABOVE entry (stop %g, entry %g)" % (s, e))
+                if s > e > 0:
+                    _pc = pf_short_cost(t, e, s, T["horizon"], p); hs["pf_short"] = _pc; hs["cost_R"] = _pc["cost_R"]
+                    if _pc["funding_rate_h"] is None: W("PF_ funding rate unavailable - charged conservative %.4f%%/h in cost_R" % (PF_FUNDING_DEFAULT_H * 100), 1.0)
+                    _mv = abs(tg - e) / e; _ct = (_pc["fees_per_unit"] + _pc["funding_per_unit"]) / e
+                    H_(_mv >= 3 * _ct - 1e-12, "fee_filter (PF_ incl funding): move to T1 %.3f%% < 3x fees+funding (%.3f%%) = %.3f%%" % (_mv * 100, _ct * 100, 3 * _ct * 100))
         elif venue in ("US", "ASX"):
             bf = _rj(os.path.join(BASE, "state", "ibkr_borrow.json"))
             bn = ((bf or {}).get(venue.lower(), {}).get("names") or {}).get(t.replace(".AX", "")) if bf else None
@@ -320,7 +371,7 @@ def gate(p, f, chal, da, asof, run_risk_used=0, others=None, au=0.65, th=None, h
             _ok = asof.date() >= dt.date(2026, 11, 7) and (not _cl or BK.sessions_since(max(_cl), asof) >= 5)
             H_(_ok, "Dex: no SMT.L re-entry for 5 sessions after the last Dex SMT.L close (not before 2026-11-07)")
     def _risk(mm):
-        rp = BK.risk_plan(T["seat_equity_aud"], p.get("grade"), agree, mm, floor=FLOOR, seat_pct=_SP[0])
+        rp = BK.risk_plan(T["seat_equity_aud"], p.get("grade"), agree, mm, floor=FLOOR, seat_pct=_SP[0], seat=_seat)
         if venue == "CRYPTO" and atr_cut[0] < 1 and rp.get("reject") and rp["base_pct"] * mm / atr_cut[0] >= FLOOR - 1e-12:   # kairails: ATR cut stops AT the 0.5% floor, never skips
             rp = BK.risk_plan(T["seat_equity_aud"], p.get("grade"), agree, FLOOR / rp["base_pct"], floor=FLOOR)
         return round(rp["risk_aud"]), rp
@@ -348,18 +399,25 @@ def gate(p, f, chal, da, asof, run_risk_used=0, others=None, au=0.65, th=None, h
             if k_ is None: k_ = 1.0 / au   # only reached if ccy_issue already hard-rejected
             per = dist * k_; sh = risk / per; notion = sh * e * k_; adv_aud = adv_usd * k_
             fr = notion / adv_aud; hs["adv20_aud"] = round(adv_aud); hs["pos_pct_adv"] = round(fr, 5)
-            H_(fr <= T["adv_hard"], "position %.1f%% of 20d ADV - could not get out in a hurry" % (fr * 100))
-            H_(adv_aud >= T["min_value_aud"], "avg daily traded value A$%.0f < A$%.0f floor (Brett 2026-10-29 13:02 WITA: all caps, min A$500k)" % (adv_aud, T["min_value_aud"]))
-            if T["adv_soft"] < fr <= T["adv_hard"]: W("position %.1f%% of ADV: size x0.5" % (fr * 100), .5); m = max(mult[0], T["min_mult"]); risk, RP = _risk(m)
+            H_(fr <= T["adv_hard"] or _sc_t, "position %.1f%% of 20d ADV - could not get out in a hurry" % (fr * 100))
+            H_(adv_aud >= (_SC.BAND_LO if _sc_t else T["min_value_aud"]), "avg daily traded value A$%.0f < A$%.0f floor (Brett 2026-10-29 13:02 WITA: all caps, min A$500k)" % (adv_aud, T["min_value_aud"]))
+            if not _sc_t and T["adv_soft"] < fr <= T["adv_hard"]: W("position %.1f%% of ADV: size x0.5" % (fr * 100), .5); m = max(mult[0], T["min_mult"]); risk, RP = _risk(m)
         else: hs["adv20_aud"] = None; warn.append("no volume in history (OTC FX/index) - ADV check skipped, venue liquidity assumed deep" if venue in ("FX", "IDX", "FUT") else "no volume data - ADV unverified")
     if venue == "CRYPTO" and not spec and dist > 0 and e > 0 and not RP.get("reject"):   # kairails 14:28 WITA: A$50k clip (A$100k A+), reject if the capped clip < 0.5% floor
         try: k2 = BK.aud_per_unit(t, au)
         except BK.FxUnavailable: k2 = 1.0 / au
         r2, _q2, rj = BK.crypto_clip(risk, dist * k2, e * k2, T["seat_equity_aud"], p.get("grade"))
         if r2 < risk - 0.5: warn.append("crypto clip capped at A$%.0fk notional: risk A$%.0f -> A$%.0f" % (BK.crypto_clip_cap(p.get("grade")) / 1000, risk, r2)); risk = round(r2)
-        if rj: hard.append("below_crypto_floor: A$%.0fk-notional clip risks A$%.0f < 0.5%% of seat equity" % (BK.crypto_clip_cap(p.get("grade")) / 1000, r2))
+        if rj and not _sc_t: hard.append("below_crypto_floor: A$%.0fk-notional clip risks A$%.0f < 0.5%% of seat equity" % (BK.crypto_clip_cap(p.get("grade")) / 1000, r2))
+    if str(RP.get("reject") or "").startswith("floor_above_seat_risk"): hard.append(RP["reject"])   # liftcap Brett 18:14/18:16 WITA: never lift through seat risk -> pass
+    if RP.get("lift_tag"): warn.append("lift_tag=%s" % RP["lift_tag"])   # attribution: lifted_b / lifted_subfloor
     if RP.get("reject") == "below_crypto_floor": hard.append("below_crypto_floor: natural size %.2f%% of seat equity < 0.5%%" % (RP["wanted_pct"] * 100))
-    elif RP.get("wanted_pct") is not None and not (venue == "CRYPTO" and atr_cut[0] < 1): H_(RP["wanted_pct"] >= FLOOR - 1e-9, "below risk floor: natural size %.2f%% of seat equity < %.1f%% - rejected, not lifted (Brett rule; Marcus 2026-10-29 13:08 WITA, was: lift unless n>=40 and <1%%)" % (RP["wanted_pct"] * 100, FLOOR * 100))
+    elif RP.get("wanted_pct") is not None and not (venue == "CRYPTO" and atr_cut[0] < 1):
+        # Size that will actually be used. risk_plan lifts a cut grade-A back to 1% (pct);
+        # a raw 1% x 0.25 min-mult (= 0.25% of seat equity) must not veto that A. Non-A rejects still have pct 0.
+        sized = RP["pct"] if RP.get("pct") is not None else RP["wanted_pct"]
+        if sized < FLOOR - 1e-9 or RP.get("sized_up"):
+            W("sized up to floor %.1f%% (Brett 31 Oct size-and-let-in; was %.2f%% after cuts)" % (FLOOR * 100, (RP.get("wanted_pct") or sized) * 100), 1.0)
     if RP["warning"]: warn.append(RP["warning"])
     # 2026-10-29 infra: attach live quote as-of so seats/stale checks can judge freshness (never blocks)
     q_asof = q_last = q_src = None
@@ -406,4 +464,4 @@ def gate(p, f, chal, da, asof, run_risk_used=0, others=None, au=0.65, th=None, h
     except Exception as x: hard.append("us_beta check error %s - fail closed (tfo_review_20261030: an unverifiable beta cap rejects)" % type(x).__name__)
     return dict(passed=not hard, reasons=hard, warnings=warn, size_mult=round(m, 3), risk_aud=risk, risk_pct=RP["pct"], chal_agree=agree, seat_equity_aud=T["seat_equity_aud"], rr=round(rr, 2), history=hs, version=VERSION,
                 quote_asof=q_asof, quote_last=q_last, quote_src=q_src, quote_session=(live or {}).get("session") or ("REGULAR" if q_last is not None else None), live_quote=live,
-                armed=False, can_arm=False, needs_brett_tick=True, hard_rules_kept=HARD_RULES, us_beta_usd=round(usb_new), seat_risk_pct=_SP[0], override=_ovr)
+                armed=False, can_arm=False, needs_brett_tick=False, hard_rules_kept=HARD_RULES, us_beta_usd=round(usb_new), seat_risk_pct=_SP[0], override=_ovr)
