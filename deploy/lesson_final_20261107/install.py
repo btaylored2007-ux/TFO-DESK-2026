@@ -122,11 +122,13 @@ def _undo(live, done):
 
 def apply_plan(live_root, rows):
     live = Path(live_root)
+    apply_plan.last_error = None
     if any(row["state"] in BLOCKING for row in rows):
         return False
     done = []
     installed_new = []
     replaced = []
+    rel = None
     try:
         for row in rows:
             if row["state"] not in ("REPLACE", "INSTALL_NEW"):
@@ -140,22 +142,33 @@ def apply_plan(live_root, rows):
                 shutil.copy2(dest, backup)
                 if sha256(backup) != item["base_sha256"]:
                     raise RuntimeError("backup mismatch")
-                shutil.copy2(ROOT / rel, dest)
-                if sha256(dest) != item["target_sha256"]:
-                    raise RuntimeError("target mismatch")
+                try:
+                    shutil.copy2(ROOT / rel, dest)
+                    if sha256(dest) != item["target_sha256"]:
+                        raise RuntimeError("target mismatch")
+                except Exception:
+                    if not _restore(live, rel):
+                        raise RuntimeError("restore failed")
+                    raise
                 done.append(("replace", rel))
                 replaced.append(rel)
             else:
                 if dest.exists():
                     raise RuntimeError("new file appeared")
                 dest.parent.mkdir(parents=True, exist_ok=True)
-                shutil.copy2(ROOT / rel, dest)
-                if sha256(dest) != item["target_sha256"]:
-                    raise RuntimeError("new file mismatch")
+                try:
+                    shutil.copy2(ROOT / rel, dest)
+                    if sha256(dest) != item["target_sha256"]:
+                        raise RuntimeError("new file mismatch")
+                except Exception:
+                    if dest.is_file():
+                        dest.unlink()
+                    raise
                 done.append(("new", rel))
                 installed_new.append(rel)
-    except Exception:
+    except Exception as error:
         _undo(live, done)
+        apply_plan.last_error = "FAILED_COPY %s: %s" % (rel, error)
         return False
     if not done and not any(row["state"] == "CURRENT" for row in rows):
         return False
@@ -227,8 +240,11 @@ def main(argv=None):
         if row["state"] in BLOCKING:
             blocked = True
     if args.apply:
+        apply_plan.last_error = None
         if not args.staging or blocked or not apply_plan(args.root, rows):
             print("APPLY_REFUSED")
+            if apply_plan.last_error:
+                print(apply_plan.last_error)
             print("NOT_DEPLOYED")
             return 2
         print("STAGED")
