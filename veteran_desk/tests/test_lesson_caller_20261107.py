@@ -71,7 +71,8 @@ def test_nightly_cites_the_status_stamp_and_code_hands_is_not_a_ticket(tmp_path,
     hands = inspect.getsource(CHAT.code_hands)
     assert "note_accepted_decision" not in hands and "link_later_decision" not in hands
     learning = inspect.getsource(TASKS.learning_prompt)
-    assert "prompt_block" in learning and "task_id" not in learning
+    assert "prompt_block(target,task_id=task)" in learning
+    assert "msg.get(\"id\")" in learning
 
 
 def _stage(tmp_path):

@@ -223,16 +223,17 @@ def tools(seat="ALL"):
     return dict(catalog=PC.catalog(role),brain=brain,**listing(seat))
 def learning_prompt(seat,msg):
     mode=command_mode(msg);target=msg.get("_learning_for") or seat
+    task=msg.get("id");task=str(task) if str(task or "").strip() else None
     try:peer=COMP.query_context(msg.get("text"))
     except Exception:peer="Peer history unavailable; do not invent evidence.\n"
     if mode=="ask":
         return peer+("\nASK: give a read-only answer. Return no trading actions, ht_actions, work_request or lab_idea. "
                 "You may request information from colleagues; do not change code or orders.\n"+
-                (SB.prompt_block(target) if target!=seat else ""))
+                (SB.prompt_block(target,task_id=task) if target!=seat else ""))
     if mode!="learn":return peer
     return peer+("\nOWN-BRAIN REVIEW: review "+target+"'s own records. Produce observations and a testable hypothesis, not trading or code actions. "
             "Do not return actions, ht_actions or work_request. Include JSON key brain_review={lesson:<one short lesson>,hypothesis:<one testable hypothesis>,next_check:<specific check>,evidence:[source trade refs]}. "
-            "Never change risk rules or treat an untested hypothesis as fact. "+SB.prompt_block(target)+"\n")
+            "Never change risk rules or treat an untested hypothesis as fact. "+SB.prompt_block(target,task_id=task)+"\n")
 def learning_saved(seat,mid):
     """Exact durable identity, including records older than the prompt's recent tail."""
     ref="learning:"+mid+":"+seat
