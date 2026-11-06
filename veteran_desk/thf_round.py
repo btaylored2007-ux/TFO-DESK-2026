@@ -82,7 +82,7 @@ def candidate_options(D,seat,proposal):
 def accept_round_ticket(seat, runid, reply, decision_id, trace):
     """Record a queued proposal id only when that reply cites a ref from this round.
 
-    The proposal id is the decision and the trade id the book can later close.
+    The queued id is the decision task. It is not assumed to be every closed row.
     A reply with no ref= does not attach any other trade.
     """
     from veteran_desk import lesson_trace as LT

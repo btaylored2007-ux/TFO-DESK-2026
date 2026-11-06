@@ -1,0 +1,92 @@
+{
+  "name": "lesson_provenance_livebase_20261107",
+  "deployed": false,
+  "apply_to_production": false,
+  "evidence_archive_sha256": "8f738d5c7579d94569a8b626e76910e804bb60411b567eda702cac2d07ebf4a8",
+  "evidence_note": "Captured live and dash bytes for the four existing files match each other and are the bases below. They are not the ea38885 repo hashes.",
+  "book_must_remain": "b4453b503f33e34110519bf4d7a9bf391ecc2802edbd87acca3e77dc96b7e891",
+  "genuine_verifiers": [],
+  "rule_gap_unaccepted": true,
+  "live_validated_count": 0,
+  "payloads": [
+    {
+      "path": "veteran_desk/lesson_trace.py",
+      "action": "replace_only_if_base",
+      "base_sha256": "99313083f15c7449edf4a21c849b59f642c57c71b7ddebefce17acb43bdc7370",
+      "target_sha256": "9f1a2391bcb76b1c10b7caa9e375855c589cdc5f26c75069a274cbf156b0a8ab",
+      "live_root": "/opt/tfo/live/thf",
+      "dash_root": "/opt/tfo/dash/base",
+      "live_equals_dash": true
+    },
+    {
+      "path": "veteran_desk/seat_brain.py",
+      "action": "replace_only_if_base",
+      "base_sha256": "a294b07d3503411ef441dcaa709cc4e98caba8746a3d69ce42c095342a2c7ab0",
+      "target_sha256": "71dea78808b7855c83cd562679189d78e0438493b8c60ced73ea85e72b2708ad",
+      "live_root": "/opt/tfo/live/thf",
+      "dash_root": "/opt/tfo/dash/base",
+      "live_equals_dash": true
+    },
+    {
+      "path": "veteran_desk/thf_round.py",
+      "action": "replace_only_if_base",
+      "base_sha256": "8ee00fb7519b2c27b5b32b98e56b29d42d3faa0528f7004e5772ad839b5c78f6",
+      "target_sha256": "05f1da8c02effc72a1b88a925cc79877fb6b3be1b577f0be5d567fef1d93d462",
+      "live_root": "/opt/tfo/live/thf",
+      "dash_root": "/opt/tfo/dash/base",
+      "live_equals_dash": true
+    },
+    {
+      "path": "veteran_desk/thf_msgdesk.py",
+      "action": "replace_only_if_base",
+      "base_sha256": "9607803a718f16041a712544bea1582df7e153a8286cb695b03c92f5ea12376e",
+      "target_sha256": "72a8abaaa8a8127ccaa20db04f92e18cde229f37db788c7ce9ef2f513d13b81e",
+      "live_root": "/opt/tfo/live/thf",
+      "dash_root": "/opt/tfo/dash/base",
+      "live_equals_dash": true
+    }
+  ],
+  "not_copied": [
+    {
+      "path": "veteran_desk/feed_status_facts.py",
+      "action": "do_not_copy",
+      "base_sha256": null,
+      "target_sha256": "f06c72a8b4a127ede4ff1b3257d8de1ddbb052baf92d8d2618cbac6da265a221",
+      "reason": "Absent on live and dash. Not copied. Its callers and feed_health were not in the capture."
+    }
+  ],
+  "missing_production_files": [
+    {
+      "path": "veteran_desk/feed_health.py",
+      "symbols": [
+        "us_rth_open",
+        "asia_session_open"
+      ],
+      "why": "feed_status_facts.heuristic_session_expected imports these. Live sha256 was not captured.",
+      "engine": "/opt/tfo/live/thf/veteran_desk/feed_health.py",
+      "dashboard": "/opt/tfo/dash/base/veteran_desk/feed_health.py",
+      "sha256": null
+    },
+    {
+      "path": "thf_feedkeeper.py",
+      "symbols": [
+        "annotate",
+        "summarize call site"
+      ],
+      "why": "Keeper is the writer of state/thf/feed_status.json. Live sha256 was not captured. Repo snapshot will not be copied over it.",
+      "engine": "/opt/tfo/live/thf/thf_feedkeeper.py",
+      "dashboard": "/opt/tfo/dash/base/thf_feedkeeper.py",
+      "sha256": null
+    },
+    {
+      "path": "veteran_desk/thf_home.py",
+      "symbols": [
+        "feed_rows facts label"
+      ],
+      "why": "Dashboard reads keeper facts. Live sha256 was not captured. Repo snapshot will not be copied over it.",
+      "engine": "/opt/tfo/live/thf/veteran_desk/thf_home.py",
+      "dashboard": "/opt/tfo/dash/base/veteran_desk/thf_home.py",
+      "sha256": null
+    }
+  ]
+}
