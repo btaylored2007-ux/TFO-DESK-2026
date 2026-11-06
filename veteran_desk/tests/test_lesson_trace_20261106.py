@@ -10,9 +10,13 @@ def test_inclusion_is_not_validation_and_i_learned_is_not_adoption(tmp_path):
     assert claim["validated"] is False and claim["claim_not_adoption"] is True and claim["cited_ids"] == []
     cited = interpret_reply("See ref=lesson-7 in the notes.", ["lesson-7"])
     assert cited["cited_ids"] == ["lesson-7"] and cited["validated"] is False
-    record_validated("banks", "lesson-7", str(path), dict(check="holdout_shadow", result="no_rule_change"))
+    try:
+        record_validated("banks", "lesson-7", str(path), dict(check="holdout_shadow", result="no_rule_change"))
+        assert False
+    except ValueError as error:
+        assert "genuine verifier" in str(error)
     rows = load(str(path))
-    assert [row["level"] for row in rows] == ["included", "validated"]
+    assert [row["level"] for row in rows] == ["included"]
     assert rows[0]["model_adoption"] is False
 
 def test_restart_rereads_the_cursor_and_covers_every_seat(tmp_path):

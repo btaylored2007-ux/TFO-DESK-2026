@@ -888,7 +888,17 @@ def feed_rows(F, now=None):
         elif st == "ok" and det and _PROBLEM.search(re.sub(r"\b0 (failed|fails?|errors?)\b", "", det)) and not det.startswith("coverage"): dot, problem = "amber", plain_feed_detail(det)   # '0 failed' is not a problem
         elif st == "ok": dot, problem = "green", ""
         else: dot, problem = "red", "%s%s" % (st, (": " + plain_feed_detail(det)) if det else "")
-        out.append(dict(id=k, name=name, dot=dot, status=st, problem=problem, age=hours_words((v.get("age_s") or 0) / 3600.0) + " ago" if v.get("age_s") is not None else "—", paid="paid" in name))
+        facts = v.get("facts") if isinstance(v.get("facts"), dict) else {}
+        fact_label = ""
+        if facts:
+            failure = facts.get("last_failure") or {}
+            fact_label = "process %s; session %s; entitlement %s; %s%s" % (
+                {True: "running", False: "not running"}.get(facts.get("process_running"), "unknown"),
+                {True: "expected", False: "closed"}.get(facts.get("session_expected"), "unknown"),
+                facts.get("entitlement") or "unknown",
+                facts.get("label") or "unknown",
+                ("; last failure %s" % failure.get("code")) if failure else "")
+        out.append(dict(id=k, name=name, dot=dot, status=st, problem=problem, facts=fact_label, age=hours_words((v.get("age_s") or 0) / 3600.0) + " ago" if v.get("age_s") is not None else "—", paid="paid" in name, usable=None if not facts else facts.get("fresh_usable")))
     out.sort(key=lambda x: (dot_rank(x["dot"]), x["name"])); return out
 # healthdesk_20261103 (Brett 20:10 WITA 3 Nov "Oanda and Unusual Whales is up the health feed needs to be updated", 20:16 "CHECK THE HEALTH DESK";
 # HT P0 ch-1793706250-713e): one line per PAID DATA VENDOR from the feed keeper rows feeds['vendor:*'] (veteran_desk/vendor_health.py):
@@ -1043,7 +1053,9 @@ def health_rows(S, hb=None, ais=None, tick=None, now=None, news=None, feeds_in=N
         if not F.get("feeds"): return
         fr = feed_rows(F, now); bad = [x for x in fr if x["dot"] == "red"]; amb = [x for x in fr if x["dot"] == "amber"]; idle = [x for x in fr if x["dot"] == "grey"]; good = [x for x in fr if x["dot"] == "green"]
         paused = [x for x in amb if x["status"] == "paused"]; part = [x for x in amb if x["status"] != "paused"]; sn = lambda x: x["name"].split(" (")[0]
-        head = "Data feeds: %d of %d fully working." % (len(good), len(fr))
+        usable = sum(1 for x in fr if x.get("usable") is True)
+        head = "Data feeds: %d of %d keeper-ok. Usable now: %s. A keeper ok is not fresh usable data." % (
+            len(good), len(fr), usable if any("usable" in x and x.get("facts") for x in fr) else "unknown")
         if bad: head += " NOT working: %s." % "; ".join("%s - %s" % (sn(x), x["problem"][:80]) for x in bad[:4])
         if part: head += " Working, but a part is broken: %s." % "; ".join("%s - %s" % (sn(x), x["problem"][:90]) for x in part[:4])
         if paused: head += " Paused: %s." % ", ".join(sn(x) for x in paused[:4])

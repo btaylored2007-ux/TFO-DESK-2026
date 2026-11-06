@@ -190,7 +190,8 @@ def lessons_from_book(B=None, S=None, seats=None):
                 if trace or not os.environ.get("PYTEST_CURRENT_TEST"):
                     from veteran_desk import lesson_trace as LT
                     LT.observe_book_close(seat, str(p["id"]), trace or os.path.join(BASE, "state", "thf", "lesson_trace.jsonl"),
-                                          dict(source="book_close", trade_id=str(p["id"]), net_aud=p.get("net_aud")))
+                                          dict(source="book_close", trade_id=str(p["id"]), net_aud=p.get("net_aud"),
+                                               closed_utc=p.get("closed_utc")))
             if r: out.append(r)
     return out
 # ---------------- hooks ----------------

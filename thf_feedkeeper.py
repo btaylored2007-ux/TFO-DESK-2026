@@ -170,6 +170,9 @@ def check(name, cfg, prev):
             if name == "us_stream_fmp" or name == "eodhd_eu":
                 down = [k for k, v in (o.get("streams") or {}).items() if (v == "down" if name == "eodhd_eu" else v != "up")]   # eufeed_20261103: EU 'off' (eu-quote not enabled) / 'off: quota' are not faults
                 if down: r["detail"] = "streams down: %s" % down
+            if name == "eodhd_eu":
+                if "authorized" in o: r["authorized"] = True if o.get("authorized") is True else False if o.get("authorized") is False else None
+                if isinstance(o.get("last_status"), dict): r["last_status"] = dict(code=o["last_status"].get("code"), message=o["last_status"].get("message"), utc=o["last_status"].get("utc"))
             if name == "eodhd_eu" and "healthy" in o and age <= maxage:   # eufeed_20261103: the writer's verdict counts - 0 live symbols was 'ok' here all day 3 Nov
                 if o["healthy"] and age <= 120: r["detail"] = str(o.get("why") or r["detail"])[:400]
                 else: r.update(status="degraded" if o.get("markets_open", True) else "closed", detail=("heartbeat %ds old" % age) if o["healthy"] else str(o.get("why") or "not healthy")[:400])
@@ -344,8 +347,23 @@ def once(ks):
     for ln in units:
         p = ln.split()
         if len(p) >= 4: U[p[0]] = p[2] + "/" + p[3]
-    doc = {"paper_only": True, "updated_utc": utcnow().isoformat(timespec="seconds"), "updated_wita": (utcnow() + dt.timedelta(hours=8)).strftime("%Y-%m-%d %H:%M WITA"),
-           "summary": {s: sum(1 for v in out.values() if v["status"] == s) for s in set(v["status"] for v in out.values())}, "feeds": out, "units": U}
+    now = utcnow()
+    try:
+        import sys
+        if L not in sys.path: sys.path.insert(0, L)
+        from veteran_desk.feed_status_facts import annotate, summarize
+        for name, row in out.items():
+            if isinstance(row, dict) and row.get("unit") and U.get(row["unit"] + ".service", "").startswith("active"):
+                row["process_state"] = "running"
+            elif isinstance(row, dict) and row.get("unit") and U.get(row["unit"] + ".service"):
+                row["process_state"] = "inactive"
+        annotate(out, now)
+        facts_summary = summarize(out, now)
+    except Exception as error:
+        facts_summary = dict(ok_is_not_usable=True, error=type(error).__name__)
+    doc = {"paper_only": True, "updated_utc": now.isoformat(timespec="seconds"), "updated_wita": (now + dt.timedelta(hours=8)).strftime("%Y-%m-%d %H:%M WITA"),
+           "summary": {s: sum(1 for v in out.values() if v["status"] == s) for s in set(v["status"] for v in out.values())},
+           "facts_summary": facts_summary, "feeds": out, "units": U}
     jsave(STATUS, doc); jsave(KS, ks)
 def main():
     os.makedirs(T, exist_ok=True); ks = jload(KS, {}); last_help = 0

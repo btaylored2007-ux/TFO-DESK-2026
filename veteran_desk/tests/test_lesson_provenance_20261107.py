@@ -23,14 +23,14 @@ def test_true_linkage_is_not_validation_and_a_restart_does_not_duplicate(tmp_pat
     again = LT.record_included("energy", ["trade-9"], "seat_brain.prompt_block", path, task_id="inject-9")
     assert first["task_id"] == "inject-9" and again["utc"] == first["utc"]
     assert len(LT.load(path)) == 1
-    close = dict(source="book_close", trade_id="trade-9", net_aud=12)
+    close = dict(source="book_close", trade_id="trade-9", net_aud=12, closed_utc="2099-01-01T00:00:00+00:00")
     alone = LT.observe_book_close("energy", "trade-9", path, close)
     assert alone["reason"] == "included_not_cited" and alone["validated"] is False
     cited = LT.record_citation("energy", "Applied ref=trade-9 on the next order.", path, "inject-9")
     assert cited["cited_ids"] == ["trade-9"] and "Applied ref" not in json.dumps(cited)
     held = LT.observe_book_close("energy", "trade-9", path, close)
     assert held["reason"] == "no_later_decision" and held["validated"] is False
-    link = LT.link_later_decision("energy", "trade-9", path, "decide-10", "inject-9")
+    link = LT.link_later_decision("energy", "trade-9", path, "decide-10", "inject-9", trade_id="trade-9")
     assert link["level"] == "decision_link" and link["validated"] is False and link["causal_edge"] is False
     outcome = LT.observe_book_close("energy", "trade-9", path, close)
     assert outcome["level"] == "outcome_link" and outcome["validated"] is False

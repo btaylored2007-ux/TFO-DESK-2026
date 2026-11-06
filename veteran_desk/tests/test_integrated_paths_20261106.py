@@ -57,15 +57,19 @@ def test_brain_then_chat_then_validated_check(tmp_path, monkeypatch):
     text = SB.prompt_block("banks", 1100, task_id="round-banks")
     assert "ref=lesson-banks-1" in text
     SB.after_chat("banks", "task", "Noted ref=lesson-banks-1. I learned nothing new.", brain="fixture", task_id="round-banks")
-    LT.record_validated("banks", "lesson-banks-1", os.environ["THF_LESSON_TRACE"],
-                       dict(check="holdout_no_rule_change", result="rules unchanged"))
+    try:
+        LT.record_validated("banks", "lesson-banks-1", os.environ["THF_LESSON_TRACE"],
+                           dict(check="holdout_no_rule_change", result="rules unchanged"))
+        assert False
+    except ValueError as error:
+        assert "genuine verifier" in str(error)
     rows = LT.load(os.environ["THF_LESSON_TRACE"])
     levels = [row["level"] for row in rows]
     assert levels[0] == "included" and "lesson-banks-1" in rows[0]["lesson_ids"]
     assert any(row.get("cited_ids") == ["lesson-banks-1"] and row.get("validated") is False for row in rows)
-    assert rows[-1]["level"] == "validated" and rows[-1]["evidence"]["check"] == "holdout_no_rule_change"
+    assert not any(row.get("level") == "validated" for row in rows)
     states = {item["seat"]: item["state"] for item in LT.coverage(rows)}
-    assert len(states) == 18 and states["banks"] == "validated_impact_recorded"
+    assert len(states) == 18 and states["banks"] == "included_not_validated"
     assert states["head_of_desk"] == "waiting_for_work"
 
 def test_brain_records_outside_pytest_without_an_env_flag(tmp_path, monkeypatch):

@@ -1,6 +1,6 @@
 # Next feed-status repair
 
-Not started. Learning provenance is the work in this change. This note is only the smallest following repair.
+Source-only. `veteran_desk/feed_status_facts.py` separates the four facts. It is not deployed and it does not change a paid feed or a credential.
 
 The 2026-11-07 01:08 WITA scrubbed pack shows four different facts that `feed_status` currently folds together:
 
