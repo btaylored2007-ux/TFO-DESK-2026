@@ -606,7 +606,7 @@ def prompt(seat, msg, ctx):
     _mp = _mypos(seat)   # seatexec_20261103 (D23)
     from veteran_desk import thf_chat_tasks as TASKS
     from veteran_desk import communication_protocol as CP
-    return _shared_learning_evidence(seat) + CP.status_prompt(S, msg) + TASKS.learning_prompt(seat, msg) + _request_context(msg) + ("You are %s, seat '%s' on the Taylor Hedge Fund PAPER desk (paper only, no live orders). Persona: %s\n"
+    text = _shared_learning_evidence(seat) + CP.status_prompt(S, msg) + TASKS.learning_prompt(seat, msg) + _request_context(msg) + ("You are %s, seat '%s' on the Taylor Hedge Fund PAPER desk (paper only, no live orders). Persona: %s\n"
             "Your memory (json): %s\nYour notes: %s\nCode facts now: %s\nPER-SEAT MONEY (A$ net, read-only book): %s\n%s%s\n"
             "Live market context (read-only droplet top-10 + pit bars): %s\nRecent thread turns: %s\n"
             "Brett (funder) says: \"%s\"\n%s%s"
@@ -620,6 +620,13 @@ def prompt(seat, msg, ctx):
             nm, seat, json.dumps(ps)[:1800], mj, md, json.dumps(_facts_for_prompt(seat, _mp)), _money(seat) + (("\n" + _mp) if _mp else ""), _brain_block(seat, msg.get("id")), _dash_block(seat), _mkt_json(mkt), json.dumps(CP.thread_context(ctx, seat, max_turns=8, max_chars=1800), ensure_ascii=True), msg.get("text") or "",
             _img_note, ("This is a PUSH: run a fresh hunt now over your universe within your normal limits. Check 4-8 names, grade each, give R for the best, say why any are not armed. Never exceed risk rails.\n" if (push and not staff) else "") + _rm,
             ids, _mail_rules, json.dumps(_inbox(seat)), _chain_line(seat), extra, schema_extra))
+    if seat == "crypto":
+        try:
+            from veteran_desk import crypto_prepump as _PP
+            text += _PP.prompt_line()
+        except Exception:
+            pass
+    return text
 def _inbox(seat):   # seatmail_20261102
     try:
         from veteran_desk import seat_mail as SMl
@@ -781,6 +788,9 @@ def _trace_answer(seat, msg, d, prompt=None):
         shadow = shadow or os.path.join(root, "shadow_bench.jsonl")
         sample_root = sample_root or os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     try:
+        if seat == "crypto" and isinstance(d, dict):
+            from veteran_desk import crypto_prepump as _PP
+            d["crypto_contract"] = _PP.seat_contract(d)
         if trace:
             from veteran_desk import seat_brain as _SB
             mark_chat_answer(seat, (msg or {}).get("id"), (d or {}).get("reply"), trace)

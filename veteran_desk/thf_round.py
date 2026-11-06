@@ -181,6 +181,19 @@ def run(D,use_llm=True,queue=True,asof=None,queue_path=None,only=None):
         from veteran_desk import research_mandate as RM
         original=j if isinstance(j, dict) else {"empty_output": True, "action": None}
         entry["research"]=RM.public_view(RM.record_round(seat, original, asof, "thf_round.admit", os.environ.get("THF_RESEARCH_LOG")))
+        if seat == "crypto" and isinstance(j, dict):
+            try:
+                from veteran_desk import crypto_prepump as CP
+                rows = []
+                for key in ("candidates", "candidates_ranked", "top10"):
+                    val = (packs.get(seat) or {}).get(key)
+                    if isinstance(val, list):
+                        rows.extend(val)
+                j = CP.apply_reply(j, rows)
+                entry["crypto_prepump"] = j.get("crypto_prepump")
+                entry["crypto_contract"] = j.get("crypto_contract")
+            except Exception as exc:
+                entry["crypto_contract"] = dict(ok=False, reason="prepump_error", detail=type(exc).__name__)
         if not os.environ.get("PYTEST_CURRENT_TEST") or os.environ.get("THF_LESSON_TRACE"):
             try:
                 from veteran_desk import seat_brain as brain

@@ -102,7 +102,7 @@ def test_caller_package_replaces_only_the_captured_desk_and_refuses_production(t
     assert "INSTALL_NEW veteran_desk/feed_status_facts.py" in dry.stdout
     staged = _run(root, "--staging", "--apply")
     assert staged.returncode == 0, staged.stdout
-    assert _sha(root / "veteran_desk" / "desk.py") == _sha(REPO / "veteran_desk" / "desk.py")
+    assert _sha(root / "veteran_desk" / "desk.py") == _sha(PKG / "payload" / "veteran_desk" / "desk.py")
     assert _sha(root / "veteran_desk" / "feed_health.py") == _sha(PKG / "base" / "veteran_desk" / "feed_health.py")
     original = (PKG / "base" / "veteran_desk" / "desk.py").read_bytes()
     back = _run(root, "--staging", "--rollback")

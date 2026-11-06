@@ -61,3 +61,9 @@ Commands on CPython 3.12, Linux, in `/agent/repos/TFO-DESK-2026`:
 The 141 failures are mostly older book, fill, and rail tests. A sampled bank test stops on `FileNotFoundError` for `reports/veteran_desk_book.json`, which is not in this checkout. They are not evidence that the protected +0.7R book was changed. Three expectations were updated in this pass and then passed: the clock installer test now stages the `7049ffa` bytes, an unused admin is `waiting_for_work`, and the nightly readback test points `BASE` at a temp directory so the authority file is not written into the repo.
 
 Still open: phone browser end to end; the tailnet 403 from the box is the existing gate; the seven-day review is not due until 14 Nov 2026 08:00 WITA; cited and validated lesson rows were 0 at the last count; six admin seats are waiting for real work; `oanda_lab` is paused on numba; `hunt48_shorts` is off pending Brett; no customer launch.
+
+## Crypto pre-pump, 7 Nov, built and tested, not deployed
+
+| ID | Requirement | State | Evidence | Not claimed |
+|---|---|---|---|---|
+| K1 | Crypto wake can measure compression before a vertical move and still reject a chase | Tested, not deployed | `veteran_desk/crypto_prepump.py`. `test_crypto_prepump_20261107.py`. A labeled coil can become a hypothesis watch only with an explicit cutoff. No cutoff, a pumped series, or a stop outside the existing 0.5-4 ATR band produces a near-miss and does not invent a watch or resize the stop. Walk-forward picks the cutoff on the earlier bars and scores it once later. `hunt48_shorts` stays off. | Not a proven edge. Matched Claude/ChatGPT/DeepSeek/Grok reviews are not on file. Not running on the droplet. Book hash unchanged. |

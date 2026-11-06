@@ -571,7 +571,15 @@ def prop_prompt(seat, pk, task_id=None):
             "\"sleeve\":\"core\"|\"spec\",\"horizon_days\":int,\"thesis\":str,\"catalyst\":str|null (fresh news/catalyst headline; REQUIRED for grade B unless last-bar volume >=1.5x avg),\"invalidation\":str,\"why_not_choppy\":str,\"graded\":[{\"ticker\":str,\"grade\":\"A+\"|\"A\"|\"B\"|\"reject\",\"reason\":str}],"
             "\"risk_pct\":num (A only: A risk 1.0-2.0 % of seat equity (1% allowed until proven; lift to 2% once proven; do NOT invent a higher size); A+ is 4%; non-A needs 2%),\"lessons_respected\":str,\"to_seats\":{\"<seat id>|all|marcus|head_trader\":\"<=400 chars\"}|null (seatagents_20261103: message colleagues now),\"report_to_marcus\":str|null (formal report up the chain: fills/closes/misses/lessons/faults),\"confirm\":true (set ONLY if you want this proposal armed; omitted -> never arms),\"ranked\":[{\"ticker\":str,\"side\":\"LONG\"|\"SHORT\",\"grade\":\"A+\"|\"A\"|\"B\",\"why\":str}],\"best_long\":str|null,\"best_short\":str|null}\n"   # tfo_seatpipe_3_20261030 + tfo_seatpipe_7a_20261030
             "Always fill 'ranked' with your best 3-5 setups (A+/A/B, best first) even if you stand aside, and name best_long and best_short (null if none worth a B). The proposal, if any, must be ranked[0].\n"
-            "If DATA has candidates_ranked: grade its top 10 in rank order in 'graded' (each reject needs a one-line reason).\n" + "".join(x + "\n" for x in seat.get("prompt_overrides", [])) + "DATA:\n" + json.dumps(_data_for_prompt(pk), separators=(",", ":"), default=str) + _dash_block(seat) + _lessons_slim(seat) + _ll_block(seat) + _thf_line(seat) + _seat_mem(seat) + _seat_ctx(seat) + _mail_block(seat, pk) + _brain_block(seat, task_id) + RESEARCH_MANDATE_PROMPT + PAID_PUSH_RULE)
+            "If DATA has candidates_ranked: grade its top 10 in rank order in 'graded' (each reject needs a one-line reason).\n" + "".join(x + "\n" for x in seat.get("prompt_overrides", [])) + "DATA:\n" + json.dumps(_data_for_prompt(pk), separators=(",", ":"), default=str) + _dash_block(seat) + _lessons_slim(seat) + _ll_block(seat) + _thf_line(seat) + _seat_mem(seat) + _seat_ctx(seat) + _mail_block(seat, pk) + _brain_block(seat, task_id) + RESEARCH_MANDATE_PROMPT + PAID_PUSH_RULE + _crypto_prepump_line(seat))
+def _crypto_prepump_line(seat):
+    if (seat or {}).get("seat") != "crypto":
+        return ""
+    try:
+        from veteran_desk import crypto_prepump as CP
+        return CP.prompt_line()
+    except Exception:
+        return ""
 def _data_for_prompt(pk):   # seatagents_20261103: the colleague inbox is rendered as its own prompt section, not buried (and trimmed) inside DATA
     q = _slim(compact_pk(pk))
     if isinstance(q, dict) and ("seat_inbox" in q or "seat_inbox_note" in q or "_fit" in q):   # pinlive_20261103: the pin context never reaches the prompt (non-compact path too)
@@ -784,7 +792,7 @@ def _code_fallback(seat, exclude=()):   # seatbrain_20261102 (Brett HARD 08:48 W
         if scoped_wake:
             wake = _engine_wake(seat)
             if not isinstance(wake, dict) or not isinstance(wake.get("candidates"), list):
-                return dict(action="stand_aside", reason="brain_down: selected wake candidates unavailable", _brain_down=True)
+                return _with_prepump(seat, dict(action="stand_aside", reason="brain_down: selected wake candidates unavailable", _brain_down=True), [])
             top = wake["candidates"]
         held = set()
         if os.environ.get("THF_DESK") == "1":
@@ -798,11 +806,20 @@ def _code_fallback(seat, exclude=()):   # seatbrain_20261102 (Brett HARD 08:48 W
             if os.environ.get("THF_DESK") == "1" and not scoped_wake and x.get("market_open") is False: continue
             if x.get("grade") in ("A+", "A") and x.get("wake_ok") and x.get("close") and x.get("stop"):
                 c, st = float(x["close"]), float(x["stop"])
-                return dict(action="propose", ticker=x["sym"], side=x["side"], entry=c, stop=st, target=round(c + 2 * (c - st), 6), grade=x["grade"], sleeve="core", horizon_days=5,
+                return _with_prepump(seat, dict(action="propose", ticker=x["sym"], side=x["side"], entry=c, stop=st, target=round(c + 2 * (c - st), 6), grade=x["grade"], sleeve="core", horizon_days=5,
                             risk_pct=2.0 if x["grade"] == "A+" else 1.0, confirm=True, thesis="code-only fallback (brain down): engine grade %s score %s" % (x["grade"], x.get("score")),
-                            catalyst=None, invalidation="stop", why_not_choppy="engine score", lessons_respected="No AI lesson review: deterministic gate_v2, caps and rails unchanged", graded=[], _brain_down=True)
+                            catalyst=None, invalidation="stop", why_not_choppy="engine score", lessons_respected="No AI lesson review: deterministic gate_v2, caps and rails unchanged", graded=[], _brain_down=True), top)
     except Exception: pass
-    return dict(action="stand_aside", reason="brain_down: code fallback found no open A/A+", _brain_down=True)
+    return _with_prepump(seat, dict(action="stand_aside", reason="brain_down: code fallback found no open A/A+", _brain_down=True), locals().get("top") or [])
+def _with_prepump(seat, reply, rows):
+    """Crypto wakes carry a pre-pump report. The report does not invent a watch or an order."""
+    if seat != "crypto" or not isinstance(reply, dict):
+        return reply
+    try:
+        from veteran_desk import crypto_prepump as CP
+        return CP.apply_reply(reply, rows or [])
+    except Exception:
+        return reply
 def _seat_heartbeat(seat, j):
     if os.environ.get("PYTEST_CURRENT_TEST"): return   # fixer 2026-11-02: never write live state/thf/seat_heartbeat.json from tests (test guard)
     try:
