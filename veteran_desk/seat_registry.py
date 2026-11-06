@@ -31,13 +31,7 @@ def trade_ids(S=None):
 def admin_ids(S=None):
     S = S or load(); return [s for s in ADMIN_SEATS if s in S] or list(ADMIN_SEATS)
 def staff_ids(S=None):
-    """Named staff stay addressable without a persona file. risk_gate stays code-only."""
-    S = S or load()
-    found = [s for s, j in S.items() if j.get("role") in STAFF_ROLES and s not in CODE_ONLY]
-    for seat in (SE, CFO):
-        if seat not in found and seat not in CODE_ONLY:
-            found.append(seat)
-    return sorted(found)
+    S = S or load(); return sorted(s for s, j in S.items() if j.get("role") in STAFF_ROLES)
 def ht_ids(S=None):
     S = S or load(); return [HT] if (HT in S or True) else []
 def mail_ids(S=None):

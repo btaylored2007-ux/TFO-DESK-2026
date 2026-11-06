@@ -171,17 +171,7 @@ def delivery(mid, seat, state, detail=""):
                 _rewrite(rows); return True
     return False
 
-def targets(r):
-    # fixer and named staff answer direct messages. An unaddressed post does not fan out to them.
-    if r.get("kind") == "task": return ["msgdesk"]
-    if not r.get("seat"):
-        try:
-            from veteran_desk import seat_registry as _SR
-            quiet = set(_SR.staff_ids())
-        except Exception:
-            quiet = {"cfo", "software_engineer"}
-        return sorted((SEAT_IDS - {"fixer"}) - quiet)
-    return [r["seat"]]
+def targets(r): return ["msgdesk"] if r.get("kind") == "task" else sorted(SEAT_IDS - {"fixer"}) if not r.get("seat") else [r["seat"]]   # fixer only on direct message
 def unacked(seat=None):
     out = []
     for r in load(500):

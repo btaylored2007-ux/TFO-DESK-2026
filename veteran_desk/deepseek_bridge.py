@@ -63,17 +63,47 @@ def capacity():
 
 def status(): return _read(STATE/'status.json', {}) if config() else {}
 
-def _adapter_failure(failure):
+def _transient_failure(failure):
     text = str(failure or '')
-    return text in ('private key permissions', 'private key format') or text.startswith('adapter ') or text.startswith('transport ')
+    return text.startswith('transport_') or text.startswith('transport ') or text in (
+        'response_not_json', 'adapter_value', 'invalid_json_object', 'empty_or_truncated_answer')
 
-def reason(check_busy=True, check_key=True):
+def _errno_name(exc):
+    import errno as _errno
+    number = getattr(exc, 'errno', None)
+    name = _errno.errorcode.get(number, '') if isinstance(number, int) else ''
+    if name.isascii() and name.isalnum() and 1 <= len(name) <= 16: return 'transport_' + name
+    return ''
+
+def failure_for(exc):
+    """Safe class only. Exception text can echo a URL or a credential and is never stored."""
+    if isinstance(exc, json.JSONDecodeError): return 'response_not_json'
+    if isinstance(exc, ValueError):
+        text = str(exc)
+        if text in ('private key permissions', 'private key format'): return text
+        return 'adapter_value'
+    if isinstance(exc, TimeoutError): return 'transport_timeout'
+    import urllib.error
+    if isinstance(exc, urllib.error.URLError):
+        named = _errno_name(getattr(exc, 'reason', None))
+        if named: return named
+    named = _errno_name(exc)
+    if named: return named
+    name = type(exc).__name__
+    if name.isascii() and name.isalnum() and len(name) <= 40: return 'transport_' + name
+    return 'transport_error'
+
+def reason(check_busy=True, check_key=True, for_call=False):
     if not enabled(): return 'DeepSeek API not enabled'
     if check_key and not KEY.is_file(): return 'DeepSeek private API key unavailable'
     s = status()
     if s.get('_unreadable'): return 'DeepSeek status unreadable by this user'
     if s.get('blocked'): return 'DeepSeek '+s.get('failure', 'account unavailable')+'; successful health probe required'
-    if _adapter_failure(s.get('failure')): return 'DeepSeek '+str(s.get('failure'))
+    failure = str(s.get('failure') or '')
+    if failure in ('private key permissions', 'private key format'): return 'DeepSeek ' + failure
+    latest_failure = float(s.get('failure_observed_at') or 0) > float(s.get('last_success_at') or 0)
+    if latest_failure and _transient_failure(failure) and not for_call:
+        return 'DeepSeek ' + failure
     if float(s.get('until') or 0) > time.time(): return 'DeepSeek cooling: '+str(s.get('failure') or 'temporarily unavailable')
     if not s.get('last_success_at'): return 'DeepSeek model response not verified'
     if check_busy:
@@ -104,9 +134,9 @@ def record_result(ok, started, failure=None, http_status=None, probe=False):
             s.update(ok=True, last_success_at=now, model=MODEL, blocked=False, until=0, failure=None)
         else:
             failure_text = str(failure or 'API failure')[:150]
-            # A key or transport ValueError is not an account quota and must not cool the next seat.
+            # Key and transport failures are not an account quota. A transient failure does not cool the next seat.
             if http_status == 429: until = now + 300
-            elif _adapter_failure(failure_text): until = 0
+            elif failure_text in ('private key permissions', 'private key format') or _transient_failure(failure_text): until = 0
             else: until = now + 60
             s.pop('_unreadable', None)
             s.update(ok=False, failure=failure_text, failure_observed_at=now,
@@ -181,7 +211,8 @@ def _run(payload, budget):
     except BaseException:
         p.kill();p.communicate();raise
     if p.returncode:raise RuntimeError('DeepSeek API worker failed')
-    return json.loads(out)
+    try: return json.loads(out)
+    except ValueError: raise RuntimeError('DeepSeek worker output was not JSON')
 
 def ask(prompt, seat='desk', timeout=90, request_id=None, workload='chat', deadline=None, cancel_event=None, probe=False):
     if seat not in API_SEATS or seat not in allowed_seats() or (workload=='trader' and config().get('trader_enabled') is not True):
@@ -194,7 +225,7 @@ def ask(prompt, seat='desk', timeout=90, request_id=None, workload='chat', deadl
     end=min(started+MAX_SECONDS,started+budget,float(deadline) if deadline else started+MAX_SECONDS)
     if not math.isfinite(end) or end<=started+1:raise RuntimeError('DeepSeek deadline exhausted')
     if os.environ.get('PYTEST_CURRENT_TEST') and STATE==LIVE_STATE:raise RuntimeError('DeepSeek live API disabled in tests')
-    why=reason(check_busy=False)
+    why=reason(check_busy=False, for_call=True)
     if why and not probe:raise RuntimeError(why)
     STATE.mkdir(parents=True,exist_ok=True)
     rid=str(request_id or uuid.uuid4().hex)
@@ -246,10 +277,8 @@ def _worker():
         result=dict(ok=good,text=text if good else None,failure=failure,model=data.get('model'),usage=data.get('usage'),http_status=200)
     except urllib.error.HTTPError as e:
         result=dict(ok=False,http_status=e.code,failure={401:'authentication refused',402:'insufficient balance',403:'access refused',429:'rate limit',500:'server error',503:'overloaded'}.get(e.code,'HTTP failure'))
-    except ValueError as e:
-        text=str(e)
-        result=dict(ok=False,failure=text if text in ('private key permissions','private key format') else 'adapter ValueError')
-    except Exception as e:result=dict(ok=False,failure='transport '+type(e).__name__)
+    except Exception as e:
+        result=dict(ok=False,failure=failure_for(e))
     print(json.dumps(result))
 
 if __name__=='__main__' and sys.argv[1:]==['--worker']:_worker()
