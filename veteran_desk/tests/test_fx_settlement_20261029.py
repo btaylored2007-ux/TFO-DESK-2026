@@ -33,3 +33,21 @@ def test_round_trip_cash_via_tick():
         g = (1.1174 - 1.0960) * 1e6 / 0.70; n2 = 1.0960 * 1e6 / 0.70
         assert not S["positions"] and abs(S["cash_aud"] + S.get("commission_expense_aud", 0) - S.get("commission_forfeit_credit_aud", 0) - (500000 - n * c + g - n2 * c)) < 0.01 and abs(S["closed"][-1]["gross_aud"] - g) < 0.01
     finally: BK.BOOK, BK.firm_ok, BK.session_open, BK.in_open_window, BK.posture = old
+
+def test_fx_fill_cash_matches_the_capped_notional_not_the_original_size():
+    """Observed fill math. This does not accept the 40% cap as a settled rule."""
+    import tempfile, json
+    tmp = tempfile.mkdtemp(); old = (BK.BOOK, BK.firm_ok, BK.session_open, BK.in_open_window, BK.posture)
+    try:
+        BK.BOOK = os.path.join(tmp, "b.json"); BK.firm_ok = lambda: (True, "OK"); BK.session_open = lambda v, t: True; BK.in_open_window = lambda v, t: False; BK.posture = lambda: ("calm", "risk-off")
+        D = BK.load(0.70); D["hedge"] = {}; S = D["seats"]["macro"]
+        S["positions"]["f"] = dict(id="f", seat="macro", ticker="EURUSD=X", side="SHORT", entry=1.1174, stop=1.1245, target=1.0960, shares=1000000, risk_aud=1, status="armed", scale_t1=False, order_type="limit", armed_utc=BK.now().isoformat(), venue="FX")
+        json.dump(D, open(BK.BOOK, "w")); q = os.path.join(tmp, "q.json"); json.dump(dict(entries={}), open(q, "w"))
+        D = BK.tick(price_fn=lambda s: dict(last=1.1174, hi=1.1180, lo=1.1170, asof="x"), au=0.70, queue_path=q)
+        S = D["seats"]["macro"]; p = S["positions"]["f"]
+        uncapped = 1.1174 * 1000000 / 0.70 * (BK.COST_RT["FX"] / 2)
+        assert p["status"] == "open" and p["shares"] == 125290 and p["fill"] == 1.1174
+        assert p["cost_aud"] == 14.0 and abs((500000 - S["cash_aud"]) - p["cost_aud"]) < 0.01
+        assert abs(uncapped - 111.74) < 0.01 and abs(p["cost_aud"] - uncapped) > 90
+        assert any(ev[1] == "resized" and "1000000 -> 125290" in ev[2] for ev in D["last_events"])
+    finally: BK.BOOK, BK.firm_ok, BK.session_open, BK.in_open_window, BK.posture = old

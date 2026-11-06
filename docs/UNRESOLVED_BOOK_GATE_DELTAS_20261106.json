@@ -1,0 +1,13 @@
+{
+  "status": "unresolved",
+  "not_authorization": "Current source comments are not acceptance of these deltas. book.py, gate_v2.py, and desk.py were not changed.",
+  "book_sha256": "b4453b503f33e34110519bf4d7a9bf391ecc2802edbd87acca3e77dc96b7e891",
+  "compared_with": "origin/main b77e4d4b692ac17a3ee4327024af9ee563627010",
+  "observations": [
+    {"id": "grade_b", "main": "risk_plan grade B is 2% and a half cut is rejected as below_2pct_nonA_floor", "current": "grade B is 1% and the half cut is sized to 1%", "tests_still_red": ["test_non_a_2pct_and_aplus_4pct", "test_cut_non_a_below_2pct_rejected_never_1pct", "test_band", "test_cut_toward_2pct_never_below", "test_other_seats_unchanged", "test_usdkrw_theo_case_risk", "test_blocks"]},
+    {"id": "subfloor", "main": "below_crypto_floor and below_2pct_nonA_floor reject", "current": "those cuts are sized instead of rejected", "tests_still_red": ["test_crypto_floor_half_pct", "test_below_floor_rejected", "test_crypto_seat_floor_kept", "test_genuine_0p4pct_rejected", "test_rebook_below_floor_rejected_not_lifted", "test_risk_plan_rejects_sub_floor"]},
+    {"id": "closed_session_giveback", "current": "a fresh in-limit print books rail_giveback_protect while the US session is closed", "test_still_red": "test_giveback_fires_open_held_closed"},
+    {"id": "stale_fallback_fill", "current": "a 27 minute LSE mark and a 20 minute NORDIC mark fill at the entry through the stale-fallback path", "tests_still_red": ["test_lse_over_25_no_fill", "test_realtime_venue_still_15"]},
+    {"id": "fx_cap_math", "current": "1000000 EURUSD units become 125290; cash drop A$14 equals cost_aud; the uncapped cost is A$111.74. Characterized, not accepted as policy."}
+  ]
+}
