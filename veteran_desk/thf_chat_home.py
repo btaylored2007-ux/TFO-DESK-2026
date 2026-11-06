@@ -320,6 +320,10 @@ def ai_status(now=None, cd=None, gpt=None, sgw=None, hb=None, probe=None, recent
                 elif g.get("last_ask_ok") is False:
                     err = str(g.get("last_err") or "")
                     st, note = "unknown", ("signed in; last ask timed out" if "timeout" in err.lower() else "signed in; last ask failed")
+                elif g.get("last_delivery") == "client_disconnected":
+                    st, note = "up", "signed in; last result was not delivered (client disconnected)"
+                elif g.get("last_delivery") == "timeout":
+                    st, note = "unknown", "signed in; the waiting client timed out"
                 else: st, note = "up", "signed in" + (" (last ask ok)" if g.get("last_ask_ok") else "")
             elif g.get("state") in ("needs_signin", "captcha"): st, note = "down", "needs Brett (ChatGPT sign-in)"
             elif g.get("state"): st, note = "down", "web bridge %s" % g.get("state")

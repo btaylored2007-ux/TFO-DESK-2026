@@ -77,15 +77,33 @@ def ask(prompt, timeout=280, images=None, skip_if_busy=True, seat=None, workload
         if not isinstance(pth, str): continue
         rp=os.path.realpath(pth)
         if (rp==root or rp.startswith(root+os.sep)) and os.path.isfile(rp): imgs.append(rp)
+    rid = request_id or uuid.uuid4().hex
     body = dict(prompt=prompt, timeout=timeout, skip_if_busy=bool(skip_if_busy),
-                seat=seat, workload=workload, deadline=deadline, request_id=request_id or uuid.uuid4().hex,
+                seat=seat, workload=workload, deadline=deadline, request_id=rid,
                 wait_for_slot=bool(not skip_if_busy and (workload == "trader" or (workload in ("chat", "learning") and wait_for_slot))))
     if imgs: body["images"] = imgs   # absolute paths under chat_imgs (or probe dir); web worker attaches via file input
+    use_ack = health().get("delivery") == "ack_poll_v1"
+    if use_ack: body["ack"] = True
     rq = urllib.request.Request(URL + "/ask", data=json.dumps(body).encode(), headers={"Content-Type": "application/json"})
+    def _poll():
+        import urllib.parse
+        while time.time() < deadline:
+            req = urllib.request.Request(URL + "/result?request_id=" + urllib.parse.quote(rid))
+            try:
+                with urllib.request.urlopen(req, timeout=10) as resp:
+                    payload = json.loads(resp.read())
+            except urllib.error.HTTPError as error:
+                if error.code == 404: return None
+                raise
+            if payload.get("state") == "done" or payload.get("text"): return payload
+            if payload.get("state") != "pending": return payload
+            time.sleep(0.05 if os.environ.get("PYTEST_CURRENT_TEST") else 1)
+        raise RuntimeError("chatgpt poll deadline; request was not submitted again")
     try:
         _BM.client_guard()  # Recheck immediately before submission, after preparation.
         _BM.mark_submission()
-        d = json.loads(urllib.request.urlopen(rq, timeout=timeout + 60).read())
+        d = json.loads(urllib.request.urlopen(rq, timeout=20 if use_ack else timeout + 60).read())
+        if use_ack and d.get("state") == "pending": d = _poll() or d
     except _BM.MaintenanceHold:
         with _LK:
             try: _T.remove(now)
@@ -98,6 +116,10 @@ def ask(prompt, timeout=280, images=None, skip_if_busy=True, seat=None, workload
                 except ValueError: pass
             raise RuntimeError("chatgpt busy -> next AI") from None
         raise
-    if not d.get("ok"): raise RuntimeError("chatgpt " + str(d.get("error")))
+    except (urllib.error.URLError, TimeoutError, ConnectionError) as error:
+        if not use_ack: raise
+        d = _poll()
+        if not d: raise RuntimeError("chatgpt ack failed and the request was not stored") from error
+    if not d or not d.get("ok"): raise RuntimeError("chatgpt " + str((d or {}).get("error")))
     if time.time() >= deadline: raise RuntimeError("chatgpt late result discarded")
     return Reply(d["text"], d)
