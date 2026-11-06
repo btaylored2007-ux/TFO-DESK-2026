@@ -1,7 +1,9 @@
 """Separate feed facts. Keeper status 'ok' is not fresh usable data.
 
-Weekday sessions use the venue timezone. This is not an exchange-holiday calendar.
-A missing fact stays unknown. Crypto is expected every day.
+session_expected stays unknown unless a full venue calendar is available.
+heuristic_session_expected is the weekday clock plus the small holiday lists already
+in feed_health. It is not calendar proof. Crypto is continuous.
+Freshness uses an event timestamp. File mtime is not freshness.
 """
 import datetime as dt
 from zoneinfo import ZoneInfo
@@ -36,37 +38,55 @@ def _in_hours(local, start, end):
     return start <= minutes < end
 
 
-def session_expected(name, now):
-    """True, False, or None. Outside the venue session is closed, not an outage. Crypto is always expected.
+def heuristic_session_expected(name, now):
+    """Weekday hours, DST via zoneinfo, and the partial holiday lists in feed_health.
 
-    Hours are weekday sessions in the venue timezone. Exchange holidays are not in this calendar,
-    so a holiday afternoon stays unknown rather than a claimed open or a claimed outage. This
-    function only returns False for the weekend and the known closed hours.
+    This is not a venue calendar. Lunch breaks, half-days, and unlisted holidays are not covered.
     """
     venue, zone = _zone(name)
     if venue == "CRYPTO":
         return True
-    if zone is None or now is None:
+    if now is None:
         return None
     if now.tzinfo is None:
         now = now.replace(tzinfo=dt.timezone.utc)
+    if venue == "US":
+        from veteran_desk.feed_health import us_rth_open
+        return us_rth_open(now)
+    if venue == "ASIA":
+        from veteran_desk.feed_health import asia_session_open
+        market = "JP" if name == "paid_bars" else "ASX"
+        hours = ("Asia/Tokyo", "09:00", "15:00") if market == "JP" else ("Australia/Sydney", "10:00", "16:12")
+        return asia_session_open(market, now, hours)
+    if zone is None:
+        return None
     local = now.astimezone(zone)
     if venue == "FX":
-        if local.weekday() == 5:
-            return False
-        if local.weekday() == 6 and local.hour < 17:
-            return False
-        if local.weekday() == 4 and local.hour >= 17:
+        if local.weekday() == 5 or (local.weekday() == 6 and local.hour < 17) or (local.weekday() == 4 and local.hour >= 17):
             return False
         return True
-    hours = {"US": (9 * 60 + 30, 16 * 60), "EU": (8 * 60, 16 * 60 + 30), "ASIA": (9 * 60, 17 * 60)}
-    if venue not in hours:
-        return None
     if local.weekday() >= 5:
         return False
-    if not _in_hours(local, *hours[venue]):
-        return False
-    return True
+    hours = {"EU": (8 * 60, 16 * 60 + 30)}
+    if venue not in hours:
+        return None
+    return _in_hours(local, *hours[venue])
+
+
+def _event_time(row):
+    coverage = row.get("coverage") if isinstance(row.get("coverage"), dict) else {}
+    last = row.get("last_status") if isinstance(row.get("last_status"), dict) else {}
+    for value in (row.get("event_utc"), row.get("last_msg_utc"), row.get("last_bar_utc"), coverage.get("last_bar"), last.get("utc")):
+        if not value:
+            continue
+        try:
+            stamp = dt.datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+        except (TypeError, ValueError):
+            continue
+        if stamp.tzinfo is None:
+            stamp = stamp.replace(tzinfo=dt.timezone.utc)
+        return stamp.astimezone(dt.timezone.utc)
+    return None
 
 
 def _failure(row):
@@ -87,7 +107,7 @@ def classify(name, row, now=None):
     row = dict(row or {})
     now = now or dt.datetime.now(dt.timezone.utc)
     venue, _zone_obj = _zone(name)
-    expected = session_expected(name, now)
+    heuristic = True if venue == "CRYPTO" else heuristic_session_expected(name, now)
     if row.get("process_state") in ("running", "active"):
         running = True
     elif row.get("process_state") in ("inactive", "failed", "dead"):
@@ -101,24 +121,29 @@ def classify(name, row, now=None):
     else:
         entitlement = "unknown"
     failure = _failure(row)
-    age = row.get("age_s")
+    event = _event_time(row)
     limit = row.get("max_age_s")
-    if expected is False:
-        usable, usable_reason = False, "session_closed"
-    elif expected is None or age is None or limit is None:
-        usable, usable_reason = None, "unknown"
-    elif age > limit:
-        usable, usable_reason = False, "stale"
+    if heuristic is False:
+        usable, usable_reason = False, "heuristic_session_closed"
+    elif event is None or limit is None or now is None:
+        usable, usable_reason = None, "unknown_no_event_timestamp"
     else:
-        usable, usable_reason = True, "fresh"
-    label = {
-        True: "usable",
-        False: "session closed" if usable_reason == "session_closed" else "not usable",
-        None: "unknown",
-    }[usable]
-    facts = dict(process_running=running, session_expected=expected, venue=venue,
+        when = now if now.tzinfo else now.replace(tzinfo=dt.timezone.utc)
+        age = (when - event).total_seconds()
+        if age > limit or age < -120:
+            usable, usable_reason = False, "stale_event"
+        else:
+            usable, usable_reason = True, "event_timestamp"
+    current = row.get("healthy")
+    if current is None:
+        current = row.get("status")
+    label = "usable" if usable is True else ("heuristic session closed, not a venue calendar" if usable_reason == "heuristic_session_closed" else "unknown" if usable is None else "not usable")
+    facts = dict(process_running=running, session_expected=None if venue != "CRYPTO" else True,
+                 heuristic_session_expected=heuristic, venue=venue,
                  entitlement=entitlement, fresh_usable=usable, usable_reason=usable_reason,
-                 last_failure=failure, label=label, calendar="weekday_timezone_not_exchange_holiday")
+                 freshness_source="event_timestamp" if event is not None else "unknown_mtime_ignored",
+                 last_failure=failure, current_health=current, label=label,
+                 calendar="continuous_24_7" if venue == "CRYPTO" else "heuristic_not_venue_calendar")
     row["facts"] = facts
     return row
 

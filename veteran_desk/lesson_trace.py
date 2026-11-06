@@ -207,14 +207,64 @@ def link_later_decision(seat, lesson_id, path, later_task_id, injection_task_id,
                                    dict(task_id=injection_task_id, later_task_id=later_task_id))
     evidence = dict(link="decision", later_task_id=later_task_id, injection_task_id=injection_task_id, causal_edge=False)
     if trade_id:
-        if str(trade_id) != lesson_id:
-            return record_insufficient(seat, lesson_id, path, "cross_trade", dict(task_id=injection_task_id))
-        evidence["trade_id"] = lesson_id
+        if REF_ID.fullmatch(str(trade_id)) is None:
+            return record_insufficient(seat, lesson_id, path, "bad_trade_id", dict(task_id=injection_task_id))
+        evidence["trade_id"] = str(trade_id)
+        evidence["decision_id"] = later_task_id
     if account_id:
         evidence["account_id"] = str(account_id)
     row = dict(level="decision_link", seat=seat, lesson_id=lesson_id, task_id=injection_task_id,
                utc=_now(), validated=False, model_adoption=False, causal_edge=False, evidence=evidence)
     return append(path, row)
+
+
+def note_accepted_decision(seat, path, decision_id, task_id, text, trade_id=None, account_id=None):
+    """Link a real accepted ticket only when its own text cites a ref from this task.
+
+    A different trade that merely happened later is not a link. Missing text or a
+    ref that this task did not cite stays insufficient_data.
+    """
+    decision_id, task_id = str(decision_id or ""), str(task_id or "")
+    if seat not in SEATS or not decision_id or not task_id:
+        return record_insufficient(seat, decision_id or "missing", path, "missing_decision_ids")
+    if decision_id == task_id:
+        return record_insufficient(seat, decision_id, path, "later_task_is_the_injection", dict(task_id=task_id))
+    named = []
+    for item in REF.findall(str(text or "")):
+        if item not in named:
+            named.append(item)
+    if not named:
+        return record_insufficient(seat, decision_id, path, "citation_not_in_decision",
+                                   dict(task_id=task_id, decision_id=decision_id))
+    rows = load(path)
+    linked = None
+    for lesson_id in named:
+        cited = any(row.get("seat") == seat and row.get("task_id") == task_id
+                    and lesson_id in [str(item) for item in (row.get("cited_ids") or [])] for row in rows)
+        if not cited:
+            continue
+        linked = link_later_decision(seat, lesson_id, path, decision_id, task_id, trade_id=trade_id or decision_id,
+                                    account_id=account_id)
+    if linked is None:
+        return record_insufficient(seat, decision_id, path, "citation_not_in_decision",
+                                   dict(task_id=task_id, decision_id=decision_id))
+    return linked
+
+
+def observe_close_for_trade(seat, path, observed):
+    """Attach a book close only to a decision that already named this trade id."""
+    trade_id = str((observed or {}).get("trade_id") or "")
+    if not trade_id:
+        return record_insufficient(seat, "missing", path, "missing_trade_id")
+    rows = load(path)
+    matches = [row for row in rows if row.get("seat") == seat and row.get("level") == "decision_link"
+               and (row.get("evidence") or {}).get("trade_id") == trade_id]
+    lessons = {row.get("lesson_id") for row in matches}
+    if not matches:
+        return record_insufficient(seat, trade_id, path, "no_decision_for_trade", dict(trade_id=trade_id))
+    if len(lessons) != 1:
+        return record_insufficient(seat, trade_id, path, "ambiguous_trade", dict(trade_id=trade_id))
+    return observe_book_close(seat, next(iter(lessons)), path, observed)
 
 
 def _seen(rows, seat, lesson_id, level):
@@ -230,7 +280,7 @@ def observe_book_close(seat, lesson_id, path, observed):
     """
     if not isinstance(observed, dict) or observed.get("source") != "book_close":
         raise ValueError("a book close is required")
-    if str(observed.get("trade_id") or "") != str(lesson_id) or "net_aud" not in observed:
+    if not str(observed.get("trade_id") or "") or "net_aud" not in observed:
         raise ValueError("the close must name this trade and its book net")
     rows = load(path)
     if _seen(rows, seat, lesson_id, "validated"):
@@ -243,8 +293,8 @@ def observe_book_close(seat, lesson_id, path, observed):
     decisions = [row for row in rows if row.get("seat") == seat and row.get("level") == "decision_link"
                  and row.get("lesson_id") == lesson_id and (row.get("evidence") or {}).get("later_task_id")
                  and (row.get("evidence") or {}).get("later_task_id") != row.get("task_id")]
-    matched = [row for row in decisions if (row.get("evidence") or {}).get("trade_id") == lesson_id]
-    evidence = dict(trade_id=lesson_id, net_aud=observed.get("net_aud"), source="book_close")
+    matched = [row for row in decisions if (row.get("evidence") or {}).get("trade_id") == str(observed.get("trade_id"))]
+    evidence = dict(trade_id=str(observed.get("trade_id")), lesson_id=lesson_id, net_aud=observed.get("net_aud"), source="book_close")
     if observed.get("account_id") and _account_conflict(rows, seat, lesson_id, observed.get("account_id")):
         return record_insufficient(seat, lesson_id, path, "cross_account", evidence)
     if not injections:

@@ -1774,7 +1774,7 @@ def _handle_normal(msg, only=None, retry=False):
                 except Exception as error:log("brain review save error %s"%type(error).__name__)
             tadd(root=root, reply_to=msg["id"], **{"from": seat, "to": _to}, text=t, mode=mode, **(dict(kind="seat_mail", hop=int(_fm.group(2) or 1)) if _fm else {}))
             try:
-                from veteran_desk import seat_brain as _SB; _SB.after_chat(seat, text, t, mode)   # seatagents_20261103: dated journal line
+                from veteran_desk import seat_brain as _SB; _SB.after_chat(seat, text, t, mode, task_id=msg.get("id"))   # seatagents_20261103: dated journal line
             except Exception: pass
             if owner_hold([seat], "before handoff", dict(answer=d, text=t, mode=mode)): continue
             if seat != "fixer" and mode != "code":   # seatagents_20261103: every seat incl. the Head Trader has seat mail (answers back, to_seats, reports up the chain)

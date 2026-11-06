@@ -16,10 +16,43 @@ def test_round_and_chat_pass_the_real_ids_and_do_not_invent_a_trade_link():
     assert 'task = runid + "-" + seat' in round_src
     assert "prompt_block(seat, 1100, task_id=task)" in round_src
     assert "after_chat(seat, \"round\", raw, brain=model, task_id=task)" in round_src
+    assert "accept_round_ticket(seat, runid, raw or \"\", decision_id, dest)" in round_src
     assert "_brain_block(seat, msg.get(\"id\"))" in chat_src
     assert "task_id=(msg or {}).get(\"id\")" in chat_src
-    assert "link_later_decision" not in round_src
+    assert "task_id=msg.get(\"id\")" in chat_src
     assert "link_later_decision" not in chat_src
+
+
+def test_round_ticket_links_only_the_cited_decision_and_its_close(tmp_path, monkeypatch):
+    monkeypatch.setattr(SB, "DIR", str(tmp_path / "brains"))
+    monkeypatch.setattr(SB, "BASE", str(tmp_path))
+    path = str(tmp_path / "trace.jsonl")
+    monkeypatch.setenv("THF_LESSON_TRACE", path)
+    SB.lesson("banks", "trade", "The stop held.", ref="trade-44")
+    SB.prompt_block("banks", 1100, task_id="20261106-1536-banks")
+    reply = "Proposal uses ref=trade-44 and does not name any other ticket."
+    SB.after_chat("banks", "round", reply, brain="fixture", task_id="20261106-1536-banks")
+    silent = thf_round.accept_round_ticket("banks", "20261106-1536", "No citation in this text.", "VET-OTHER-20261106-1536-banks", path)
+    assert silent["reason"] == "citation_not_in_decision"
+    linked = thf_round.accept_round_ticket("banks", "20261106-1536", reply, "VET-XOM-20261106-1536-banks", path)
+    assert linked["level"] == "decision_link" and linked["evidence"]["trade_id"] == "VET-XOM-20261106-1536-banks"
+    assert linked["validated"] is False and linked["causal_edge"] is False
+    thf_round.accept_round_ticket("banks", "20261106-1536", reply, "VET-XOM-20261106-1536-banks", path)
+    assert sum(1 for row in LT.load(path) if row.get("level") == "decision_link") == 1
+    SB.lessons_from_book({"seats": {"banks": {"closed": [dict(
+        id="VET-NEARBY", status="closed", fill=1, net_aud=9, ticker="NEAR", side="LONG", grade="A",
+        closed_utc="2099-01-01T00:00:00+00:00")]}}})
+    assert not any(row.get("lesson_id") == "trade-44" and row.get("level") == "outcome_link" for row in LT.load(path))
+    nearby = [row for row in LT.load(path) if row.get("lesson_id") == "VET-NEARBY"]
+    assert nearby and nearby[0]["reason"] == "no_decision_for_trade" and nearby[0]["validated"] is False
+    SB.lessons_from_book({"seats": {"banks": {"closed": [dict(
+        id="VET-XOM-20261106-1536-banks", status="closed", fill=1, net_aud=-3, ticker="XOM", side="LONG", grade="A",
+        closed_utc="2099-01-01T00:00:00+00:00")]}}})
+    outcome = [row for row in LT.load(path) if row.get("level") == "outcome_link"]
+    assert len(outcome) == 1 and outcome[0]["lesson_id"] == "trade-44" and outcome[0]["validated"] is False
+    assert outcome[0]["evidence"]["trade_id"] == "VET-XOM-20261106-1536-banks" and outcome[0]["causal_edge"] is False
+    with pytest.raises(ValueError, match="genuine verifier"):
+        LT.record_validated("banks", "trade-44", path, dict(check="holdout_shadow"))
 
 
 def test_full_chain_stays_unvalidated_without_a_genuine_verifier(tmp_path, monkeypatch):

@@ -892,10 +892,12 @@ def feed_rows(F, now=None):
         fact_label = ""
         if facts:
             failure = facts.get("last_failure") or {}
-            fact_label = "process %s; session %s; entitlement %s; %s%s" % (
+            fact_label = "process %s; session %s; heuristic session %s; entitlement %s; current %s; %s%s" % (
                 {True: "running", False: "not running"}.get(facts.get("process_running"), "unknown"),
                 {True: "expected", False: "closed"}.get(facts.get("session_expected"), "unknown"),
+                {True: "expected", False: "closed"}.get(facts.get("heuristic_session_expected"), "unknown"),
                 facts.get("entitlement") or "unknown",
+                facts.get("current_health") if facts.get("current_health") is not None else "unknown",
                 facts.get("label") or "unknown",
                 ("; last failure %s" % failure.get("code")) if failure else "")
         out.append(dict(id=k, name=name, dot=dot, status=st, problem=problem, facts=fact_label, age=hours_words((v.get("age_s") or 0) / 3600.0) + " ago" if v.get("age_s") is not None else "—", paid="paid" in name, usable=None if not facts else facts.get("fresh_usable")))

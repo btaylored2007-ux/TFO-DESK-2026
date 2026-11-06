@@ -14,20 +14,28 @@ def test_weekend_eu_keeps_422_and_is_not_an_outage_or_usable():
         last_status=dict(code=422, message="Symbols limit reached", utc="2026-11-05T10:54:42+00:00")), SATURDAY)
     assert row["status"] == "ok"
     assert row["facts"]["entitlement"] == "authorized"
+    assert row["facts"]["current_health"] == "ok"
     assert row["facts"]["last_failure"]["code"] == 422
-    assert row["facts"]["session_expected"] is False
+    assert row["facts"]["session_expected"] is None
+    assert row["facts"]["heuristic_session_expected"] is False
+    assert row["facts"]["calendar"] == "heuristic_not_venue_calendar"
     assert row["facts"]["fresh_usable"] is False
-    assert row["facts"]["label"] == "session closed"
+    assert "not a venue calendar" in row["facts"]["label"]
     assert "outage" not in row["facts"]["label"]
 
 
 def test_crypto_is_expected_and_missing_evidence_stays_unknown():
-    crypto = classify("kraken_ticker", dict(status="ok", age_s=10, max_age_s=120, process_state="running"), SATURDAY)
+    crypto = classify("kraken_ticker", dict(status="ok", age_s=10, max_age_s=120, process_state="running",
+                                            event_utc="2026-11-06T17:07:00+00:00"), SATURDAY)
     assert crypto["facts"]["session_expected"] is True and crypto["facts"]["fresh_usable"] is True
+    assert crypto["facts"]["freshness_source"] == "event_timestamp"
     assert crypto["facts"]["entitlement"] == "unknown"
+    stale_file = classify("kraken_tape", dict(status="ok", age_s=5, max_age_s=180), SATURDAY)
+    assert stale_file["facts"]["fresh_usable"] is None and stale_file["facts"]["freshness_source"] == "unknown_mtime_ignored"
     blank = classify("sector_fill", dict(status="ok"), SATURDAY)
     assert blank["facts"]["process_running"] is None
     assert blank["facts"]["session_expected"] is None
+    assert blank["facts"]["heuristic_session_expected"] is None
     assert blank["facts"]["entitlement"] == "unknown"
     assert blank["facts"]["fresh_usable"] is None
 

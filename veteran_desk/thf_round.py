@@ -79,6 +79,16 @@ def candidate_options(D,seat,proposal):
         if p.get("action")!="propose" or not p.get("ticker") or p["ticker"] in seen:return
         seen.add(p["ticker"]);yield p
 
+def accept_round_ticket(seat, runid, reply, decision_id, trace):
+    """Record a queued proposal id only when that reply cites a ref from this round.
+
+    The proposal id is the decision and the trade id the book can later close.
+    A reply with no ref= does not attach any other trade.
+    """
+    from veteran_desk import lesson_trace as LT
+    return LT.note_accepted_decision(seat, trace, decision_id, "%s-%s" % (runid, seat), reply, trade_id=decision_id)
+
+
 def submit_candidate(D,records,record,committed,au,queue,queue_path):
     D.apply_marcus_limits(None,records,committed=committed)
     if not record["gate"]["passed"]:return []
@@ -212,6 +222,14 @@ def run(D,use_llm=True,queue=True,asof=None,queue_path=None,only=None):
                 committed.update(ids)
                 if queue:log["queued"].extend(ids)
                 entry["selected"]=p["ticker"];accepted=True
+                try:
+                    trace = os.environ.get("THF_LESSON_TRACE")
+                    if trace or not os.environ.get("PYTEST_CURRENT_TEST"):
+                        dest = trace or os.path.join(D.BASE, "state", "thf", "lesson_trace.jsonl")
+                        for decision_id in ids:
+                            accept_round_ticket(seat, runid, raw or "", decision_id, dest)
+                except Exception:
+                    pass
                 persist() # A later model stall or process timeout cannot lose submitted work.
                 break
             persist()
