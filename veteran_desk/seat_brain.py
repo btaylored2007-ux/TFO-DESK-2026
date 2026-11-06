@@ -185,6 +185,12 @@ def lessons_from_book(B=None, S=None, seats=None):
                 why = p.get("why") or p.get("reason") or p.get("exit_reason") or st
                 txt = "MISS %s %s grade %s armed %s, %s %s: %s. Next time: %s" % (p.get("ticker"), p.get("side"), p.get("grade"), str(p.get("armed_utc") or "")[:10], st or "withdrawn", str(p.get("closed_utc") or "")[:10], str(why)[:200], _miss_rule(why))
                 r = lesson(seat, "miss", txt, ref=p["id"], ticker=p.get("ticker"), status=st)
+            if filled and p.get("net_aud") is not None:
+                trace = os.environ.get("THF_LESSON_TRACE")
+                if trace or not os.environ.get("PYTEST_CURRENT_TEST"):
+                    from veteran_desk import lesson_trace as LT
+                    LT.observe_book_close(seat, str(p["id"]), trace or os.path.join(BASE, "state", "thf", "lesson_trace.jsonl"),
+                                          dict(source="book_close", trade_id=str(p["id"]), net_aud=p.get("net_aud")))
             if r: out.append(r)
     return out
 # ---------------- hooks ----------------

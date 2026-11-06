@@ -29,7 +29,10 @@ def _save_result(ok,detail,started,model,probe=False,observed=None):
   if observed is not None and float(old.get('checked_epoch') or 0)>epoch:return old
   result=dict(old,route='sgp_authenticated_cursor',model=model,checked_epoch=epoch,checked_utc=dt.datetime.fromtimestamp(epoch,dt.timezone.utc).isoformat(),detail=str(detail)[-800:],probe=probe)
   if ok:
-   result.update(ok=True,last_success_epoch=epoch);CD.mark_ok('grok')
+   events=list(old.get('quota_events') or [])
+   if old.get('quota'):
+    events.append(dict(quota=True,detail=str(old.get('detail') or '')[:240],failure_epoch=old.get('failure_epoch'),cleared_by='verified_success',cleared_epoch=epoch))
+   result.update(ok=True,last_success_epoch=epoch,quota=False,quota_events=events[-30:]);CD.mark_ok('grok')
   elif QUOTA.search(str(detail)) or AUTH.search(str(detail)):
    result.update(ok=False,failure_epoch=epoch,quota=bool(QUOTA.search(str(detail))),auth=bool(AUTH.search(str(detail))))
    CD.mark_fail('grok',str(detail),secs=monthly_reset_secs(str(detail),epoch),kind='quota' if result['quota'] else 'auth')
@@ -40,7 +43,12 @@ def _save_result(ok,detail,started,model,probe=False,observed=None):
   B.atomic_json(STATE,result);return result
 def reason():
  from veteran_desk import ai_cooldown as CD
- if CD.cooling('grok'):return 'Grok account paused; awaiting a genuine successful health response'
+ if CD.cooling('grok'):
+  row=CD._load().get('grok') or {}; kind=row.get('kind'); until=row.get('until_wita') or 'the cooldown time'
+  if kind=='timeout': return 'Grok call timed out; local cooldown until %s. This is not an account limit.' % until
+  if kind=='quota': return 'Grok usage limit is cooling until %s. Do not bypass it.' % until
+  if kind=='auth': return 'Grok sign-in is required until %s. Do not bypass it.' % until
+  return 'Grok is cooling (%s) until %s.' % (kind or 'unknown', until)
  if not os.path.isfile(cli_path()):return 'Existing Cursor CLI unavailable'
  current=state()
  if not current.get('ok'):return 'Authenticated Grok route not successfully verified'+(': '+str(current.get('detail',''))[-180:] if current else '')

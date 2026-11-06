@@ -134,7 +134,11 @@ def call_chatgpt(prompt, seat, timeout):
 
 
 def call_grok(prompt, seat, timeout):
+    from veteran_desk import ai_cooldown as CD
     from veteran_desk import thf_grok as client
+    if CD.cooling("grok"):
+        row = CD._load().get("grok") or {}
+        raise RuntimeError("grok deferred; local %s cooldown until %s" % (row.get("kind") or "cooldown", row.get("until_wita") or "later"))
     text = client.ask(prompt, seat=seat, timeout=timeout)
     return text, getattr(text, "model", None) or "grok"
 
@@ -233,7 +237,7 @@ def pending_jobs(root):
     out = []
     for task_id in order:
         row = latest[task_id]
-        if row.get("event") != "finished":
+        if row.get("event") not in ("finished", "incomplete"):
             out.append(row)
     return out
 
@@ -265,9 +269,9 @@ def ensure_coverage(root, now=None, resample_after_s=6 * 3600):
     added = []
     for seat in LT.SEATS:
         row = latest.get(seat)
-        if row and row.get("event") != "finished":
+        if row and row.get("event") not in ("finished", "incomplete"):
             continue
-        if row and row.get("event") == "finished":
+        if row and row.get("event") in ("finished", "incomplete"):
             then = _parse_utc(row.get("utc"))
             if then is not None and (now_dt - then).total_seconds() < float(resample_after_s):
                 continue
@@ -283,7 +287,45 @@ def ensure_coverage(root, now=None, resample_after_s=6 * 3600):
     return added
 
 
-def run_job(job, timeout, budgets=None):
+TRANSIENT = ("busy", "cooldown", "timed out", "timeout", "unreachable", "restart", "deferred")
+DEFER_LIMIT = 3
+
+
+def is_transient(row):
+    if row.get("availability") == "quota":
+        return False
+    text = ((row.get("error") or "") + " " + (row.get("availability") or "")).lower()
+    if "usage limit" in text or "sign-in" in text:
+        return False
+    return any(word in text for word in TRANSIENT)
+
+
+def terminal_providers(samples, task_id):
+    latest = {}
+    for row in samples:
+        name = row.get("provider_requested")
+        if row.get("task_id") == task_id and name:
+            latest[name] = row
+    return {name for name, row in latest.items() if not is_transient(row)}
+
+
+def _read_samples(root):
+    rows = []
+    try:
+        lines = open(samples_path(root), encoding="utf-8")
+    except OSError:
+        return rows
+    for line in lines:
+        try:
+            item = json.loads(line)
+        except ValueError:
+            continue
+        if isinstance(item, dict):
+            rows.append(item)
+    return rows
+
+
+def run_job(job, timeout, budgets=None, only=None):
     prompt = job.get("prompt") or ""
     seat = job.get("seat")
     prompt_hash = BENCH._hash(prompt)
@@ -303,7 +345,7 @@ def run_job(job, timeout, budgets=None):
             score=score, tokens="unknown", cost_usd="unknown", latency_ms=result.get("latency_ms"),
             shadow_calls=1, kind="shadow_evaluation", paper_only=True)
 
-    names = list(BENCH.provider_order(str(job.get("task_id") or prompt_hash)))
+    names = [name for name in BENCH.provider_order(str(job.get("task_id") or prompt_hash)) if only is None or name in only]
     with ThreadPoolExecutor(max_workers=len(PROVIDERS)) as pool:
         futures = [pool.submit(one, name) for name in names]
         for name, future in zip(names, futures):
@@ -338,13 +380,24 @@ def once(root, now=None):
     budgets = provider_budgets(config)
     timeout = int(config.get("provider_timeout_s") or 90)
     ran = 0
+    samples = _read_samples(root)
     for job in pending_jobs(root)[:int(config.get("max_jobs_per_run") or 1)]:
-        _append(jobs_path(root), dict(event="started", task_id=job.get("task_id"), utc=_now()))
-        rows = run_job(job, timeout, budgets)
+        task_id = job.get("task_id")
+        missing = [name for name in PROVIDERS if name not in terminal_providers(samples, task_id)]
+        _append(jobs_path(root), dict(event="started", task_id=task_id, utc=_now()))
+        rows = run_job(job, timeout, budgets, only=missing) if missing else []
         for row in rows:
             _append(samples_path(root), row)
-        _append(jobs_path(root), dict(event="finished", task_id=job.get("task_id"), utc=_now(),
-                                     providers=[row.get("provider_requested") for row in rows]))
+        samples.extend(rows)
+        done = terminal_providers(samples, task_id)
+        deferred = [name for name in PROVIDERS if name not in done]
+        if not deferred:
+            event = "finished"
+        else:
+            waits = sum(1 for row in _events(root) if row.get("task_id") == task_id and row.get("event") == "deferred")
+            event = "incomplete" if waits + 1 >= DEFER_LIMIT else "deferred"
+        _append(jobs_path(root), dict(event=event, task_id=task_id, utc=_now(),
+                                     providers=[row.get("provider_requested") for row in rows], deferred=deferred))
         ran += 1
     status.update(called=True, jobs=ran, availability="ran", provider_timeout_s=timeout,
                   chatgpt_timeout_s=budgets.get("chatgpt"),

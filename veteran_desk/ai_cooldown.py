@@ -97,8 +97,10 @@ def mark_fail(name, err, secs=None, kind=None):
         d = _load()
         previous=d.get(name) or {}
         if kind=="quota" and previous.get("kind")=="quota" and float(previous.get("until") or 0)>time.time()+secs:return kind
+        history=list(previous.get("history") or [])
         d[name] = dict(until=time.time() + secs, kind=kind, why=e[:240], since=time.strftime("%Y-%m-%d %H:%M:%S WITA"),
-                                    until_wita=time.strftime("%Y-%m-%d %H:%M WITA", time.localtime(time.time() + secs))); _save(d)
+                                    until_wita=time.strftime("%Y-%m-%d %H:%M WITA", time.localtime(time.time() + secs)),
+                                    history=history); _save(d)
     return kind
 def mark_down(name, why, secs, kind="down"):
     """brainsafe_20261103: explicit cooldown (an AI switched off on purpose, e.g. a relay whose account needs Brett): every caller skips it for secs."""
@@ -108,6 +110,14 @@ def mark_down(name, why, secs, kind="down"):
                                     until_wita=time.strftime("%Y-%m-%d %H:%M WITA", time.localtime(time.time() + int(secs)))); _save(d)
     return kind
 def mark_ok(name):
+    """A verified success ends the active cooldown and keeps the prior quota, auth, or timeout event."""
     with _LK:
         d = _load()
-        if name in d: d.pop(name); _save(d)
+        row = d.get(name)
+        if not isinstance(row, dict): return
+        history = list(row.get("history") or [])
+        if row.get("kind") and row.get("kind") != "ok":
+            history.append(dict(kind=row.get("kind"), why=row.get("why"), since=row.get("since"), until_wita=row.get("until_wita")))
+        d[name] = dict(until=0, kind="ok", history=history[-30:], cleared_by="verified_success",
+                       since=time.strftime("%Y-%m-%d %H:%M:%S WITA"))
+        _save(d)

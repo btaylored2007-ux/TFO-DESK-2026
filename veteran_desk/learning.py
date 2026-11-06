@@ -363,7 +363,10 @@ def daily(use_llm=True, llm=None, today=None, dry=False):
         res[s] = dict(top=L[0], stats=st, models={k: v["status"] for k, v in crit.items()})
         if dry: res[s]["text"] = body
     if dry: return res
-    _wj(os.path.join(THF_LD if thf else REP, "daily_review_latest.json"), dict(utc=now().isoformat(), seats=res, **(dict(desk="thf", source="state/thf/thf_book.json (each seat's own realised closes only)") if thf else {}))); return res
+    if thf:
+        from veteran_desk import lesson_trace as LT
+        LT.publish_authority(THF_LD, LT.load(os.path.join(BASE, "state", "thf", "lesson_trace.jsonl")))
+    _wj(os.path.join(THF_LD if thf else REP, "daily_review_latest.json"), dict(utc=now().isoformat(), seats=res, **(dict(desk="thf", source="state/thf/seat_brain plus state/thf/lesson_trace.jsonl; state/thf/learning is not the citation store") if thf else {}))); return res
 def top_lesson(seat):
     p = os.path.join(_sd(seat), "lessons.md")
     try: m = re.search(r"^- TOP: (.+)$", open(p).read(), re.M); return m.group(1) if m else None

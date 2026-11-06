@@ -57,6 +57,66 @@ def record_validated(seat, lesson_id, path, evidence):
     return row
 
 
+def record_insufficient(seat, lesson_id, path, reason, observed=None):
+    """No causal claim. The reason says which observation was missing."""
+    row = dict(level="insufficient_data", seat=seat, lesson_id=lesson_id, utc=_now(),
+               validated=False, model_adoption=False, reason=reason,
+               observed=dict(observed or {}))
+    append(path, row)
+    return row
+
+
+def _seen(rows, seat, lesson_id, level):
+    return any(row.get("seat") == seat and row.get("lesson_id") == lesson_id and row.get("level") == level for row in rows)
+
+
+def observe_book_close(seat, lesson_id, path, observed):
+    """Validate only when this ref was included and cited, and the book recorded the close.
+
+    An uncited or unseen lesson stays insufficient_data. Model wording cannot validate it.
+    """
+    if not isinstance(observed, dict) or observed.get("source") != "book_close":
+        raise ValueError("a book close is required")
+    if str(observed.get("trade_id") or "") != str(lesson_id) or "net_aud" not in observed:
+        raise ValueError("the close must name this trade and its book net")
+    rows = load(path)
+    if _seen(rows, seat, lesson_id, "validated"):
+        return next(row for row in rows if row.get("seat") == seat and row.get("lesson_id") == lesson_id and row.get("level") == "validated")
+    included = any(str(lesson_id) in [str(item) for item in (row.get("lesson_ids") or [])]
+                   for row in rows if row.get("seat") == seat and row.get("level") == "included")
+    cited = any(str(lesson_id) in [str(item) for item in (row.get("cited_ids") or [])]
+                for row in rows if row.get("seat") == seat)
+    evidence = dict(check="book_close", trade_id=str(lesson_id), net_aud=observed.get("net_aud"), source="book_close")
+    if not included:
+        return record_insufficient(seat, lesson_id, path, "not_in_prompt", evidence)
+    if not cited:
+        return record_insufficient(seat, lesson_id, path, "included_not_cited", evidence)
+    return record_validated(seat, lesson_id, path, evidence)
+
+
+AUTHORITY = dict(
+    decisions="state/thf/seat_brain/<seat>/lessons.jsonl",
+    trace="state/thf/lesson_trace.jsonl",
+    not_used_for_decisions="state/thf/learning",
+    rule="A lesson is included when placed in a prompt, cited only if the reply names that ref, and validated only by a later book close. Otherwise the state is insufficient_data.",
+)
+
+
+def publish_authority(directory, rows):
+    """Refresh the legacy folder with the live trace. It does not create lessons or validations."""
+    os.makedirs(directory, exist_ok=True)
+    body = dict(AUTHORITY, utc=_now(), seats=coverage(rows), validated_count=sum(
+        1 for row in rows if row.get("level") == "validated" and row.get("validated") is True))
+    path = os.path.join(directory, "SOURCE.json")
+    temporary = path + ".tmp"
+    with open(temporary, "w", encoding="utf-8") as handle:
+        json.dump(body, handle, indent=1)
+        handle.flush()
+        os.fsync(handle.fileno())
+    os.replace(temporary, path)
+    return body
+
+
 def load(path):
     rows = []
     try:
@@ -78,17 +138,21 @@ def coverage(rows, seats=SEATS):
     for seat in seats:
         mine = [row for row in rows if row.get("seat") == seat]
         included = [row for row in mine if row.get("level") == "included"]
-        cited = [row for row in mine if row.get("level") == "cited" or row.get("cited_ids")]
+        cited = [row for row in mine if row.get("cited_ids")]
         validated = [row for row in mine if row.get("level") == "validated" and row.get("validated") is True]
+        insufficient = [row for row in mine if row.get("level") == "insufficient_data"]
         if not mine:
             state = "no_evidence"
-        elif included and not validated:
-            state = "included_not_validated"
         elif validated:
             state = "validated_impact_recorded"
+        elif included and not validated:
+            state = "included_not_validated"
+        elif insufficient:
+            state = "insufficient_data"
         else:
             state = "partial"
         out.append(dict(seat=seat, role="admin" if seat in ADMINS else "trader", state=state,
-                        included=len(included), validated=len(validated),
+                        included=len(included), cited=len(cited), validated=len(validated),
+                        outcome="validated" if validated else ("insufficient_data" if insufficient else None),
                         note=None if mine else "no close and no non-trade task evidence; do not invent an outcome"))
     return out
