@@ -121,6 +121,15 @@ BASE_SHA = {
     "veteran_desk/thf_paid_pack.py": ("155a908e8c7cd8a968bd0220bc8240beef7c79c8a99cab20fc9f140dc838d935",),
     "veteran_desk/thf_chat_home.py": ("d50f4c4ad1169c5da52f6b3e1eb7c756d337a9d6d06930b222bfda7b8b157a76",),
     "queue_answerer_sgp.py": ("0059287299eb6a41596461290a7a4a7295f3fdd917faa56c82a531ab56c3e4af",),
+    # Reconciled against the live bytes, not added as a blind hash. Payload is that file plus the feed or brand edit.
+    "asia_intraday_sgp.py": ("be9bc8592f1d6e0792a9e3b58aa20c57c572952a2d8e2d3787e94e39f8e5a053",),
+    "thf_feedkeeper.py": ("a6b435ff1c00af63c2d275382709b90bc14ea72c778a8e4e12bceafa604023db",),
+    "tools/intraday_bars_pull.py": ("e382d170ec55c6eb2a93be99049687e6ce6467281650402449f891967faa825d",),
+    "tools/thf_chat.html": ("2209a95bfa5b0856fb5d4d13144f4672f4049a67e6699484c1ac6ebf791fd1f4",),
+    "tools/thf_chat_page.html": ("d2cf8aa0b9fd7cc6beaeeecd5f6e689f1c881086937f1bb1ebc6eb56d4344bd1",),
+    # Live hub kept; brand and chat height only. Not the short replacement.
+    "tools/thf_eli10.html": ("503a2c6aecb908904aa464d3cf3d7aaf173c988471ce2cba094d1c27e24601f9",),
+    "tools/thf_eli10.js": ("c085f878b7c0fbc8eda40c757b312fcbfd1853cf0f6397b2d7d5a13015270bc8",),
 }
 
 _HERE = Path(__file__).resolve().parent
