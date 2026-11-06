@@ -92,6 +92,8 @@ PAYLOADS = (
     "veteran_desk/thf_prompt_catalog.py",
     "veteran_desk/thf_scan.py",
     "veteran_desk/thf_ticker.py",
+    "veteran_desk/thf_chat_home.py",
+    "queue_answerer_sgp.py",
 )
 SRC_OVERRIDE = {
     "state/thf/shadow_sampler.json": "deploy/incremental_20261106/shadow_sampler.json",
@@ -117,6 +119,8 @@ BASE_SHA = {
     "veteran_desk/pit.py": ("2b2578bdc76ab4d46e4fcea89b719f6a8ee137afa70ba7ba36b497cf1dc7cb42",),
     "veteran_desk/scan_universe.py": ("cb0c069e09b2eb48f7c4fc15b0608b1f182f7fa6f6c11b90b95090d6c59fd9b9",),
     "veteran_desk/thf_paid_pack.py": ("155a908e8c7cd8a968bd0220bc8240beef7c79c8a99cab20fc9f140dc838d935",),
+    "veteran_desk/thf_chat_home.py": ("d50f4c4ad1169c5da52f6b3e1eb7c756d337a9d6d06930b222bfda7b8b157a76",),
+    "queue_answerer_sgp.py": ("0059287299eb6a41596461290a7a4a7295f3fdd917faa56c82a531ab56c3e4af",),
 }
 
 _HERE = Path(__file__).resolve().parent

@@ -483,5 +483,21 @@
     "payload_sha256": "087be9af42f79c2ad9446672468619588fd3002fa3b3fcbeac9b5feb35f089d6",
     "base_sha256": [],
     "book_protected": false
+  },
+  {
+    "path": "veteran_desk/thf_chat_home.py",
+    "payload_sha256": "b1184435dc3ccad8771133e59b26852d3ab184171ae35e383c7601f0119de7ff",
+    "base_sha256": [
+      "d50f4c4ad1169c5da52f6b3e1eb7c756d337a9d6d06930b222bfda7b8b157a76"
+    ],
+    "book_protected": false
+  },
+  {
+    "path": "queue_answerer_sgp.py",
+    "payload_sha256": "0059287299eb6a41596461290a7a4a7295f3fdd917faa56c82a531ab56c3e4af",
+    "base_sha256": [
+      "0059287299eb6a41596461290a7a4a7295f3fdd917faa56c82a531ab56c3e4af"
+    ],
+    "book_protected": false
   }
 ]
