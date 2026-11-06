@@ -319,7 +319,9 @@ def nightly(seats=None, ai=True, budget_s=3000, timeout_s=300, S=None):
         if ai and not os.environ.get("PYTEST_CURRENT_TEST") and time.time() - t0 < budget_s - timeout_s:
             try:
                 from veteran_desk import claude_brain as CB
+                prompt_block(seat, 1100)
                 txt, lab = CB.ask(review_prompt(seat, P), seat=seat, timeout=timeout_s, kind="review"); d = _jparse(txt) or {}
+                after_chat(seat, "nightly", txt, lab)
                 facts = [str(x) for x in (d.get("facts") or []) if str(x).strip()]
                 if len(facts) >= 3:
                     write_facts(seat, facts, lab); mode = lab
@@ -340,7 +342,15 @@ def nightly(seats=None, ai=True, budget_s=3000, timeout_s=300, S=None):
             journal(seat, "nightly_deferred", "AI review incomplete; prior standing facts preserved; deterministic snapshot saved separately" + ((" (" + note + ")") if note else ""))
         out[seat] = dict(mode=mode, note=note[:160], facts=len(read_facts(seat)),
                          ai_review_completed=mode != "code", standing_facts_preserved=mode == "code")
-    st = dict(wita=now_wita(), secs=round(time.time() - t0), seats=out); _write(STATUS, json.dumps(st, indent=1)); return st
+    st = dict(wita=now_wita(), secs=round(time.time() - t0), seats=out); _write(STATUS, json.dumps(st, indent=1))
+    if not os.environ.get("PYTEST_CURRENT_TEST"):
+        try:
+            from veteran_desk import lesson_trace as LT
+            LT.publish_authority(os.path.join(BASE, "state", "thf", "learning"),
+                                 LT.load(os.path.join(BASE, "state", "thf", "lesson_trace.jsonl")))
+        except Exception:
+            pass
+    return st
 def card(seat, S=None, hb=None):
     """seatagents_20261103 (Brett 21:43 point 6 'a seat page showing brain, schedule, last runs, lessons and AI in use'): ONE read-only,
     ELI10 dict per seat for the dashboard Seats tab (the dash owner renders it; this module never touches the dash)."""

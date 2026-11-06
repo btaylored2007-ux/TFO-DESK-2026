@@ -363,6 +363,65 @@ def refuses_root():
     return os.geteuid() == 0
 
 
+WITA = dt.timezone(dt.timedelta(hours=8))
+
+
+def review_due(started_utc):
+    """The review is the next 08:00 WITA at or after seven days from the locked start."""
+    started = dt.datetime.fromisoformat(str(started_utc).replace("Z", "+00:00"))
+    if started.tzinfo is None:
+        started = started.replace(tzinfo=dt.timezone.utc)
+    instant = started.astimezone(WITA) + dt.timedelta(days=7)
+    due = instant.replace(hour=8, minute=0, second=0, microsecond=0)
+    if instant > due:
+        due += dt.timedelta(days=1)
+    return due
+
+
+def lock_window(root, computed, now=None):
+    """Keep the first paired time. A later run must not move that start forward or clear it."""
+    path = os.path.join(root, "state", "thf", "shadow_window.json")
+    stored = {}
+    try:
+        stored = json.load(open(path, encoding="utf-8"))
+    except (OSError, ValueError):
+        stored = {}
+    started = stored.get("started_utc")
+    fresh = computed.get("first_row_utc") if computed.get("started") else None
+    if fresh and (not started or str(fresh) < str(started)):
+        started = fresh
+    if not started:
+        body = dict(started=False, started_utc=None, seven_day="not_started", seven_day_ready=False,
+                    review_due_wita=None, review_due_utc=None,
+                    note="comparison clock has not started")
+    else:
+        due = review_due(started)
+        current = now or dt.datetime.now(dt.timezone.utc)
+        if current.tzinfo is None:
+            current = current.replace(tzinfo=dt.timezone.utc)
+        ready = current >= due.astimezone(dt.timezone.utc)
+        body = dict(started=True, started_utc=started,
+                    seven_day="review_due" if ready else "clock_started",
+                    seven_day_ready=bool(ready),
+                    review_due_wita=due.strftime("%Y-%m-%d %H:%M WITA"),
+                    review_due_utc=due.astimezone(dt.timezone.utc).replace(microsecond=0).isoformat(),
+                    note="The start is the first paired row. The 7-day review is a later time, not a claim that the review is ready.")
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    temporary = path + ".tmp"
+    with open(temporary, "w", encoding="utf-8") as handle:
+        json.dump(body, handle, indent=1)
+        handle.flush()
+        os.fsync(handle.fileno())
+    os.replace(temporary, path)
+    window = dict(computed)
+    window["started"] = body["started"]
+    window["first_row_utc"] = started
+    window["review_due_wita"] = body["review_due_wita"]
+    window["seven_day_ready"] = body["seven_day_ready"]
+    body["window"] = window
+    return body
+
+
 def once(root, now=None):
     config = load_config(root)
     status = dict(version=VERSION, utc=_now(), enabled=bool(config.get("enabled")), paper_only=True,
@@ -409,7 +468,14 @@ def once(root, now=None):
     except (OSError, ValueError):
         samples = []
     window = BENCH.window_status([row for row in samples if row.get("kind") == "shadow_evaluation"])
-    status["window"] = window
+    clock = lock_window(root, window)
+    status["window"] = clock["window"]
+    status["seven_day"] = clock["seven_day"]
+    status["seven_day_ready"] = clock["seven_day_ready"]
+    try:
+        LT.publish_authority(os.path.join(root, "state", "thf", "learning"), LT.load(os.path.join(root, "state", "thf", "lesson_trace.jsonl")))
+    except Exception:
+        pass
     status["seats_expected"] = len(LT.SEATS)
     status["pending_jobs"] = len(pending_jobs(root))
     status["comparison"] = "paired rows in shadow_samples.jsonl only; a production log with shadow_calls 0 is not the trial"

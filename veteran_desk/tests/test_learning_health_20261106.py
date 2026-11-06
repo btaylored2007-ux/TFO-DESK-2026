@@ -23,13 +23,15 @@ def test_uncited_close_stays_insufficient_and_a_cited_close_keeps_the_book_net(t
     assert first["level"] == "insufficient_data" and first["validated"] is False and first["reason"] == "included_not_cited"
     LT.append(str(path), dict(LT.interpret_reply("See ref=trade-1.", ["trade-1"]), seat="banks", source="seat_brain.after_chat"))
     second = LT.observe_book_close("banks", "trade-1", str(path), dict(source="book_close", trade_id="trade-1", net_aud=-4.5))
-    assert second["validated"] is True and second["evidence"]["net_aud"] == -4.5 and second["model_adoption"] is False
+    assert second["level"] == "outcome_link" and second["validated"] is False and second["causal_edge"] is False
+    assert second["evidence"]["net_aud"] == -4.5 and second["evidence"]["link"] == "outcome"
     states = {row["seat"]: row for row in LT.coverage(LT.load(str(path)))}
-    assert states["banks"]["state"] == "validated_impact_recorded"
+    assert states["banks"]["state"] != "validated_impact_recorded"
+    assert states["cfo"]["state"] == "waiting_for_work" and states["software_engineer"]["state"] == "waiting_for_work"
     assert states["healthcare"]["state"] == "no_evidence" and states["healthcare"]["outcome"] is None
     published = LT.publish_authority(str(tmp_path / "learning"), LT.load(str(path)))
     assert published["decisions"].startswith("state/thf/seat_brain")
-    assert published["validated_count"] == 1
+    assert published["validated_count"] == 0
     assert "promotable" in learning.promote.__code__.co_consts or "needs >=" in open(learning.__file__, encoding="utf-8").read()
 
 
@@ -114,14 +116,29 @@ def test_cooling_grok_is_not_called(monkeypatch):
     assert asked == []
 
 
+def test_matched_start_is_kept_and_the_review_is_14_november(tmp_path):
+    started = "2026-11-06T15:36:07+00:00"
+    due = SAMPLER.review_due(started)
+    assert due.strftime("%Y-%m-%d %H:%M WITA") == "2026-11-14 08:00 WITA"
+    first = SAMPLER.lock_window(str(tmp_path), dict(started=True, first_row_utc=started, paired_tasks=2, n=2),
+                                now=__import__("datetime").datetime(2026, 11, 6, 16, 0, tzinfo=__import__("datetime").timezone.utc))
+    assert first["seven_day"] == "clock_started" and first["seven_day_ready"] is False
+    assert first["window"]["started"] is True and first["started_utc"] == started
+    later = SAMPLER.lock_window(str(tmp_path), dict(started=True, first_row_utc="2026-11-07T00:00:00+00:00", paired_tasks=3),
+                                now=__import__("datetime").datetime(2026, 11, 7, 1, 0, tzinfo=__import__("datetime").timezone.utc))
+    assert later["started_utc"] == started
+    cleared = SAMPLER.lock_window(str(tmp_path), dict(started=False, first_row_utc=None, paired_tasks=0),
+                                  now=__import__("datetime").datetime(2026, 11, 7, 2, 0, tzinfo=__import__("datetime").timezone.utc))
+    assert cleared["started"] is True and cleared["started_utc"] == started and cleared["seven_day"] == "clock_started"
+
+
 def test_installer_replaces_the_recorded_bases_and_rolls_back(tmp_path):
     root = Path(__file__).resolve().parents[2]
-    install = root / "deploy/learning_health_20261106/install.py"
+    install = root / "deploy/clock_status_20261106/install.py"
     book = tmp_path / "veteran_desk/book.py"
     book.parent.mkdir(parents=True)
     book.write_bytes((root / "veteran_desk/book.py").read_bytes())
-    rels = ("veteran_desk/lesson_trace.py", "veteran_desk/seat_brain.py", "veteran_desk/learning.py",
-            "veteran_desk/ai_cooldown.py", "veteran_desk/thf_grok.py", "veteran_desk/thf_shadow_sampler.py")
+    rels = ("veteran_desk/lesson_trace.py", "veteran_desk/seat_brain.py", "veteran_desk/thf_shadow_sampler.py")
     for rel in rels:
         dest = tmp_path / rel
         dest.parent.mkdir(parents=True, exist_ok=True)
@@ -133,4 +150,4 @@ def test_installer_replaces_the_recorded_bases_and_rolls_back(tmp_path):
     back = subprocess.run([sys.executable, str(install), "--root", str(tmp_path), "--rollback"],
                           cwd=root, text=True, capture_output=True, check=False)
     assert back.returncode == 0, back.stdout
-    assert hashlib.sha256((tmp_path / "veteran_desk/lesson_trace.py").read_bytes()).hexdigest() == "4771ecc9e567c881bb50c27c9330a13acbd7d375dec40730984dd291129e2813"
+    assert hashlib.sha256((tmp_path / "veteran_desk/lesson_trace.py").read_bytes()).hexdigest() == "e63ed1fb7463bed9f8c748c5f927fd767e5820837e240f111cdddcf9aec90bac"

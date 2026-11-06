@@ -91,7 +91,11 @@ def observe_book_close(seat, lesson_id, path, observed):
         return record_insufficient(seat, lesson_id, path, "not_in_prompt", evidence)
     if not cited:
         return record_insufficient(seat, lesson_id, path, "included_not_cited", evidence)
-    return record_validated(seat, lesson_id, path, evidence)
+    row = dict(level="outcome_link", seat=seat, lesson_id=lesson_id, utc=_now(),
+               validated=False, model_adoption=False, causal_edge=False,
+               evidence=dict(evidence, link="outcome", causal_edge=False))
+    append(path, row)
+    return row
 
 
 AUTHORITY = dict(
@@ -133,6 +137,10 @@ def load(path):
     return rows
 
 
+# These admins are outside the trader round. A missing trace row means no turn has used them yet.
+WAITING_FOR_WORK = ("blind_challenger", "cfo", "devils_advocate", "fixer", "head_of_desk", "software_engineer")
+
+
 def coverage(rows, seats=SEATS):
     out = []
     for seat in seats:
@@ -141,7 +149,9 @@ def coverage(rows, seats=SEATS):
         cited = [row for row in mine if row.get("cited_ids")]
         validated = [row for row in mine if row.get("level") == "validated" and row.get("validated") is True]
         insufficient = [row for row in mine if row.get("level") == "insufficient_data"]
-        if not mine:
+        if not mine and seat in WAITING_FOR_WORK:
+            state = "waiting_for_work"
+        elif not mine:
             state = "no_evidence"
         elif validated:
             state = "validated_impact_recorded"
@@ -154,5 +164,7 @@ def coverage(rows, seats=SEATS):
         out.append(dict(seat=seat, role="admin" if seat in ADMINS else "trader", state=state,
                         included=len(included), cited=len(cited), validated=len(validated),
                         outcome="validated" if validated else ("insufficient_data" if insufficient else None),
-                        note=None if mine else "no close and no non-trade task evidence; do not invent an outcome"))
+                        note=("No admin turn is in the trace. The brain block runs when this seat is actually used."
+                              if state == "waiting_for_work" else
+                              None if mine else "no close and no non-trade task evidence; do not invent an outcome")))
     return out
