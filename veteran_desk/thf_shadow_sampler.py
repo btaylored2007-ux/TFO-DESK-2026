@@ -10,6 +10,7 @@ and state/thf/shadow_sampler_status.json. The clock starts on the first task
 that has a real answer from all four providers.
 """
 import datetime as dt
+import hashlib
 import json
 import os
 import time
@@ -71,14 +72,44 @@ def load_config(root):
 
 def classify_error(error):
     text = str(error).lower()
-    if any(word in text for word in ("quota", "rate limit", "cooling", "usage limit", "too many")):
-        return "quota"
+    # A transport ValueError is an adapter failure. It is not an account quota.
+    if "transport" in text or ("valueerror" in text and "rate limit" not in text):
+        return "error"
+    if "private key" in text or "status unreadable" in text:
+        return "unavailable"
     if any(word in text for word in ("timeout", "deadline", "no time left", "timed out")):
         return "timeout"
+    if any(word in text for word in ("quota", "rate limit", "usage limit", "too many", "insufficient balance")):
+        return "quota"
+    if "cooling" in text:
+        return "quota"
     if any(word in text for word in ("off", "unavailable", "not verified", "disabled", "restricted",
-                                     "permission", "cli unavailable", "bridge", "not logged", "auth")):
+                                     "permission", "cli unavailable", "bridge", "not logged", "auth",
+                                     "unreachable", "connection refused", "restart", "busy")):
         return "unavailable"
     return "error"
+
+
+def chatgpt_budget(config):
+    """The bridge default is 280s. Extra High has taken about 169s. A 90s cap records a timeout."""
+    base = int(config.get("provider_timeout_s") or 90)
+    if config.get("chatgpt_timeout_s") is not None:
+        budget = int(config.get("chatgpt_timeout_s") or base)
+    elif base >= 60:
+        budget = max(base, 280)
+    else:
+        budget = base
+    return min(300, max(1, budget))
+
+
+def provider_budgets(config):
+    base = max(1, int(config.get("provider_timeout_s") or 90))
+    return {name: chatgpt_budget(config) if name == "chatgpt" else base for name in PROVIDERS}
+
+
+def shadow_request_id(provider, seat, prompt):
+    digest = hashlib.sha256(("%s\n%s\n%s" % (provider, seat or "", prompt or "")).encode()).hexdigest()[:32]
+    return ("shadow-%s-%s" % (str(provider).replace("_", "-"), digest))[:128]
 
 
 def call_claude(prompt, seat, timeout):
@@ -89,7 +120,16 @@ def call_claude(prompt, seat, timeout):
 
 def call_chatgpt(prompt, seat, timeout):
     from veteran_desk import chatgpt_bridge as client
-    text = client.ask(prompt, timeout=timeout, skip_if_busy=True, seat=seat, workload="other")
+    live = client.health()
+    # One decision. A restart or an in-flight browser job is not a second POST.
+    if not isinstance(live, dict) or not live.get("state"):
+        raise RuntimeError("chatgpt bridge unreachable")
+    if str(live.get("state")) in ("starting", "restarting"):
+        raise RuntimeError("chatgpt bridge restarting")
+    if live.get("busy") or live.get("inflight"):
+        raise RuntimeError("chatgpt busy")
+    text = client.ask(prompt, timeout=timeout, skip_if_busy=True, seat=seat, workload="other",
+                      request_id=shadow_request_id("chatgpt", seat, prompt))
     return text, getattr(text, "model", None) or "chatgpt"
 
 
@@ -243,14 +283,15 @@ def ensure_coverage(root, now=None, resample_after_s=6 * 3600):
     return added
 
 
-def run_job(job, timeout):
+def run_job(job, timeout, budgets=None):
     prompt = job.get("prompt") or ""
     seat = job.get("seat")
     prompt_hash = BENCH._hash(prompt)
+    budgets = budgets or {name: timeout for name in PROVIDERS}
     rows = []
 
     def one(name):
-        result = call_provider(name, prompt, seat, timeout)
+        result = call_provider(name, prompt, seat, budgets.get(name, timeout))
         text = result.get("text") or ""
         score = BENCH.score_output(prompt, text, None) if result.get("scored") else None
         return dict(
@@ -262,38 +303,52 @@ def run_job(job, timeout):
             score=score, tokens="unknown", cost_usd="unknown", latency_ms=result.get("latency_ms"),
             shadow_calls=1, kind="shadow_evaluation", paper_only=True)
 
+    names = list(BENCH.provider_order(str(job.get("task_id") or prompt_hash)))
     with ThreadPoolExecutor(max_workers=len(PROVIDERS)) as pool:
-        futures = [pool.submit(one, name) for name in BENCH.provider_order(str(job.get("task_id") or prompt_hash))]
-        for future in futures:
+        futures = [pool.submit(one, name) for name in names]
+        for name, future in zip(names, futures):
             try:
-                rows.append(future.result(timeout=timeout + 5))
+                rows.append(future.result(timeout=int(budgets.get(name, timeout)) + 15))
             except FuturesTimeout:
-                rows.append(dict(version=VERSION, task_id=job.get("task_id"), seat=seat, availability="timeout",
+                rows.append(dict(version=VERSION, task_id=job.get("task_id"), seat=seat,
+                                 provider_requested=name, availability="timeout",
                                  ok=False, scored=False, error="shadow wait exceeded", shadow_calls=1,
                                  kind="shadow_evaluation", prompt_hash=prompt_hash, data_asof=job.get("data_asof")))
     return rows
 
 
+def refuses_root():
+    return os.geteuid() == 0
+
+
 def once(root, now=None):
     config = load_config(root)
     status = dict(version=VERSION, utc=_now(), enabled=bool(config.get("enabled")), paper_only=True,
-                  providers=list(PROVIDERS), called=False, jobs=0)
+                  providers=list(PROVIDERS), called=False, jobs=0, seven_day="not_started")
+    if refuses_root():
+        # Do not create root-owned status files. The unit must be User=tfo.
+        status.update(enabled=False, called=False, availability="refused_root",
+                      error="shadow sampler refuses root; set User=tfo and HOME=/home/tfo")
+        return status
     if not config.get("enabled"):
         status["availability"] = "pending_configuration" if config.get("reason") else "disabled"
         _write_status(root, status)
         return status
     ensure_coverage(root, now=now, resample_after_s=int(config.get("resample_after_s") or 6 * 3600))
+    budgets = provider_budgets(config)
     timeout = int(config.get("provider_timeout_s") or 90)
     ran = 0
     for job in pending_jobs(root)[:int(config.get("max_jobs_per_run") or 1)]:
         _append(jobs_path(root), dict(event="started", task_id=job.get("task_id"), utc=_now()))
-        rows = run_job(job, timeout)
+        rows = run_job(job, timeout, budgets)
         for row in rows:
             _append(samples_path(root), row)
         _append(jobs_path(root), dict(event="finished", task_id=job.get("task_id"), utc=_now(),
                                      providers=[row.get("provider_requested") for row in rows]))
         ran += 1
-    status.update(called=True, jobs=ran, availability="ran")
+    status.update(called=True, jobs=ran, availability="ran", provider_timeout_s=timeout,
+                  chatgpt_timeout_s=budgets.get("chatgpt"),
+                  identity=dict(uid=os.geteuid(), home=os.path.expanduser("~")))
     samples = []
     try:
         for line in open(samples_path(root), encoding="utf-8"):
@@ -315,7 +370,8 @@ def _write_status(root, status):
     path = os.path.join(root, "state", "thf", "shadow_sampler_status.json")
     os.makedirs(os.path.dirname(path), exist_ok=True)
     temporary = path + ".tmp"
-    with open(temporary, "w", encoding="utf-8") as handle:
+    fd = os.open(temporary, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    with os.fdopen(fd, "w", encoding="utf-8") as handle:
         json.dump(status, handle, default=str)
         handle.flush()
         os.fsync(handle.fileno())
@@ -332,8 +388,9 @@ def main(argv=None):
     status = once(root)
     print(json.dumps(dict(enabled=status.get("enabled"), jobs=status.get("jobs"),
                           availability=status.get("availability"),
-                          window_started=(status.get("window") or {}).get("started")), default=str))
-    return 0
+                          window_started=(status.get("window") or {}).get("started"),
+                          seven_day=status.get("seven_day")), default=str))
+    return 1 if status.get("availability") == "refused_root" else 0
 
 
 if __name__ == "__main__":

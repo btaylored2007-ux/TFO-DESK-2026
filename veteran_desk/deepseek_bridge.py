@@ -29,6 +29,7 @@ class Reply(str):
 
 def _read(path, default=None):
     try: return json.loads(path.read_text())
+    except PermissionError: return {'_unreadable': True}
     except (OSError, ValueError): return default
 
 def _atomic(path, value):
@@ -62,11 +63,17 @@ def capacity():
 
 def status(): return _read(STATE/'status.json', {}) if config() else {}
 
+def _adapter_failure(failure):
+    text = str(failure or '')
+    return text in ('private key permissions', 'private key format') or text.startswith('adapter ') or text.startswith('transport ')
+
 def reason(check_busy=True, check_key=True):
     if not enabled(): return 'DeepSeek API not enabled'
     if check_key and not KEY.is_file(): return 'DeepSeek private API key unavailable'
     s = status()
+    if s.get('_unreadable'): return 'DeepSeek status unreadable by this user'
     if s.get('blocked'): return 'DeepSeek '+s.get('failure', 'account unavailable')+'; successful health probe required'
+    if _adapter_failure(s.get('failure')): return 'DeepSeek '+str(s.get('failure'))
     if float(s.get('until') or 0) > time.time(): return 'DeepSeek cooling: '+str(s.get('failure') or 'temporarily unavailable')
     if not s.get('last_success_at'): return 'DeepSeek model response not verified'
     if check_busy:
@@ -88,14 +95,22 @@ def record_result(ok, started, failure=None, http_status=None, probe=False):
     with open(STATE/'status.lock', 'a+') as lock:
         fcntl.flock(lock, fcntl.LOCK_EX)
         s = _read(STATE/'status.json', {})
+        if s.get('_unreadable'): return
         # An older in-flight success must not clear a newer quota/auth refusal.
         if ok and not probe and float(s.get('failure_observed_at') or 0) > started: return
         now = time.time()
         if ok:
+            s.pop('_unreadable', None)
             s.update(ok=True, last_success_at=now, model=MODEL, blocked=False, until=0, failure=None)
         else:
-            s.update(ok=False, failure=str(failure or 'API failure')[:150], failure_observed_at=now,
-                     blocked=http_status in (401,402,403), until=now+(300 if http_status==429 else 60))
+            failure_text = str(failure or 'API failure')[:150]
+            # A key or transport ValueError is not an account quota and must not cool the next seat.
+            if http_status == 429: until = now + 300
+            elif _adapter_failure(failure_text): until = 0
+            else: until = now + 60
+            s.pop('_unreadable', None)
+            s.update(ok=False, failure=failure_text, failure_observed_at=now,
+                     blocked=http_status in (401,402,403), until=until)
         s.update(checked_utc=datetime.datetime.now(datetime.timezone.utc).isoformat(), http_status=http_status)
         _atomic(STATE/'status.json', s)
 
@@ -231,6 +246,9 @@ def _worker():
         result=dict(ok=good,text=text if good else None,failure=failure,model=data.get('model'),usage=data.get('usage'),http_status=200)
     except urllib.error.HTTPError as e:
         result=dict(ok=False,http_status=e.code,failure={401:'authentication refused',402:'insufficient balance',403:'access refused',429:'rate limit',500:'server error',503:'overloaded'}.get(e.code,'HTTP failure'))
+    except ValueError as e:
+        text=str(e)
+        result=dict(ok=False,failure=text if text in ('private key permissions','private key format') else 'adapter ValueError')
     except Exception as e:result=dict(ok=False,failure='transport '+type(e).__name__)
     print(json.dumps(result))
 

@@ -2,7 +2,9 @@
 import contextlib,datetime as dt,fcntl,json,os,re,signal,subprocess,time
 from veteran_desk import bridge_maintenance as B
 STATE='/opt/tfo/live/thf/state/thf/grok_provider_status.json'
-CLI=os.path.expanduser('~/.local/bin/cursor-agent')
+def cli_path():
+ # Resolve at call time. A root service has HOME=/root and misses tfo's CLI.
+ return os.path.expanduser('~/.local/bin/cursor-agent')
 QUOTA=re.compile(r'usage limit|limit reached|ActionRequiredError|monthly .{0,30}limit|out of credits|quota',re.I)
 AUTH=re.compile(r'authentication required|not logged|unauthori[sz]ed|sign.?in required|login required',re.I)
 class Reply(str):
@@ -39,7 +41,7 @@ def _save_result(ok,detail,started,model,probe=False,observed=None):
 def reason():
  from veteran_desk import ai_cooldown as CD
  if CD.cooling('grok'):return 'Grok account paused; awaiting a genuine successful health response'
- if not os.path.isfile(CLI):return 'Existing Cursor CLI unavailable'
+ if not os.path.isfile(cli_path()):return 'Existing Cursor CLI unavailable'
  current=state()
  if not current.get('ok'):return 'Authenticated Grok route not successfully verified'+(': '+str(current.get('detail',''))[-180:] if current else '')
  return None
@@ -50,7 +52,7 @@ def _run(prompt,timeout,model,deadline=None):
  os.makedirs(LL.WS,exist_ok=True)
  with LL._global_slot(end-1) as got:
   if not got or end-time.time()<1:raise RuntimeError('grok capacity wait exceeded deadline')
-  p=subprocess.Popen([CLI,'-p','--output-format','text','--model',model,'--mode','ask','--trust','--workspace',LL.WS],stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=subprocess.PIPE,text=True,cwd=LL.WS,start_new_session=True)
+  p=subprocess.Popen([cli_path(),'-p','--output-format','text','--model',model,'--mode','ask','--trust','--workspace',LL.WS],stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=subprocess.PIPE,text=True,cwd=LL.WS,start_new_session=True)
   try:out,err=p.communicate(prompt or '',timeout=max(.1,end-time.time()))
   except subprocess.TimeoutExpired:
    try:os.killpg(p.pid,signal.SIGKILL)

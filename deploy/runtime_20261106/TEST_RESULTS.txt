@@ -1,0 +1,5 @@
+Focused run after the runtime fix: 27 passed.
+Files: test_runtime_identity_20261106.py, test_chat_img_20261106.py, test_shadow_sampler_20261106.py, test_thf_deepseek_release_regressions_20261105.py.
+The installer test staged the 08838f5 bases, applied, and rolled back. The book stayed b4453b503f33e34110519bf4d7a9bf391ecc2802edbd87acca3e77dc96b7e891.
+test_thf_deepseek_api_20261105.py still raises PermissionError for seat software_engineer. That seat is outside the current 16-id registry, and the seat check in ask() was not changed.
+No provider was marked up. seven_day stays not_started. The picture fault was not reproduced.
