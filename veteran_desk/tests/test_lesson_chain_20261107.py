@@ -18,8 +18,8 @@ def test_round_and_chat_pass_the_real_ids_and_do_not_invent_a_trade_link():
     assert "after_chat(seat, \"round\", raw, brain=model, task_id=task)" in round_src
     assert "accept_round_ticket(seat, runid, raw or \"\", decision_id, dest)" in round_src
     assert "_brain_block(seat, msg.get(\"id\"))" in chat_src
-    assert "task_id=(msg or {}).get(\"id\")" in chat_src
-    assert "task_id=msg.get(\"id\")" in chat_src
+    assert "mark_chat_answer(seat, (msg or {}).get(\"id\")" in chat_src
+    assert "engineer_trace_task(reply_to, root)" in chat_src
     assert "link_later_decision" not in chat_src
 
 
@@ -35,7 +35,11 @@ def test_round_ticket_links_only_the_cited_decision_and_its_close(tmp_path, monk
     silent = thf_round.accept_round_ticket("banks", "20261106-1536", "No citation in this text.", "VET-OTHER-20261106-1536-banks", path)
     assert silent["reason"] == "citation_not_in_decision"
     linked = thf_round.accept_round_ticket("banks", "20261106-1536", reply, "VET-XOM-20261106-1536-banks", path)
-    assert linked["level"] == "decision_link" and linked["evidence"]["trade_id"] == "VET-XOM-20261106-1536-banks"
+    assert linked["level"] == "decision_link" and linked["evidence"]["queue_id"] == "VET-XOM-20261106-1536-banks"
+    assert linked["evidence"]["citation_task"] == "20261106-1536-banks"
+    assert linked["evidence"]["decision_task"] == "VET-XOM-20261106-1536-banks"
+    assert linked["evidence"]["citation_task"] != linked["evidence"]["decision_task"]
+    assert "trade_id" not in linked["evidence"]
     assert linked["validated"] is False and linked["causal_edge"] is False
     thf_round.accept_round_ticket("banks", "20261106-1536", reply, "VET-XOM-20261106-1536-banks", path)
     assert sum(1 for row in LT.load(path) if row.get("level") == "decision_link") == 1
@@ -50,7 +54,10 @@ def test_round_ticket_links_only_the_cited_decision_and_its_close(tmp_path, monk
         closed_utc="2099-01-01T00:00:00+00:00")]}}})
     outcome = [row for row in LT.load(path) if row.get("level") == "outcome_link"]
     assert len(outcome) == 1 and outcome[0]["lesson_id"] == "trade-44" and outcome[0]["validated"] is False
-    assert outcome[0]["evidence"]["trade_id"] == "VET-XOM-20261106-1536-banks" and outcome[0]["causal_edge"] is False
+    assert outcome[0]["evidence"]["trade_id"] == "VET-XOM-20261106-1536-banks"
+    assert outcome[0]["evidence"]["citation_task"] == "20261106-1536-banks"
+    assert outcome[0]["evidence"]["decision_task"] == "VET-XOM-20261106-1536-banks"
+    assert outcome[0]["causal_edge"] is False
     with pytest.raises(ValueError, match="genuine verifier"):
         LT.record_validated("banks", "trade-44", path, dict(check="holdout_shadow"))
 
@@ -76,6 +83,50 @@ def test_full_chain_stays_unvalidated_without_a_genuine_verifier(tmp_path, monke
         LT.record_validated("banks", "trade-44", path, dict(check="holdout_shadow", result="no_rule_change"))
     assert not any(row.get("validated") is True for row in LT.load(path))
     assert "secret" not in Path(path).read_text(encoding="utf-8")
+
+
+def test_partial_slice_matches_only_the_source_suffix_and_order_is_kept(tmp_path):
+    from veteran_desk import book as BK
+    parent = "VET-XOM-20261106-1536-banks"
+    seat = dict(cash_aud=1_000_000, closed=[])
+    position = dict(id=parent, shares=10, side="LONG", ticker="XOM", fill=100.0, cost_aud=2.0, status="open")
+    part = BK.partial_close(seat, position, parent, 101.0, 4, 0.65, BK.now(), "seat_partial_close", "-P1")
+    assert part["id"] == parent + "-P1" and position["id"] == parent and position["shares"] == 6
+    assert LT.closed_id_matches_queue(part["id"], parent) == "partial_slice"
+    assert LT.closed_id_matches_queue(parent + "-Q", parent) == "partial_slice"
+    assert LT.closed_id_matches_queue(parent, parent) == "parent_position"
+    assert LT.closed_id_matches_queue("VET-NEARBY", parent) is None
+    assert LT.closed_id_matches_queue(parent + "-PX", parent) is None
+    path = str(tmp_path / "trace.jsonl")
+    early = LT.observe_close_for_trade("banks", path, dict(source="book_close", trade_id=parent + "-P1", net_aud=1, closed_utc="2099-01-01T00:00:00+00:00"))
+    assert early["reason"] == "no_decision_for_trade"
+    LT.record_included("banks", ["trade-44"], "seat_brain.prompt_block", path, task_id="round-a")
+    LT.record_citation("banks", "Noted ref=trade-44.", path, "round-a")
+    same = LT.note_accepted_decision("banks", path, "round-a", "round-a", "Noted ref=trade-44.")
+    assert same["reason"] == "later_task_is_the_injection"
+    assert same["observed"]["citation_task"] == "round-a" and same["observed"]["decision_task"] == "round-a"
+    LT.note_accepted_decision("banks", path, parent, "round-a", "Noted ref=trade-44.")
+    outcome = LT.observe_close_for_trade("banks", path, dict(source="book_close", trade_id=part["id"], net_aud=1.5, closed_utc="2099-01-01T00:00:00+00:00"))
+    assert outcome["level"] == "outcome_link" and outcome["evidence"]["trade_id"] == part["id"]
+    assert outcome["validated"] is False
+    assert [row["reason"] for row in LT.load(path) if row.get("reason") == "no_decision_for_trade"]
+
+
+def test_chat_answer_is_not_a_ticket_and_engineer_id_is_not_invented(tmp_path, monkeypatch):
+    from veteran_desk import thf_msgdesk as chat
+    monkeypatch.setattr(SB, "DIR", str(tmp_path / "brains"))
+    path = str(tmp_path / "trace.jsonl")
+    monkeypatch.setenv("THF_LESSON_TRACE", path)
+    SB.lesson("banks", "trade", "Stop held.", ref="trade-44")
+    SB.prompt_block("banks", 1100, task_id="msg-9")
+    row = chat.mark_chat_answer("banks", "msg-9", "Reply mentions ref=trade-44.", path)
+    assert row["level"] == "no_decision" and row["reason"] == "chat_answer_not_a_ticket"
+    assert not any(item.get("level") == "decision_link" for item in LT.load(path))
+    assert chat.engineer_trace_task(None, None) is None
+    assert chat.engineer_trace_task(None, "thread-root-1") == "thread-root-1"
+    assert chat.engineer_trace_task("msg-9", "thread-root-1") == "msg-9"
+    missing = LT.record_citation("software_engineer", "ref=trade-44", path, chat.engineer_trace_task(None, None))
+    assert missing["reason"] == "missing_task_id"
 
 
 def test_negative_provenance_rejects(tmp_path):

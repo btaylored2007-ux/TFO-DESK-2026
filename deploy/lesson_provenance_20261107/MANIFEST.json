@@ -1,0 +1,35 @@
+{
+  "name": "lesson_provenance_20261107",
+  "deployed": false,
+  "review_only": true,
+  "book_must_remain": "b4453b503f33e34110519bf4d7a9bf391ecc2802edbd87acca3e77dc96b7e891",
+  "genuine_verifiers": [],
+  "rule_gap_unaccepted": true,
+  "payloads": [
+    {
+      "path": "veteran_desk/lesson_trace.py",
+      "base_sha256": "047ef8bbc9fb010b79e7058779a90f9ea144b3e588979ce7e1cb87c2dc9bdb02",
+      "target_sha256": "9f1a2391bcb76b1c10b7caa9e375855c589cdc5f26c75069a274cbf156b0a8ab"
+    },
+    {
+      "path": "veteran_desk/thf_round.py",
+      "base_sha256": "5435932290f054eb58f9e640f1693e4abca1228aa0c657df911e7fde4694b668",
+      "target_sha256": "585282bc7b148eac4bd1035d87e55e772ab0c5b1bcffc7550e76a5f2467517af"
+    },
+    {
+      "path": "veteran_desk/thf_msgdesk.py",
+      "base_sha256": "0384132191c04514a2cde129662716e3520a23623ced6249a1476dde7a7da443",
+      "target_sha256": "72a8abaaa8a8127ccaa20db04f92e18cde229f37db788c7ce9ef2f513d13b81e"
+    }
+  ],
+  "unchanged_requirements": [
+    {
+      "path": "veteran_desk/seat_brain.py",
+      "sha256": "71dea78808b7855c83cd562679189d78e0438493b8c60ced73ea85e72b2708ad"
+    },
+    {
+      "path": "veteran_desk/feed_status_facts.py",
+      "sha256": "f06c72a8b4a127ede4ff1b3257d8de1ddbb052baf92d8d2618cbac6da265a221"
+    }
+  ]
+}

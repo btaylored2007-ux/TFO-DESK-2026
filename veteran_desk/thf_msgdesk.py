@@ -752,6 +752,21 @@ def _ready_choice(seat,msg):
         failures.append(name+":"+why)
     raise RuntimeError("; ".join(failures) or "no AI available")
 
+def mark_chat_answer(seat, message_id, reply, trace):
+    """A chat reply is not a ticket. Record the citation, then say there is no decision."""
+    from veteran_desk import seat_brain as _SB, lesson_trace as _LT
+    _SB.after_chat(seat, "chat", reply, task_id=message_id)
+    if not message_id:
+        return _LT.record_insufficient(seat, "missing", trace, "missing_task_id")
+    return _LT.record_no_decision(seat, trace, message_id, "chat_answer_not_a_ticket")
+
+
+def engineer_trace_task(reply_to, root):
+    """Use the message id the caller already has. Do not invent one."""
+    task = reply_to or root
+    return str(task) if str(task or "").strip() else None
+
+
 def _trace_answer(seat, msg, d, prompt=None):
     """Record the lesson citation and queue the same prompt for the four-provider sampler. Does not call a provider."""
     testing = bool(os.environ.get("PYTEST_CURRENT_TEST"))
@@ -768,7 +783,7 @@ def _trace_answer(seat, msg, d, prompt=None):
     try:
         if trace:
             from veteran_desk import seat_brain as _SB
-            _SB.after_chat(seat, (msg or {}).get("text"), (d or {}).get("reply"), (d or {}).get("_brain"), task_id=(msg or {}).get("id"))
+            mark_chat_answer(seat, (msg or {}).get("id"), (d or {}).get("reply"), trace)
         if shadow:
             from veteran_desk import thf_shadow_bench as _BX
             _BX.note_production(dict(task_id=(msg or {}).get("id"), seat=seat, role="chat", task_class="chat",
@@ -1309,7 +1324,9 @@ def _engineer_answer(text, images=None, root=None, reply_to=None, ai="auto"):
         r = AR.ask(p, ai, SE); d = parse(r.get("text")); t = str(d.get("reply") or r.get("text") or "").strip()[:2000]; mode = str(r.get("brain") or "ai")
         t = _brain_back(SE, dict(_brain=mode, _model=r.get("model")), t)
         try:
-            from veteran_desk import seat_brain as _SB; _SB.after_chat(SE, text, t, mode, task_id=reply_to)
+            from veteran_desk import seat_brain as _SB
+            task_id = engineer_trace_task(reply_to, root)
+            _SB.after_chat(SE, text, t, mode, task_id=task_id)
         except Exception: pass
         return "Simon (engineer, owner of the fixer): " + t, mode
     except Exception as x:

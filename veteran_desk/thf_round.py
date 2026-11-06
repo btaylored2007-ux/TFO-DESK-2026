@@ -86,7 +86,7 @@ def accept_round_ticket(seat, runid, reply, decision_id, trace):
     A reply with no ref= does not attach any other trade.
     """
     from veteran_desk import lesson_trace as LT
-    return LT.note_accepted_decision(seat, trace, decision_id, "%s-%s" % (runid, seat), reply, trade_id=decision_id)
+    return LT.note_accepted_decision(seat, trace, decision_id, "%s-%s" % (runid, seat), reply)
 
 
 def submit_candidate(D,records,record,committed,au,queue,queue_path):

@@ -16,6 +16,25 @@ SEATS = TRADERS + ADMINS
 CLAIM = re.compile(r"\bi\s+learned\b", re.I)
 REF = re.compile(r"ref=([A-Za-z0-9_-]{3,80})")
 REF_ID = re.compile(r"^[A-Za-z0-9_-]{3,80}$")
+SLICE_SUFFIX = re.compile(r"^-(?:P\d+|Q)$")
+
+
+def closed_id_matches_queue(closed_id, queue_id):
+    """How a closed row relates to a queued id, from the book source. None means do not link.
+
+    book.tick stores the queue entry id as the position id. A full close keeps that id.
+    partial_close sets the slice id to position id plus the suffix the caller passes.
+    seat_cli uses -P<n>. The queued exit rail uses -Q. Rebook keeps the same position id.
+    Any other id is not this ticket.
+    """
+    closed_id, queue_id = str(closed_id or ""), str(queue_id or "")
+    if not closed_id or not queue_id:
+        return None
+    if closed_id == queue_id:
+        return "parent_position"
+    if closed_id.startswith(queue_id) and SLICE_SUFFIX.fullmatch(closed_id[len(queue_id):]):
+        return "partial_slice"
+    return None
 # No verifier is configured. A caller-chosen check name is not one, and this set is not a new acceptance law.
 GENUINE_VERIFIERS = frozenset()
 
@@ -33,6 +52,8 @@ def _identity(row):
         return (row.get("seat"), level, row.get("task_id"), tuple(row.get("cited_ids") or ()))
     if level == "lessons_available":
         return (row.get("seat"), level, tuple(row.get("lesson_ids") or ()))
+    if level == "no_decision":
+        return (row.get("seat"), level, row.get("task_id"), row.get("reason"))
     if level == "validated":
         return (row.get("seat"), level, row.get("lesson_id"), evidence.get("check"))
     if level in ("outcome_link", "decision_link", "insufficient_data"):
@@ -96,6 +117,17 @@ def record_included(seat, lesson_ids, source, path, task_id=None, account_id=Non
                utc=_now(), validated=False, model_adoption=False)
     if account_id:
         row["account_id"] = str(account_id)
+    return append(path, row)
+
+
+def record_no_decision(seat, path, task_id, reason):
+    """A chat answer is not a trade ticket. No id is invented."""
+    if seat not in SEATS:
+        raise ValueError("unknown seat")
+    if not str(task_id or "").strip():
+        return record_insufficient(seat, "missing", path, "missing_task_id")
+    row = dict(level="no_decision", seat=seat, task_id=str(task_id), utc=_now(),
+               validated=False, model_adoption=False, causal_edge=False, reason=reason)
     return append(path, row)
 
 
@@ -187,7 +219,7 @@ def record_citation(seat, reply, path, task_id):
     return append(path, row)
 
 
-def link_later_decision(seat, lesson_id, path, later_task_id, injection_task_id, trade_id=None, account_id=None):
+def link_later_decision(seat, lesson_id, path, later_task_id, injection_task_id, trade_id=None, queue_id=None, account_id=None):
     """A later task used a lesson only when that earlier task included it and the reply cited it."""
     lesson_id, later_task_id, injection_task_id = str(lesson_id or ""), str(later_task_id or ""), str(injection_task_id or "")
     if seat not in SEATS or REF_ID.fullmatch(lesson_id) is None or not later_task_id or not injection_task_id:
@@ -205,7 +237,10 @@ def link_later_decision(seat, lesson_id, path, later_task_id, injection_task_id,
     if not included or not cited:
         return record_insufficient(seat, lesson_id, path, "no_citation",
                                    dict(task_id=injection_task_id, later_task_id=later_task_id))
-    evidence = dict(link="decision", later_task_id=later_task_id, injection_task_id=injection_task_id, causal_edge=False)
+    evidence = dict(link="decision", later_task_id=later_task_id, decision_task=later_task_id,
+                    injection_task_id=injection_task_id, citation_task=injection_task_id, causal_edge=False)
+    if queue_id:
+        evidence["queue_id"] = str(queue_id)
     if trade_id:
         if REF_ID.fullmatch(str(trade_id)) is None:
             return record_insufficient(seat, lesson_id, path, "bad_trade_id", dict(task_id=injection_task_id))
@@ -228,7 +263,8 @@ def note_accepted_decision(seat, path, decision_id, task_id, text, trade_id=None
     if seat not in SEATS or not decision_id or not task_id:
         return record_insufficient(seat, decision_id or "missing", path, "missing_decision_ids")
     if decision_id == task_id:
-        return record_insufficient(seat, decision_id, path, "later_task_is_the_injection", dict(task_id=task_id))
+        return record_insufficient(seat, decision_id, path, "later_task_is_the_injection",
+                                   dict(citation_task=task_id, decision_task=decision_id))
     named = []
     for item in REF.findall(str(text or "")):
         if item not in named:
@@ -243,8 +279,8 @@ def note_accepted_decision(seat, path, decision_id, task_id, text, trade_id=None
                     and lesson_id in [str(item) for item in (row.get("cited_ids") or [])] for row in rows)
         if not cited:
             continue
-        linked = link_later_decision(seat, lesson_id, path, decision_id, task_id, trade_id=trade_id or decision_id,
-                                    account_id=account_id)
+        linked = link_later_decision(seat, lesson_id, path, decision_id, task_id, trade_id=trade_id,
+                                    queue_id=decision_id, account_id=account_id)
     if linked is None:
         return record_insufficient(seat, decision_id, path, "citation_not_in_decision",
                                    dict(task_id=task_id, decision_id=decision_id))
@@ -257,8 +293,14 @@ def observe_close_for_trade(seat, path, observed):
     if not trade_id:
         return record_insufficient(seat, "missing", path, "missing_trade_id")
     rows = load(path)
-    matches = [row for row in rows if row.get("seat") == seat and row.get("level") == "decision_link"
-               and (row.get("evidence") or {}).get("trade_id") == trade_id]
+    def covers(row):
+        evidence = row.get("evidence") or {}
+        if row.get("seat") != seat or row.get("level") != "decision_link":
+            return False
+        if evidence.get("trade_id") == trade_id:
+            return True
+        return closed_id_matches_queue(trade_id, evidence.get("queue_id")) is not None
+    matches = [row for row in rows if covers(row)]
     lessons = {row.get("lesson_id") for row in matches}
     if not matches:
         return record_insufficient(seat, trade_id, path, "no_decision_for_trade", dict(trade_id=trade_id))
@@ -293,7 +335,9 @@ def observe_book_close(seat, lesson_id, path, observed):
     decisions = [row for row in rows if row.get("seat") == seat and row.get("level") == "decision_link"
                  and row.get("lesson_id") == lesson_id and (row.get("evidence") or {}).get("later_task_id")
                  and (row.get("evidence") or {}).get("later_task_id") != row.get("task_id")]
-    matched = [row for row in decisions if (row.get("evidence") or {}).get("trade_id") == str(observed.get("trade_id"))]
+    closed_id = str(observed.get("trade_id"))
+    matched = [row for row in decisions if (row.get("evidence") or {}).get("trade_id") == closed_id
+               or closed_id_matches_queue(closed_id, (row.get("evidence") or {}).get("queue_id"))]
     evidence = dict(trade_id=str(observed.get("trade_id")), lesson_id=lesson_id, net_aud=observed.get("net_aud"), source="book_close")
     if observed.get("account_id") and _account_conflict(rows, seat, lesson_id, observed.get("account_id")):
         return record_insufficient(seat, lesson_id, path, "cross_account", evidence)
@@ -313,6 +357,8 @@ def observe_book_close(seat, lesson_id, path, observed):
         return record_insufficient(seat, lesson_id, path, "incomplete_close", evidence)
     if cited_at and closed < min(cited_at):
         return record_insufficient(seat, lesson_id, path, "stale_close", evidence)
+    evidence["citation_task"] = (matched[0].get("evidence") or {}).get("citation_task")
+    evidence["decision_task"] = (matched[0].get("evidence") or {}).get("decision_task")
     row = dict(level="outcome_link", seat=seat, lesson_id=lesson_id, utc=_now(),
                validated=False, model_adoption=False, causal_edge=False,
                evidence=dict(evidence, link="outcome", causal_edge=False, closed_utc=observed.get("closed_utc")))
