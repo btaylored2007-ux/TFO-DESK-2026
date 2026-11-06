@@ -82,6 +82,11 @@ def candidate_options(D,seat,proposal):
 def submit_candidate(D,records,record,committed,au,queue,queue_path):
     D.apply_marcus_limits(None,records,committed=committed)
     if not record["gate"]["passed"]:return []
+    from veteran_desk import research_mandate as RM
+    why=RM.arm_withheld(record.get("proposal") or {})
+    if why:
+        record["research_shadow"]=why
+        return []
     if not queue:return [record["id"]]
     ids=D.enqueue([record],au,queue_path,ack_required=not os.environ.get("PYTEST_CURRENT_TEST"))
     if not ids and record.get("live_reject"):
@@ -172,6 +177,16 @@ def run(D,use_llm=True,queue=True,asof=None,queue_path=None,only=None):
                 except Exception:pass
 
         entry.update(trader=D.name(S,seat),engine=D.ran_engine(S[seat]["engine"]),reason=(j or {}).get("thesis") or (j or {}).get("reason") or (j or {}).get("why_not_choppy"),raw_ok=bool(j),action=(j or {}).get("action"),raw_head=None if j else raw,scan=packs[seat].get("scan"),graded=(j or {}).get("graded"),ranked=(j or {}).get("ranked"),best_long=(j or {}).get("best_long"),best_short=(j or {}).get("best_short"))
+        if isinstance(j, dict):
+            from veteran_desk import research_mandate as RM, thf_shadow_bench as SB
+            entry["research"]=RM.public_view(RM.assess(j, now=asof, seat=seat))
+            shadow = os.environ.get("THF_SHADOW_LOG")
+            if not shadow and raw and not os.environ.get("PYTEST_CURRENT_TEST"):
+                shadow = os.path.join(D.BASE, "state", "thf", "shadow_bench.jsonl")
+            if raw and shadow:
+                SB.note_production(dict(task_id=runid, seat=seat, role="trader", task_class="hunt",
+                                        prompt="round", data_asof=asof.isoformat(), text=raw,
+                                        provider=model or "unknown"), shadow)
         if second:entry["rescan"]=dict(action=(j or {}).get("action"),ticker=(j or {}).get("ticker"))
         try:
             from veteran_desk import thf_review as review

@@ -27,6 +27,9 @@ def in_open_window(venue, t):
     if venue == "ASX":   # 2026-10-29 fixer: ASX opens 10:00 Australia/Sydney (23:00 UTC in AEDT); fixed (0,0) UTC was an hour late in daylight time
         from zoneinfo import ZoneInfo
         sy = t.astimezone(ZoneInfo("Australia/Sydney")); m = sy.hour * 60 + sy.minute - 600; return 0 <= m < OPEN_AVOID_MIN
+    if venue in ("US", "FUT"):   # dstopen_20261103 (fixer): 09:30 America/New_York. The fixed (13,30) UTC was an hour early after US DST ended 1 Nov (window 08:30-08:45 ET blocked nothing; DB/KO filled 09:30:04 ET on 2 Nov)
+        from zoneinfo import ZoneInfo
+        ny = t.astimezone(ZoneInfo("America/New_York")); m = ny.hour * 60 + ny.minute - 570; return 0 <= m < OPEN_AVOID_MIN
     o = OPEN_UTC.get(venue)
     if not o: return False
     m = t.hour * 60 + t.minute - (o[0] * 60 + o[1]); return 0 <= m < OPEN_AVOID_MIN
@@ -102,22 +105,33 @@ def _theme_clash(D, e):
         for _p in (_B.get("positions") or {}).values():
             if _p.get("id") != e.get("id") and _p.get("status") in ("open", "armed") and _p.get("side") == e.get("side") and theme_of(_p.get("ticker")) == th: return (th, "%s held by %s" % (_p.get("ticker"), _s))
     return None
-def risk_plan(equity_aud, grade=None, chal_agree=False, mult=1.0, floor=None, seat_pct=None):
+def risk_plan(equity_aud, grade=None, chal_agree=False, mult=1.0, floor=None, seat_pct=None, seat=None):
     """ONE sizing source. tfo_a1pct_20261031 (Brett 00:07 WITA): A may pass at 1% (lift to 2% once proven - NEVER force a 1% seat choice up); A+ 4%; non-A floor 2%; hard cap 5%.
     Cuts move risk toward the floor, never below it, never above 5%. Returns dict(pct, risk_aud, wanted_pct, warning)."""
+    if seat_pct in (None, "") and seat:   # seatrisk 2026-10-31: per-seat A risk config (veteran_desk/seat_risk.py)
+        try:
+            from veteran_desk.seat_risk import seat_a_risk; seat_pct = seat_a_risk(seat)
+        except Exception: pass
     base = RISK_A_PLUS_AGREE if (grade == "A+" and chal_agree) else RISK_A_PLUS if grade == "A+" else (RISK_NON_A_MIN if grade != "A" else (RISK_A_DEFAULT if seat_pct in (None, "") else min(max(float(seat_pct), RISK_MIN), RISK_A_MAX)))   # tfo_a1pct_20261031: A 1% default (seat may choose up to 2%); non-A 2%
     fl = RISK_MIN if floor is None else float(floor)
     crypto = abs(fl - RISK_CRYPTO_MIN) < 1e-12   # kairails 14:28 WITA: crypto seat band 0.5-2%, default 1%, A+ 2%
     if crypto: base = RISK_CRYPTO_MAX if grade == "A+" else RISK_CRYPTO_DEFAULT   # floor=RISK_CRYPTO_MIN for the crypto seat (Brett 2026-10-29 13:08 WITA)
+    if not crypto and grade == "B": base = RISK_NON_A_MIN * 0.5   # Brett 31 Oct: grade B at HALF SIZE (1%); size-up floor stays RISK_MIN
     want = base * float(mult if mult is not None else 1.0)
+    _alift = bool(not crypto and grade in ("A", "A+") and want < RISK_A_DEFAULT - 1e-12)   # liftcap: tag cut-A lift as lifted_subfloor
+    if not crypto and seat_pct not in (None, "") and grade in ("A", "A+") and want > float(seat_pct) + 1e-12: want = float(seat_pct)   # tfo_seatcap_aplus_20261031 (Brett 19:12 WITA): A+ base (4%) ignored the seat map - Victor banks A+ armed at 3%; seat map caps every grade
     if not crypto and grade in ("A", "A+") and want < RISK_A_DEFAULT: want = RISK_A_DEFAULT   # tfo_review_fix_20261031: a cut A sizes to max(cut, 1%) (thf_review rule) - never rejected below_1pct_floor
-    if not crypto and grade not in ("A", "A+"): fl = max(fl, RISK_NON_A_MIN)   # tfo_review_fix_20261031: non-A floor 2% holds after cuts -> reject (never lift, railfix rule)
-    if want < fl - 1e-12:   # railfix 2026-10-29 (Rules Auditor 14:09 WITA): REJECT, never lift a sub-floor idea (crypto seat floor stays 0.5%)
-        why = ("below_2pct_nonA_floor" if fl >= RISK_NON_A_MIN - 1e-12 else "below_1pct_floor") if fl >= RISK_MIN - 1e-12 else "below_crypto_floor"
-        return dict(pct=0.0, risk_aud=0.0, wanted_pct=round(want, 5), base_pct=base, reject=why,
-                    warning="%s: sizing wanted %.2f%% of seat equity (cuts x%.2f) < %.1f%% floor - rejected, not lifted (Brett rule)" % (why, want * 100, float(mult), fl * 100))
-    pct = min(want, RISK_CRYPTO_MAX if crypto else RISK_MAX, RISK_MAX)   # per-trade hard cap 5% (A+ 4%); crypto band top 2%
-    return dict(pct=round(pct, 5), risk_aud=round(float(equity_aud) * pct, 2), wanted_pct=round(want, 5), base_pct=base, warning=None, reject=None)
+    if not crypto and grade not in ("A", "A+", "B"): fl = max(fl, RISK_NON_A_MIN)   # C+ still 2% floor; B uses RISK_MIN so half-size sticks
+    lifted = False; _own = None; _rej = None
+    if want < fl - 1e-12:   # seatrisk/histsize 2026-10-31 (Brett ~15:15 WITA): SIZE UP to the floor and let the trade in (supersedes railfix reject)
+        # liftcap 2026-10-31 18:14 WITA (Brett): lift never above the seat's own full risk; floor above seat risk -> pass, never lift through
+        _own = float(seat_pct) if seat_pct not in (None, "") else (RISK_CRYPTO_DEFAULT if crypto else RISK_A_DEFAULT)
+        if fl > _own + 1e-12: _rej = "floor_above_seat_risk: floor %.2f%% > seat risk %.2f%% - pass, not lifted" % (fl * 100, _own * 100)
+        else: want = fl; lifted = True
+    pct = 0.0 if _rej else min(want, RISK_CRYPTO_MAX if crypto else RISK_MAX, RISK_MAX)   # per-trade hard cap 5% (A+ 4%); crypto band top 2%
+    warn = ("sized_up_to_floor: cuts wanted below %.1f%% - lifted to floor (Brett 31 Oct size-and-let-in)" % (fl * 100)) if lifted else _rej
+    _lb = bool(lifted and grade == "B"); _ls = bool((lifted or _alift) and grade != "B" and not _rej)
+    return dict(pct=round(pct, 5), risk_aud=round(float(equity_aud) * pct, 2), wanted_pct=round(want, 5), base_pct=base, warning=warn, reject=_rej, sized_up=lifted, lifted_b=_lb, lifted_subfloor=_ls, lift_tag=("lifted_b" if _lb else "lifted_subfloor" if _ls else None))
 def seat_equity(seat):
     """Seat equity for sizing the tick sheet: last book mark, else fresh A$500k seed."""
     try: return float(json.load(open(BOOK))["seats"][seat].get("equity_aud") or SEAT_SEED)
@@ -126,6 +140,7 @@ COST_RT_LEGACY_20261029 = {"US": .0010, "ASX": .0020, "FX": .0003, "FUT": .0006,
            "LSE": .0020, "Euronext": .0020, "XETRA": .0020, "TSE": .0020, "HKEX": .0020, "SGX": .0020,
            "KRX": .0020, "TWSE": .0020, "NSE": .0020, "NZX": .0020, "SIX": .0020, "BME": .0020, "MILAN": .0020,
            "NORDIC": .0020, "TSX": .0010, "SSE": .0020, "SZSE": .0020}   # intl equities ~20bp RT default; crypto: Kraken 0.25% maker in + 0.40% taker out
+from veteran_desk import session_expiry as _SX   # tfo_sessexpiry_20261101
 from veteran_desk import cost_tables as CT   # ONE SOURCE for cost tables (book/desk/gate_v2) - tfo_costmodel_20261030
 COST_RT = CT.venue_rt_table()   # venue RT fractions DERIVED from CT tables (legacy shape); frozen pre-cutover table above is used ONLY to re-baseline peaks
 # ---- PER-VENUE COST MODEL (tfo_costmodel_20261030; PAPER). COST_RT above kept ONLY as legacy fallback / pre-trade estimate. ----
@@ -208,10 +223,39 @@ def adv_refresh(p, t, au):
     except Exception: v = None
     if v: p["adv_aud"] = v
     p.update(adv_day=dk, adv_try_utc=t.isoformat())
+def _session_closed_for_exit(p, t):
+    """Equities/ETFs/futures queue heartbeat exits outside the venue session. Crypto and FX keep trading.
+    The hard stop and the -5% hard backstop are not deferred: they still book on this tick. bank07_20261106: neither are the net-R
+    half-bank and the giveback protection when the mark is a fresh print (_bank_acts_now)."""
+    if _is_crypto(p) or is_fx(p): return False
+    if p.get("mark_preopen"): return True   # fillfix_20261103: US session open but the newest print is pre-market -> queue like a closed session
+    v = p.get("venue") or P.venue_of(p.get("ticker") or "")
+    try: return not session_open(v, t)
+    except Exception: return False
+def _fresh_print(p):
+    """bank07_20261106: the position's mark is a live print (px_age_min within the venue stale limit) - the same prints the hard stop acts on."""
+    a = p.get("px_age_min")
+    try: return a is not None and float(a) <= stale_limit_min(p.get("venue") or P.venue_of(p.get("ticker") or ""))
+    except Exception: return False
+def _bank_acts_now(p, rsn):
+    """bank07_20261106 (Brett 5 Nov 2026 22:47 WITA "XEL SHOULD HAVE AUTO HALF BANKED AND IT DIDNT"): a net-R half-bank or a giveback protection
+    books on a fresh print at any hour, exactly like the hard stop does (if a print can stop us out, it can bank half). T1 / +2R LEVEL exits,
+    trails and full flats still wait for the open's mark (fillfix_20261103)."""
+    r = str(rsn or "")
+    return bool(r) and ("aud_scale_out" in r or r.startswith("rail_giveback")) and _fresh_print(p)
+def _defer_exit(p, t, k, ev, reason, px, kind="full", shares=None, post=None):
+    """Remember an exit the heartbeat would have booked after the close. Filled at the next open's mark, not this print."""
+    if p.get("exit_queued"): return True
+    p["exit_queued"] = dict(reason=reason, px=px, kind=kind, shares=shares, post=post, queued_utc=t.isoformat(),
+                            note="session closed — queued for the next open, not booked at the after-hours print")
+    p["exec_note"] = "%s (%s @ %s)" % (p["exit_queued"]["note"], reason, px)
+    ev.append((k, "exit_queued", reason)); return True
+ARM_MAX_TRIGGER_DIST = 0.03   # tfo_kai2_20261101
 def trigger_hold(p, t):
     """Reason str when profit-side triggers must hold: market closed or mark stale (px_age_min > venue stale limit). None = act."""
     v = p.get("venue")
     if _is_crypto(p) or is_fx(p): return None if (p.get("px_age_min") is None or p["px_age_min"] <= stale_limit_min(v)) else "stale_mark"
+    if p.get("mark_preopen"): return "premarket_print"   # fillfix_20261103: no profit-side trigger off a pre-market bar on the first RTH ticks
     try:
         if not session_open(v, t): return "market_closed"
     except Exception: pass
@@ -233,6 +277,33 @@ def cm_rebaseline(p, px, au, marks, t):
         p["cm_rebaseline"] = rec
     except Exception: pass
 def now(): return dt.datetime.now(UTC)
+# booklock_20261103 (master fixer, checklist F21, found by armfix_20261103): the THF tick (run_thf_tick_sgp.sh: flock $L/.tick.flock,
+# then load -> ~10 s of prices/fills -> _wj) and seat_cli (mkdir lock state/thf/.tick.lock, then load -> change -> _wj) never excluded
+# each other, so a chat withdraw/close/amend landing mid-tick could be overwritten by the tick's save (or erase the tick's fills).
+# One kernel lock beside the book now covers the WHOLE tick and every seat_cli change; it dies with its process (no stale lock).
+import threading as _thr
+_BL = _thr.local()
+class book_lock:
+    def __init__(self, timeout=60.0): self.timeout = timeout; self.fh = None
+    def __enter__(self):
+        import fcntl, time as _t
+        n = getattr(_BL, "n", 0)
+        if n: _BL.n = n + 1; return self   # re-entrant in this thread
+        d = _state_dir(); os.makedirs(d, exist_ok=True)
+        fh = open(os.path.join(d, ".book.flock"), "a+"); t0 = _t.time()
+        while True:
+            try: fcntl.flock(fh, fcntl.LOCK_EX | fcntl.LOCK_NB); break
+            except OSError:
+                if _t.time() - t0 >= self.timeout: fh.close(); raise RuntimeError("book busy (tick in progress for %ds) - retry after the tick" % int(self.timeout))
+                _t.sleep(0.25)
+        self.fh = fh; _BL.n = 1; _BL.fh = fh; return self
+    def __exit__(self, *a):
+        import fcntl
+        n = getattr(_BL, "n", 0) - 1; _BL.n = max(0, n)
+        if n <= 0 and getattr(_BL, "fh", None) is not None:
+            try: fcntl.flock(_BL.fh, fcntl.LOCK_UN); _BL.fh.close()
+            except Exception: pass
+            _BL.fh = None
 def _wj(p, o):
     """Atomic save like payouts.py: unique temp file in the same dir, flush + fsync, then os.replace; temp removed on any error."""
     import tempfile
@@ -246,17 +317,21 @@ def _wj(p, o):
         try: os.unlink(t)
         except OSError: pass
         raise
-def yahoo_v8_quote(sym, interval="5m", rng="2d"):
-    """TFO HT 2026-10-29 11:1x: Yahoo's own chart v8 endpoint (still Yahoo) - used when yfinance returns None/empty."""
+def _yahoo_v8_rows(sym, interval="5m", rng="2d"):
+    """fixer 2026-11-02: shared Yahoo chart v8 fetch -> ([(ts, hi, lo, close)], tz) or (None, None). Used by yahoo_v8_quote and the permfix 1m trigger check."""
     import urllib.request, urllib.parse
     u = "https://query1.finance.yahoo.com/v8/finance/chart/%s?range=%s&interval=%s&includePrePost=false" % (urllib.parse.quote(sym), rng, interval)
     J = json.loads(urllib.request.urlopen(urllib.request.Request(u, headers={"User-Agent": "Mozilla/5.0"}), timeout=15).read())
     R = ((J.get("chart") or {}).get("result") or [None])[0]
-    if not R: return None
+    if not R: return None, None
     ts = R.get("timestamp") or []; q = ((R.get("indicators") or {}).get("quote") or [{}])[0]; off = int((R.get("meta") or {}).get("gmtoffset") or 0)
     rows = [(t, q["high"][i], q["low"][i], q["close"][i]) for i, t in enumerate(ts) if q.get("close") and q["close"][i] is not None and q["high"][i] is not None and q["low"][i] is not None]
+    return (rows or None), dt.timezone(dt.timedelta(seconds=off))
+def yahoo_v8_quote(sym, interval="5m", rng="2d"):
+    """TFO HT 2026-10-29 11:1x: Yahoo's own chart v8 endpoint (still Yahoo) - used when yfinance returns None/empty."""
+    rows, tz = _yahoo_v8_rows(sym, interval, rng)
     if not rows: return None
-    tz = dt.timezone(dt.timedelta(seconds=off)); last = rows[-6:]
+    last = rows[-6:]
     return dict(last=float(rows[-1][3]), hi=float(max(r[1] for r in last)), lo=float(min(r[2] for r in last)), asof=str(dt.datetime.fromtimestamp(rows[-1][0], tz)), window_start=dt.datetime.fromtimestamp(last[0][0], tz).isoformat(), src="yahoo_chart_v8")
 CRYPTO_XCHECK = .03   # Yahoo vs Kraken >3% apart -> Yahoo symbol is a different coin; use Kraken
 YAHOO_CRYPTO = {"XBT": "BTC", "XDG": "DOGE"}   # Kraken altname base -> Yahoo base (rest identical)
@@ -291,14 +366,42 @@ def crypto_live_px(sym, yahoo_fn=None, kraken_fn=None):
         return dict(k, src=k.get("src", "kraken") + ":yahoo_mismatch(%g)" % float(y["last"]))
     if y: return dict(y, src=(y.get("src") or "yahoo") + ":crypto")
     return k
-def live_px(sym):
-    if str(sym).upper().startswith("KRAKEN:"): return crypto_live_px(sym)
-    try:   # tfo_massive_20261030: Massive PRIMARY for US equities (fresh 5m bars only); Yahoo below stays the fallback
-        from veteran_desk import feeds as _FDM, massive as _MS
-        if _FDM.is_us(sym):
-            _q = _MS.quote(sym)
-            if _q: return _q
-    except Exception: pass
+FX_OANDA_FIRST = True   # fxmark_20261103 (F18): False = old Yahoo-only FX marks/fills (kill switch, no restart needed: the tick loads code fresh)
+OANDA_QUOTE_FN = None   # fxmark_20261103: tests inject sym -> book-shaped quote (default paid_feeds.oanda_book_quote)
+def _oanda_quote(sym):
+    import paid_feeds as _PF   # BASE is on sys.path (top of this file); GET only, practice host only
+    return _PF.oanda_book_quote(sym)
+OANDA_M1_FN = None   # fxmark_20261103: tests inject (sym, since_epoch, t) -> [(ts, hi, lo, close)]
+def _oanda_m1_rows(sym, since_epoch, t):
+    """fxmark_20261103: OANDA practice M1 MID candles since the order was armed (the grade-A secondary trigger check for OANDA-marked FX)."""
+    if OANDA_M1_FN: return OANDA_M1_FN(sym, since_epoch, t)
+    import paid_feeds as _PF
+    return _PF.oanda_m1_since(sym, since_epoch or (t.timestamp() - 4999 * 60), t.timestamp())
+def fx_live_px(sym, t=None, oanda_fn=None, yahoo_fn=None):
+    """fxmark_20261103 (F18, PAPER): ONE FX price. An OANDA-book pair (=X in vd_engine.OANDA_FX orientation) is marked, trigger-checked
+    and filled on the OANDA practice MID - the price macro/fx_commodities see in their prompts - while it is fresh (<= the FX stale
+    limit, 15 min). OANDA stale/down -> the Yahoo 5m quote (the old path) if it is fresher, src says why; both stale -> the fresher one,
+    so the book's stale-price rules still hold fills/profit exits. Fills = mid + the existing fill/slippage rules; the half-spread is the
+    cost model's FX leg cost (unchanged). Returns (handled, quote); handled False = not an OANDA-book pair (old path unchanged)."""
+    try:
+        from veteran_desk.pit_fx_sgp import oanda_instrument
+        if not oanda_instrument(sym): return False, None
+    except Exception: return False, None
+    t = t or now(); lim = stale_limit_min("FX"); o = err = None
+    try: o = (oanda_fn or OANDA_QUOTE_FN or _oanda_quote)(sym)
+    except Exception as x: err = (str(x) or type(x).__name__)[:80]
+    ok_o = bool(o and o.get("last")); oa = px_age_min(o, t) if ok_o else None
+    if ok_o and oa is not None and oa <= lim: return True, o
+    why = err or ("no OANDA price" if not ok_o else ("OANDA price %.0f min old > %d" % (oa, lim)) if oa is not None else "OANDA price time unknown")
+    try: y = (yahoo_fn or yahoo_live_px)(sym)
+    except Exception: y = None
+    ya = px_age_min(y, t) if (y and y.get("last")) else None
+    if y and y.get("last") and not (ok_o and oa is not None and (ya is None or oa < ya)):
+        return True, dict(y, src="%s (OANDA fallback: %s)" % (y.get("src") or "yahoo", why))
+    if ok_o: return True, dict(o, src="oanda_practice_mid (stale: %s; Yahoo %s)" % (why, "older" if y else "down"))
+    return True, None
+def yahoo_live_px(sym):
+    """fxmark_20261103: the old live_px Yahoo tail, unchanged except the src label (yfinance 5m, else Yahoo chart v8)."""
     try:
         import yfinance as yf
         h = yf.Ticker(sym).history(period="2d", interval="5m")
@@ -306,13 +409,64 @@ def live_px(sym):
     if h is None or not len(h):
         try: return yahoo_v8_quote(sym)   # 2026-10-29: yfinance None -> Yahoo chart v8 (same source); IBKR stays backup via feeds.px_with_fallback
         except Exception: return None
-    return dict(last=float(h.Close.iloc[-1]), hi=float(h.High.iloc[-6:].max()), lo=float(h.Low.iloc[-6:].min()), open=float(h.Open.iloc[-6:].iloc[0]), asof=str(h.index[-1]), window_start=h.index[-6:][0].isoformat())
+    return dict(last=float(h.Close.iloc[-1]), hi=float(h.High.iloc[-6:].max()), lo=float(h.Low.iloc[-6:].min()), open=float(h.Open.iloc[-6:].iloc[0]), asof=str(h.index[-1]), window_start=h.index[-6:][0].isoformat(), src="yahoo_yf_5m")
+def live_px(sym):
+    if str(sym).upper().startswith("KRAKEN:"): return crypto_live_px(sym)
+    if FX_OANDA_FIRST and str(sym).upper().endswith("=X"):   # fxmark_20261103 (F18): OANDA-book FX -> OANDA practice mid (what the seats see), Yahoo = fallback
+        _h, _fq = fx_live_px(sym)
+        if _h: return _fq
+    try:   # tfo_massive_20261030: Massive PRIMARY for US equities (fresh 5m bars only); Yahoo below stays the fallback
+        from veteran_desk import feeds as _FDM, massive as _MS
+        if _FDM.is_us(sym):
+            _q = _MS.quote(sym)
+            if _q: return _q
+    except Exception: pass
+    try:   # tfo_paidrt_20261031: EODHD Cboe Europe websocket when healthy; Yahoo below stays the fallback
+        from veteran_desk import eodhd_eu_ws as _EU
+        _eq = _EU.live_px(sym)
+        if _eq: return _eq
+    except Exception: pass
+    return yahoo_live_px(sym)   # fxmark_20261103: same yfinance -> chart v8 tail as before, moved into yahoo_live_px (+ src label)
 AUDUSD_MAX_AGE_MIN = 60; AUDUSD_SANE = (0.4, 1.2); _AU_LAST = {}   # tfo_review_20261030 (GPT HIGH): no invented 0.65 - last good rate if <= 60 min old, else block
 AUDUSD_CACHE = None   # None -> <state dir>/audusd_last_good.json (temp books write beside the temp book)
 def _au_cache(): return AUDUSD_CACHE or (None if os.environ.get("PYTEST_CURRENT_TEST") else os.path.join(_state_dir(), "audusd_last_good.json"))   # pytest: memory only unless a cache path is set
+_AU_FROZEN = {}   # pytest/memory copy of the weekend freeze
+def audusd_weekend_freeze(t):
+    """tfo-audusd-wkend-1031: FX is shut Sat 05:00 -> Mon 05:00 WITA. Returns the freeze start (UTC) if t is inside, else None."""
+    w = t.astimezone(dt.timezone(dt.timedelta(hours=8))); wd = w.weekday()
+    if not ((wd == 5 and w.hour >= 5) or wd == 6 or (wd == 0 and w.hour < 5)): return None
+    sat = (w - dt.timedelta(days=(wd - 5) % 7)).replace(hour=5, minute=0, second=0, microsecond=0)
+    return sat.astimezone(UTC)
+def _audusd_frozen(px_fn, t, fs):
+    """Weekend: return the last good Friday close, frozen for the whole weekend (no 60-min age block, no weekend ticks)."""
+    from veteran_desk import feeds as FD
+    key = fs.isoformat(); c = _au_cache()
+    L = (_rj_safe(c) if c else None) or dict(_AU_LAST) or {}
+    if L.get("frozen_for") == key and L.get("v"): return float(L["v"])
+    if not c and _AU_FROZEN.get("frozen_for") == key: return float(_AU_FROZEN["v"])   # memory copy only when no cache file (pytest)
+    v = None
+    try:
+        if L.get("v") and dt.datetime.fromisoformat(L["utc"]) <= fs and (fs - dt.datetime.fromisoformat(L["utc"])) <= dt.timedelta(hours=12): v = float(L["v"]); src = "last_good_pre_close"
+    except Exception: v = None
+    if v is None:   # last good is stale or from inside the weekend: the feed's last print over a weekend is the Friday close
+        try: p = FD.px_with_fallback("AUDUSD=X", px_fn or live_px) if px_fn is None else px_fn("AUDUSD=X")
+        except Exception: p = None
+        x = float(p["last"]) if p and p.get("last") else None
+        if x is not None and math.isfinite(x) and AUDUSD_SANE[0] < x < AUDUSD_SANE[1]: v = x; src = "feed_last_print_friday_close"
+    if v is None: raise FxUnavailable("AUDUSD weekend freeze: no Friday close available - blocked (no 0.65 fallback)")
+    F = dict(v=v, utc=t.isoformat(), frozen_for=key, src=src, note="weekend freeze Sat 05:00-Mon 05:00 WITA")
+    _AU_FROZEN.clear(); _AU_FROZEN.update(F); _AU_LAST.update(v=v, utc=t.isoformat())
+    try:
+        if c: _wj(c, F)
+    except Exception: pass
+    return v
+AU_META = {}   # fxmark_20261103 (F19): v / src / asof (the rate's OWN time) / how of the AUDUSD this process last used; the tick saves it beside 'audusd'
 def audusd(px_fn=None, t=None):
     from veteran_desk import feeds as FD
     t = t or dt.datetime.now(UTC)
+    fs = audusd_weekend_freeze(t)
+    if fs is not None:
+        v = _audusd_frozen(px_fn, t, fs); AU_META.clear(); AU_META.update(v=v, src="weekend freeze (Friday close, FX shut)", asof=fs.isoformat(), how="weekend_freeze"); return v   # fxmark_20261103
     try: p = FD.px_with_fallback("AUDUSD=X", px_fn or live_px) if px_fn is None else px_fn("AUDUSD=X")
     except Exception: p = None
     v = float(p["last"]) if p and p.get("last") else None
@@ -321,11 +475,16 @@ def audusd(px_fn=None, t=None):
         try:
             if _au_cache(): _wj(_au_cache(), dict(_AU_LAST, src=(p or {}).get("src")))
         except Exception: pass
+        _a = px_age_min(p, t)   # fxmark_20261103 (F19): keep the quote's own time (FRED = prior-day close) so readers can age-check it
+        AU_META.clear(); AU_META.update(v=v, src=str((p or {}).get("src") or "feed"), asof=(t - dt.timedelta(minutes=_a)).isoformat() if _a is not None else None, how="live")
         return v
     L = dict(_AU_LAST) or ((_rj_safe(_au_cache()) if _au_cache() else None) or {})
     try: age = (t - dt.datetime.fromisoformat(L["utc"])).total_seconds() / 60
     except Exception: age = None
-    if age is not None and age <= AUDUSD_MAX_AGE_MIN and L.get("v"): return float(L["v"])
+    if age is not None and age <= AUDUSD_MAX_AGE_MIN and L.get("v"):
+        AU_META.clear(); AU_META.update(v=float(L["v"]), src="last good %s (%.0f min old)" % (L.get("src") or "live rate", age), asof=L.get("utc"), how="last_good")   # fxmark_20261103
+        return float(L["v"])
+    AU_META.clear(); AU_META.update(v=L.get("v"), src="UNAVAILABLE (last good %s) - new arms blocked" % ("missing" if age is None else "%.0f min old" % age), asof=L.get("utc"), how="unavailable")   # fxmark_20261103
     raise FxUnavailable("AUDUSD unavailable: no live rate and last good rate %s - blocked (no 0.65 fallback)" % ("missing" if age is None else "%.0f min old > %d" % (age, AUDUSD_MAX_AGE_MIN)))
 def _rj_safe(p):
     try: return json.load(open(p))
@@ -361,26 +520,96 @@ def _ibkr_fx(ccy):
         v = json.loads(out.strip().splitlines()[-1]).get("AUD" + ccy)
         return float(v) if isinstance(v, (int, float)) and v > 0 else None
     except Exception: return None
+_LIVE_PX0 = live_px   # fxmark_20261103: the real feed (tests monkeypatch BK.live_px -> pit/last-good fallbacks stay off unless injected)
+FX_PIT_FN = None; FX_PIT_MAX_AGE_H = 96.0   # fxmark_20261103 (F19): pit daily-close fallback (tests inject (sym, t) -> (date, close, knowable_utc, src)); weekend + a missed load
+FX_LAST_GOOD_CACHE = None; FX_LAST_GOOD_MAX_H = 24.0; _FX_LG = {}   # fxmark_20261103: last good LIVE rate per ccy (file beside the book; memory under pytest)
+FX_SRC = {}   # fxmark_20261103: ccy -> dict(v, src, age_min, utc) of the rate this process last used (book writes it as fx_rates)
+def _fx_lg_path(): return FX_LAST_GOOD_CACHE or (None if os.environ.get("PYTEST_CURRENT_TEST") else os.path.join(_state_dir(), "fx_last_good.json"))
+def _fx_oanda_ins(sym):
+    try:
+        from veteran_desk.pit_fx_sgp import oanda_instrument
+        return oanda_instrument(sym)
+    except Exception: return None
 def ccy_per_aud(ccy, au=None, px_fn=None, ibkr_fn=None):
-    """Units of `ccy` per 1 AUD from LIVE rates: Yahoo AUDccy=X, else Yahoo AUDUSD x USDccy, else IBKR. Raises FxUnavailable (fail closed)."""
+    """Units of `ccy` per 1 AUD. Raises FxUnavailable (fail closed, never a constant).
+    fxmark_20261103 (F19): the 3rd source (IBKR) is dead on the droplet (no ~/ibkr venv), so EUR/GBP/... had ONE live source (Yahoo).
+    Now: 1 OANDA practice mid of the OANDA-book cross (AUDJPY=X ..., or 1/EURAUD=X, 1/GBPAUD=X; live_px is OANDA-first for book pairs),
+    2 OANDA AUDUSD x USDccy (SEK, NOK, DKK, ...), 3 Yahoo AUDccy=X, 4 Yahoo AUDUSD x ccy=X, 5 the pit daily close (OANDA D candles /
+    Yahoo; <= 96h old, age shown), 6 IBKR only where its gateway exists, 7 the last good live rate <= 24h old (age shown).
+    The source + age of every rate used is kept in FX_SRC[ccy] (the book saves it as fx_rates). Steps 5 and 7 run on the real feed only
+    (or when a test injects FX_PIT_FN / FX_LAST_GOOD_CACHE)."""
     if ccy == "AUD": return 1.0
     if ccy == "USD" and au: return float(au)
     hit = _FX.get(ccy)
     if hit and px_fn is None and dt.datetime.now(UTC).timestamp() - hit[1] < FX_TTL_S: return hit[0]
-    pf = px_fn or live_px; lo, hi = FX_SANE.get(ccy, (0, float("inf"))); tries = []
-    def _last(t):
-        try: m = pf(t) or {}
+    pf = px_fn or live_px; lo, hi = FX_SANE.get(ccy, (0, float("inf"))); tries = []; t = dt.datetime.now(UTC)
+    _real = px_fn is None and pf is _LIVE_PX0
+    good = lambda x: bool(x) and lo <= x <= hi
+    def _q(sym):
+        try: m = pf(sym) or {}
         except Exception: m = {}
         v = m.get("last") if isinstance(m, dict) else None
-        return float(v) if v and v == v and v > 0 else None
-    v = _last("AUD%s=X" % ccy); tries.append(("yahoo:AUD%s=X" % ccy, v))
-    if not (v and lo <= v <= hi):
-        a = _last("AUDUSD=X"); u = _last("%s=X" % ccy) or _last("USD%s=X" % ccy); v = a * u if a and u else None; tries.append(("yahoo:AUDUSDxUSD%s" % ccy, v))
-    if not (v and lo <= v <= hi):
-        v = (ibkr_fn or _ibkr_fx)(ccy); tries.append(("ibkr:AUD%s" % ccy, v))
-    if not (v and lo <= v <= hi): raise FxUnavailable("no live AUD/%s rate (%s) - fail closed, never sized as USD" % (ccy, ", ".join("%s=%s" % t for t in tries)))
-    if px_fn is None: _FX[ccy] = (v, dt.datetime.now(UTC).timestamp(), tries[-1][0])
+        return (float(v), str(m.get("src") or "feed")) if v and v == v and v > 0 else (None, None)
+    v = s = age = None; asked = set()
+    d_, i_ = "AUD%s=X" % ccy, "%sAUD=X" % ccy
+    if _fx_oanda_ins(d_):   # 1 OANDA-book orientation (live_px: OANDA practice mid, Yahoo fallback - its src says which)
+        asked.add(d_); v, s = _q(d_); s = s and "%s [%s]" % (d_, s); tries.append((d_, v))
+    elif _fx_oanda_ins(i_):   # EUR, GBP: OANDA lists EUR_AUD / GBP_AUD -> invert
+        asked.add(i_); x, s = _q(i_); v = (1.0 / x) if x else None; s = s and "1/%s [%s]" % (i_, s); tries.append(("1/" + i_, v))
+    def _via_usd(cands):   # AUDUSD x (USD per ccy leg): USDccy=X direct, ccyUSD=X inverted (EURUSD, GBPUSD ...), Yahoo's ccy=X alias
+        a, sa = _q("AUDUSD=X")
+        if not a: return None, None
+        for sym_, inv in cands:
+            x, sx = _q(sym_)
+            if x: return a * ((1.0 / x) if inv else x), "AUDUSD=X [%s] x %s%s [%s]" % (sa, "1/" if inv else "", sym_, sx)
+        return None, None
+    if not good(v):   # 2 OANDA via USD (both legs OANDA-book: SEK, NOK, DKK, PLN, MXN, ZAR, ...)
+        _ob = [(s_, i_v) for s_, i_v in (("USD%s=X" % ccy, False), ("%sUSD=X" % ccy, True)) if _fx_oanda_ins(s_)]
+        if _ob: v, s = _via_usd(_ob); asked.update(x_ for x_, _ in _ob); tries.append(("AUDUSDx%s" % _ob[0][0], v))
+    if not good(v) and d_ not in asked: v, s = _q(d_); s = s and "%s [%s]" % (d_, s); tries.append(("yahoo:%s" % d_, v))   # 3 Yahoo AUDccy=X
+    if not good(v):   # 4 via USD on what is left (Yahoo's USDccy=X / ccy=X alias)
+        v, s = _via_usd([(x_, False) for x_ in ("USD%s=X" % ccy, "%s=X" % ccy) if x_ not in asked]); tries.append(("AUDUSDxUSD%s" % ccy, v))
+    if not good(v) and (_real or FX_PIT_FN):   # 5 pit daily close, age shown
+        v, s, age = _fx_pit_rate(ccy, t); tries.append(("pit", v))
+    if not good(v):   # 6 IBKR read-only MIDPOINT: only where its paper gateway venv exists (not on the droplet)
+        v = (ibkr_fn or _ibkr_fx)(ccy); s = "ibkr:AUD%s" % ccy; age = None; tries.append((s, v))
+    if not good(v) and (_real or FX_LAST_GOOD_CACHE):   # 7 last good live rate, age shown
+        L = _FX_LG.get(ccy) or ((_rj_safe(_fx_lg_path()) or {}).get(ccy) if _fx_lg_path() else None) or {}
+        try: la = (t - dt.datetime.fromisoformat(str(L["utc"]))).total_seconds() / 60
+        except Exception: la = None
+        if la is not None and la <= FX_LAST_GOOD_MAX_H * 60 and good(L.get("v")): v, s, age = float(L["v"]), "last good %s" % L.get("src"), round(la, 1)
+        tries.append(("last_good(%s)" % ("missing" if la is None else "%.0fmin" % la), v if age is not None else None))
+    if not good(v): raise FxUnavailable("no AUD/%s rate (%s) - fail closed, never sized as USD" % (ccy, ", ".join("%s=%s" % t_ for t_ in tries)))
+    FX_SRC[ccy] = dict(v=round(v, 8), src=str(s or tries[-1][0])[:140], age_min=age, utc=t.isoformat())
+    if age is None and not str(s).startswith(("ibkr", "pit")) and (_real or FX_LAST_GOOD_CACHE):   # a LIVE rate: remember it (file beside the book)
+        _FX_LG[ccy] = dict(v=v, utc=t.isoformat(), src=FX_SRC[ccy]["src"])
+        try:
+            if _fx_lg_path(): L_ = _rj_safe(_fx_lg_path()) or {}; L_[ccy] = _FX_LG[ccy]; _wj(_fx_lg_path(), L_)
+        except Exception: pass
+    if px_fn is None: _FX[ccy] = (v, dt.datetime.now(UTC).timestamp(), FX_SRC[ccy]["src"])
     return v
+def _fx_pit_rate(ccy, t):
+    """fxmark_20261103: (units of ccy per AUD, src, age_min) from the newest pit daily close knowable by t, <= FX_PIT_MAX_AGE_H old; else (None, None, None).
+    AUDccy=X, else 1/ccyAUD=X, else AUDUSD=X x USDccy=X (or / ccyUSD=X). Age = minutes since the close became knowable."""
+    fn = FX_PIT_FN or _pit_last_bar
+    def _b(sym):
+        try: r = fn(sym, t)
+        except Exception: r = None
+        if not r or not r[1] or float(r[1]) <= 0: return None
+        try: a = (t - dt.datetime.fromisoformat(str(r[2]).replace("Z", "+00:00"))).total_seconds() / 60
+        except Exception: return None
+        return (float(r[1]), "pit daily close %s %s (%s)" % (sym, r[0], r[3]), round(a, 1)) if a <= FX_PIT_MAX_AGE_H * 60 else None
+    b = _b("AUD%s=X" % ccy)
+    if b: return b
+    b = _b("%sAUD=X" % ccy)
+    if b: return 1.0 / b[0], "1/" + b[1], b[2]
+    a = _b("AUDUSD=X")
+    if a:
+        u = _b("USD%s=X" % ccy)
+        if u: return a[0] * u[0], "%s x %s" % (a[1], u[1]), max(a[2], u[2])
+        u = _b("%sUSD=X" % ccy)
+        if u: return a[0] / u[0], "%s / %s" % (a[1], u[1]), max(a[2], u[2])
+    return None, None, None
 def aud_per_unit(sym, au, px_fn=None, ibkr_fn=None):
     """AUD value of 1.0 of the listing's quoted price. Raises FxUnavailable for unknown suffix or missing rate.
     2026-10-29 infra: after venue_of maps .T/.HK/... to TSE/HKEX/..., listing-currency path must still run (do NOT treat them as USD via venue!=US)."""
@@ -427,12 +656,23 @@ def load(au=None):
                     au = au or audusd(); B["seats"][s_] = _seat_ledger(); B["seed_aud"] = B.get("seed_aud", 0) + SEAT_SEED; B["start"] = round(B.get("start", 0) + SEAT_SEED * au, 2)
                     if B.get("day_start_equity_aud") is not None: B["day_start_equity_aud"] += SEAT_SEED   # injection is not P&L
                     B["capital_events"].append(dict(type="injection", amount_aud=SEAT_SEED, amount_usd=round(SEAT_SEED * au, 2), utc=now().isoformat(), source=f"fresh funder seed for seat {s_}", authorised=SEAT_AUTH.get(s_, "Brett 2026-10-28 17:06 WITA")))
+                    try:
+                        import audit
+                        audit.capital("thf" if THF else "veteran", {"type": "injection", "seat": s_, "amount_aud": SEAT_SEED, "paper_only": True})
+                    except Exception:
+                        pass
             return B
     au = au or audusd(); t = now().isoformat()
-    return dict(book="thf" if THF else "veteran_desk", label=LABEL, paper_only=True, ccy_native="AUD", seed_aud=SEED_AUD,
+    rec = dict(book="thf" if THF else "veteran_desk", label=LABEL, paper_only=True, ccy_native="AUD", seed_aud=SEED_AUD,
                 start=round(SEED_AUD * au, 2), audusd_at_seed=au, seats={s: _seat_ledger() for s in TRADERS},
                 capital_events=[dict(type="injection", amount_aud=SEED_AUD, amount_usd=round(SEED_AUD * au, 2), utc=t, source=("THF fresh paper book: %d x A$500k seat books, same seats/seed as VD, nothing carried from VD" % len(TRADERS)) if THF else "fresh funder seed capital, 9 x A$500k seat books (not from any other book)",
                                      authorised="Brett 2026-10-30 19:16 WITA (THF separate fresh book)" if THF else "Brett 2026-10-28 16:57 WITA")], created_utc=t, holdings={}, rules=__doc__)
+    try:
+        import audit
+        audit.capital("thf" if THF else "veteran", {"type": "injection", "amount_aud": SEED_AUD, "paper_only": True})
+    except Exception:
+        pass
+    return rec
 def firm_ok():
     try: f = json.load(open(os.path.join(BASE, "reports", "firm_risk.json")))
     except Exception: return False, "firm_risk.json unreadable - fail closed"
@@ -449,7 +689,7 @@ STALE_PX_MIN = 15
 FILL_MAX_AGE_MIN = {"CRYPTO": 15, "FX": 15, "FUT": 15}   # stalefill: max mark age at fill (min); every other venue STALE_PX_MIN
 # venuestale 2026-10-29 (TFO 19:31 WITA): per-venue staleness = known feed delay + 5 min. Delays measured from the live 5m feed 19:33 WITA
 # (bar-start age while open: LSE/Euronext/XETRA/BME/SIX/MILAN ~17-20 min, NORDIC ~2 min). Real-time / unclear venues stay at STALE_PX_MIN.
-VENUE_DELAY_MIN = {"LSE": 20, "Euronext": 20, "XETRA": 20, "BME": 20, "SIX": 20, "MILAN": 20}
+VENUE_DELAY_MIN = {"ASX": 20, "LSE": 20, "Euronext": 20, "XETRA": 20, "BME": 20, "SIX": 20, "MILAN": 20}
 def venue_delay_min(venue): return VENUE_DELAY_MIN.get(venue, 0)
 def stale_limit_min(venue): return FILL_MAX_AGE_MIN.get(venue) or ((VENUE_DELAY_MIN[venue] + 5) if venue in VENUE_DELAY_MIN else STALE_PX_MIN)
 FILL_MIN_ROOM_R = 1.0   # stalefill: no fill when room to target from the actual fill < 1.0R (TFO 19:21 WITA)
@@ -480,7 +720,10 @@ def seat_view(B):
     cash_aud is already net of every entry/exit cost; equity = cash + open positions at last mark."""
     return dict(equity_aud=B.get("equity_aud") if B.get("equity_aud") is not None else B.get("seed_aud"), cash_aud=B.get("cash_aud"), today_pnl_aud=B.get("today_pnl_aud"),
                 pnl_since_inception_aud=B.get("pnl_since_inception_aud"), costs_aud=round(sum(p.get("cost_aud", 0) or 0 for p in B.get("positions", {}).values() if p.get("status") == "open") + sum((c.get("gross_aud", 0) or 0) - (c.get("net_aud", 0) or 0) for c in B.get("closed", [])), 2), net_of_costs=True)
-def seat_of(e): return str((e.get("tags") or {}).get("strategy", "veteran:?")).split(":", 1)[1].split(" ")[0]
+def seat_of(e):
+    for k in ("owner_seat", "proposing_seat", "seat"):
+        if e.get(k): return str(e[k])
+    return str((e.get("tags") or {}).get("strategy", "veteran:?")).split(":", 1)[1].split(" ")[0]
 # ---- staged auto-hedge (TFO HT 03:15 Brett hedge staged) ----
 HEDGE_BANDS = ((.70, 3), (.50, 2), (.30, 1))   # gross open notional / book equity -> stage
 HEDGE_OFF = .15                                # below 15%: fully off; 15-30%: hold current stage
@@ -488,11 +731,16 @@ HEDGE_STAGE_PREM, HEDGE_MAX_PREM = .0025, .0075   # premium 0.25% of book equity
 HEDGE_ENABLED = False   # Brett 2026-10-29 06:41/06:44 WITA: VIX hedge never approved - staged hedge auto-deploy OFF, never re-arms
 HEDGE_ARCHIVE = None   # None -> <state dir>/archive/hedge_20261029.json (TFO HT 03:28: overridable, never live under tests)
 KILL_ALERT_PATH = None   # None -> <state dir>/KILL_ALERT.json
+def _temp_journal_paths():
+    """paytemp 2026-10-31: temp VD book journals - a caller redirect is honoured only inside the temp book's own dir, else files beside the temp book (never live)."""
+    from veteran_desk import payouts as PY
+    sd = os.path.abspath(_state_dir()); pick = lambda cur, name: cur if os.path.dirname(os.path.abspath(cur)) == sd else os.path.join(sd, name)
+    return dict(fwd_path=pick(PY.DEFAULT_FWD_PATH, "forward_trades.json"), score_path=pick(PY.DEFAULT_SCORE_PATH, "scorecard.json"))
 def _temp_payouts_path():
     """TFO HT 03:35: temp book -> payouts beside the temp book, unless the caller already pointed payouts at a non-live path."""
     from veteran_desk import payouts as PY
     live = os.path.join(BASE, "state", "veteran_desk_payouts.json")
-    return PY.DEFAULT_OUT_PATH if os.path.abspath(PY.DEFAULT_OUT_PATH) != os.path.abspath(live) else os.path.join(_state_dir(), "veteran_desk_payouts.json")
+    sd = os.path.abspath(_state_dir()); return PY.DEFAULT_OUT_PATH if os.path.dirname(os.path.abspath(PY.DEFAULT_OUT_PATH)) == sd and os.path.abspath(PY.DEFAULT_OUT_PATH) != os.path.abspath(live) else os.path.join(sd, "veteran_desk_payouts.json")   # paytemp (caller redirect honoured only inside the temp book's own dir) 2026-10-31: ALWAYS beside the temp book - a redirected DEFAULT_OUT_PATH can hold a copy of live accruals, which were charged to the temp seat's cash (A$540.40 phantom deduction)
 def _state_dir():
     """TFO HT 03:28: live state dir only when ticking the real book; otherwise the temp book's own dir (tests never write live paths)."""
     return os.path.join(BASE, "state", "veteran_desk") if os.path.abspath(BOOK) == os.path.abspath(_REAL_BOOK) else os.path.dirname(os.path.abspath(BOOK))
@@ -585,6 +833,7 @@ HARD_BACKSTOP_PCT = 0.05  # net <= -5% of deploy_basis -> close all (hard_backst
 # (A$, after entry cost) >= the trade's A$ risk at entry (1R dollars) OR >= +1% of deploy_basis (entry notional A$). Residual stop -> BE, then existing trail.
 # Grade B/C keep prior rails (T1 / +2R only). Capped sleeves opt out with bank_capped=True. Full flat +5% stays (prompt law; R giveback unchanged).
 RAIL_BANK_GRADES = ("A", "A+")
+RAIL_BANK_ALL_POSITIONS = True   # bank07_20261106 (Brett 5 Nov 2026 22:48 WITA "HARD RULE ACROSS ALL POSITIONS"): the net-R half-bank applies to every open position, any grade
 def pos_grade(p):
     """A/A+/B/C from position.grade, else parse tags.strategy '... grade A ...', else funder_queue tags (legacy opens)."""
     g = p.get("grade")
@@ -611,9 +860,15 @@ def open_net_aud(p, px, au, marks=None):
     else: gross = sg * (aud(p["ticker"], px, au) - aud(p["ticker"], f, au)) * q; basis = aud(p["ticker"], f, au) * q
     return gross - float(p.get("cost_aud") or 0), basis
 # FINAL (Brett HARD via TFO 2026-10-29 17:20 WITA; supersedes 17:01-17:13 bank1pct): +1% basis leg DROPPED.
-# Half-bank when open NET A$ (after entry + exit costs) >= 1R of the ORIGINAL entry risk (|fill - initial_stop| x qty in A$).
-# Grade read ONLY from the persisted position field `grade` (A/A+); missing grade -> not eligible. Dex (seat 'trend') banks at 1.5R.
-RAIL_BANK_R = 1.0; RAIL_BANK_R_SEAT = {"trend": 1.5}
+# Half-bank when open NET A$ (after entry + exit costs) >= RAIL_BANK_R x the ORIGINAL entry risk (|fill - initial_stop| x qty in A$).
+# bank07_20261106 (Brett funder override 5 Nov 2026 18:49 WITA "Make the new rule to bank half at .7r", 22:48 "HARD RULE ACROSS ALL POSITIONS - .7r is
+# half bank profit", 6 Nov 12:43 "for all positions", 12:46 "No patches of code for .7r needs to be permanent"): 1R -> 0.7R for EVERY seat incl.
+# trend (was 1.5R) and every grade (was A/A+ only; RAIL_BANK_ALL_POSITIONS). The bank books on the same fresh prints as the hard stop, any hour
+# (_bank_acts_now): on 5 Nov XEL's 1R bank was queued for the open at 08:16 ET while the breakeven stop acted pre-market at 09:20 ET (+1.24R -> +0.08R).
+RAIL_BANK_R = 0.7; RAIL_BANK_R_SEAT = {}
+def _bank_reason(k):
+    """'rail_0_7R_aud_scale_out' for 0.7, 'rail_1R_aud_scale_out' for 1.0, 'rail_1_5R_aud_scale_out' for 1.5 (dash/audit labels)."""
+    return "rail_%sR_aud_scale_out" % (("%g" % float(k)).replace(".", "_"))
 KRAKEN_MAKER, KRAKEN_TAKER = 0.0025, 0.0040   # Kai crypto (TFO Crypto 17:19): per leg; entry maker, exit taker
 def _is_crypto(p): return (p.get("venue") or P.venue_of(p["ticker"])) == "CRYPTO"
 CRYPTO_DP = 8   # tfo_review_20261030 (HT ruling): Kraken spot sizes crypto in fractional units (8 dp, floored); replaces whole-unit rounding + 0.98 floortol
@@ -769,10 +1024,12 @@ def us_beta_block(D, p, f, marks=None, au=None):
     except Exception: return None
     return None
 def bank_trigger(p, px, au, marks=None, seat=None):
-    """'rail_1R_aud_scale_out' (or 'rail_1_5R_aud_scale_out' for trend) | None. Persisted grade A/A+ only."""
-    if p.get("bank_capped") or (p.get("grade") or pos_grade(p)) not in RAIL_BANK_GRADES: return None   # tfo_review_20261030: legacy opens without the grade field banked only at T1/2R - now read tags/queue grade
+    """'rail_0_7R_aud_scale_out' (RAIL_BANK_R, every seat and grade since bank07_20261106) | None. bank_capped sleeves opt out."""
+    if p.get("bank_capped"): return None
+    if not RAIL_BANK_ALL_POSITIONS and (p.get("grade") or pos_grade(p)) not in RAIL_BANK_GRADES: return None   # tfo_review_20261030: legacy opens without the grade field banked only at T1/2R - now read tags/queue grade
     k = RAIL_BANK_R_SEAT.get(seat or p.get("seat"), RAIL_BANK_R)
-    if net_R(p, px, au, marks) >= k: return "rail_1R_aud_scale_out" if k == 1.0 else "rail_1_5R_aud_scale_out"
+    if px is None: return None
+    if net_R(p, px, au, marks) >= k: return _bank_reason(k)
     return None
 # GIVEBACK PROTECT (Brett HARD via TFO 2026-10-29 17:17/17:20 WITA; DNA for every seat, all grades; bank_capped opts out).
 # Only while open net > 0 and before the half-bank. Fires half-bank at last, residual stop -> fee floor, when ANY of:
@@ -936,20 +1193,39 @@ def time_stop_trigger(p, m, t, au, marks=None, seat=None):
 # T1 SYNC (TFO ruling 19:11 WITA 29 Oct 2026: manual half-bank must set t1_done). Same post-half state as the rail's own half-bank.
 RULE_LOG.append(dict(utc="2026-10-29T11:11:00+00:00", wita="19:11 WITA 29 Oct 2026", rule="t1sync", approved_by="TFO ruling",
                      text="Manual half-bank / seat_cli partial close must set t1_done (and the rail's half-bank state: original R kept, residual stop -> fee floor/BE tighten-only, target -> T2, rail_state t1_done) so the rail never half-banks the residual again."))
+def _be_capped(p, be, mark=None):
+    """BE-cap (STAGED 2026-10-31, HT 23:21): post-half-bank BE stop never at/through the market.
+    LONG: min(BE, mark - buf); SHORT: max(BE, mark + buf); buf = max(0.25*ATR14, spread in price). No mark -> BE."""
+    L = p["side"] == "LONG"; mk = mark if mark is not None else p.get("mark")
+    if mk is None: return be
+    mk = float(mk); atr = float(p.get("atr14") or 0.0)
+    try: sp = mk * float(_spread_bps(p, None) or 0.0) / 1e4
+    except Exception: sp = 0.0
+    buf = max(0.25 * atr, sp)
+    return min(be, mk - buf) if L else max(be, mk + buf)
 def mark_half_banked(p, t, x, h, why):
-    """Apply the rail's post-half-bank state to p (residual). Idempotent; stops only tighten; initial_stop/r0 preserved."""
-    L = p["side"] == "LONG"; f = float(p["fill"]); s0 = _initial_stop(p)
+    """Apply the rail's post-half-bank state to p (residual) only when the partial is at or beyond BE+fees in the trade's favour.
+    A loss cut logs partial_cut, keeps the stop and r0, and remembers shares_orig. Idempotent; stops only tighten; initial_stop/r0 preserved."""
+    L = p["side"] == "LONG"; f = float(p["fill"]); s0 = _initial_stop(p); x = float(x)
     p.setdefault("initial_stop", s0); p["r0"] = p.get("r0") or abs(f - s0)
     if p.get("t1_done"):
         if not p.get("t2_done"): p.update(t2_done=True, t2_utc=t.isoformat(), rail_state="t2_done"); _rlog(p, t, "quarter_bank", px=x, shares=h, reason=why)   # exitC: 2nd partial
         return p
-    p.setdefault("shares_orig", int(p["shares"]) + int(h))
     be = f + (1 if L else -1) * f * rt_rate(p)
-    if (L and p["stop"] < be) or (not L and p["stop"] > be): _rlog(p, t, "stop_tighten", old=p["stop"], new=round(be, 6), why="manual half banked -> BE"); p["stop"] = round(be, 6)
+    if (L and x < be) or (not L and x > be):   # not yet a profit half-bank: do not lift the stop through the market or set t1_done
+        _rlog(p, t, "partial_cut", px=x, shares=h, reason=why); p.setdefault("shares_orig", int(p["shares"]) + int(h)); return p
+    p.setdefault("shares_orig", int(p["shares"]) + int(h))
+    be = _be_capped(p, be)
+    if (L and p["stop"] < be) or (not L and p["stop"] > be): _rlog(p, t, "stop_tighten", old=p["stop"], new=round(be, 6), why="manual half banked -> BE (capped vs mark)"); p["stop"] = round(be, 6)
     tg = p.get("target")
     if tg is not None: p.update(t1=tg, target=round(f + 2 * (float(tg) - f), 6))
     p.update(t1_done=True, t1_utc=t.isoformat(), rail_state="t1_done"); _rlog(p, t, "half_bank", px=x, shares=h, reason=why)
     return p
+RULE_LOG.append(dict(id="tfo_partial_cut_20261030", utc="2026-10-30T21:22:00+00:00", rule="partial_cut is not a half-bank",
+                     text="PAPER. A partial whose exit is not yet at BE+fees in the trade's favour logs partial_cut, keeps the stop and r0, sets shares_orig, and does not set t1_done or move the target to T2. At or beyond BE, the half-bank state still applies. A tightened trail (rail_stop) and other heartbeat exits while the venue is closed stay queued for the next open's mark. The hard stop and the -5% hard backstop still book immediately, as do crypto, FX, and the kill switch. Closed rows are not rewritten."))
+RULE_LOG.append(dict(id="bank07_20261106", utc="2026-11-06T07:40:00+00:00", wita="15:40 WITA 6 Nov 2026", approved_by="Brett (funder override 5 Nov 18:49 WITA; hard rule 22:48; 6 Nov 12:43/12:46)",
+                     rule="half-bank at +0.7R net for every position",
+                     text="PAPER. Half-bank when open NET A$ after costs >= 0.7R of the ORIGINAL entry risk, every seat (trend included, was 1.5R) and every grade (was A/A+ only); bank_capped sleeves still opt out. The bank and the giveback protection book on the same fresh prints as the hard stop, at any hour (XEL 5 Nov: the 1R bank was queued for the open while the breakeven stop acted pre-market). T1/+2R level exits, trails and full flats still wait for the open. Residual stop -> fee floor as before."))
 RULE_LOG.append(dict(id="brett_override_20261029_1917", utc="2026-10-29T11:17:00+00:00", wita="19:17 WITA 29 Oct 2026", approved_by="Brett", relayed_by="TFO",
                      words="Arm the grade A's", scope="trim-only: lifts ONLY the soft trim (A+-only new arms) for grade-A setups; every other rail still applies (A$500k liquidity, 5% ADV, 5% cap / A at 2%, stop on every trade, desk + correlated heat, US net beta <= ~US$750k, no levered ETFs, no chase >1% / price not through stop)"))
 RULE_LOG.append(dict(id="tfo_stalefill_20261029_1921", utc="2026-10-29T11:21:00+00:00", wita="19:21 WITA 29 Oct 2026", approved_by="TFO ruling",
@@ -988,17 +1264,88 @@ def _initial_stop(p):
     am = p.get("amends") or []
     return float(((am[0].get("old") or {}).get("stop")) if am and (am[0].get("old") or {}).get("stop") is not None else p["stop"])
 def realise(B, p, x, h, au, marks=None):
-    """Book closing h units of p at x into seat cash (FX: P&L only). Returns (gross_aud, exit_cost_aud)."""
+    """Book closing h units of p at x into seat cash (FX: P&L only). Returns (gross_aud, exit_cost_aud).
+    Non-FX gross is the cash result: exit notional at today's AUDUSD minus the AUD fill cost cash was debited
+    (fill_notional_aud, else fill_audusd). price_pnl_aud is the price move at the fill rate; fx_translation_aud
+    is the rest (AUDUSD move on the exit value). No stored fill rate, or a rate that still matches, keeps the old gross exactly."""
     sg = 1 if p["side"] == "LONG" else -1; cc = leg_cost_aud(p, x, h, au, marks, "exit")   # tfo_costmodel_20261030
-    if is_fx(p): qa = quote_to_aud(p["ticker"], au, marks); n = x * h / qa; gross = sg * (x - p["fill"]) * h / qa; B["cash_aud"] += gross - cc
-    else: n = aud(p["ticker"], x, au) * h; B["cash_aud"] += sg * n - cc; gross = sg * (aud(p["ticker"], x, au) - aud(p["ticker"], p["fill"], au)) * h
+    h = float(h)
+    if is_fx(p):
+        qa = quote_to_aud(p["ticker"], au, marks); n = x * h / qa; gross = sg * (x - p["fill"]) * h / qa; B["cash_aud"] += gross - cc
+        price, fx = gross, 0.0
+    else:
+        exit_px = aud(p["ticker"], x, au); fill_px = aud(p["ticker"], p["fill"], au); old_gross = sg * (exit_px - fill_px) * h; exit_n = exit_px * h
+        au_f = p.get("fill_audusd"); sh = float(p.get("shares") or h) or h
+        if p.get("fill_notional_aud") not in (None, ""): fill_n = float(p["fill_notional_aud"]) * h / sh
+        elif au_f not in (None, ""): fill_n = aud(p["ticker"], p["fill"], float(au_f)) * h
+        else: fill_n = fill_px * h
+        true_gross = sg * (exit_n - fill_n)
+        if abs(true_gross - old_gross) < 1e-6: gross, price, fx = old_gross, old_gross, 0.0
+        else:
+            rate = float(au_f) if au_f not in (None, "") else au
+            price = sg * (aud(p["ticker"], x, rate) - aud(p["ticker"], p["fill"], rate)) * h; gross = true_gross; fx = gross - price
+        B["cash_aud"] += sg * exit_n - cc
+    p["_price_pnl_aud"], p["_fx_translation_aud"] = price, fx
     return gross, cc
+def _close_pnl(p, gross, cc, cost=None):
+    """gross/net plus the price vs FX split. Pops the scratch keys so a residual open lot does not keep them."""
+    price = p.pop("_price_pnl_aud", None); fx = p.pop("_fx_translation_aud", None)
+    if cost is None: cost = p.get("cost_aud") or 0
+    d = dict(gross_aud=round(gross, 2), net_aud=round(gross - cost - cc, 2))
+    if price is not None: d["price_pnl_aud"] = round(price, 2); d["fx_translation_aud"] = round(fx or 0.0, 2)
+    return d
 def partial_close(B, p, k, x, h, au, t, reason, suffix, marks=None):
     """Close h of p's shares at x; residual stays open. Appends the closed slice to B['closed']. Returns the slice."""
     gross, cc = realise(B, p, x, h, au, marks); ca = round((p.get("cost_aud") or 0) * h / p["shares"], 2)
-    part = dict(p, id=k + suffix, shares=h, status="closed", exit=x, exit_reason=reason, closed_utc=t.isoformat(), gross_aud=round(gross, 2), net_aud=round(gross - ca - cc, 2), cost_aud=ca)
-    part.pop("rail_log", None); B["closed"].append(part)
+    fn = None
+    if p.get("fill_notional_aud") not in (None, ""):
+        fn = round(float(p["fill_notional_aud"]) * h / p["shares"], 2)
+        p["fill_notional_aud"] = round(float(p["fill_notional_aud"]) - fn, 2)
+    pnl = _close_pnl(p, gross, cc, ca)
+    part = dict(p, id=k + suffix, shares=h, status="closed", exit=x, exit_reason=reason, closed_utc=t.isoformat(), cost_aud=ca, **pnl)
+    if fn is not None: part["fill_notional_aud"] = fn
+    part.pop("rail_log", None); part.pop("exit_queued", None); B["closed"].append(part)
     p.update(shares=(crypto_units(_qty(p) - h) if _is_crypto(p) else int(p["shares"]) - h), cost_aud=round((p.get("cost_aud") or 0) - ca, 2)); return part
+def _signed_fill_basis(p, au):
+    """AUD cash tied up in an open non-FX lot (long positive). FX notional never left cash."""
+    if is_fx(p): return 0.0
+    sg = 1.0 if p.get("side") == "LONG" else -1.0
+    fn = p.get("fill_notional_aud")
+    if fn not in (None, ""): return sg * float(fn)
+    try:
+        au_f = au if p.get("fill_audusd") in (None, "") else float(p["fill_audusd"])
+        return sg * aud(p["ticker"], float(p["fill"]), au_f) * float(p["shares"])
+    except Exception: return 0.0
+def seat_pnl_identity(B, marks, au, equity=None):
+    """Reporting identity. Does not rewrite closed net_aud.
+    seed + sum(closed net) + open MTM + flows + fx restatement == equity within A$1.
+    MTM is mark value minus the AUD actually tied up (fill basis + entry cost still open).
+    Flows are cash that is not trade net and not already inside seed: commission, forfeit, borrow.
+    The restatement plugs legacy closes that translated the fill at the exit AUDUSD."""
+    if equity is None: equity = equity_aud(B, marks or {}, au)
+    seed = float(B.get("seed_aud") or 0); nets = 0.0
+    for c in B.get("closed") or []:
+        if c.get("net_aud") is None or c.get("status") not in (None, "closed"): continue
+        nets += float(c["net_aud"])
+    mtm = borrow = min_b = 0.0
+    for p in (B.get("positions") or {}).values():
+        if p.get("status") != "open": continue
+        px = ((marks or {}).get(p.get("ticker")) or {}).get("last") or p.get("mark") or p.get("fill")
+        mtm += pos_value_aud(p, px, au, marks) - _signed_fill_basis(p, au) - float(p.get("cost_aud") or 0)
+        borrow += float(p.get("borrow_accrued_aud") or 0); min_b += float(p.get("borrow_min_charge_aud_est") or 0)
+    for c in B.get("closed") or []:
+        borrow += float(c.get("borrow_accrued_aud") or 0); min_b += float(c.get("borrow_min_charge_aud_est") or 0)
+    flows = -(float(B.get("commission_expense_aud") or 0) - float(B.get("commission_forfeit_credit_aud") or 0)) - borrow - min_b
+    gap = equity - (seed + nets + mtm + flows); adj = []
+    if abs(gap) >= 0.005:
+        adj.append(dict(kind="fx_translation_restatement", amount_aud=round(gap, 2),
+                        note="reporting only — closed net_aud rows are not rewritten; plugs legacy fills translated at the exit AUDUSD"))
+    after = seed + nets + mtm + flows + sum(a["amount_aud"] for a in adj)
+    return dict(ok=abs(equity - after) <= 1.0, equity_aud=round(equity, 2), seed_aud=round(seed, 2), closed_net_aud=round(nets, 2),
+                mtm_aud=round(mtm, 2), flows_aud=round(flows, 2), fx_translation_gap_aud=round(gap, 2), adjustments=adj,
+                identity_aud=round(after, 2), tolerance_aud=1.0)
+RULE_LOG.append(dict(id="tfo_fx_translation_20261030", utc="2026-10-30T20:53:00+00:00", rule="fx translation + session exit queue",
+                     text="PAPER. Close gross uses the AUD fill cost (fill_notional_aud / fill_audusd), split into price_pnl_aud and fx_translation_aud. Same AUDUSD matches the old gross. Closed rows are not rewritten; seat_pnl_identity adds a reporting fx_translation_restatement so seed + sum(net) + MTM + flows + restatement = equity within A$1 (fx_identity_ok). Heartbeat exits outside the venue session are queued and booked at the next open's mark."))
 def _rlog(p, t, ev, **k):
     p.setdefault("rail_log", []).append(dict(utc=t.isoformat(), ev=ev, **k)); p["rail_log"] = p["rail_log"][-40:]
 def rail_update(p, m, t, atr=None):
@@ -1028,6 +1375,7 @@ DEX_SEATS = ("trend", "price_action"); DEX_NOTIONAL_CAP = 0.35; DEX_HALFCUT_SESS
 MARGIN_HEADROOM = 1.30; FX_MARGIN_RATE = 1 / 30.0; FEE_FILTER_X = 3.0
 SEAT_NOTIONAL_CAP = 0.40   # seatcap 2026-10-30 21:23 WITA (Brett FULL AUTH): no single non-FX position above 40% of seat equity (Lena GC was 91%, gapped -A$9,676)
 SEAT_ETF_CAP = 0.75; SEAT_MARGIN_CAP = 0.40   # seatcap2 (TFO ruling 21:54 WITA): broad index/sector/macro ETFs 75% of seat notional; FX + futures by MARGIN used <= 40% of seat (30% headroom kept); single stocks, commodity ETFs, crypto 40%
+SEAT_FUTFX_NOTIONAL_CAP = 0.40   # notionalcap (2026-10-31 HT 19:18, approved 19:58): futures (=F) + FX ALSO capped at 40% of seat NOTIONAL, on top of the margin check (entry-only, cuts only)
 BROAD_ETFS = frozenset("""SPY VOO IVV VTI ITOT QQQ QQQM DIA IWM RSP MDY IJH IJR VT ACWI VEA VWO EFA EEM IEFA IEMG DGRO SCHD VIG VYM NOBL SPLV USMV QUAL MTUM VLUE
 XLK XLF XLE XLV XLI XLP XLY XLU XLB XLRE XLC SMH SOXX VGT VDE VHT VFH VIS VCR VDC VPU VAW VNQ KRE KBE IBB XBI XOP XME XHB XRT ITB IYR IGV HACK ARKK
 TLT IEF SHY IEI AGG BND LQD HYG JNK TIP MUB EMB BIL SGOV EWJ EWZ FXI MCHI INDA EWA EWC EWU EWG EWY EWT EWW EZU VGK
@@ -1049,6 +1397,8 @@ def prefill_seat_cap(p, f, n, eq, au=None, marks=None):
                 fsm = _XR.FUTURES.get(str(p["ticker"]).upper()); mr = float(fsm["margin"]) if fsm else FX_MARGIN_RATE
             except Exception: mr = FX_MARGIN_RATE
         used = n * mr
+        if basis == "margin" and n > eq * SEAT_FUTFX_NOTIONAL_CAP * 1.001 and n * (cap / SEAT_FUTFX_NOTIONAL_CAP) > used:   # notionalcap: notional binds harder than margin
+            cap, basis, used = SEAT_FUTFX_NOTIONAL_CAP, "notional_futfx", n
         if used <= eq * cap * 1.001: return None
         cx = str(p.get("ticker", "")).upper().endswith("-USD")
         q0 = p["shares"]; q = q0 * (eq * cap) / used
@@ -1091,6 +1441,69 @@ def post_extremes(m, since):
             if dt.datetime.fromisoformat(str(ws).replace("Z", "+00:00")) < dt.datetime.fromisoformat(str(since).replace("Z", "+00:00")): return last, last, None
         except Exception: return last, last, None
     return m.get("hi", last), m.get("lo", last), m.get("open")
+def entry_since(p, t):
+    """premkt_20261103 (fixer): a US equity ENTRY may trigger/price only off bars from max(armed_utc, today's 09:30 ET open).
+    massive.quote's hi/lo/open window is the last 6 5m bars incl. PRE-MARKET bars, so the first RTH tick filled off pre-market prints
+    (2 Nov: KO limit 94.08 filled while the RTH low was 94.28; DB filled at 33.83 = open of the 08:30 ET bar). post_extremes then uses
+    the last price only until the whole window is inside the session (~10:00 ET). Exits (filled_utc) are unchanged."""
+    a = p.get("armed_utc")
+    if p.get("venue") != "US": return a
+    try:
+        from zoneinfo import ZoneInfo
+        o = t.astimezone(ZoneInfo("America/New_York")).replace(hour=9, minute=30, second=0, microsecond=0).astimezone(dt.timezone.utc)
+        if a and dt.datetime.fromisoformat(str(a).replace("Z", "+00:00")) >= o: return a
+        return o.isoformat()
+    except Exception: return a
+def _us_preopen_print(m, t):
+    """fillfix_20261103: True while the US session is open but the mark's newest print (massive asof = 5m bar START) began before today's
+    09:30 ET open. 3 Nov 09:30:04 ET: KO half-banked 474 sh at 94.91 = close of the 09:25 ET PRE-MARKET bar (first RTH bar opened 94.88)."""
+    try:
+        if not session_open("US", t): return False
+        a = dt.datetime.fromisoformat(str(m.get("asof")).replace(" ", "T").replace("Z", "+00:00"))
+        if a.tzinfo is None: a = a.replace(tzinfo=UTC)
+        from zoneinfo import ZoneInfo
+        return a < t.astimezone(ZoneInfo("America/New_York")).replace(hour=9, minute=30, second=0, microsecond=0)
+    except Exception: return False
+def _session_close_utc(venue, date_str):
+    """fillfix_20261103 (F6): the venue's regular-session close instant (UTC) for a local trading date; None for venues without a modelled session."""
+    from zoneinfo import ZoneInfo
+    D_ = dt.date.fromisoformat(str(date_str)[:10])
+    if venue == "US": tz, m_ = "America/New_York", 960
+    elif venue == "ASX": tz, m_ = "Australia/Sydney", 972
+    elif venue in INTL_SESSIONS: tz, m_ = INTL_SESSIONS[venue][0], INTL_SESSIONS[venue][1][-1][1]
+    else: return None
+    return dt.datetime(D_.year, D_.month, D_.day, m_ // 60, m_ % 60, tzinfo=ZoneInfo(tz)).astimezone(UTC)
+def _pit_last_bar(sym, t):
+    """fillfix_20261103 (F6): (date, close, knowable_utc, src) of the newest pit daily bar public by t, or None. Read-only, 3 s timeout."""
+    import sqlite3
+    c_ = sqlite3.connect("file:%s?mode=ro" % P.DB, uri=True, timeout=3)
+    try: return c_.execute("SELECT date,c,knowable_utc,src FROM bars WHERE sym=? AND knowable_utc<=? ORDER BY date DESC LIMIT 1", (sym, t.astimezone(UTC).isoformat())).fetchone()
+    finally: c_.close()
+OFFICIAL_CLOSE_FN = None   # fillfix_20261103: tests inject (sym, t) -> (date, close, knowable_utc, src)
+def official_close_mark(sym, q, t, bar_fn=None):
+    """fillfix_20261103 (F6, PAPER): once an equity venue's regular session has closed, mark at the OFFICIAL close (newest pit daily bar =
+    EODHD EOD / Yahoo daily close = the closing-auction price) when that session ended after the last intraday print the feed returned
+    (e.g. VEON 2 Nov: Yahoo 15:55 ET 5m bar 79.49 vs official close 79.46). The bar counts only when its own knowable_utc is at/after that
+    session's close, so a daily bar fetched mid-session is never read as the day's final close. Unchanged q: no q (mark-only fallback path
+    stays), session open, FX/crypto/futures, no pit bar, a newer print (pre/post-market Massive bars), or a >20% unit gap. This tick's mark only."""
+    if not q: return q
+    v = P.venue_of(str(sym))
+    if v not in ("US", "ASX") and v not in INTL_SESSIONS: return q
+    if session_open(v, t): return q
+    b = (bar_fn or OFFICIAL_CLOSE_FN or _pit_last_bar)(sym, t)
+    if not b or not b[1]: return q
+    ca = _session_close_utc(v, b[0])
+    if ca is None or ca > t: return q
+    try:
+        kn = dt.datetime.fromisoformat(str(b[2]).replace("Z", "+00:00"))
+        qa = dt.datetime.fromisoformat(str(q.get("asof")).replace(" ", "T").replace("Z", "+00:00"))
+        if qa.tzinfo is None: qa = qa.replace(tzinfo=UTC)
+    except Exception: return q
+    if kn < ca or qa >= ca: return q   # stamp before the close (US pit rows say 20:30 UTC = 15:30 EST in winter) / a print at or after that close is newer
+    c_ = float(b[1]); x = q.get("last")
+    if x and not (0.8 < c_ / float(x) < 1.25): return q   # units guard (pence vs pounds)
+    return dict(last=c_, hi=c_, lo=c_, open=c_, asof=ca.isoformat(), window_start=ca.isoformat(), src="official_close %s %s (%s)" % (v, b[0], b[3]),
+                intraday_last=x, intraday_asof=q.get("asof"), intraday_src=q.get("src"))
 def gap_stop_px(p, o_, last=None):
     """Stop fill: the stop, or the gap price when the bar opened through it (long: open < stop; short: open > stop)."""
     s_ = float(p["stop"]); L = p["side"] == "LONG"
@@ -1113,6 +1526,32 @@ def prearm_check(e, q, px, t):
 def _slip_log(seat, k, p, f, slip, ot, t):
     try: open(os.path.join(_state_dir(), "slip_rejects.jsonl"), "a").write(json.dumps(dict(utc=t.isoformat(), seat=seat, id=k, ticker=p.get("ticker"), side=p.get("side"), plan=p.get("entry"), fill=f, slip_bps=slip, order_type=ot, collar_bps=SLIP_COLLAR_BPS)) + "\n")
     except Exception: pass
+def open_name_cap_check(D, au, marks):
+    """across 2026-10-31 (Rules Auditor): flag open positions over SEAT_NOTIONAL_CAP (40%); queue a trim to the cap at next open. Never touches stops."""
+    flags = []; trims = []
+    for seat, B in (D.get("seats") or {}).items():
+        eq = equity_aud(B, marks, au)
+        if eq <= 0: continue
+        for pid, p in list((B.get("positions") or {}).items()):
+            if p.get("status") != "open" or is_fx(p): continue
+            try:
+                px = (marks.get(p["ticker"]) or {}).get("last") or p.get("mark") or p.get("fill") or p.get("entry")
+                notion = aud(p["ticker"], float(px), au) * float(p.get("shares") or 0)
+            except Exception: continue
+            pct = notion / eq
+            if pct > SEAT_NOTIONAL_CAP + 1e-9:
+                flags.append(dict(seat=seat, id=pid, ticker=p.get("ticker"), notional_pct=round(pct, 4), cap=SEAT_NOTIONAL_CAP))
+                try:
+                    _u = aud(p["ticker"], float(px), au)
+                    q_cap = int(eq * SEAT_NOTIONAL_CAP / _u) if _u > 0 else int(p["shares"])
+                    cut = int(p["shares"]) - q_cap
+                    if cut > 0:
+                        trims.append(dict(seat=seat, id=pid, ticker=p["ticker"], cut_shares=cut, target_shares=q_cap, reason="seat_cap_40pct_trim", stop_untouched=True))
+                        p.setdefault("cap_trim_pending", dict(cut_shares=cut, target_shares=q_cap, queued_utc=now().isoformat(), reason="seat_cap_40pct_trim", stop_untouched=True))
+                except Exception: pass
+    return flags, trims
+
+
 def tick(price_fn=None, au=None, queue_path=None):
     import funder_gate as FG
     price_fn = price_fn or live_px; _fxstale = None
@@ -1125,9 +1564,18 @@ def tick(price_fn=None, au=None, queue_path=None):
     Q = FG.load(queue_path); vet = [e for e in Q.get("entries", {}).values() if e.get("book") == "veteran"]
     syms = {p["ticker"] for S in D["seats"].values() for p in S["positions"].values()} | {e["ticker"] for e in vet if e.get("state") == FG.WAIT and e.get("decision") == "approve"}
     marks = {}
+    _ocm = price_fn is live_px   # fillfix_20261103 (F6): closed venue -> official close; real feed only (injected test feeds untouched)
     for s_ in syms:
         try: marks[s_] = price_fn(s_)
         except Exception: marks[s_] = None
+        if _ocm and marks[s_]:
+            try: marks[s_] = official_close_mark(s_, marks[s_], t)
+            except Exception: pass
+    try:
+        _cap_flags, _cap_trims = open_name_cap_check(D, au, marks)
+        if _cap_trims: ev.extend((t["id"], "cap_trim_queued", t["reason"]) for t in _cap_trims)
+        if _cap_flags: D.setdefault("cap_breach_flags", _cap_flags)
+    except Exception as _cx: ev.append(("cap_check", "error", type(_cx).__name__))
     ok, why = firm_ok(); news_flag, post = posture(); kill = D.get("kill_switch") or {}
     if _fxstale: ok, why = False, _fxstale
     mult = 0.5 if post == "crisis" else 1.0
@@ -1138,7 +1586,9 @@ def tick(price_fn=None, au=None, queue_path=None):
         if e.get("state") == "withdrawn":
             for S_ in D["seats"].values():
                 p_ = S_["positions"].get(e["id"])
-                if p_ and p_.get("status") == "armed": p_.update(status="cancelled", why="queue withdrawn"); S_.setdefault("closed", []).append(dict(p_, closed_utc=t.isoformat(), exit_reason="withdrawn")); S_["positions"].pop(e["id"], None); ev.append((e["id"], "cancelled", None))
+                if p_ and p_.get("status") == "armed":
+                    _why = e.get("why") or "queue withdrawn (no reason on the queue entry)"
+                    p_.update(status="cancelled", why=_why); S_.setdefault("closed", []).append(dict(p_, closed_utc=t.isoformat(), exit_reason="withdrawn")); S_["positions"].pop(e["id"], None); ev.append((e["id"], "cancelled", _why))
     for e in vet:   # 1. funder ticks -> arm in the PROPOSING seat's own book (only ticked, only gate-passed veteran entries)
         if e.get("state") != FG.WAIT: continue
         if e.get("decision") == "reject": upd[e["id"]] = dict(state="rejected"); continue
@@ -1146,7 +1596,10 @@ def tick(price_fn=None, au=None, queue_path=None):
         if e.get("ack_required") and not e.get("acked"):   # tfo_propose_ack_20261031: caller never confirmed the propose result -> never arms; >10 min unacked -> expired
             try: _age = (t - dt.datetime.fromisoformat(e.get("queued_utc"))).total_seconds()
             except Exception: _age = 1e9
-            if _age > 600: upd[e["id"]] = dict(state="expired", why="propose not acked by caller within 10 min (timeout/error) - never armed"); ev.append((e["id"], "blocked", "propose_not_acked"))
+            if _age > 600:   # ackwhy_20261103 (master F24): say WHY it was never armed - the old text blamed a "timeout/error" when the seat simply left out "confirm": true
+                _aw = {"no_confirm": 'the seat did not set "confirm": true in its round answer, so it was never armed (propose only)',
+                       "seat_reply_not_ok": "the seat's round answer failed its own checks (seat_reply_ok false), so it was never armed"}.get(e.get("ack_missing"), "propose not acked by caller within 10 min (timeout/error)")
+                upd[e["id"]] = dict(state="expired", why=_aw + " - never armed"); ev.append((e["id"], "blocked", "propose_not_acked"))
             continue
         seat = seat_of(e); B = D["seats"].get(seat)
         if B is None: upd[e["id"]] = dict(state="expired", why=f"seat {seat} has no book"); continue
@@ -1165,8 +1618,8 @@ def tick(price_fn=None, au=None, queue_path=None):
         eq = equity_aud(B, marks, au); L = e["side"] == "LONG"; px = (marks.get(e["ticker"]) or {}).get("last"); stop, entry = float(e["stop"]), float(e["entry"])
         open_risk = sum(p["risk_aud"] for p in B["positions"].values() if p["status"] in ("armed", "open")); n_open = sum(p["status"] in ("armed", "open") for p in B["positions"].values())
         spec = "sleeve spec" in str((e.get("tags") or {}).get("strategy")) or e.get("sleeve") == "spec"
-        _grade = e.get("grade") if e.get("grade") in ("A+", "A") else None; _crypto = seat == "crypto"   # kaiseat 15:04 WITA: real grade field; crypto rails by SEAT, not KRAKEN: prefix
-        rp = risk_plan(eq, _grade or "A", bool(e.get("chal_agree")), float(e.get("gate_size_mult") or 1.0) * mult, floor=RISK_CRYPTO_MIN if _crypto else None, seat_pct=None if (seat in DEX_SEATS and seat_red(B)) else e.get("seat_risk_pct"))
+        _grade = e.get("grade") if e.get("grade") in ("A+", "A", "B") else None; _crypto = seat == "crypto"   # gradeb 2026-10-31: B arms at half size (was dropped to None -> missing_grade reject); kaiseat 15:04 WITA: real grade field; crypto rails by SEAT, not KRAKEN: prefix
+        rp = risk_plan(eq, _grade or "A", bool(e.get("chal_agree")), float(e.get("gate_size_mult") or 1.0) * mult, floor=RISK_CRYPTO_MIN if _crypto else None, seat_pct=None if (seat in DEX_SEATS and seat_red(B)) else e.get("seat_risk_pct"), seat=None if (seat in DEX_SEATS and seat_red(B)) else seat)
         pct = rp["pct"]; risk = SEAT_SEED * SPEC_SLEEVE_PCT * RISK_SPEC_OF_SLEEVE * mult if spec else rp["risk_aud"]
         try: per = aud(e["ticker"], abs(entry - stop), au); _u = aud(e["ticker"], entry, au)
         except FxUnavailable as fx_: upd[e["id"]] = dict(state="expired", why=str(fx_)); ev.append((e["id"], "blocked", str(fx_))); continue   # fxsize 29 Oct: fail closed
@@ -1175,11 +1628,37 @@ def tick(price_fn=None, au=None, queue_path=None):
         elif _crypto and _grade != "A+" and now() < SOFT_TRIM_UNTIL: bad = "soft_trim_a_plus_only"   # softtrim 2026-10-29 16:12 WITA: new crypto arms A+ only (new arms only)
         elif rp.get("reject") and not spec: bad = rp["reject"]   # railfix 2026-10-29: sub-floor idea rejected at arm, never lifted
         elif not spec and eq > 0 and per * q > eq * RISK_MAX + 0.01: q = int(eq * RISK_MAX / per)   # per-trade hard cap 5% of seat equity (cuts only)
+        if not bad and not spec and px:   # tfo_kai2_20261101 (Brett 1 Nov): refuse arming a trigger >3% from the live mark (matches 3% entry gate); B tighter (tfo_btight_20261101)
+            try:
+                _dist = abs(entry / float(px) - 1)
+                if _dist > ARM_MAX_TRIGGER_DIST + 1e-12: bad = "trigger_too_far: entry %g is %.1f% from mark %g (>%.0f%)" % (entry, _dist * 100, float(px), ARM_MAX_TRIGGER_DIST * 100)
+                elif _grade == "B":
+                    from veteran_desk import b_tight as _BT; bad = _BT.arm_check(dict(e, entry=entry), px)
+            except Exception: pass
         _floor_note = None
-        if not bad and not spec and _crypto:   # kairails 14:28 WITA: A$50k clip (A$100k A+); reject if capped clip < 0.5% floor (kaiseat: crypto seat only)
+        try:   # tfo_smallcoin_20261101 (Brett 07:26 WITA, PAPER): small-coin tier = 1/4 risk, <=2% ADV notional, limit only, spread <=0.5%, PF_ for shorts
+            from veteran_desk import small_coin as _SC; _sc = _crypto and _SC.is_small(e["ticker"])
+        except Exception: _SC = None; _sc = False
+        if not bad and not spec and _sc:
+            _ot = e.get("order_type") if e.get("order_type") in ("limit", "stop_limit") else ("limit" if px and ((L and entry <= px) or (not L and entry >= px)) else "stop_limit")
+            e = dict(e, order_type=_ot, tags=dict(e.get("tags") or {}, tier=_SC.TIER))
+            bad = _SC.arm_check(e)
+            if not bad:
+                _q2, _floor_note = _SC.arm_units(q, per, _u, e["ticker"])
+                if _u > 0 and _q2 * _u > crypto_clip_cap(_grade): _q2 = crypto_clip_cap(_grade) / _u
+                q = crypto_units(min(q, _q2))
+        if not bad and not spec and _crypto and not _sc:   # kairails 14:28 WITA: A$50k clip (A$100k A+); reject if capped clip < 0.5% floor (kaiseat: crypto seat only)
             _g = _grade
             if _u > 0 and q * _u > crypto_clip_cap(_g): q = crypto_units(crypto_clip_cap(_g) / _u)
-            if per * q < eq * RISK_CRYPTO_MIN - 0.01: bad = "below_crypto_floor"   # tfo_review_20261030: fractional Kraken units - no whole-unit rounding, 0.98 floortol removed
+            from veteran_desk import b_tight as _BTt
+            if _BTt.is_test(e): pass   # TEST (head trader 1 Nov 16:38): 0.5% crypto floor waived; A$700 cap + 1/day applied below
+            elif per * q < eq * RISK_CRYPTO_MIN - 0.01: bad = "below_crypto_floor"   # tfo_review_20261030: fractional Kraken units - no whole-unit rounding, 0.98 floortol removed
+        if not bad:   # TEST orders (head trader 1 Nov 16:38 WITA): THF crypto only, risk <= A$700, max 1 per UTC day
+            from veteran_desk import b_tight as _BTt
+            if _BTt.is_test(e):
+                if not _crypto: bad = "test_crypto_only"
+                elif sum(1 for _s3, _B3 in D["seats"].items() for _k3, _p3 in list(_B3.get("positions", {}).items()) + [(c_.get("id"), c_) for c_ in _B3.get("closed", [])] if _k3 != e["id"] and _BTt.is_test(_p3) and str(_p3.get("armed_utc") or _p3.get("opened_utc") or "")[:10] == t.date().isoformat()) >= _BTt.TEST_MAX_PER_DAY: bad = "test_daily_cap"
+                elif per > 0 and per * q > _BTt.TEST_MAX_RISK_AUD: q = crypto_units(_BTt.TEST_MAX_RISK_AUD / per)
         if not bad and seat in DEX_SEATS and not is_fx(e) and _u > 0 and q * _u > eq * DEX_NOTIONAL_CAP:   # tfo_review_20261030 Dex: notional cap 35% of seat equity (cuts only; < 1% risk after the cut -> reject)
             q = crypto_units(eq * DEX_NOTIONAL_CAP / _u) if _cx else int(eq * DEX_NOTIONAL_CAP / _u)
             if per * q < eq * RISK_MIN - 0.01 and not spec: bad = "dex_notional_cap_35pct: risk after cap %.2f%% < floor" % (per * q / eq * 100)
@@ -1199,8 +1678,11 @@ def tick(price_fn=None, au=None, queue_path=None):
             q = crypto_units(eq * _cap / (_uu * _mr)) if _cx else int(eq * _cap / (_uu * _mr))
             _abind = (not _crypto and _grade == "A" and _basis == "notional" and abs(_cap - SEAT_NOTIONAL_CAP) < 1e-9)
             if _abind and per > 0: q = min(q, int(eq * RISK_A_CAPBIND_MIN / per))   # tfo_review_fix_20261031: A with 40% cap binding SIZES at 1.5% target (capped by notional) - not a floor, never rejects
-            _capfl = RISK_CRYPTO_MIN if _crypto else (RISK_A_CAPBIND_MIN if (_grade == "A" and _basis == "notional" and abs(_cap - SEAT_NOTIONAL_CAP) < 1e-9) else (RISK_MIN if _grade in ("A", "A+") else RISK_NON_A_MIN))   # tfo_a1pct_20261031: A 1.5% when 40% cap binds; else A 1%; non-A 2%
+            _capfl = RISK_CRYPTO_MIN if _crypto else (RISK_A_CAPBIND_MIN if (_grade == "A" and _basis == "notional" and abs(_cap - SEAT_NOTIONAL_CAP) < 1e-9) else (RISK_MIN if _grade in ("A", "A+", "B") else RISK_NON_A_MIN))   # gradeb 2026-10-31: B floor = RISK_MIN (matches risk_plan)   # tfo_a1pct_20261031: A 1.5% when 40% cap binds; else A 1%; non-A 2%
             if not spec and not _abind and per * q < eq * _capfl - 0.01: bad = "seat_cap_%s_%dpct: risk after cap %.2f%% < floor" % (_basis, _cap * 100, per * q / eq * 100 if eq > 0 else 0)
+        if not bad and _basis == "margin" and _uu > 0 and q * _uu > eq * SEAT_FUTFX_NOTIONAL_CAP:   # notionalcap: futures/FX also <= 40% of seat notional (cuts only)
+            q = int(eq * SEAT_FUTFX_NOTIONAL_CAP / _uu)
+            if q <= 0: bad = "seat_cap_notional_futfx_40pct: one unit exceeds 40% of seat notional"
         if not bad and _gp and e.get("side") in ("LONG", "SHORT") and px is not None and ((L and entry < px) or (not L and entry > px)) and e.get("order_type") != "stop_limit":   # gapguard: futures/thin limit dip-buy needs a completed stabilisation bar
             try: _bars = BARS_FN(e["ticker"], _cx)
             except Exception: _bars = None
@@ -1258,8 +1740,8 @@ def tick(price_fn=None, au=None, queue_path=None):
         # TFO HT 03:28: order_type explicit at arm - entry at/through market = true limit; entry beyond market (breakout) = stop_limit
         if not bad and _uu > 0 and q * _uu * _mr > eq * _cap + 0.01: bad = "seat_cap_%s_%dpct: final size %.0f%% of seat (rounding)" % (_basis, _cap * 100, q * _uu * _mr / eq * 100 if eq > 0 else 999)   # seatcap: re-check after futures/spec resizing
         if bad: upd[e["id"]] = dict(state="expired", why=bad); ev.append((e["id"], "blocked", bad)); continue
-        B["positions"][e["id"]] = dict(id=e["id"], seat=seat, ticker=e["ticker"], side=e["side"], entry=entry, stop=stop, target=float(e["target"]), shares=q,
-            risk_aud=round(per * q, 2), gap_risk_aud=round(_per_gap * q, 2) if _gp else None, risk_pct=pct, sleeve="spec" if spec else "core", size_mult=mult, gate_size_mult=e.get("gate_size_mult"), sizing_warning=rp["warning"], floor_note=_floor_note, posture=post, status="armed", queued_for_open=not session_open(P.venue_of(e["ticker"]), t), seat_risk_pct=e.get("seat_risk_pct"), override=bool(e.get("override")), order_type=e.get("order_type") if e.get("order_type") in ("limit", "stop_limit") else ("limit" if px and ((L and entry <= px) or (not L and entry >= px)) else "stop_limit"), armed_utc=t.isoformat(), venue=P.venue_of(e["ticker"]), hash=e.get("hash"), pre_trade=pt, scale_t1=True, grade=_grade, tags=e.get("tags"))
+        B["positions"][e["id"]] = dict(id=e["id"], seat=seat, ticker=e["ticker"], side=e["side"], confirm_rvol=e.get("confirm_rvol"), catalyst=e.get("catalyst"), test=e.get("test"), grade_b_confirm=(e.get("grade") == "B" or bool(e.get("confirm_rvol"))), entry=entry, stop=stop, target=float(e["target"]), shares=q,
+            risk_aud=round(per * q, 2), gap_risk_aud=round(_per_gap * q, 2) if _gp else None, risk_pct=pct, sleeve="spec" if spec else "core", size_mult=mult, gate_size_mult=e.get("gate_size_mult"), sizing_warning=rp["warning"], floor_note=_floor_note, posture=post, status="armed", queued_for_open=not session_open(P.venue_of(e["ticker"]), t), seat_risk_pct=e.get("seat_risk_pct"), override=bool(e.get("override")), order_type=e.get("order_type") if e.get("order_type") in ("limit", "stop_limit") else ("limit" if px and ((L and entry <= px) or (not L and entry >= px)) else "stop_limit"), armed_utc=t.isoformat(), venue=P.venue_of(e["ticker"]), hash=e.get("hash"), pre_trade=pt, scale_t1=True, grade=_grade, tags=e.get("tags"), lifted_b=bool(rp.get("lifted_b")), lifted_subfloor=bool(rp.get("lifted_subfloor")), lift_tag=rp.get("lift_tag"))
         upd[e["id"]] = dict(state="armed", armed_utc=t.isoformat(), px_at_approval=px, shares=q, risk_aud=round(per * q), **({"floor_note": _floor_note} if _floor_note else {})); ev.append((e["id"], "armed", q))
     for seat, B in D["seats"].items():   # 2. code-only fills / stops / targets, per seat book
         for k, p in B["positions"].items():
@@ -1280,6 +1762,13 @@ def tick(price_fn=None, au=None, queue_path=None):
                     else: _price_alert(dict(utc=t.isoformat(), seat=seat, id=k, ticker=p["ticker"], level="ALERT", why="mark_missing and no fallback quote"))
                 continue
             p.pop("mark_missing", None); p.pop("mark_src", None); p["mark_utc"] = t.isoformat()
+            if str(m.get("src") or "").startswith("official_close"): p["mark_src"] = m["src"]   # fillfix_20261103 (F6): closed-market mark = official close
+            if m.get("src"): p["mark_src"] = str(m["src"])[:160]   # fxmark_20261103 (F18): every marked row says its feed (oanda_practice_mid / 'yahoo_yf_5m (OANDA fallback: why)' / massive / eodhd / kraken / official_close)
+            if is_fx(p) and m.get("bid") and m.get("ask"): p.update(mark_bid=m["bid"], mark_ask=m["ask"])   # fxmark_20261103: OANDA bid/ask beside the mid (info only: fills = mid + the existing rules)
+            else: p.pop("mark_bid", None); p.pop("mark_ask", None)
+            if p.get("status") == "open" and p.get("venue") == "US" and _us_preopen_print(m, t): p["mark_preopen"] = str(m.get("asof"))   # fillfix_20261103: exits treat a pre-open print like a closed session (hard stop still acts)
+            else: p.pop("mark_preopen", None)
+            if p.get("status") == "open" and "order still working" in str(p.get("exec_note") or ""): p["exec_note"] = f"{p.get('exec_by') or EXEC_TRADER}: filled {p.get('fill')} at {p.get('filled_utc')} (pre-fill note cleared, tfo_notefix_20261102)"
             L = p["side"] == "LONG"; sg = 1 if L else -1; c = CT.est_rt_rate(p["ticker"], p.get("venue"), p.get("entry"), p.get("adv_aud")) / 2   # pre-trade estimate from CT; fills overwrite with leg_cost_aud
             if p["status"] == "open" and not p.get("off_hours_checked"):   # fix 2/7: flag any fill booked while its session was closed
                 p["off_hours_checked"] = True
@@ -1308,9 +1797,10 @@ def tick(price_fn=None, au=None, queue_path=None):
                 q = p["shares"]; rpct = per * q / eqx if eqx > 0 else 0; rnote = None
                 if (L and f <= p["stop"]) or (not L and f >= p["stop"]): rnote = "first print through stop - rebooked then stop applies"
                 elif rpct > RISK_MAX: q = int(eqx * RISK_MAX / per); rnote = "resized to 5% risk cap"
-                elif rpct < (RISK_CRYPTO_MIN if (p.get("seat") or seat) == "crypto" else RISK_MIN) - 1e-9 and p.get("sleeve") != "spec":   # railfix 2026-10-29: reject, never lift
-                    p.update(status="cancelled", why="below_1pct_floor", rebook_pending=False, rebook_note="below_1pct_floor: risk %.2f%% at first print - rejected, not lifted; off-hours booking unwound" % (rpct * 100), cancelled_utc=t.isoformat())
-                    B.setdefault("closed", []).append(dict(p, closed_utc=t.isoformat(), exit_reason="below_1pct_floor")); ev.append((k, "rebook_rejected", "below_1pct_floor")); continue
+                elif rpct < (RISK_CRYPTO_MIN if (p.get("seat") or seat) == "crypto" else RISK_MIN) - 1e-9 and p.get("sleeve") != "spec":   # across 2026-10-31: SIZE UP to floor on rebook (was reject below_1pct_floor)
+                    _fl = RISK_CRYPTO_MIN if (p.get("seat") or seat) == "crypto" else RISK_MIN
+                    q = max(q, int(eqx * _fl / per) if per > 0 else q); rnote = "sized_up_to_floor on rebook (was %.2f%%)" % (rpct * 100)
+                    p["lifted_subfloor"] = True; p["lift_tag"] = "lifted_subfloor"
                 _u = aud(p["ticker"], f, au)
                 if not is_fx(p) and _u > 0 and q * _u > eqx: q = int(eqx / _u); rnote = (rnote or "") + "; capped at 1x seat equity notional"
                 n = (f * q / quote_to_aud(p["ticker"], au, marks)) if is_fx(p) else aud(p["ticker"], f, au) * q
@@ -1318,7 +1808,7 @@ def tick(price_fn=None, au=None, queue_path=None):
                 if not is_fx(p) and B["cash_aud"] - (sg * n + n * c) < 0:   # 2026-10-29 cashcheck: off-hours booking already unwound above; reject rebook, never resize
                     p.update(status="cancelled", why="insufficient_cash", rebook_pending=False, exec_note="rebook rejected: insufficient_cash"); B.setdefault("closed", []).append(dict(p, closed_utc=t.isoformat(), exit_reason="insufficient_cash")); ev.append((k, "blocked", "insufficient_cash")); continue
                 B["cash_aud"] -= (n * c) if is_fx(p) else (sg * n + n * c)   # ... and rebook at the first post-open print, costs included
-                p.update(fill=f, filled_utc=t.isoformat(), first_print_asof=fp["asof"], shares=q, cost_aud=round(n * c, 2), fill_notional_aud=n, risk_aud=round(per * q, 2), risk_pct_actual=round(per * q / eqx, 5) if eqx > 0 else None,
+                p.update(fill=f, filled_utc=t.isoformat(), fill_audusd=au, first_print_asof=fp["asof"], shares=q, cost_aud=round(n * c, 2), fill_notional_aud=n, risk_aud=round(per * q, 2), risk_pct_actual=round(per * q / eqx, 5) if eqx > 0 else None,
                          slippage_bps=round((f / p["entry"] - 1) * (1 if L else -1) * 1e4, 1), rebook_pending=False, rebooked_utc=t.isoformat(), rebook_note=rnote, exec_note="rebooked at first print after open")
                 ev.append((k, "rebooked_after_open", f))
             if p["status"] == "armed":
@@ -1327,20 +1817,54 @@ def tick(price_fn=None, au=None, queue_path=None):
                 if in_open_window(p["venue"], t): p["exec_note"] = f"{EXEC_TRADER}: waiting out the first {OPEN_AVOID_MIN} min after the open"; continue
                 _age = px_age_min(m, t)   # stalefill 2026-10-29 (TFO 19:21 WITA): px_age_min was only alerted on, never gated the fill
                 _lim = stale_limit_min(p.get("venue"))   # venuestale: feed delay + 5
-                if _age is not None and _age > _lim: p["exec_note"] = f"{EXEC_TRADER}: price {_age:.0f} min old (> {_lim} = venue delay {venue_delay_min(p.get('venue'))} + 5) - no fill on a stale price, order still working"; continue
+                _sfb = False   # tfo_permfix_20261102 (Brett 08:06 WITA): stale-fallback fill-at-entry + stuck-arm detector
+                _hi0, _lo0, _ = post_extremes(m, entry_since(p, t)); _L0 = p["side"] == "LONG"; _stp0 = p.get("order_type") == "stop_limit"
+                def _thru(hi, lo): return ((_L0 and hi is not None and hi >= p["entry"]) or (not _L0 and lo is not None and lo <= p["entry"])) if _stp0 else ((_L0 and lo is not None and lo <= p["entry"]) or (not _L0 and hi is not None and hi >= p["entry"]))
+                _trig0 = _thru(_hi0, _lo0); _tsrc = "primary"
+                if not _trig0 and p.get("grade") == "A":   # secondary source (tfo_permfix3: also when primary bars miss the print): Yahoo 1m high/low since armed (detect only, fill stays at entry)
+                    try:   # fixer 2026-11-02: chart v8 (no new direct yfinance call - datalayer rule); bars bounded to [armed_utc, now] (no lookahead); must overlap primary last +-3% (wrong instrument/GBp scale guard)
+                        _a = p.get("armed_utc"); _a0 = dt.datetime.fromisoformat(_a).timestamp() if _a else None
+                        _ofx = is_fx(p) and str(m.get("src") or "").startswith("oanda_practice")   # fxmark_20261103 (F18): an OANDA-marked FX row checks OANDA M1 mid since armed (same feed as its mark), not Yahoo 1m
+                        _rw = _oanda_m1_rows(p["ticker"], _a0, t) if _ofx else _yahoo_v8_rows(p["ticker"], "1m", "5d")[0]
+                        _rw = [r for r in (_rw or []) if (_a0 is None or r[0] >= _a0) and r[0] <= t.timestamp()]
+                        if _rw:
+                            _yh, _yl = float(max(r[1] for r in _rw)), float(min(r[2] for r in _rw)); _pl = m.get("last")
+                            if _pl is None or (_yl <= float(_pl) * (1 + CRYPTO_XCHECK) and _yh >= float(_pl) * (1 - CRYPTO_XCHECK)):
+                                _trig0 = _thru(_yh, _yl); _tsrc = "%s hi %.4g lo %.4g" % ("oanda_m1_mid" if _ofx else "yahoo_1m", _yh, _yl)
+                    except Exception: pass
+                if _trig0:
+                    p.setdefault("triggered_utc", t.isoformat())
+                    try: _tmin = (t - dt.datetime.fromisoformat(p["triggered_utc"])).total_seconds() / 60
+                    except Exception: _tmin = 0
+                    if _tmin > 5 and not p.get("stuck_arm_alerted"):
+                        p["stuck_arm_alerted"] = t.isoformat(); D.setdefault("stuck_arm_alerts", []); D["stuck_arm_alerts"] = (D["stuck_arm_alerts"] + [dict(utc=t.isoformat(), seat=seat, id=k, ticker=p["ticker"], entry=p["entry"], triggered_utc=p["triggered_utc"], min_unfilled=round(_tmin, 1), exec_note=p.get("exec_note"), level="ALERT", why="armed order triggered but unfilled > 5 min")])[-50:]
+                if (_age is not None and _age > _lim) or (_trig0 and _tsrc != "primary"):
+                    _prearm = False   # fixer 2026-11-02: a stale primary print older than the order cannot prove the order's trigger traded through
+                    try: _prearm = _tsrc == "primary" and bool(m.get("asof")) and bool(p.get("armed_utc")) and dt.datetime.fromisoformat(str(m["asof"]).replace("Z", "+00:00")) < dt.datetime.fromisoformat(str(p["armed_utc"]).replace("Z", "+00:00"))
+                    except Exception: _prearm = _tsrc == "primary"
+                    if p.get("grade") == "A" and _trig0 and not _prearm: _sfb = True; p.update(fill_tag="stale-fallback fill-at-entry", stale_fallback_src=_tsrc, exec_note=f"{EXEC_TRADER}: price {_age:.0f} min old (> {_lim}) but trigger traded through ({_tsrc}) - stale-fallback fill-at-entry")
+                    else: p["exec_note"] = f"{EXEC_TRADER}: price {_age:.0f} min old (> {_lim} = venue delay {venue_delay_min(p.get('venue'))} + 5) - no fill on a stale price, order still working"; continue
+                if _SX.needs_preopen_recheck(p):   # tfo_sessexpiry_20261101: order armed while venue closed -> once, on the first fresh in-session bar, re-run desk.live_check (no re-grade/resize)
+                    _rc = _SX.preopen_recheck(p, m); p.update(preopen_recheck_utc=t.isoformat(), preopen_recheck=_rc or "ok")
+                    if _rc: p.update(status="cancelled", why="preopen recheck: " + _rc, exec_note=f"{EXEC_TRADER}: pre-open re-check on fresh bar failed - cancelled"); B.setdefault("closed", []).append(dict(p, closed_utc=t.isoformat(), exit_reason="preopen_recheck")); ev.append((k, "blocked", "preopen_recheck")); continue
                 ot = p.get("order_type") or "limit"
                 if ot == "stop_limit":   # breakout/stop entry, explicitly typed: trigger at entry, protective limit MAX_SLIP through
-                    _hi, _lo, _op = post_extremes(m, p.get("armed_utc"))   # tfo_review_20261030 (GPT HIGH): no fills from bars before the order was armed
+                    _hi, _lo, _op = post_extremes(m, entry_since(p, t))   # tfo_review_20261030 (GPT HIGH): no fills from bars before the order was armed
                     lim = p["entry"] * (1 + MAX_SLIP if L else 1 - MAX_SLIP); trig = (L and _hi >= p["entry"]) or (not L and _lo <= p["entry"])
                 else:   # TFO HT 03:28 TRUE limit: buy fills only at/below limit, sell only at/above; slippage never crosses the limit
-                    _hi, _lo, _op = post_extremes(m, p.get("armed_utc"))
+                    _hi, _lo, _op = post_extremes(m, entry_since(p, t))
                     lim = p["entry"]; trig = (L and _lo <= p["entry"]) or (not L and _hi >= p["entry"])
-                if trig:
-                    if ot == "stop_limit" and ((L and m["last"] > lim) or (not L and m["last"] < lim)): p["exec_note"] = f"{EXEC_TRADER}: price {m['last']:g} beyond limit {lim:g} - not chasing, order still working"; continue
+                if trig or _sfb:
+                    try:   # kai2 1Nov (Brett HARD 15:15 (c)): B / confirm_rvol orders fill only on volume (or catalyst for plain B); fail closed
+                        from veteran_desk import b_tight as _BT; _bcf = _BT.fill_confirm(p)
+                    except Exception as _x: _bcf = "b_confirm_error: %s - held" % str(_x)[:80]
+                    if _bcf: p["exec_note"] = f"{EXEC_TRADER}: {_bcf}"; ev.append((k, "blocked", "b_confirm_wait")); continue
+                    if not _sfb and ot == "stop_limit" and ((L and m["last"] > lim) or (not L and m["last"] < lim)): p["exec_note"] = f"{EXEC_TRADER}: price {m['last']:g} beyond limit {lim:g} - not chasing, order still working"; continue
                     if ot == "stop_limit": f = max(p["entry"], m["last"]) if L else min(p["entry"], m["last"])
                     else:   # railfix 2026-10-29: touched limit -> fill AT the limit; better only when the bar OPENED through it (gap)
                         o_ = _op; f = p["entry"]
                         if o_ is not None and ((L and o_ < f) or (not L and o_ > f)): f = float(o_)
+                    if _sfb: f = p["entry"]   # tfo_permfix_20261102: stale-fallback fill-at-entry (same size/stop; every later gate still applies)
                     _rk = abs(float(f) - float(p["stop"])); _room = (abs(float(p["target"]) - float(f)) / _rk) if _rk else 0.0
                     if ((L and float(p["target"]) <= f) or (not L and float(p["target"]) >= f) or _room < FILL_MIN_ROOM_R): p["exec_note"] = f"{EXEC_TRADER}: room to target from fill {f:g} = {_room:.2f}R < {FILL_MIN_ROOM_R}R - no fill, order still working"; continue   # stalefill: fill-time room check
                     n = (f * p["shares"] / quote_to_aud(p["ticker"], au, marks)) if is_fx(p) else aud(p["ticker"], f, au) * p["shares"]
@@ -1359,11 +1883,13 @@ def tick(price_fn=None, au=None, queue_path=None):
                         p.update(status="cancelled", why="insufficient_cash", exec_note=f"{EXEC_TRADER}: insufficient_cash at fill - rejected, not resized"); B.setdefault("closed", []).append(dict(p, closed_utc=t.isoformat(), exit_reason="insufficient_cash")); ev.append((k, "blocked", "insufficient_cash")); continue
                     _pb = (p.get("pre_trade") or {}); _bw = (_pb.get("borrow") or {}) if _pb.get("borrow_estimated") and not L else {}   # borrow 2026-10-29 (TFO 19:31): non-US short, ESTIMATED
                     if _bw: _bc = n * max(float(_bw.get("fee_pa") or 0), .03) * int(_bw.get("min_charge_days") or 3) / 360.0; B["cash_aud"] -= _bc; p.update(borrow_estimated=True, borrow_fee_pa_est=_bw.get("fee_pa"), borrow_min_charge_days=int(_bw.get("min_charge_days") or 3), borrow_min_charge_aud_est=round(_bc, 2))
-                    B["cash_aud"] -= (n * c) if is_fx(p) else (sg * n + n * c); p.update(status="open", fill=f, filled_utc=t.isoformat(), cost_aud=round(n * c, 2), fill_notional_aud=n, slippage_bps=slip, order=ot, order_type=ot, exec_by=EXEC_TRADER, venue_delay_min=venue_delay_min(p.get("venue")), fill_px_age_min=round(_age, 1) if _age is not None else None, stale_limit_min=_lim); ev.append((k, "filled", f))
+                    B["cash_aud"] -= (n * c) if is_fx(p) else (sg * n + n * c); p.update(status="open", fill=f, filled_utc=t.isoformat(), fill_audusd=au, cost_aud=round(n * c, 2), fill_notional_aud=n, slippage_bps=slip, order=ot, order_type=ot, exec_by=EXEC_TRADER, venue_delay_min=venue_delay_min(p.get("venue")), fill_px_age_min=round(_age, 1) if _age is not None else None, stale_limit_min=_lim); ev.append((k, "filled", f))
+                    p["fill_src"] = str(m.get("src") or "unlabelled feed")[:160]   # fxmark_20261103 (F18): the feed that priced this fill (FX: oanda_practice_mid unless it fell back)
+                    if is_fx(p) and m.get("bid") and m.get("ask"): p.update(fill_bid=m["bid"], fill_ask=m["ask"])   # fxmark_20261103: OANDA bid/ask at the fill (fill = mid + existing rules)
                     try:   # railfix 2026-10-29 (GC=F): mark + exit-rail state initialised on the fill tick (no stop/target action this bar)
                         s0 = _initial_stop(p); p.update(mark=m["last"], initial_stop=s0, r0=abs(float(f) - s0), peak_fav_R=0.0, rail_state="initial", rail_hwp=float(f), scale_t1=p.get("scale_t1", True)); _rlog(p, t, "state", old=None, new="initial")
                     except Exception: pass
-                elif (t - dt.datetime.fromisoformat(p["armed_utc"])).total_seconds() > ARM_HOURS * 3600: p.update(status="expired", why="never triggered"); ev.append((k, "expired", None))
+                elif _SX.arm_expired(p, t, ARM_HOURS): p.update(status="expired", why="never triggered"); ev.append((k, "expired", None))   # tfo_sessexpiry_20261101: session venues count open-market hours (SESSION_ARM_HOURS); crypto keeps ARM_HOURS wall clock
                 continue
             p["mark"] = m["last"]
             adv_refresh(p, t, au)   # tfo_costmodel fix: ADV refreshed on its OWN daily key (was inside the ATR block -> skipped when ATR already cached -> tier default)
@@ -1375,14 +1901,30 @@ def tick(price_fn=None, au=None, queue_path=None):
             _hold = trigger_hold(p, t)   # stale mark / market closed -> giveback, full-flat (not backstop), revguard held
             _xh, _xl, _xo = post_extremes(m, p.get("filled_utc"))   # tfo_review_20261030 (GPT HIGH): exits only on bars after the fill
             hs = (L and _xl <= p["stop"]) or (not L and _xh >= p["stop"])
-            if hs:   # rail rule 5: the hard stop wins if hit first (stop as it stood before this bar)
+            if p.get("exit_queued") and not _session_closed_for_exit(p, t):
+                qe = p.pop("exit_queued"); x = m.get("last"); post = qe.get("post") or ("half" if qe.get("kind") == "partial" else "full")
+                if qe.get("kind") == "partial":
+                    h = qe.get("shares") or _half(p)
+                    if post == "half": p.setdefault("shares_orig", _qty(p))
+                    partial_close(B, p, k, x, h, au, t, qe["reason"], "-Q", marks)
+                    if post == "quarter":
+                        p.update(t2_done=True, t2_utc=t.isoformat(), rail_state="t2_done"); _rlog(p, t, "quarter_bank", px=x, shares=h, reason=qe["reason"])
+                    elif post == "dex":
+                        p.setdefault("shares_orig", _qty(p) + h); p.update(dex_halfcut_done=True, dex_halfcut_utc=t.isoformat()); _rlog(p, t, "dex_halfcut", px=x, shares=h)
+                    else: mark_half_banked(p, t, x, h, qe["reason"])
+                    ev.append((k, qe["reason"], x)); continue
+                gross, cc = realise(B, p, x, p["shares"], au, marks)
+                p.update(status="closed", exit=x, exit_reason=qe["reason"], closed_utc=t.isoformat(), **_close_pnl(p, gross, cc))
+                B["closed"].append(dict(p)); ev.append((k, qe["reason"], x)); continue
+            if hs:   # rail rule 5: the hard stop wins if hit first (stop as it stood before this bar). Acts while the venue is closed; not queued.
+                if p.get("exit_queued"): _rlog(p, t, "stop_overtook_queued_exit", queued=p["exit_queued"].get("reason"), queued_px=p["exit_queued"].get("px"), queued_utc=p["exit_queued"].get("queued_utc"))   # bank07_20261106: XEL 5 Nov - say so in the rail log
                 x = gap_stop_px(p, _xo, m.get("last"))   # tfo_review_20261030 (GPT HIGH): a gap through the stop fills at the gap price, not the stop
                 if x != float(p["stop"]):   # gapguard 30 Oct: flag gap-through fills honestly (exit_reason unchanged for consumers)
                     try: _gx = abs(float(p["stop"]) - x) * aud_per_unit(p["ticker"], au) * float(p["shares"])
                     except Exception: _gx = None
                     p.update(gap_through=True, stop_level=float(p["stop"]), gap_open=x, gap_extra_loss_aud=round(_gx, 2) if _gx is not None else None); ev.append((k, "stop_gap_through", x))
                 gross, cc = realise(B, p, x, p["shares"], au, marks)
-                p.update(status="closed", exit=x, exit_reason="stop", closed_utc=t.isoformat(), gross_aud=round(gross, 2), net_aud=round(gross - p["cost_aud"] - cc, 2))
+                p.update(status="closed", exit=x, exit_reason="stop", closed_utc=t.isoformat(), **_close_pnl(p, gross, cc))
                 B["closed"].append(dict(p)); ev.append((k, "stop", x)); continue
             if m.get("last") is not None and shadow_old5(p, m["last"], au, marks): p.update(shadow_old5_px=m["last"], shadow_old5_utc=t.isoformat())   # exitC shadow
             ff = full_flat_trigger(p, m.get("last"), au, marks)
@@ -1390,8 +1932,10 @@ def tick(price_fn=None, au=None, queue_path=None):
             _rg = revguard_check(p, m.get("last"), au, marks) if not (ff or _hold) else None   # REVERSAL GUARD alert-only (no order/stop/size change)
             if _rg: revguard_emit(seat, k, p, t, _rg); revguard_webhook(seat, k, p, t, _rg); ev.append((k, "revguard_alert", m.get("last")))
             if ff:
-                x = m["last"]; gross, cc = realise(B, p, x, p["shares"], au, marks); _rlog(p, t, ff, px=x)
-                p.update(status="closed", exit=x, exit_reason=ff, closed_utc=t.isoformat(), gross_aud=round(gross, 2), net_aud=round(gross - p["cost_aud"] - cc, 2))
+                x = m["last"]
+                if ff != "hard_backstop_5pct" and _session_closed_for_exit(p, t): _defer_exit(p, t, k, ev, ff, x); continue   # -5% backstop still books while closed
+                gross, cc = realise(B, p, x, p["shares"], au, marks); _rlog(p, t, ff, px=x)
+                p.update(status="closed", exit=x, exit_reason=ff, closed_utc=t.isoformat(), **_close_pnl(p, gross, cc))
                 B["closed"].append(dict(p)); ev.append((k, ff, x)); continue
             atr = m.get("atr14")
             if atr is None:   # cached once per WITA day per position
@@ -1404,44 +1948,57 @@ def tick(price_fn=None, au=None, queue_path=None):
             thru = rail_update(p, m, t, atr); r0 = p.get("r0") or 0
             ht = (L and _xh >= p["target"]) or (not L and _xl <= p["target"])
             half = False
-            bt = None if (p.get("t1_done") or ht or (r0 and p["peak_fav_R"] >= RAIL_HALF_R)) else (bank_trigger(p, m["last"], au, marks, seat) or (None if _hold else giveback_trigger(p, m["last"], au, marks)))   # FINAL 17:20 bank + giveback
-            if p.get("scale_t1") and not p.get("t1_done") and _can_half(p) and (ht or bt or (r0 and p["peak_fav_R"] >= RAIL_HALF_R)):   # rail rule 3: half at T1 / +2R / 1R A$ net / +1% basis, first wins
+            _gb_ok = (not _hold) or _fresh_print(p)   # bank07_20261106: giveback protection is judged on a fresh print at any hour, never on a stale mark
+            bt = None if (p.get("t1_done") or p.get("scale_t1") is False) else (bank_trigger(p, m.get("last"), au, marks, seat) or (giveback_trigger(p, m["last"], au, marks) if (_gb_ok and m.get("last") is not None) else None))   # bank07_20261106: 0.7R net bank first, every position (scale_t1 False = an explicit no-scale-out position, e.g. a cash-settled FX leg), open or closed market; then giveback (FINAL 17:20)
+            if not p.get("t1_done") and _can_half(p) and (bt or (p.get("scale_t1") and (ht or (r0 and p["peak_fav_R"] >= RAIL_HALF_R)))):   # rail rule 3: half at +0.7R net (any position, bank07_20261106) / T1 / +2R, first wins
                 x2 = p["fill"] + (1 if L else -1) * RAIL_HALF_R * r0
                 at2 = r0 and p["peak_fav_R"] >= RAIL_HALF_R and (not ht or (L and x2 < p["target"]) or (not L and x2 > p["target"]))
                 x = round(x2, 6) if at2 else p["target"]; h = _half(p); rsn = "rail_2R_scale_out" if at2 else "target1_scale_out"
                 if bt: x = m["last"]; rsn = bt
+                if _session_closed_for_exit(p, t) and not _bank_acts_now(p, rsn): _defer_exit(p, t, k, ev, rsn, x, "partial", _half(p), "half"); continue   # bank07_20261106: a fresh print that can stop us out can also bank half
                 if bt: audit_early_bank(seat, k, p, t, rsn, x, _half(p), p["stop"], round(x2, 6) if not ht else p["target"])
                 p.setdefault("shares_orig", _qty(p)); partial_close(B, p, k, x, h, au, t, rsn, "-T1", marks); t2 = p["fill"] + 2 * (p["target"] - p["fill"])
                 be = p["fill"] + (1 if L else -1) * p["fill"] * rt_rate(p)
-                if (L and p["stop"] < be) or (not L and p["stop"] > be): _rlog(p, t, "stop_tighten", old=p["stop"], new=round(be, 6), why="half banked -> BE"); p["stop"] = round(be, 6)
+                be = _be_capped(p, be, m.get("last"))
+                if (L and p["stop"] < be) or (not L and p["stop"] > be): _rlog(p, t, "stop_tighten", old=p["stop"], new=round(be, 6), why="half banked -> BE (capped vs mark)"); p["stop"] = round(be, 6)
                 p.update(t1=p["target"], target=round(t2, 6), t1_done=True, t1_utc=t.isoformat(), rail_state="t1_done"); _rlog(p, t, "half_bank", px=x, shares=h, reason=rsn)
                 ev.append((k, rsn, x)); half = True
             q2 = None if half else t2_trigger(p, m["last"], au, marks)
             if q2:   # exitC: quarter of ORIGINAL size at net 2R; final quarter keeps trailing (stop tighten-only via rail_update)
-                h2 = crypto_units(orig_shares(p) / 4.0) if _is_crypto(p) else orig_shares(p) // 4; partial_close(B, p, k, m["last"], h2, au, t, q2, "-T2", marks)
+                h2 = crypto_units(orig_shares(p) / 4.0) if _is_crypto(p) else orig_shares(p) // 4
+                if _session_closed_for_exit(p, t): _defer_exit(p, t, k, ev, q2, m["last"], "partial", h2, "quarter"); continue
+                partial_close(B, p, k, m["last"], h2, au, t, q2, "-T2", marks)
                 p.update(t2_done=True, t2_utc=t.isoformat(), rail_state="t2_done"); _rlog(p, t, "quarter_bank", px=m["last"], shares=h2, reason=q2); ev.append((k, q2, m["last"])); half = True
             cur = open_R(p, m["last"])
             gb = r0 and p["peak_fav_R"] >= RAIL_GB_PEAK_R and cur <= RAIL_GB_KEEP * p["peak_fav_R"]
             if gb or thru:   # rail rule 4 giveback flatten / tightened stop already through the last price -> exit residual at the last price
-                x = m["last"]; gross, cc = realise(B, p, x, p["shares"], au, marks); rsn = "giveback" if gb else "rail_stop"
+                x = m["last"]; rsn = "giveback" if gb else "rail_stop"
+                if _session_closed_for_exit(p, t): _defer_exit(p, t, k, ev, rsn, x); continue
+                gross, cc = realise(B, p, x, p["shares"], au, marks)
                 _rlog(p, t, rsn, px=x, open_R=round(cur, 3), peak_fav_R=p["peak_fav_R"])
-                p.update(status="closed", exit=x, exit_reason=rsn, closed_utc=t.isoformat(), gross_aud=round(gross, 2), net_aud=round(gross - p["cost_aud"] - cc, 2))
+                p.update(status="closed", exit=x, exit_reason=rsn, closed_utc=t.isoformat(), **_close_pnl(p, gross, cc))
                 B["closed"].append(dict(p)); ev.append((k, rsn, x)); continue
             if half: continue
             if seat in DEX_SEATS and not p.get("dex_halfcut_done") and not p.get("t1_done") and m.get("last") is not None and not _hold:   # tfo_review_20261030 Dex: < +0.5R net within 2 sessions -> cut to half (once)
                 _nr = net_R(p, float(m["last"]), au, marks); p["dex_peak_net_R"] = round(max(float(p.get("dex_peak_net_R") or -99), _nr), 4)
                 if sessions_since(p.get("filled_utc"), t) >= DEX_HALFCUT_SESSIONS and p["dex_peak_net_R"] < DEX_HALFCUT_R and _can_half(p):
-                    h3 = _half(p); partial_close(B, p, k, m["last"], h3, au, t, "dex_2session_halfcut", "-DXH", marks); p.setdefault("shares_orig", _qty(p) + h3)
+                    h3 = _half(p)
+                    if _session_closed_for_exit(p, t): _defer_exit(p, t, k, ev, "dex_2session_halfcut", m["last"], "partial", h3, "dex"); continue
+                    partial_close(B, p, k, m["last"], h3, au, t, "dex_2session_halfcut", "-DXH", marks); p.setdefault("shares_orig", _qty(p) + h3)
                     p.update(dex_halfcut_done=True, dex_halfcut_utc=t.isoformat()); _rlog(p, t, "dex_halfcut", px=m["last"], shares=h3, peak_net_R=p["dex_peak_net_R"]); ev.append((k, "dex_2session_halfcut", m["last"])); continue
             if time_stop_trigger(p, m, t, au, marks, seat) == "rail_time_stop":   # TIME STOP (Brett 17:44 WITA 29 Oct 'Yes go ahead')
-                x = m["last"]; cf = p["stop"]; audit_early_bank(seat, k, p, t, "rail_time_stop", x, int(p["shares"]), cf, p.get("target"))
+                x = m["last"]; cf = p["stop"]
+                if _session_closed_for_exit(p, t): _defer_exit(p, t, k, ev, "rail_time_stop", x); continue
+                audit_early_bank(seat, k, p, t, "rail_time_stop", x, int(p["shares"]), cf, p.get("target"))
                 gross, cc = realise(B, p, x, p["shares"], au, marks)
                 _rlog(p, t, "rail_time_stop", px=x, ts_peak_net_R=p.get("ts_peak_net_R"), deadline=p.get("time_stop_deadline_utc"))
-                p.update(status="closed", exit=x, exit_reason="rail_time_stop", closed_utc=t.isoformat(), gross_aud=round(gross, 2), net_aud=round(gross - p["cost_aud"] - cc, 2))
+                p.update(status="closed", exit=x, exit_reason="rail_time_stop", closed_utc=t.isoformat(), **_close_pnl(p, gross, cc))
                 B["closed"].append(dict(p)); ev.append((k, "rail_time_stop", x)); continue
             if ht and not p.get("t1_done"):   # exitC: after the half-bank the residual is not closed at T2 price target
-                x = p["target"]; gross, cc = realise(B, p, x, p["shares"], au, marks)
-                p.update(status="closed", exit=x, exit_reason="target", closed_utc=t.isoformat(), gross_aud=round(gross, 2), net_aud=round(gross - p["cost_aud"] - cc, 2))
+                x = p["target"]
+                if _session_closed_for_exit(p, t): _defer_exit(p, t, k, ev, "target", x); continue
+                gross, cc = realise(B, p, x, p["shares"], au, marks)
+                p.update(status="closed", exit=x, exit_reason="target", closed_utc=t.isoformat(), **_close_pnl(p, gross, cc))
                 B["closed"].append(dict(p)); ev.append((k, "target", x))
         for _p in B["positions"].values():
             if _p.get("status") == "closed" and _p.get("closed_utc") == t.isoformat() and _p.get("fill") is not None:
@@ -1457,10 +2014,20 @@ def tick(price_fn=None, au=None, queue_path=None):
             for k, p in list(B["positions"].items()):
                 if p["status"] == "open":
                     m = marks.get(p["ticker"]) or {}; x = m.get("last") or p.get("mark") or p["fill"]; sg = 1 if p["side"] == "LONG" else -1
-                    if is_fx(p): qa = quote_to_aud(p["ticker"], au, marks); n = x * p["shares"] / qa; cc = leg_cost_aud(p, x, p["shares"], au, marks, "exit"); gross = sg * (x - p["fill"]) * p["shares"] / qa; B["cash_aud"] += gross - cc
-                    else: n = aud(p["ticker"], x, au) * p["shares"]; cc = leg_cost_aud(p, x, p["shares"], au, marks, "exit"); B["cash_aud"] += sg * n - cc; gross = sg * (aud(p["ticker"], x, au) - aud(p["ticker"], p["fill"], au)) * p["shares"]
-                    p.update(status="closed", exit=x, exit_reason="kill_switch_flat", closed_utc=t.isoformat(), gross_aud=round(gross, 2), net_aud=round(gross - p["cost_aud"] - cc, 2)); B["closed"].append(dict(p))
-                elif p["status"] == "armed": p["status"] = "expired"
+                    gross, cc = realise(B, p, x, p["shares"], au, marks)
+                    p.update(status="closed", exit=x, exit_reason="kill_switch_flat", closed_utc=t.isoformat(), **_close_pnl(p, gross, cc)); B["closed"].append(dict(p))
+                    try:
+                        import audit
+                        audit.log("exit", "thf" if THF else "veteran", {"id": k, "ticker": p.get("ticker"), "reason": "kill_switch_flat", "px": x, "paper_only": True})
+                    except Exception:
+                        pass
+                elif p["status"] == "armed":
+                    p["status"] = "expired"
+                    try:
+                        import audit
+                        audit.log("paper_order", "thf" if THF else "veteran", {"id": k, "ticker": p.get("ticker"), "status": "expired", "reason": "kill_switch_flat", "paper_only": True})
+                    except Exception:
+                        pass
             B["positions"] = {k: p for k, p in B["positions"].items() if p["status"] in ("armed", "open")}
         ks = dict(state="FLAT", at_utc=t.isoformat(), dd_pct=round(dd * 100, 2)); ka = KILL_ALERT_PATH or os.path.join(_state_dir(), "KILL_ALERT.json"); os.makedirs(os.path.dirname(ka), exist_ok=True)
         json.dump(dict(ks, msg="VETERAN DESK KILL SWITCH: -12% from peak. All positions flattened, new trades halted. Brett must reset (delete state/veteran_desk/KILL_ALERT.json and set kill_switch.state OK)."), open(ka, "w"), indent=1)
@@ -1489,7 +2056,7 @@ def tick(price_fn=None, au=None, queue_path=None):
         H = hedge_step(D, H, marks, au, tot_eq, t, vix, vm)   # TFO HT 03:15 Brett: staged exposure-driven hedge (legacy overlay closed at first liquid mark)
         D["hedge"] = H
     try:
-        from veteran_desk import payouts_bridge; payouts_bridge.book_commissions(D, **({} if os.path.abspath(BOOK) == os.path.abspath(_REAL_BOOK) else dict(out_path=_temp_payouts_path(), **(dict(fwd_path=os.path.join(THF_DIR, "forward_trades.json"), score_path=os.path.join(THF_DIR, "thf_scorecard.json")) if THF else {}))))   # tfo_thffresh_20261030: THF commissions from THF journals only   # TFO HT 03:35: temp books never touch live payouts; commission = expense in each seat's own book
+        from veteran_desk import payouts_bridge; payouts_bridge.book_commissions(D, **({} if os.path.abspath(BOOK) == os.path.abspath(_REAL_BOOK) else dict(out_path=_temp_payouts_path(), **(dict(fwd_path=os.path.join(THF_DIR, "forward_trades.json"), score_path=os.path.join(THF_DIR, "thf_scorecard.json")) if THF else _temp_journal_paths()))))   # paytemp 2026-10-31: temp VD books accrue from their OWN journals, never live VD veto/commission history (was A$540 phantom cash deduction)   # tfo_thffresh_20261030: THF commissions from THF journals only   # TFO HT 03:35: temp books never touch live payouts; commission = expense in each seat's own book
     except ImportError: pass
     try:   # 2026-10-30 dashfix: sync funder queue 'armed' entries that the book already filled
         _Q = FG.load(queue_path)
@@ -1511,7 +2078,9 @@ def tick(price_fn=None, au=None, queue_path=None):
         for i in withdrawn_mid_tick:   # withdraw landed between our queue read and write: cancel the arm we just made
             for S_ in D["seats"].values():
                 p_ = S_["positions"].get(i)
-                if p_ and p_.get("status") == "armed": p_.update(status="cancelled", why="queue withdrawn mid-tick"); S_.setdefault("closed", []).append(dict(p_, closed_utc=t.isoformat(), exit_reason="withdrawn")); S_["positions"].pop(i, None)
+                if p_ and p_.get("status") == "armed":
+                    _why = (Q.get("entries") or {}).get(i, {}).get("why") or "queue withdrawn mid-tick (no reason on the queue entry)"
+                    p_.update(status="cancelled", why=_why); S_.setdefault("closed", []).append(dict(p_, closed_utc=t.isoformat(), exit_reason="withdrawn")); S_["positions"].pop(i, None)
     try:   # daily leaderboard prizes (Brett 2026-10-28 20:13 WITA): credited as CAPITAL events, never P&L; idempotent by award id
         from veteran_desk import leaderboard as LB
         if os.path.abspath(BOOK) == os.path.abspath(_REAL_BOOK): LB.apply_prizes(D, au, t)
@@ -1526,7 +2095,9 @@ def tick(price_fn=None, au=None, queue_path=None):
         B.update(spec_pnl_aud=round(spec, 2), spec_sleeve_aud=SEAT_SEED * SPEC_SLEEVE_PCT, avg_slippage_bps=round(sum(sl) / len(sl), 1) if sl else None)
         B.update(equity_aud=round(eq, 2), invested_aud=round(inv, 2), pnl_since_inception_aud=round(eq - B["seed_aud"], 2), today_pnl_aud=round(eq - B["day_start_equity_aud"], 2))
         B["pnl_hwm_aud"] = round(max(0.0, B.get("pnl_hwm_aud") or 0.0, B["pnl_since_inception_aud"]), 2)   # TFO HT 23:13: floor 0.00 (starting P/L)   # seat P/L high-water mark ex capital events (weekly prize guard, Brett 20:23 WITA)
+        B["fx_identity"] = seat_pnl_identity(B, marks, au, eq); B["fx_adjustments"] = B["fx_identity"]["adjustments"]   # reporting restatement only; closed net_aud is not rewritten
         for k in tot: tot[k] += B.get(k, 0) or 0
+    D["fx_identity_ok"] = all((B.get("fx_identity") or {}).get("ok") for B in D["seats"].values())
     tot["equity_aud"] += (D.get("hedge") or {}).get("pnl_aud", 0) or 0
     tot["equity_aud"] += D.get("hedge_realised_aud") or 0.0   # realised hedge P&L (incl. real costs) stays in desk equity - never made to disappear
     tot["equity_aud"] += D.get("hedge_error_reversal_aud") or 0.0   # Brett 06:44 WITA 29 Oct: unauthorised VIX hedge reversed to TFO error account (dated adjustment, see archive/error_account.json)
@@ -1534,6 +2105,10 @@ def tick(price_fn=None, au=None, queue_path=None):
     D.update({k: round(v, 2) for k, v in tot.items()}, pnl_since_inception_aud=round(tot["equity_aud"] - (D.get("seed_aud") or SEED_AUD), 2), today_pnl_aud=round(tot["equity_aud"] - D["day_start_equity_aud"], 2),
              audusd=au, equity=round(tot["equity_aud"] * au, 2), cash=round(tot["cash_aud"] * au, 2), peak=max(D.get("peak") or 0, round(tot["equity_aud"] * au, 2)), equity_usd=round(tot["equity_aud"] * au, 2), cash_usd=round(tot["cash_aud"] * au, 2), peak_usd=max(D.get("peak") or 0, round(tot["equity_aud"] * au, 2)), usd_fields_note="equity/cash/peak are USD (legacy keys kept for firm readers); *_usd are the same values; *_aud are AUD", updated=t.isoformat(),
              last_events=ev, last_events_utc=t.isoformat(), prev_events=(D.get("last_events") or []) if not ev else D.get("prev_events", []))   # this tick's events only (old 'ev or previous' carried stale 21:06 'armed' lines into later ticks)
+    try:   # fxmark_20261103 (F19): where this tick's A$ rates came from - AUDUSD source + the rate's OWN time (firm risk age-checks it) + every AUD cross used
+        _am = dict(AU_META) if AU_META.get("v") is not None and abs(float(AU_META["v"]) - float(au)) < 1e-12 else dict(src=("stale last value (%s)" % _fxstale) if _fxstale else "supplied by the caller", asof=None, how="other")
+        D.update(audusd_src=_am.get("src"), audusd_asof=_am.get("asof"), audusd_how=_am.get("how"), fx_rates={c_: dict(r_) for c_, r_ in FX_SRC.items()})
+    except Exception: pass
     _wj(BOOK, D)
     try:   # fix 3/7: refresh leaderboard standings from THIS tick's book every real tick, so leaderboard == seat_cli (no stale snapshot)
         if os.path.abspath(BOOK) == os.path.abspath(_REAL_BOOK):
@@ -1552,7 +2127,14 @@ def tick(price_fn=None, au=None, queue_path=None):
         real = os.path.abspath(BOOK) == os.path.abspath(_REAL_BOOK); sp = None if real else BOOK + ".snapshots.jsonl"; op = None if real else BOOK + ".weekly.json"
         WS.snapshot(now=t, book_path=BOOK, snap_path=sp); WS.score(now=t, book_path=BOOK, snap_path=sp, out_path=op)
     except Exception as x: D["weekly_score_error"] = "%s: %s" % (type(x).__name__, str(x)[:160])
+    try:  # hash-chained audit AFTER the ledger write; a failure here cannot unwind a stop or an exit
+        import audit
+        audit.book_events("thf" if THF else "veteran", ev)
+    except Exception:
+        pass
     return D
 if __name__ == "__main__":
-    b = tick() if (sys.argv[1:] or ["tick"])[0] == "tick" else load()
+    if (sys.argv[1:] or ["tick"])[0] == "tick":
+        with book_lock(timeout=120): b = tick()   # booklock_20261103: seat_cli changes wait for the tick (and the tick for them)
+    else: b = load()
     print(json.dumps({k: b.get(k) for k in ("equity_aud", "cash_aud", "invested_aud", "pnl_since_inception_aud", "today_pnl_aud", "commission_expense_aud", "last_events")}, default=str))

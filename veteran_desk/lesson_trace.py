@@ -13,7 +13,7 @@ TRADERS = ("banks", "energy", "essentials_utilities", "healthcare", "news_filing
 ADMINS = ("head_of_desk", "head_trader", "cfo", "software_engineer", "fixer", "blind_challenger", "devils_advocate")
 SEATS = TRADERS + ADMINS
 CLAIM = re.compile(r"\bi\s+learned\b", re.I)
-REF = re.compile(r"ref=([A-Za-z0-9_.:-]{3,80})")
+REF = re.compile(r"ref=([A-Za-z0-9_-]{3,80})")
 
 
 def _now():

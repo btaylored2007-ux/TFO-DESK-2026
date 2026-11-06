@@ -23,10 +23,11 @@ def test_second_manual_partial_is_labeled_quarter_not_another_half():
     assert "quarter_bank" in body
     assert "initial_stop" in body
 
-def test_package_book_is_not_this_snapshot():
+def test_package_book_is_the_audited_snapshot():
     packaged = (ROOT / "veteran_desk" / "book.py").read_text(encoding="utf-8")
-    assert "RAIL_BANK_R = 1.0" in packaged
-    assert packaged != TEXT
+    assert "RAIL_BANK_R = 0.7" in packaged
+    assert "RAIL_BANK_ALL_POSITIONS = True" in packaged
+    assert packaged == TEXT
 
 def test_chat_display_name_is_original():
     js = (ROOT / "tools" / "thf_chat.js").read_text(encoding="utf-8")

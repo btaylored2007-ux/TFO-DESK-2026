@@ -199,7 +199,22 @@ def after_round(seat, j, wake=None):
         lessons_from_book(seats=[seat]); ensure(seat)
     except Exception: pass
 def after_chat(seat, text, reply, brain=None):
-    if os.environ.get("PYTEST_CURRENT_TEST"): return None
+    trace = os.environ.get("THF_LESSON_TRACE")
+    if not trace and not os.environ.get("PYTEST_CURRENT_TEST"):
+        trace = os.path.join(BASE, "state", "thf", "lesson_trace.jsonl")
+    if trace:
+        try:
+            from veteran_desk import lesson_trace as LT
+            included = []
+            for row in reversed(LT.load(trace)):
+                if row.get("seat") == seat and row.get("level") == "included":
+                    included = row.get("lesson_ids") or []
+                    break
+            cited = LT.interpret_reply(reply, included)
+            LT.append(trace, dict(cited, seat=seat, source="seat_brain.after_chat", utc=LT._now()))
+        except Exception:
+            pass
+    if os.environ.get("PYTEST_CURRENT_TEST") and not trace: return None
     try: journal(seat, "chat", "%s | %s -> %s" % (brain or "ai", re.sub(r"\s+", " ", str(text))[:120], re.sub(r"\s+", " ", str(reply))[:200]))
     except Exception: pass
 # ---------------- prompt block ----------------
@@ -255,10 +270,11 @@ def prompt_block(seat, cap=1100):
             item[2] = line
         s += "".join(item[2] for item in selected)
         try:
-            if not os.environ.get("PYTEST_CURRENT_TEST"):
+            trace = os.environ.get("THF_LESSON_TRACE")
+            if trace or not os.environ.get("PYTEST_CURRENT_TEST"):
                 from veteran_desk import lesson_trace as LT
                 LT.record_included(seat, [item[0].get("ref") for item in selected], "seat_brain.prompt_block",
-                                   os.path.join(BASE, "state", "thf", "lesson_trace.jsonl"))
+                                   trace or os.path.join(BASE, "state", "thf", "lesson_trace.jsonl"))
         except Exception:
             pass
         for title, values in (("FACTS", F[:8]), ("JOURNAL", [TODAY_RX.sub("", x[2:]) for x in reversed(J)])):

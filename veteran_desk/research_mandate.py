@@ -10,6 +10,8 @@ import math
 import os
 
 VERSION = "research_mandate_20261106"
+TRADERS = ("banks", "energy", "essentials_utilities", "healthcare", "news_filings", "price_action",
+           "tech_ai_infra", "trend", "macro", "fx_commodities", "crypto")
 MIN_NET_R_A = 1.5
 MAX_AGE_S = 20 * 60
 

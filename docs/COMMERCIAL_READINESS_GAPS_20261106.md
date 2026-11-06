@@ -10,4 +10,4 @@ Not in this release, and not started:
 - A public marketing site, domain registration, or trademark filing
 - A claim that tests in this repository prove the service is safe to charge for
 
-Still required before anyone could treat the desk as a product: the Singapore runtime is tailnet-gated and was not verified in a browser from here; the matched AI sample has not started; several seats have stale lesson files; feed health still needs the live feedkeeper modules; the half-bank rule is on the droplet and is not the older `RAIL_BANK_R = 1.0` copy in this package.
+Still required before anyone could treat the desk as a product: the Singapore runtime is tailnet-gated and was not verified in a browser from here; the matched AI sample has not started; several seats have stale lesson files; feed health is coded and unit-tested, not observed on the droplet; the package book now matches the live +0.7R file, and a destination with any other hash is refused by the guarded installer. This is not a launch.

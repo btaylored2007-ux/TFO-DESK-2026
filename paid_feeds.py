@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """paid_feeds.py — paid-first market data for the TFO fundamental book. PAPER ONLY. 2026-10-30 HT mandate.
 
-Quotes:  US (no suffix)            -> Massive 1m aggs (real-time)            fallback Yahoo chart
+Quotes:  EU/LSE (Cboe Europe)     -> EODHD websocket tape when healthy       else the rows below
+         US (no suffix)            -> Massive 1m aggs (real-time)            fallback Yahoo chart
          .AX .L .T .HK             -> FMP /stable/historical-chart/1min      fallback Yahoo chart
          anything else             -> Yahoo chart (unchanged)
 Each paid quote is converted into a Yahoo-chart-shaped payload and run through the UNCHANGED
@@ -27,13 +28,30 @@ def _key(fn, var):
             if ln.strip().startswith(var + "="): return ln.split("=", 1)[1].strip().strip('"\'')
     except Exception: return None
 
+# Token buckets (calls/min). FMP Ultimate allows 3,000/min; HT ruling 30 Oct: stay at ~1,500/min.
+RATE_PER_MIN = {"fmp": float(os.environ.get("FMP_RATE_PER_MIN", "1500"))}
+_TB = {}
+def _take(provider):
+    rate = RATE_PER_MIN.get(provider)
+    if not rate: return
+    per_s, burst = rate / 60.0, max(1.0, rate / 60.0)
+    while True:
+        with _LOCK:
+            tok, last = _TB.get(provider, (burst, time.time())); now = time.time()
+            tok = min(burst, tok + (now - last) * per_s)
+            if tok >= 1.0:
+                _TB[provider] = (tok - 1.0, now); return
+            _TB[provider] = (tok, now); wait = (1.0 - tok) / per_s
+        time.sleep(wait)
+
 def _get(provider, url, headers=None, timeout=8):
     if os.environ.get("PAID_FEEDS_DISABLE") == "1": raise RuntimeError("paid feeds disabled")
     if _BRK.get(provider, 0) > time.time(): raise RuntimeError("%s breaker open" % provider)
+    _take(provider)
     req = urllib.request.Request(url, headers=dict({"User-Agent": "TFO paper desk"}, **(headers or {})))
     try:
         with urllib.request.urlopen(req, timeout=timeout) as f:
-            STATS[provider] = STATS.get(provider, 0) + 1
+            with _LOCK: STATS[provider] = STATS.get(provider, 0) + 1
             return json.loads(f.read())
     except urllib.error.HTTPError as e:
         if e.code in (401, 403, 429): _BRK[provider] = time.time() + BREAKER_S
@@ -160,9 +178,153 @@ def _fmp_payload(sym, venue, now_epoch):
     today = [b for b in bars if dt.datetime.fromtimestamp(b[0], tz).date() == day]
     return _payload(ccy, venue, today, *_regular(sym, venue, reg, now_epoch), now_epoch=now_epoch)
 
+# fxfeed_20261103 (helper 2): OANDA PRACTICE pricing for OANDA-book FX pairs (=X). The fx_commodities seat reported "no paid quote hit
+# any of my 10 symbols, all live px are Yahoo delayed fallback" (3 Nov 15:58 WITA): fetch_quote sent every =X/=F/^ straight to Yahoo.
+# OANDA practice = OANDA's real-time prices on the PAPER account (token from ~/.tfo_secrets/oanda.env, read in code, never printed).
+# Futures (=F) and indices (^) stay Yahoo: OANDA spot (XAU_USD, WTICO_USD ...) is not the future (basis) and is never substituted.
+OANDA_HOST = "https://api-fxpractice.oanda.com"   # PRACTICE only - never api-fxtrade
+STATS["oanda"] = 0
+def _oanda_ins(sym):
+    try:
+        from veteran_desk.pit_fx_sgp import oanda_instrument
+        return oanda_instrument(sym)
+    except Exception: return None
+
+def _fx_periods(now_epoch):
+    """FX regular session = the London weekday (00:00-24:00 Europe/London, Yahoo's FX convention); weekend -> closed."""
+    tz = ZoneInfo("Europe/London"); d = dt.datetime.fromtimestamp(now_epoch, tz).date(); z = {"start": 0, "end": 0}
+    if d.weekday() >= 5: return {"pre": z, "regular": z, "post": z}
+    n = d + dt.timedelta(days=1)
+    return {"pre": z, "regular": {"start": _at(d, "00:00", tz), "end": _at(n, "00:00", tz)}, "post": z}
+
+def _oanda_payload(sym, now_epoch):
+    """(Yahoo-chart-shaped payload, extra fields) from OANDA practice pricing (bid/ask -> mid) + the last 30 M1 mid closes."""
+    assert OANDA_HOST.startswith("https://api-fxpractice."), "practice host only"
+    ins = _oanda_ins(sym)
+    if not ins: raise RuntimeError("oanda: not an OANDA-book pair")
+    tok = _key("oanda.env", "OANDA_PRACTICE_TOKEN"); acct = _key("oanda.env", "OANDA_ACCOUNT_ID")
+    if not tok or not acct: raise RuntimeError("oanda: no practice credentials")
+    H = {"Authorization": "Bearer " + tok, "Accept-Datetime-Format": "UNIX"}
+    pj = _get("oanda", "%s/v3/accounts/%s/pricing?instruments=%s" % (OANDA_HOST, acct, ins), headers=H)
+    p = (pj.get("prices") or [None])[0]
+    if not p or not p.get("bids") or not p.get("asks"): raise RuntimeError("oanda: no price")
+    bid, ask, t = float(p["bids"][0]["price"]), float(p["asks"][0]["price"]), float(p["time"]); mid = round((bid + ask) / 2.0, 7)
+    if not (bid > 0 and ask >= bid): raise RuntimeError("oanda: bad bid/ask")
+    cj = _get("oanda", "%s/v3/instruments/%s/candles?granularity=M1&count=30&price=M" % (OANDA_HOST, ins), headers=H)
+    bars = sorted((float(x["time"]), float(x["mid"]["c"])) for x in (cj.get("candles") or []) if x.get("mid"))
+    bars = [b for b in bars if b[0] < t] + [(t, mid)]   # the live quote is the newest observed print
+    meta = {"currency": sym[3:6], "regularMarketTime": t, "regularMarketPrice": mid, "currentTradingPeriod": _fx_periods(now_epoch),
+            "exchangeName": "OANDA practice", "exchangeTimezoneName": "Europe/London"}
+    extra = dict(bid=bid, ask=ask, spread=round(ask - bid, 10), oanda_instrument=ins, tradeable=p.get("tradeable"))
+    return {"chart": {"result": [{"meta": meta, "timestamp": [b[0] for b in bars], "indicators": {"quote": [{"close": [b[1] for b in bars]}]}}]}}, extra
+
+# fxmark_20261103 (F18, helper of the master fixer, PAPER): the THF BOOK now marks, trigger-checks and fills OANDA-book FX pairs (=X) on
+# the SAME OANDA practice mid the macro + fx_commodities seats see in their prompts (was Yahoo =X 5m bars: measured 2-3 Nov, Yahoo 5m lows
+# sat 0.6-9 bp under the OANDA mid lows at the median and up to 115 bp in single bars = phantom touches the seats never saw).
+# GET only (pricing + candles), practice host only, token/account read in code and never printed. book.live_px calls these; Yahoo stays
+# the fallback there. Futures (=F) are NOT substituted (see OANDA_CFD below).
+OANDA_BOOK_TTL_S = 20; OANDA_WINDOW_M1 = 30; _OBQ = {}
+def _oanda_auth():
+    assert OANDA_HOST.startswith("https://api-fxpractice."), "practice host only"
+    tok = _key("oanda.env", "OANDA_PRACTICE_TOKEN"); acct = _key("oanda.env", "OANDA_ACCOUNT_ID")
+    if not tok or not acct: raise RuntimeError("oanda: no practice credentials")
+    return {"Authorization": "Bearer " + tok, "Accept-Datetime-Format": "UNIX"}, acct
+
+def _iso_ep(ep): return dt.datetime.fromtimestamp(float(ep), UTC).isoformat()
+
+def oanda_book_quote(sym, ttl=OANDA_BOOK_TTL_S):
+    """fxmark_20261103: book-shaped live quote for an OANDA-book FX pair: last = live mid (bid+ask)/2, hi/lo/open over the last 30 M1 MID
+    candles + the live mid (same 30-min window as the Yahoo 6x5m quote it replaces), asof = OANDA price time, window_start = first candle
+    start, bid/ask/spread_bp kept, src 'oanda_practice_mid'. 20 s in-process cache (one tick asks the same pair many times). Raises."""
+    ins = _oanda_ins(sym)
+    if not ins: raise RuntimeError("oanda: not an OANDA-book pair")
+    t0 = time.time(); hit = _OBQ.get(sym)
+    if hit and t0 - hit[0] < ttl: return dict(hit[1])
+    H, acct = _oanda_auth()
+    pj = _get("oanda", "%s/v3/accounts/%s/pricing?instruments=%s" % (OANDA_HOST, acct, ins), headers=H)
+    p = (pj.get("prices") or [None])[0]
+    if not p or not p.get("bids") or not p.get("asks"): raise RuntimeError("oanda: no price")
+    bid, ask, pt = float(p["bids"][0]["price"]), float(p["asks"][0]["price"]), float(p["time"])
+    if not (bid > 0 and ask >= bid): raise RuntimeError("oanda: bad bid/ask")
+    mid = round((bid + ask) / 2.0, 7)
+    try: cj = _get("oanda", "%s/v3/instruments/%s/candles?granularity=M1&count=%d&price=M" % (OANDA_HOST, ins, OANDA_WINDOW_M1), headers=H)
+    except Exception: cj = {}   # candles down, pricing up: still the OANDA mid (hi = lo = mid, window starts at the price time)
+    bars = sorted((float(x["time"]), float(x["mid"]["o"]), float(x["mid"]["h"]), float(x["mid"]["l"])) for x in (cj.get("candles") or []) if x.get("mid"))
+    bars = [b for b in bars if b[0] <= pt]
+    q = dict(last=mid, hi=max([b[2] for b in bars] + [mid]), lo=min([b[3] for b in bars] + [mid]), open=bars[0][1] if bars else mid,
+             asof=_iso_ep(pt), window_start=_iso_ep(bars[0][0] if bars else pt), bid=bid, ask=ask, spread_bp=round((ask - bid) / mid * 1e4, 2),
+             tradeable=p.get("tradeable"), oanda_instrument=ins, src="oanda_practice_mid")
+    _OBQ[sym] = (t0, q)
+    return dict(q)
+
+def oanda_m1_since(sym, since_epoch, until_epoch=None):
+    """fxmark_20261103: [(start_epoch, hi, lo, close)] OANDA practice M1 MID candles starting in [since, until] (only the newest 5000 min).
+    The book's grade-A secondary trigger check for OANDA-marked FX rows (same feed as the mark; was Yahoo 1m). Raises on failure."""
+    ins = _oanda_ins(sym)
+    if not ins: raise RuntimeError("oanda: not an OANDA-book pair")
+    until = float(until_epoch or time.time()); since = max(float(since_epoch), until - 4999 * 60.0)
+    H, _ = _oanda_auth()
+    cj = _get("oanda", "%s/v3/instruments/%s/candles?granularity=M1&price=M&from=%d&count=5000" % (OANDA_HOST, ins, int(since)), headers=H, timeout=15)
+    out = []
+    for x in cj.get("candles") or []:
+        m = x.get("mid"); ts = float(x.get("time") or 0)
+        if m and since <= ts <= until: out.append((ts, float(m["h"]), float(m["l"]), float(m["c"])))
+    return out
+
+# fxmark_20261103 (master 22:5x; Brett 20:08 "OANDA PRACTICE TOKEN IS THE ONE FOR ALL TRADES"; fx_commodities 20:17 asked for =F -> OANDA):
+# futures stay on the FUTURE. The book marks, triggers and fills =F on the Yahoo future (delayed ~10 min); an OANDA CFD is a different
+# instrument (no expiry/roll, spot-vs-future basis: 3 Nov 22:59 WITA BZ=F 103.50 vs BCO_USD 106.86 = -3.1%, NG=F +8.0% vs NATGAS_USD,
+# CL=F -1.1%, GC=F +0.3%) and is NEVER substituted. In THF seat prompts the Yahoo future quote carries the OANDA CFD mid NEXT TO it, labelled.
+# Ags CFDs are quoted in USD while the Yahoo futures quote US cents (ZC/ZW/ZS/SB) - the note shows the x100 figure.
+OANDA_CFD = {"GC=F": "XAU_USD", "MGC=F": "XAU_USD", "SI=F": "XAG_USD", "PL=F": "XPT_USD", "PA=F": "XPD_USD", "HG=F": "XCU_USD",
+             "CL=F": "WTICO_USD", "MCL=F": "WTICO_USD", "BZ=F": "BCO_USD", "NG=F": "NATGAS_USD",
+             "ZC=F": "CORN_USD", "ZW=F": "WHEAT_USD", "ZS=F": "SOYBN_USD", "SB=F": "SUGAR_USD",
+             "ES=F": "SPX500_USD", "NQ=F": "NAS100_USD", "YM=F": "US30_USD", "RTY=F": "US2000_USD"}
+CFD_CENTS = {"ZC=F", "ZW=F", "ZS=F", "SB=F"}
+CFD_TTL_S = 60; _CFDQ = {}
+
+def oanda_cfd_quote(fut):
+    """(instrument, mid, price_epoch) of the OANDA practice CFD on the same underlying as a Yahoo future, or None. GET only, 60 s cache."""
+    ins = OANDA_CFD.get(str(fut or "").upper())
+    if not ins: return None
+    t0 = time.time(); hit = _CFDQ.get(ins)
+    if hit and t0 - hit[0] < CFD_TTL_S: return hit[1]
+    H, acct = _oanda_auth()
+    pj = _get("oanda", "%s/v3/accounts/%s/pricing?instruments=%s" % (OANDA_HOST, acct, ins), headers=H)
+    p = (pj.get("prices") or [None])[0]
+    if not p or not p.get("bids") or not p.get("asks"): return None
+    out = (ins, round((float(p["bids"][0]["price"]) + float(p["asks"][0]["price"])) / 2.0, 6), float(p["time"]))
+    _CFDQ[ins] = (t0, out)
+    return out
+
+def cfd_note(fut, fut_px=None):
+    """One short label: the OANDA CFD mid beside a Yahoo future + 'the book marks the future'. '' when no CFD / OANDA down."""
+    try: c = oanda_cfd_quote(fut)
+    except Exception: c = None
+    if not c: return ""
+    ins, mid, ep = c; f = str(fut).upper(); shown = mid * 100.0 if f in CFD_CENTS else mid
+    basis = (", %+.2f%% vs this future" % ((shown / float(fut_px) - 1) * 100)) if fut_px else ""
+    return "OANDA CFD %s %s%s @%sZ%s (CFD, NOT this future: book marks/fills %s on the future)" % (   # short: the pack's live-quote budget is 2.2KB
+        ins, "%.6g" % mid, (" (=%.6g US cents)" % shown) if f in CFD_CENTS else "", _iso_ep(ep)[11:16], basis, f)
+
 def fetch_quote(symbol):
     """Drop-in for tfo_equity_refresh.fetch_quote: paid first, Yahoo fallback. Same dict schema + source fields."""
     import tfo_equity_refresh as ter
+    try:  # tfo_paidrt_20261031: Cboe Europe websocket before FMP/Yahoo when the consumer is healthy
+        from veteran_desk import eodhd_eu_ws as _EU
+        q = _EU.chart_quote(symbol)
+        if q: return q
+    except Exception: pass
+    if _oanda_ins(symbol):   # fxfeed_20261103: OANDA-book FX -> OANDA practice real-time mid; Yahoo below stays the fallback
+        try:
+            fetched_at = ter.utc_now(); now = dt.datetime.fromisoformat(fetched_at.replace("Z", "+00:00")).timestamp()
+            pl, extra = _oanda_payload(symbol, now)
+            q = ter.parse_chart(symbol, pl, fetched_at)
+            q.update(extra); q.update(source="OANDA practice pricing (real-time mid)", provider="oanda_practice", url=None, paid_feed=True)
+            return q
+        except Exception as e:
+            with _LOCK:
+                STATS["errors"][symbol] = str(e)[:120]; STATS["fallback_yahoo"] += 1
     v = venue_of(symbol)
     if v is not None:
         try:
@@ -175,6 +337,9 @@ def fetch_quote(symbol):
             with _LOCK:
                 STATS["errors"][symbol] = str(e)[:120]; STATS["fallback_yahoo"] += 1
     q = ter.fetch_quote(symbol); q["paid_feed"] = False
+    if str(symbol).upper() in OANDA_CFD and os.environ.get("THF_DESK") == "1":   # fxmark_20261103: OANDA CFD shown BESIDE the Yahoo future in THF seat prompts (src text); never replaces it
+        _n = cfd_note(symbol, q.get("px"))
+        if _n: q["oanda_cfd_note"] = _n; q["source"] = "%s | %s" % (q.get("source") or "Yahoo public chart", _n)
     return q
 
 # ---------------------------------------------------------------- fundamentals (FMP)

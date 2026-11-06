@@ -95,6 +95,25 @@ def recommend(rows):
                 note="Seven-day paper P&L is not evidence of edge.")
 
 
+def note_production(task, path):
+    """Record the answer the desk already received. Does not call a provider."""
+    text = str(task.get("text") or "")
+    row = dict(version=VERSION, task_id=task.get("task_id"), seat=task.get("seat"), role=task.get("role"),
+               task_class=task.get("task_class") or "other", provider_requested=task.get("provider") or "unknown",
+               provider_actual=task.get("provider") or "unknown", fallback=False,
+               prompt_hash=_hash(task.get("prompt") or ""), data_asof=task.get("data_asof"),
+               output_hash=_hash(text) if text else None, preview=redact(text)[:180],
+               score=score_output(task.get("prompt") or "", text, None), ok=bool(text),
+               tokens="unknown", cost_usd="unknown", latency_ms="unknown", first_token_ms="unknown",
+               shadow_calls=0)
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, "a", encoding="utf-8") as handle:
+        handle.write(json.dumps(row, default=str) + "\n")
+        handle.flush()
+        os.fsync(handle.fileno())
+    return row
+
+
 def window_status(rows):
     eligible = [row for row in rows if row.get("prompt_hash") and row.get("data_asof")]
     if not eligible:
