@@ -17,7 +17,7 @@ def test_inclusion_is_not_validation_and_i_learned_is_not_adoption(tmp_path):
 
 def test_restart_rereads_the_cursor_and_covers_every_seat(tmp_path):
     path = tmp_path / "trace.jsonl"
-    record_included("macro", ["m-1"], "prompt", str(path))
+    record_included("macro", ["m-1"], "prompt", str(path), task_id="macro-task")
     again = load(str(path))
     assert again[0]["lesson_ids"] == ["m-1"]
     states = {row["seat"]: row["state"] for row in coverage(again)}

@@ -445,9 +445,9 @@ def _dash_block(seat, n=1800):   # seatagents_20261103 + master fixer A21/B12: e
     try:
         from veteran_desk import dash_context as _DC; return _compact_dash(seat, _DC.block(seat, n=n) or "")
     except Exception: return ""
-def _brain_block(seat, cap=900):   # seatagents_20261103: MY FACTS / JOURNAL / LESSONS from state/thf/seat_brain/<seat>/
+def _brain_block(seat, cap=900, task_id=None):   # seatagents_20261103: MY FACTS / JOURNAL / LESSONS from state/thf/seat_brain/<seat>/
     try:
-        from veteran_desk import seat_brain as SB; return SB.prompt_block(seat, cap)
+        from veteran_desk import seat_brain as SB; return SB.prompt_block(seat, cap, task_id=task_id)
     except Exception: return ""
 def _chain_line(seat):   # seatagents_20261103: the fixed reporting chain Brett <-> Head Trader <-> Marcus <-> seats (Brett 21:45 WITA 2 Nov)
     if seat == HT: return ("REPORTING CHAIN: Brett talks ONLY to you. You pass instructions down through Marcus (head_of_desk) with to_seats, or direct to a seat when urgent (cc Marcus). "
@@ -617,7 +617,7 @@ def prompt(seat, msg, ctx):
             "Your seat_scan (in market context) is YOUR deterministic scan of your whole slice (coverage counts + top ranked); use it, not just the engine top10. Stale/missing bars are auto-repaired by thf_scan/feedkeeper (no need to flag Marcus for that).\n"
             "%s"
             "Answer ONLY a JSON object: {\"to_marcus\": \"optional msg to Marcus\", \"to_seats\": {}, \"report_to_marcus\": \"optional FORMAL report up the chain (fills/closes/misses/lessons/faults) or empty\",%s \"reply\": \"Direct and in character; default <=90 words, honour the owner requested report length or item count\", \"checked\": [{\"sym\":..,\"grade\":\"A|B|C\",\"R\":<float reward:risk>,\"entry\":..,\"stop\":..,\"target\":..,\"why_not_armed\":\"..or empty\"}], \"blocks\": \"what blocks you and the fix\", \"brain_review\": {\"lesson\": \"only for a learning review\", \"hypothesis\": \"\", \"next_check\": \"\", \"evidence\": []}}" % (
-            nm, seat, json.dumps(ps)[:1800], mj, md, json.dumps(_facts_for_prompt(seat, _mp)), _money(seat) + (("\n" + _mp) if _mp else ""), _brain_block(seat), _dash_block(seat), _mkt_json(mkt), json.dumps(CP.thread_context(ctx, seat, max_turns=8, max_chars=1800), ensure_ascii=True), msg.get("text") or "",
+            nm, seat, json.dumps(ps)[:1800], mj, md, json.dumps(_facts_for_prompt(seat, _mp)), _money(seat) + (("\n" + _mp) if _mp else ""), _brain_block(seat, task_id=msg.get("id")), _dash_block(seat), _mkt_json(mkt), json.dumps(CP.thread_context(ctx, seat, max_turns=8, max_chars=1800), ensure_ascii=True), msg.get("text") or "",
             _img_note, ("This is a PUSH: run a fresh hunt now over your universe within your normal limits. Check 4-8 names, grade each, give R for the best, say why any are not armed. Never exceed risk rails.\n" if (push and not staff) else "") + _rm,
             ids, _mail_rules, json.dumps(_inbox(seat)), _chain_line(seat), extra, schema_extra))
 def _inbox(seat):   # seatmail_20261102
@@ -768,7 +768,7 @@ def _trace_answer(seat, msg, d, prompt=None):
     try:
         if trace:
             from veteran_desk import seat_brain as _SB
-            _SB.after_chat(seat, (msg or {}).get("text"), (d or {}).get("reply"), (d or {}).get("_brain"))
+            _SB.after_chat(seat, (msg or {}).get("text"), (d or {}).get("reply"), (d or {}).get("_brain"), task_id=(msg or {}).get("id"))
         if shadow:
             from veteran_desk import thf_shadow_bench as _BX
             _BX.note_production(dict(task_id=(msg or {}).get("id"), seat=seat, role="chat", task_class="chat",
@@ -1309,7 +1309,7 @@ def _engineer_answer(text, images=None, root=None, reply_to=None, ai="auto"):
         r = AR.ask(p, ai, SE); d = parse(r.get("text")); t = str(d.get("reply") or r.get("text") or "").strip()[:2000]; mode = str(r.get("brain") or "ai")
         t = _brain_back(SE, dict(_brain=mode, _model=r.get("model")), t)
         try:
-            from veteran_desk import seat_brain as _SB; _SB.after_chat(SE, text, t, mode)
+            from veteran_desk import seat_brain as _SB; _SB.after_chat(SE, text, t, mode, task_id=reply_to)
         except Exception: pass
         return "Simon (engineer, owner of the fixer): " + t, mode
     except Exception as x:

@@ -174,8 +174,9 @@ def run(D,use_llm=True,queue=True,asof=None,queue_path=None,only=None):
         if not os.environ.get("PYTEST_CURRENT_TEST") or os.environ.get("THF_LESSON_TRACE"):
             try:
                 from veteran_desk import seat_brain as brain
-                brain.prompt_block(seat, 1100)
-                if raw: brain.after_chat(seat, "round", raw, brain=model)
+                task = runid + "-" + seat
+                brain.prompt_block(seat, 1100, task_id=task)
+                if raw: brain.after_chat(seat, "round", raw, brain=model, task_id=task)
             except Exception:
                 pass
         # Only the main-thread admitted result may update memory, heartbeat or

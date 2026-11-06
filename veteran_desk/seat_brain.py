@@ -204,20 +204,14 @@ def after_round(seat, j, wake=None):
                 str(j.get("thesis") or j.get("reason") or j.get("why_not_choppy") or "")[:160], (" | mailed %s" % ",".join(list(ts)[:4])) if ts else "", (" | report_to_marcus") if j.get("report_to_marcus") else ""))
         lessons_from_book(seats=[seat]); ensure(seat)
     except Exception: pass
-def after_chat(seat, text, reply, brain=None):
+def after_chat(seat, text, reply, brain=None, task_id=None):
     trace = os.environ.get("THF_LESSON_TRACE")
     if not trace and not os.environ.get("PYTEST_CURRENT_TEST"):
         trace = os.path.join(BASE, "state", "thf", "lesson_trace.jsonl")
     if trace:
         try:
             from veteran_desk import lesson_trace as LT
-            included = []
-            for row in reversed(LT.load(trace)):
-                if row.get("seat") == seat and row.get("level") == "included":
-                    included = row.get("lesson_ids") or []
-                    break
-            cited = LT.interpret_reply(reply, included)
-            LT.append(trace, dict(cited, seat=seat, source="seat_brain.after_chat", utc=LT._now()))
+            LT.record_citation(seat, reply, trace, task_id)
         except Exception:
             pass
     if os.environ.get("PYTEST_CURRENT_TEST") and not trace: return None
@@ -225,7 +219,7 @@ def after_chat(seat, text, reply, brain=None):
     except Exception: pass
 # ---------------- prompt block ----------------
 TODAY_RX = __import__("re").compile(r",?\s*today\s+[-+]?A\$\s?[-+]?\d[\d,]*(?<=\d)(?:\.\d+)?", __import__("re").I)
-def prompt_block(seat, cap=1100):
+def prompt_block(seat, cap=1100, task_id=None):
     """Retain the latest saved own review and newest own lesson within the cap.
 
     Complete lesson text/ref takes priority over optional structured fields,
@@ -279,8 +273,12 @@ def prompt_block(seat, cap=1100):
             trace = os.environ.get("THF_LESSON_TRACE")
             if trace or not os.environ.get("PYTEST_CURRENT_TEST"):
                 from veteran_desk import lesson_trace as LT
-                LT.record_included(seat, [item[0].get("ref") for item in selected], "seat_brain.prompt_block",
-                                   trace or os.path.join(BASE, "state", "thf", "lesson_trace.jsonl"))
+                dest = trace or os.path.join(BASE, "state", "thf", "lesson_trace.jsonl")
+                refs = [item[0].get("ref") for item in selected]
+                if task_id:
+                    LT.record_included(seat, refs, "seat_brain.prompt_block", dest, task_id=task_id)
+                elif seat in LT.ADMINS:
+                    LT.record_admin_available(seat, refs, dest)
         except Exception:
             pass
         for title, values in (("FACTS", F[:8]), ("JOURNAL", [TODAY_RX.sub("", x[2:]) for x in reversed(J)])):

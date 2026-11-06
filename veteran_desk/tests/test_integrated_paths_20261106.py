@@ -54,9 +54,9 @@ def test_brain_then_chat_then_validated_check(tmp_path, monkeypatch):
     monkeypatch.setattr(SB, "DIR", str(tmp_path / "brains"))
     monkeypatch.setenv("THF_LESSON_TRACE", str(tmp_path / "trace.jsonl"))
     SB.lesson("banks", "trade", "Stop was respected.", ref="lesson-banks-1")
-    text = SB.prompt_block("banks", 1100)
+    text = SB.prompt_block("banks", 1100, task_id="round-banks")
     assert "ref=lesson-banks-1" in text
-    SB.after_chat("banks", "task", "Noted ref=lesson-banks-1. I learned nothing new.", brain="fixture")
+    SB.after_chat("banks", "task", "Noted ref=lesson-banks-1. I learned nothing new.", brain="fixture", task_id="round-banks")
     LT.record_validated("banks", "lesson-banks-1", os.environ["THF_LESSON_TRACE"],
                        dict(check="holdout_no_rule_change", result="rules unchanged"))
     rows = LT.load(os.environ["THF_LESSON_TRACE"])
@@ -74,8 +74,8 @@ def test_brain_records_outside_pytest_without_an_env_flag(tmp_path, monkeypatch)
     monkeypatch.delenv("THF_LESSON_TRACE", raising=False)
     monkeypatch.delenv("PYTEST_CURRENT_TEST", raising=False)
     SB.lesson("macro", "trade", "Stop was respected.", ref="lesson-macro-1")
-    assert "ref=lesson-macro-1" in SB.prompt_block("macro", 1100)
-    SB.after_chat("macro", "task", "Noted ref=lesson-macro-1.", brain="fixture")
+    assert "ref=lesson-macro-1" in SB.prompt_block("macro", 1100, task_id="macro-round")
+    SB.after_chat("macro", "task", "Noted ref=lesson-macro-1.", brain="fixture", task_id="macro-round")
     path = tmp_path / "state" / "thf" / "lesson_trace.jsonl"
     rows = LT.load(str(path))
     assert rows[0]["level"] == "included"

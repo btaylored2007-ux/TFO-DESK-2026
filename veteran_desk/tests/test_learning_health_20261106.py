@@ -16,12 +16,15 @@ from veteran_desk import thf_shadow_sampler as SAMPLER
 
 def test_uncited_close_stays_insufficient_and_a_cited_close_keeps_the_book_net(tmp_path):
     path = tmp_path / "trace.jsonl"
-    LT.record_included("banks", ["trade-1"], "seat_brain.prompt_block", str(path))
-    uncited = LT.interpret_reply("I learned to press the trade.", ["trade-1"])
-    LT.append(str(path), dict(uncited, seat="banks", source="seat_brain.after_chat"))
+    LT.record_included("banks", ["trade-1"], "seat_brain.prompt_block", str(path), task_id="inject-1")
+    uncited = LT.record_citation("banks", "I learned to press the trade.", str(path), "inject-1")
+    assert uncited["cited_ids"] == [] and "press the trade" not in json.dumps(uncited)
     first = LT.observe_book_close("banks", "trade-1", str(path), dict(source="book_close", trade_id="trade-1", net_aud=-4.5))
     assert first["level"] == "insufficient_data" and first["validated"] is False and first["reason"] == "included_not_cited"
-    LT.append(str(path), dict(LT.interpret_reply("See ref=trade-1.", ["trade-1"]), seat="banks", source="seat_brain.after_chat"))
+    LT.record_citation("banks", "See ref=trade-1.", str(path), "inject-1")
+    held = LT.observe_book_close("banks", "trade-1", str(path), dict(source="book_close", trade_id="trade-1", net_aud=-4.5))
+    assert held["level"] == "insufficient_data" and held["reason"] == "no_later_decision" and held["validated"] is False
+    LT.link_later_decision("banks", "trade-1", str(path), "decide-2", "inject-1")
     second = LT.observe_book_close("banks", "trade-1", str(path), dict(source="book_close", trade_id="trade-1", net_aud=-4.5))
     assert second["level"] == "outcome_link" and second["validated"] is False and second["causal_edge"] is False
     assert second["evidence"]["net_aud"] == -4.5 and second["evidence"]["link"] == "outcome"

@@ -120,8 +120,8 @@ def test_lesson_trace_survives_a_new_process(tmp_path):
         "SB.DIR=%r\n"
         "SB.BASE=%r\n"
         "SB.lesson('banks','trade','Stop was respected.', ref='lesson-banks-9')\n"
-        "print(SB.prompt_block('banks', 900))\n"
-        "SB.after_chat('banks','round','Noted ref=lesson-banks-9.', brain='fixture')\n" % (str(trace), str(brains), str(tmp_path))
+        "print(SB.prompt_block('banks', 900, task_id='banks-round'))\n"
+        "SB.after_chat('banks','round','Noted ref=lesson-banks-9.', brain='fixture', task_id='banks-round')\n" % (str(trace), str(brains), str(tmp_path))
     )
     env = dict(os.environ, PYTHONPATH="/agent/repos/TFO-DESK-2026")
     subprocess.check_call([sys.executable, str(script)], cwd="/agent/repos/TFO-DESK-2026", env=env)
