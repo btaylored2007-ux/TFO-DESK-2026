@@ -37,6 +37,8 @@ PAYLOADS = (
     "thf_feedkeeper.py",
     "tools/intraday_bars_pull.py",
     "tools/thf_chat.js",
+    "tools/thf_eli10.html",
+    "tools/thf_eli10.js",
     "tools/thf_chat_page.html",
     "tools/thf_chat.html",
     "assets/brand/mark.svg",

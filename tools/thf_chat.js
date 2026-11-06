@@ -6,9 +6,13 @@
 "use strict";
 var root=document.getElementById("dchat");if(!root||root.dataset.up)return;root.dataset.up="1";
 var PAGE=root.dataset.mode==="page";
+var HUB=root.dataset.mode==="hub";
 var CSS='#dchat{--bg:#f4f7f6;--card:#ffffff;--me:#e7eef4;--tx:#142033;--mu:#3e5160;--ac:#1f4e5f;--bd:#d5dee6;--hd:#10243e;--hdtx:#f4f7f6;background:var(--bg);color:var(--tx);font:16px Inter,"Noto Sans","Segoe UI",sans-serif;display:flex;flex-direction:column;position:relative;overflow:hidden;-webkit-font-smoothing:antialiased;text-align:left}'
 +'@media (prefers-color-scheme:dark){#dchat:not([data-theme=light]){--bg:#0c1622;--card:#152433;--me:#1d3348;--tx:#e7eef2;--mu:#c5d0d8;--ac:#8fb8c4;--bd:#2a3e50;--hd:#071422;--hdtx:#e7eef2}}'
 +'#dchat[data-mode=page]{height:100vh;height:100dvh}'
++'#dchat[data-mode=hub]{height:100%;max-width:none;margin:0;border:0;border-radius:0}'
++'#dchat[data-mode=hub] .dc-hd{min-height:40px;padding:4px 10px;background:var(--bg);color:var(--tx);border-bottom:1px solid var(--bd)}'
++'#dchat[data-mode=hub] .dc-hd h2,#dchat[data-mode=hub] .dc-hd a{color:var(--tx)}'
 +'#dchat[data-mode=embed]{height:min(78vh,calc(100dvh - 24px));max-width:820px;margin:8px auto;border:1px solid var(--bd);border-radius:14px}'
 +'#dchat *{box-sizing:border-box}#dchat a{color:var(--ac);text-decoration:none}#dchat button{font-family:inherit}'
 +'.dc-hd{display:flex;align-items:center;gap:10px;padding:8px 12px;padding-top:max(8px,env(safe-area-inset-top));border-bottom:1px solid var(--hd);flex:none;min-height:56px;background:var(--hd);color:var(--hdtx)}'
@@ -62,6 +66,7 @@ var CSS='#dchat{--bg:#f4f7f6;--card:#ffffff;--me:#e7eef4;--tx:#142033;--mu:#3e51
 +'.dc-sheet h3{margin:8px 14px 4px;font-size:12px;color:var(--mu);text-transform:uppercase;letter-spacing:.05em}.dc-sheet .dc-row{padding:8px 14px}.dc-sheet .dc-row .dc-av{width:36px;height:36px;font-size:15px}'
 +'.dc-amber{background:#5a4300;color:#fff;font-size:13px;padding:6px 12px}.dc-amber a{color:#fff;text-decoration:underline}'
 +'.dc-empty{color:var(--mu);text-align:center;padding:30px 20px;font-size:15px}.dc-paper{font-size:11px;color:var(--mu);border:1px solid var(--bd);border-radius:8px;padding:1px 6px;vertical-align:middle;font-weight:400}'
++'.dc-chain{margin:0;padding:6px 12px;font-size:12px;line-height:1.35;color:var(--mu);background:var(--card);border-bottom:1px solid var(--bd)}'
 +'.dc-ais{display:flex;gap:6px;flex-wrap:wrap;padding:6px 12px;border-bottom:1px solid var(--bd);flex:none;align-items:center;font-size:12px;color:var(--mu);cursor:pointer}'
 +'.dc-ai{flex:none;display:inline-flex;align-items:center;gap:6px;background:#fff;color:#142033;border:1px solid #5c7384;border-radius:12px;padding:4px 8px;white-space:nowrap;max-width:100%;font-weight:600}.dc-ai i{width:8px;height:8px;border-radius:50%;display:inline-block;flex:none;box-shadow:0 0 0 1px rgba(16,36,62,.25)}.dc-ai.st-down{border-color:#8c2f2f}.dc-ai.st-unknown,.dc-ai.st-cooling,.dc-ai.st-busy{border-color:#8a5a12}.dc-ai.st-up{border-color:#1d5c38}'
 +'.dc-ais.x{flex-wrap:wrap}.dc-ais.x .dc-ai{white-space:normal;line-height:1.3}'
@@ -109,7 +114,10 @@ function drawAis(){var w=$("#dc-aisw");if(w)w.innerHTML=aisHtml()}
 async function loadAis(){S.aisAt=Date.now();try{var r=await fetch("/api/ai_status",{cache:"no-store"});if(!r.ok)return;S.ais=(await r.json()).ais||null;drawAis()}catch(e){}}
 /* ---------- home ---------- */
 function renderHome(){S.view="home";
-root.innerHTML='<div class=dc-hd>'+(PAGE?'<a class=dc-ic href="/" title="Desk home">←</a>':'')+'<h2><span class=tt-brand>'+MARK+'<span class=tt-name>Transparent Trading</span></span> <span class=dc-paper>Paper</span></h2>'+(PAGE?'':'<a class=sub href="/desk/chat">Full screen</a>')+'<button class=dc-ic id=dc-new title="New chat">+</button></div>'
+var head=HUB
+?'<div class=dc-hd><h2>Chats <span class=dc-paper>Paper</span></h2><a class=sub href="/desk/chat">Full screen</a><button class=dc-ic id=dc-new title="New chat">+</button></div><p class=dc-chain>Reports go up: seat, then Marcus, then the Head Trader, then Brett. In a thread, To names who receives the note.</p>'
+:'<div class=dc-hd>'+(PAGE?'<a class=dc-ic href="/" title="Desk home">←</a>':'')+'<h2><span class=tt-brand>'+MARK+'<span class=tt-name>Transparent Trading</span></span> <span class=dc-paper>Paper</span></h2>'+(PAGE?'':'<a class=sub href="/desk/chat">Full screen</a>')+'<button class=dc-ic id=dc-new title="New chat">+</button></div>';
+root.innerHTML=head
 +'<div id=dc-aisw>'+aisHtml()+'</div><div class=dc-list id=dc-list></div><div class=dc-sb><input id=dc-q type=search placeholder="Search chats" autocomplete=off value="'+esc(S.q)+'"></div>';
 fillHome();var q=$("#dc-q");q.oninput=function(){S.q=q.value;fillHome()}}
 function fillHome(){var el=$("#dc-list");if(!el)return;var h=S.home;if(!h){el.innerHTML='<div class=dc-empty role=status>Loading conversations</div>';return}
