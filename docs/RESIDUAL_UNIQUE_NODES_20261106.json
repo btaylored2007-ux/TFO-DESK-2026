@@ -77,6 +77,24 @@
       "test_bridge_maintenance_20261104.py::MaintenanceTests::test_client_second_guard_rolls_back_reserved_quota"
     ]
   },
+  "after_fixture_commit_825d3b5": {
+    "command": "cd /tmp/thf-clean3 && python3 -m pytest veteran_desk/tests --continue-on-collection-errors -q --tb=line",
+    "result": "760 passed, 38 failed, 10 errors, 139 subtests passed",
+    "unique_nodes": 39,
+    "formula": "38 + 10 - 9 = 39",
+    "scoped_acceptance": "78 passed",
+    "oanda_isolated": "41 passed",
+    "passed_because_of_synthetic_fixtures": [
+      "test_guard_live_paths_20261029.py::test_guard_blocks_live_and_allows_tmp",
+      "test_book_weekly_hook.py::test_tick_writes_weekly_beside_temp_book_only",
+      "test_gate_stale_crypto_hkd_20261029.py::test_crypto_history_atr_is_coin_scale_not_etf",
+      "test_kai_rails_20261029.py::test_wide_atr_sized_down_not_skipped",
+      "test_book_payouts.py::test_tick_arms_only_ticked_with_stop_and_2to5pct_risk",
+      "test_offhours_rebook_20261028.py::test_flag_then_rebook"
+    ],
+    "arm_evidence": "With posture forced to calm/risk-off, the XOM long arms and fills. The BAC short in test_dedupe and test_no_rearm is expired with why 'execution rules: no borrow snapshot'. That check is in book.py and was not edited.",
+    "chatgpt_evidence": "Live baseline chatgpt_bridge.py sha256 e094a13c119e311be0e79fcecf715ed0d7cc28656b7d0b923740c2cc868e268a calls health() only from busy(). The git file also calls health() to detect ack_poll_v1 before the second client_guard, so the test sees one GET /health. The quota rollback still runs. The bridge was not edited and no archive was built, because the confirmed live hash is the pre-ack file and the deployed ack-poll bytes were not re-hashed."
+  },
   "notes": {
     "pandas": "test_paid_first_frame_shape_and_adjust raises ModuleNotFoundError: pandas. Documented as an environment package. Not vendored.",
     "weekly_hook": "OperationalError: unable to open database file. The weekly score opens the pit database. No scan-universe or sqlite fixture was invented, and the data/pit guard was not weakened.",
