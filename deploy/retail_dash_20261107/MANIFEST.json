@@ -1,11 +1,20 @@
 {
-  "phase": "prepared",
-  "status": "WAITING_CAPTURE",
+  "phase": "captured",
+  "status": "STAGED_PACKAGE_NOT_DEPLOYED",
   "singapore_deployed": false,
   "verified_live": false,
   "restart": "not performed",
   "known_base_name": "cursor/thf-permanent-upgrade-6037",
   "known_base_commit": "2c45d1a28a894578ca015f06ea7065c2d22f9c6a",
+  "capture": {
+    "archive_sha256": "08501bb2c227db294a9a1e87696426f662593e14e194daeb10afabb0ed09de93",
+    "captured_wita": "2026-11-07 07:48:37 WITA",
+    "dash_root": "/opt/tfo/dash/base",
+    "live_mirror": "/opt/tfo/live/thf",
+    "service": "tfo-dash-thf.service",
+    "dash_matches_live_for_packaged_paths": true,
+    "note": "The six existing PR19 paths in this capture are byte-identical on dash/base and live/thf, and those bytes are the base_sha256 values below. thf_home.py on the capture is not the repo copy and is not written."
+  },
   "book_must_remain": "b4453b503f33e34110519bf4d7a9bf391ecc2802edbd87acca3e77dc96b7e891",
   "replace": [
     {
@@ -47,6 +56,12 @@
   ],
   "new_files": [
     {"path": "assets/brand/apple-touch-icon.png", "target_sha256": "ed665f8c8c40c4e2013cf8b6b69e33235f38d9e00a716656e2644284c2b9bc6f"}
+  ],
+  "unchanged": [
+    {"path": "veteran_desk/thf_home.py", "sha256": "50d8b3dcab66bf154f2ce21433a84f7147ed446193e6c12f74731e15ed26c1ed"},
+    {"path": "veteran_desk/thf_http.py", "sha256": "f42e153507e89ec11bc1de9aa500318b5389503ef0fec2fe24ca3572db777bbd"},
+    {"path": "veteran_desk/thf_hub.py", "sha256": "4959eb8b58aa7db5aa3ede86877eb4cf643e6ce87a25aa43b5e4649641ddae80"},
+    {"path": "tools/thf_chat.html", "sha256": "4a42f9eecddcb7c080a60fa4c114bb544e684938f9f23897d19e85effb4705f1"}
   ],
   "anchors": [
     {"path": "veteran_desk/thf_home.py", "needles": ["thf_eli10.html", "thf_eli10.js"]},

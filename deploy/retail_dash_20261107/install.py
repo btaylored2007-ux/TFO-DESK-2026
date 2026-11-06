@@ -16,7 +16,7 @@ BACKUP = "state/thf/retail_dash_20261107_backups"
 RECEIPT = "state/thf/retail_dash_20261107_receipt.json"
 ROLLBACK_RECEIPT = "state/thf/retail_dash_20261107_rollback.json"
 _HERE = Path(__file__).resolve().parent
-REPO = _HERE.parents[1]
+SOURCE = _HERE / "payload"
 MANIFEST = json.loads((_HERE / "MANIFEST.json").read_text(encoding="utf-8"))
 BOOK_SHA = MANIFEST["book_must_remain"]
 BLOCKING = {
@@ -53,7 +53,7 @@ def _item(rel):
 
 
 def _source_ok(item, field="target_sha256"):
-    src = REPO / item["path"]
+    src = SOURCE / item["path"]
     if not src.is_file():
         return False
     expect = item.get(field) or item.get("sha256")
@@ -83,6 +83,14 @@ def classify(live):
         digest = sha256(book)
         rows.append(dict(path=BOOK, state="ALREADY_PROTECTED" if digest == BOOK_SHA else "BOOK_MISMATCH", sha256=digest))
     rows.extend(deptest(live))
+    for item in MANIFEST["unchanged"]:
+        rel = item["path"]
+        dest = live / rel
+        if not dest.is_file():
+            rows.append(dict(path=rel, state="ABSENT_REFUSED", sha256=None))
+            continue
+        current = sha256(dest)
+        rows.append(dict(path=rel, state="UNCHANGED" if current == item["sha256"] else "BLOCKED", sha256=current))
     for item in MANIFEST["replace"]:
         rel = item["path"]
         if not _source_ok(item):
@@ -193,7 +201,7 @@ def apply_plan(live_root, rows, pin):
             rel = row["path"]
             item = _item(rel)
             dest = live / rel
-            src = REPO / rel
+            src = SOURCE / rel
             if row["state"] == "REPLACE":
                 before[rel] = sha256(dest)
                 backup = live / BACKUP / rel
@@ -248,6 +256,10 @@ def rollback(live_root):
     receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
     if receipt.get("verified_live") or receipt.get("singapore_deployed"):
         return False
+    for item in MANIFEST["unchanged"]:
+        dest = live / item["path"]
+        if not dest.is_file() or sha256(dest) != item["sha256"]:
+            return False
     before = {}
     after = {}
     for rel in receipt.get("installed_new") or []:
