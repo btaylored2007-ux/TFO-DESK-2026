@@ -8,4 +8,10 @@ def test_guard_blocks_live_and_allows_tmp():
     assert len(C.VIOLATIONS) == n + 2
     del C.VIOLATIONS[n:]   # expected probes, not real violations
     p = os.path.join(tempfile.mkdtemp(), "ok.json"); open(p, "w").write("{}"); assert open(p).read() == "{}"
-    assert open(os.path.join(C.ROOT, "reports", "veteran_desk_book.json")).read(1)   # reads allowed
+    live_book = os.path.join(C.ROOT, "reports", "veteran_desk_book.json")
+    try:
+        assert open(live_book).read(1)   # a present live book may be read
+    except FileNotFoundError:
+        pass   # this checkout has no owner ledger; a missing file is not a blocked read
+    except PermissionError:
+        raise AssertionError("the guard blocked a read of the live book path")

@@ -17,7 +17,9 @@ def test_blocks():
 def test_aplus_without_agreeing_challenger_sized_down(): assert g(ch=dict(call="STAND_ASIDE"))["risk_aud"] == 500
 def test_veteran_book_not_armable_by_engines(): assert not FG.enabled("veteran")
 def test_full_pipeline_mocked_llm_temp_queue():
-    q = os.path.join(tempfile.mkdtemp(), "state", "funder_queue.json"); real_before = open(FG.QUEUE).read()
+    q = os.path.join(tempfile.mkdtemp(), "state", "funder_queue.json")
+    try: real_before = open(FG.QUEUE).read()
+    except FileNotFoundError: real_before = '{"entries":{}}'
     def fake(engine, prompt, timeout=None):
         if "Marcus Hale" in prompt or "DATA:\n" not in prompt or "Reply in under 80 words" in prompt: return "note"
         if "blind challenger" in prompt: return json.dumps(dict(call="LONG", conviction=3, reason="trend"))
@@ -30,7 +32,9 @@ def test_full_pipeline_mocked_llm_temp_queue():
     try: log = D.run(use_llm=True, queue=True, queue_path=q)
     finally: D.llm = orig; D.SD, D.SCORE, D.HEALTH, D.CARD, D.REPORTS = keep
     _ids = lambda txt: set(json.loads(txt).get("entries", {}))
-    new_real = _ids(open(FG.QUEUE).read()) - _ids(real_before); mine = {r.get("id") for r in log["proposals"]}
+    try: after = open(FG.QUEUE).read()
+    except FileNotFoundError: after = '{"entries":{}}'
+    new_real = _ids(after) - _ids(real_before); mine = {r.get("id") for r in log["proposals"]}
     assert not (new_real & mine), new_real & mine   # test never writes its proposals to the real queue (real queue legitimately holds live VET- entries now)
     Q = json.load(open(q)) if os.path.exists(q) else {"entries": {}}
     for e in Q["entries"].values(): assert e["book"] == "veteran" and e["info_only"] and e["state"] == FG.WAIT and e["paper_only"]

@@ -16,6 +16,7 @@ def test_tick_arms_only_ticked_with_stop_and_2to5pct_risk():
     base = dict(book="veteran", ticker="XOM", side="LONG", entry=100.0, stop=96.0, target=108.0, state=FG.WAIT, grade="A", seat_risk_pct=.02, tags=dict(strategy="veteran:energy grade A"))   # tfo_review_fix_20261031: A now 1%; use B for 2% mechanics
     json.dump(dict(entries={"A": dict(base, id="A", decision="approve"), "B": dict(base, id="B", decision=None), "C": dict(base, id="C", decision="approve", stop=0)}), open(q, "w"))
     BK.BOOK = os.path.join(tmp, "book.json"); BK.firm_ok = lambda: (True, "OK"); _so = BK.session_open; BK.session_open = lambda v, t: True   # fix 2/7: session gate pinned open in unit test
+    _po = BK.posture; BK.posture = lambda: ("calm", "risk-off")   # this checkout has no news regime file; unknown posture holds the arm
     _nw = BK.now; BK.now = lambda: dt.datetime(2026, 10, 28, 15, 0, tzinfo=dt.timezone.utc)   # clock pinned 23:00 WITA (outside open-avoid window)
     px = lambda s: dict(last=99.9, hi=100.2, lo=99.5)
     import veteran_desk.payouts as PY; PY.DEFAULT_OUT_PATH = os.path.join(tmp, "p.json")
@@ -24,7 +25,7 @@ def test_tick_arms_only_ticked_with_stop_and_2to5pct_risk():
     p = D["seats"]["energy"]["positions"]["A"]; assert .02 * 500000 * .98 <= p["risk_aud"] <= .05 * 500000 and p["stop"] == 96.0
     D = BK.tick(price_fn=px, au=0.65, queue_path=q); assert D["seats"]["energy"]["positions"]["A"]["status"] == "open"
     D = BK.tick(price_fn=lambda s: dict(last=95, hi=96, lo=95), au=.65, queue_path=q); assert D["seats"]["energy"]["closed"][-1]["exit_reason"] == "stop"
-    BK.session_open = _so; BK.now = _nw
+    BK.session_open = _so; BK.now = _nw; BK.posture = _po
     assert D["seats"]["energy"]["closed"][-1]["net_aud"] < 0
 if __name__ == "__main__":
     for k, v in dict(globals()).items():
