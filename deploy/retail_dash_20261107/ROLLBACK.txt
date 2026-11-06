@@ -1,0 +1,36 @@
+Retail dashboard package — stage and roll back
+This file does not deploy. Do not run it against /opt/tfo from the cloud.
+
+The installer refuses /opt/tfo/live, /opt/tfo/dash, and any git checkout.
+Copy the captured tree to a staging directory first. The real dash stays untouched until an operator, on that machine, decides to apply and then restarts only tfo-dash-thf.service.
+
+Pin, against a staging copy of the 2026-11-07 07:48:37 WITA capture:
+
+  python3 deploy/retail_dash_20261107/install.py --root <staging> --staging --record-capture --out <pin.json>
+
+Apply only if the pin says PINNED. A BASE_OR_DEPTEST_MISMATCH pin must not be applied.
+
+  python3 deploy/retail_dash_20261107/install.py --root <staging> --pin <pin.json> --staging --apply
+
+The apply writes, inside that staging root only:
+
+  state/thf/retail_dash_20261107_receipt.json
+  state/thf/retail_dash_20261107_backups/
+
+The receipt status is APPLIED_NOT_DEPLOYED. restart is "not performed". verified_live is false.
+Before and after sha256 values are in the receipt. The book file is checked and not written.
+veteran_desk/thf_home.py, thf_http.py, thf_hub.py, and tools/thf_chat.html must stay on the captured hashes. A different hash blocks the run.
+
+Roll back that same staging root:
+
+  python3 deploy/retail_dash_20261107/install.py --root <staging> --staging --rollback
+
+Rollback refuses if a replaced file is no longer the recorded target, if a backup is missing, or if an unchanged captured file has drifted.
+It writes state/thf/retail_dash_20261107_rollback.json with the hashes before and after the restore.
+
+A copy that fails part-way is undone before a receipt is written. The staging tree returns to the captured bytes.
+
+Nginx is not in this package. POST /api/chat and POST /desk/chat stay 403 on 100.120.8.11:18870. Do not add those paths to the POST allow-list.
+Loopback remains 127.0.0.1:28870. Do not restart tick, engine, or book services. A dashboard restart, if an operator chooses one later, is tfo-dash-thf.service only, and only after the staged bytes have been reviewed.
+
+GET success and an empty POST that returns 400 prove the route exists. They do not prove a chat send or an image upload.

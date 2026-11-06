@@ -1,0 +1,54 @@
+{
+  "phase": "captured",
+  "status": "STAGED_PACKAGE_NOT_DEPLOYED",
+  "singapore_deployed": false,
+  "verified_live": false,
+  "real_device_gui": "not verified",
+  "restart": "not performed",
+  "package": "deploy/retail_dash_20261107",
+  "ui_pr": "https://github.com/btaylored2007-ux/TFO-DESK-2026/pull/19",
+  "capture_archive_sha256": "08501bb2c227db294a9a1e87696426f662593e14e194daeb10afabb0ed09de93",
+  "captured_wita": "2026-11-07 07:48:37 WITA",
+  "dash_root": "/opt/tfo/dash/base",
+  "live_mirror": "/opt/tfo/live/thf",
+  "service_if_ops_restarts": "tfo-dash-thf.service",
+  "listen": "127.0.0.1:28870",
+  "owner_nginx": "100.120.8.11:18870",
+  "dependency_closure": {
+    "replaced_only_when_capture_hash_matches": [
+      "tools/thf_eli10.html",
+      "tools/thf_eli10.js",
+      "tools/thf_chat.js",
+      "tools/thf_chat_page.html",
+      "veteran_desk/thf_dash.py",
+      "veteran_desk/thf_chat_home.py"
+    ],
+    "capture_equals_recorded_base": true,
+    "dash_base_equals_live_thf_for_those_six": true,
+    "not_written": [
+      "veteran_desk/thf_home.py",
+      "veteran_desk/thf_http.py",
+      "veteran_desk/thf_hub.py",
+      "tools/thf_chat.html",
+      "veteran_desk/book.py",
+      "nginx"
+    ],
+    "thf_home_left_on_capture": "50d8b3dcab66bf154f2ce21433a84f7147ed446193e6c12f74731e15ed26c1ed",
+    "why_home_is_not_copied": "The captured home module does not match the repo copy. It still inlines the ELI10 page. The repo copy has newer feed-fact wording. That wording is not part of this UI delta and is not applied.",
+    "test_file_not_installed_on_dash": "veteran_desk/tests/test_retail_mobile_ui_20261107.py",
+    "new_file": "assets/brand/apple-touch-icon.png"
+  },
+  "acceptance": {
+    "home_trades_seats_health_chat": "source-checked on the payload; not rechecked on a phone",
+    "live_pnl_clock": "capture showed /api/home 200 with a WITA timestamp; the new layout was not served",
+    "navigation": "source-checked only",
+    "composer_advanced_controls": "source-checked only; not exercised on device",
+    "upload_routing_and_sender_labels": "capture probes show empty POST reaches the app with 400; no image or message was sent",
+    "brand_assets_serve": "unit-checked against the new route; live capture still 404",
+    "ai_plumbing_hidden": "source-checked only; live /api/ai_status was still 200 at capture",
+    "stale_missing_urgent_honest": "source-checked only",
+    "post_api_chat_and_desk_chat": "403 on Tailnet nginx by design; not broadened",
+    "singapore_forward_test": "not run",
+    "real_device_gui": "not verified"
+  }
+}
