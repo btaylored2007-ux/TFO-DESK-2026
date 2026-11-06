@@ -308,19 +308,20 @@ def _jparse(txt):
     except Exception: return None
 def nightly(seats=None, ai=True, budget_s=3000, timeout_s=300, S=None):
     """Review own records; failed AI review preserves learned standing facts."""
-    S = S or _seats(); t0 = time.time(); out = {}
+    S = S or _seats(); t0 = time.time(); out = {}; stamp = now_wita()
     from veteran_desk import seat_registry as SR
     ids = seats or SR.mail_ids(S)
     lessons_from_book(S=S)
     for seat in ids:
         if seat not in S: continue
         P = ensure(seat, S); mode = "code"; note = ""
+        task = "nightly|%s|%s" % (stamp, seat)
         if ai and not os.environ.get("PYTEST_CURRENT_TEST") and time.time() - t0 < budget_s - timeout_s:
             try:
                 from veteran_desk import claude_brain as CB
-                prompt_block(seat, 1100)
+                prompt_block(seat, 1100, task_id=task)
                 txt, lab = CB.ask(review_prompt(seat, P), seat=seat, timeout=timeout_s, kind="review"); d = _jparse(txt) or {}
-                after_chat(seat, "nightly", txt, lab)
+                after_chat(seat, "nightly", txt, lab, task_id=task)
                 facts = [str(x) for x in (d.get("facts") or []) if str(x).strip()]
                 if len(facts) >= 3:
                     write_facts(seat, facts, lab); mode = lab
@@ -339,9 +340,9 @@ def nightly(seats=None, ai=True, budget_s=3000, timeout_s=300, S=None):
                             ai_review_completed=False, standing_facts_preserved=True)
             _write(os.path.join(_d(seat), "code_snapshot.json"), json.dumps(snapshot, indent=1))
             journal(seat, "nightly_deferred", "AI review incomplete; prior standing facts preserved; deterministic snapshot saved separately" + ((" (" + note + ")") if note else ""))
-        out[seat] = dict(mode=mode, note=note[:160], facts=len(read_facts(seat)),
+        out[seat] = dict(mode=mode, note=note[:160], facts=len(read_facts(seat)), task_id=task,
                          ai_review_completed=mode != "code", standing_facts_preserved=mode == "code")
-    st = dict(wita=now_wita(), secs=round(time.time() - t0), seats=out); _write(STATUS, json.dumps(st, indent=1))
+    st = dict(wita=stamp, secs=round(time.time() - t0), seats=out); _write(STATUS, json.dumps(st, indent=1))
     if not os.environ.get("PYTEST_CURRENT_TEST"):
         try:
             from veteran_desk import lesson_trace as LT

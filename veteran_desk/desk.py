@@ -564,14 +564,14 @@ RESEARCH_MANDATE_PROMPT = (
     "and next_action to the data you need. That is incomplete research, not a finished hunt and not an order. "
     "Grade A or A+ only with fresh source-backed prices and fees-and-slippage net R. "
     "Standing aside stays allowed when the candidate is not executable. Never set confirm true for a candidate you cannot defend.\n")
-def prop_prompt(seat, pk):
+def prop_prompt(seat, pk, task_id=None):
     return (_pnl_open(seat) + _my_positions(seat, pk) + _paid_context(seat.get("seat")) + f"You are the '{seat['seat']}' seat on a veteran trading desk. Role: {seat['description']}\nPlaybook (habits of veteran traders):\n- " + "\n- ".join(seat["playbook"]) +
             f"\nFUND POSTURE: risk-off fund tilted slightly speculative. Favour defensive sectors; tech/neocloud allowed LONG or SHORT on the data. Shorts need borrow. 'spec' sleeve = small asymmetric winner with a TIGHT stop (<=1.5 ATR) and >=3:1 payoff, never a chase.\nNEWS REGIME: {pk.get('news_regime')}\nSCAN: {pk.get('scan') or 'hand list only'}\n{RULES}\nPick at most ONE setup from the instruments below, or stand aside. Grade honestly: A+ only if trend, clean chart, catalyst/reason and room to target all line up. "
             "Schema: {\"action\":\"propose\"|\"stand_aside\",\"ticker\":str,\"side\":\"LONG\"|\"SHORT\",\"entry\":num,\"stop\":num,\"target\":num,\"grade\":\"A+\"|\"A\"|\"B\","
             "\"sleeve\":\"core\"|\"spec\",\"horizon_days\":int,\"thesis\":str,\"catalyst\":str|null (fresh news/catalyst headline; REQUIRED for grade B unless last-bar volume >=1.5x avg),\"invalidation\":str,\"why_not_choppy\":str,\"graded\":[{\"ticker\":str,\"grade\":\"A+\"|\"A\"|\"B\"|\"reject\",\"reason\":str}],"
             "\"risk_pct\":num (A only: A risk 1.0-2.0 % of seat equity (1% allowed until proven; lift to 2% once proven; do NOT invent a higher size); A+ is 4%; non-A needs 2%),\"lessons_respected\":str,\"to_seats\":{\"<seat id>|all|marcus|head_trader\":\"<=400 chars\"}|null (seatagents_20261103: message colleagues now),\"report_to_marcus\":str|null (formal report up the chain: fills/closes/misses/lessons/faults),\"confirm\":true (set ONLY if you want this proposal armed; omitted -> never arms),\"ranked\":[{\"ticker\":str,\"side\":\"LONG\"|\"SHORT\",\"grade\":\"A+\"|\"A\"|\"B\",\"why\":str}],\"best_long\":str|null,\"best_short\":str|null}\n"   # tfo_seatpipe_3_20261030 + tfo_seatpipe_7a_20261030
             "Always fill 'ranked' with your best 3-5 setups (A+/A/B, best first) even if you stand aside, and name best_long and best_short (null if none worth a B). The proposal, if any, must be ranked[0].\n"
-            "If DATA has candidates_ranked: grade its top 10 in rank order in 'graded' (each reject needs a one-line reason).\n" + "".join(x + "\n" for x in seat.get("prompt_overrides", [])) + "DATA:\n" + json.dumps(_data_for_prompt(pk), separators=(",", ":"), default=str) + _dash_block(seat) + _lessons_slim(seat) + _ll_block(seat) + _thf_line(seat) + _seat_mem(seat) + _seat_ctx(seat) + _mail_block(seat, pk) + _brain_block(seat) + RESEARCH_MANDATE_PROMPT + PAID_PUSH_RULE)
+            "If DATA has candidates_ranked: grade its top 10 in rank order in 'graded' (each reject needs a one-line reason).\n" + "".join(x + "\n" for x in seat.get("prompt_overrides", [])) + "DATA:\n" + json.dumps(_data_for_prompt(pk), separators=(",", ":"), default=str) + _dash_block(seat) + _lessons_slim(seat) + _ll_block(seat) + _thf_line(seat) + _seat_mem(seat) + _seat_ctx(seat) + _mail_block(seat, pk) + _brain_block(seat, task_id) + RESEARCH_MANDATE_PROMPT + PAID_PUSH_RULE)
 def _data_for_prompt(pk):   # seatagents_20261103: the colleague inbox is rendered as its own prompt section, not buried (and trimmed) inside DATA
     q = _slim(compact_pk(pk))
     if isinstance(q, dict) and ("seat_inbox" in q or "seat_inbox_note" in q or "_fit" in q):   # pinlive_20261103: the pin context never reaches the prompt (non-compact path too)
@@ -601,9 +601,9 @@ def _dash_block(seat):   # seatagents_20261103 + master fixer A21/B12: every sea
         except Exception: pass
         return ("\n" + b + "\n") if b else ""
     except Exception: return ""
-def _brain_block(seat):   # seatagents_20261103: MY FACTS / JOURNAL / LESSONS from the seat's persistent brain (state/thf/seat_brain/<seat>/)
+def _brain_block(seat, task_id=None):   # seatagents_20261103: MY FACTS / JOURNAL / LESSONS from the seat's persistent brain (state/thf/seat_brain/<seat>/)
     try:
-        from veteran_desk import seat_brain as _SB; return _SB.prompt_block(seat["seat"], 1100)
+        from veteran_desk import seat_brain as _SB; return _SB.prompt_block(seat["seat"], 1100, task_id=task_id)
     except Exception: return ""
 def _after_round(seat, j):   # seatagents_20261103: deliver round-time to_seats / report_to_marcus (seat_mail: mailbox + chat post + wake) and journal the round. THF only, never in tests.
     if os.environ.get("PYTEST_CURRENT_TEST") or os.environ.get("THF_DESK") != "1": return None
@@ -840,8 +840,14 @@ def run(use_llm=True, queue=True, asof=None, queue_path=None, only=None):
         else: packs = dict([_pack_one(s) for s in props])
     def go(s):
         if not use_llm: return s["seat"], None, "llm disabled"
-        try: txt = llm(s["engine"], prop_prompt(s, packs[s["seat"]])); j = parse_json(txt)   # seatbrain_20261102: per-seat brain, code-only fallback on fail/timeout
+        task = runid + "-" + s["seat"]
+        try: txt = llm(s["engine"], prop_prompt(s, packs[s["seat"]], task)); j = parse_json(txt)   # seatbrain_20261102: per-seat brain, code-only fallback on fail/timeout
         except Exception as e: txt, j = "llm_err %s" % type(e).__name__, None
+        if txt and not str(txt).startswith("llm_err"):
+            try:
+                from veteran_desk import seat_brain as _SB
+                _SB.after_chat(s["seat"], "round", txt, task_id=task)
+            except Exception: pass
         if j is None and os.environ.get("THF_DESK") == "1": j = _code_fallback(s["seat"]); txt = (txt or "") + " [brain_down -> code fallback]"
         _seat_heartbeat(s["seat"], j)
         _after_round(s["seat"], j)   # seatagents_20261103
@@ -860,7 +866,13 @@ def run(use_llm=True, queue=True, asof=None, queue_path=None, only=None):
             pk = dict(packs[s["seat"]]); rk = pk.get("candidates_ranked") or []
             if len(rk) > 10: pk["candidates_ranked"] = rk[10:40]
             pk["rescan_note"] = "SECOND LOOK (flat first pass at a market open): your first pass stood aside. " + ("candidates_ranked now holds ranks 11-40 (unseen); grade its top 10 in 'graded'. " if len(rk) > 10 else "Re-check the same instruments for any A/A+ you missed. ") + "Same rules and gate; standing aside again is fine."
-            txt = llm(s["engine"], prop_prompt(s, pk)); j2 = parse_json(txt); _after_round(s["seat"], j2); return s["seat"], j2, (txt or "")[:400]   # seatagents_20261103
+            task = runid + "-" + s["seat"]
+            txt = llm(s["engine"], prop_prompt(s, pk, task)); j2 = parse_json(txt); _after_round(s["seat"], j2)
+            try:
+                from veteran_desk import seat_brain as _SB
+                _SB.after_chat(s["seat"], "round", txt, task_id=task)
+            except Exception: pass
+            return s["seat"], j2, (txt or "")[:400]   # seatagents_20261103
         with cf.ThreadPoolExecutor(min(SEAT_PARALLEL, max(1, len(flat)))) as ex: res2 = list(ex.map(go2, flat))   # rounddl_20261103
         for seat, j2, raw2 in res2:
             rescanned[seat] = dict(action=(j2 or {}).get("action"), ticker=(j2 or {}).get("ticker"), ranked=(j2 or {}).get("ranked"), graded=(j2 or {}).get("graded"))

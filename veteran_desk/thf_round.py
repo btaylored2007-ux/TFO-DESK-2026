@@ -151,7 +151,7 @@ def run(D,use_llm=True,queue=True,asof=None,queue_path=None,only=None):
         from veteran_desk import llm_backend as LB
         previous=(getattr(LB.LAST,"paired_trader",False),getattr(LB.LAST,"request_deadline",None),getattr(LB.LAST,"cancel_event",None))
         try:
-            prompt=D.prop_prompt(s,pk)
+            prompt=D.prop_prompt(s, pk, runid + "-" + seat)
             shadow_root=os.environ.get("THF_SHADOW_ROOT")
             if shadow_root or not os.environ.get("PYTEST_CURRENT_TEST"):
                 try:
