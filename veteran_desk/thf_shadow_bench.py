@@ -114,8 +114,26 @@ def note_production(task, path):
     return row
 
 
+def paired_task_ids(rows):
+    """A pair is the same task answered by all four providers. Logs and failures do not count."""
+    found = {}
+    for row in rows:
+        if row.get("shadow_calls") == 0 or row.get("kind") == "production_inference":
+            continue
+        if row.get("availability") not in (None, "answered") or not row.get("ok") or not row.get("output_hash"):
+            continue
+        if "fixture" in str(row.get("provider_actual") or "").lower():
+            continue
+        found.setdefault(row.get("task_id"), set()).add(row.get("provider_requested"))
+    needed = set(PROVIDERS)
+    return sorted(task_id for task_id, names in found.items() if task_id and needed <= names)
+
+
 def window_status(rows):
-    eligible = [row for row in rows if row.get("prompt_hash") and row.get("data_asof")]
-    if not eligible:
-        return dict(started=False, first_row_utc=None, n=0, note="window has not started")
-    return dict(started=True, n=len(eligible), note="clock starts at the first stored matched row, not before")
+    paired = paired_task_ids(rows)
+    if not paired:
+        return dict(started=False, first_row_utc=None, n=0, paired_tasks=0,
+                    note="window has not started; unavailable calls and production logs do not start it")
+    times = [row.get("utc") for row in rows if row.get("task_id") in paired and row.get("utc")]
+    return dict(started=True, first_row_utc=min(times) if times else None, n=len(paired), paired_tasks=len(paired),
+                note="clock starts at the first stored paired row, not before")

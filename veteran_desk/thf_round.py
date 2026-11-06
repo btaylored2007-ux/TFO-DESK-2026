@@ -142,6 +142,13 @@ def run(D,use_llm=True,queue=True,asof=None,queue_path=None,only=None):
         previous=(getattr(LB.LAST,"paired_trader",False),getattr(LB.LAST,"request_deadline",None),getattr(LB.LAST,"cancel_event",None))
         try:
             prompt=D.prop_prompt(s,pk)
+            shadow_root=os.environ.get("THF_SHADOW_ROOT")
+            if shadow_root or not os.environ.get("PYTEST_CURRENT_TEST"):
+                try:
+                    from veteran_desk import thf_shadow_sampler as SH
+                    SH.enqueue_production_prompt(shadow_root or D.BASE, seat, prompt, asof.isoformat(), runid+"-"+seat, role=s.get("role") or "trader")
+                except Exception:
+                    pass
             if not alive() or time.time()+65>=deadline:return seat,None,"round deadline before model submission"
             LB.LAST.paired_trader=True;LB.LAST.request_deadline=deadline;LB.LAST.cancel_event=cancel
             txt=D.llm(s["engine"],prompt)
@@ -161,6 +168,16 @@ def run(D,use_llm=True,queue=True,asof=None,queue_path=None,only=None):
         nonlocal used
         seat,j,raw=result[:3];model=result[3] if len(result)>3 else None
         entry=log["seats"].setdefault(seat,{})
+        from veteran_desk import research_mandate as RM
+        original=j if isinstance(j, dict) else {"empty_output": True, "action": None}
+        entry["research"]=RM.public_view(RM.record_round(seat, original, asof, "thf_round.admit", os.environ.get("THF_RESEARCH_LOG")))
+        if not os.environ.get("PYTEST_CURRENT_TEST") or os.environ.get("THF_LESSON_TRACE"):
+            try:
+                from veteran_desk import seat_brain as brain
+                brain.prompt_block(seat, 1100)
+                if raw: brain.after_chat(seat, "round", raw, brain=model)
+            except Exception:
+                pass
         # Only the main-thread admitted result may update memory, heartbeat or
         # mail. A timed-out daemon worker cannot do any of these after fallback.
         if use_llm:
@@ -177,16 +194,6 @@ def run(D,use_llm=True,queue=True,asof=None,queue_path=None,only=None):
                 except Exception:pass
 
         entry.update(trader=D.name(S,seat),engine=D.ran_engine(S[seat]["engine"]),reason=(j or {}).get("thesis") or (j or {}).get("reason") or (j or {}).get("why_not_choppy"),raw_ok=bool(j),action=(j or {}).get("action"),raw_head=None if j else raw,scan=packs[seat].get("scan"),graded=(j or {}).get("graded"),ranked=(j or {}).get("ranked"),best_long=(j or {}).get("best_long"),best_short=(j or {}).get("best_short"))
-        if isinstance(j, dict):
-            from veteran_desk import research_mandate as RM, thf_shadow_bench as SB
-            entry["research"]=RM.public_view(RM.assess(j, now=asof, seat=seat))
-            shadow = os.environ.get("THF_SHADOW_LOG")
-            if not shadow and raw and not os.environ.get("PYTEST_CURRENT_TEST"):
-                shadow = os.path.join(D.BASE, "state", "thf", "shadow_bench.jsonl")
-            if raw and shadow:
-                SB.note_production(dict(task_id=runid, seat=seat, role="trader", task_class="hunt",
-                                        prompt="round", data_asof=asof.isoformat(), text=raw,
-                                        provider=model or "unknown"), shadow)
         if second:entry["rescan"]=dict(action=(j or {}).get("action"),ticker=(j or {}).get("ticker"))
         try:
             from veteran_desk import thf_review as review

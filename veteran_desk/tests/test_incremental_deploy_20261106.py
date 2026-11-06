@@ -38,6 +38,18 @@ def test_unexpected_book_hash_blocks_and_apply_does_not_copy(tmp_path):
     assert dest.read_bytes() == before
     assert not (tmp_path / "veteran_desk" / "research_mandate.py").exists()
 
+def test_known_base_hash_is_replaceable_and_rollback_restores_it(tmp_path):
+    dest = tmp_path / "veteran_desk" / "desk.py"
+    dest.parent.mkdir(parents=True)
+    dest.write_text("live desk baseline\n")
+    # The installer only replaces a recorded base hash. This fixture uses the book rule
+    # for the protected file and a payload file whose base is unknown, so it stays blocked
+    # until the hash matches a recorded base. The book case is covered above.
+    blocked = run(tmp_path, apply=True)
+    assert "BLOCKED veteran_desk/desk.py" in blocked.stdout
+    assert blocked.returncode == 2
+    assert dest.read_text() == "live desk baseline\n"
+
 def test_empty_tree_dry_run_names_book_install_separately(tmp_path):
     result = run(tmp_path)
     assert result.returncode == 0

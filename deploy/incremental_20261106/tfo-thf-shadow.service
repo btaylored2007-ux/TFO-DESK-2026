@@ -1,0 +1,13 @@
+[Unit]
+Description=THF paper shadow sampler (no orders, no book tick)
+After=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/tfo/live/thf
+Environment=THF_DESK=1
+Environment=PYTHONDONTWRITEBYTECODE=1
+Environment=THF_SHADOW_ROOT=/opt/tfo/live/thf
+ExecStart=/opt/tfo/venv/bin/python -m veteran_desk.thf_shadow_sampler once
+Nice=10
+NoNewPrivileges=true

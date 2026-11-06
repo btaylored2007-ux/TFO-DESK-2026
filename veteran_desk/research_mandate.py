@@ -115,6 +115,33 @@ def arm_withheld(proposal, now=None):
     return view.get("blocked_by") or "research_not_executable"
 
 
+def record_round(seat, reply, asof=None, source="thf_round.admit", path=None):
+    """Persist one production proposal check. Empty output is not a trade and is not a finished hunt."""
+    payload = reply if isinstance(reply, dict) else {"empty_output": True, "action": None}
+    view = assess(payload, now=asof, seat=seat)
+    if payload.get("empty_output") or payload.get("action") is None and not payload.get("research_candidate"):
+        view["empty_output"] = True
+        view["hunt_satisfied"] = False
+        view["execution_eligible"] = False
+        view["forced_trade"] = False
+        if view.get("blocked_by") in (None, "no_candidate"):
+            view["blocked_by"] = "empty_output"
+            view["next_action"] = "zero model output is valid; do not invent a trade"
+    view["forced_trade"] = False
+    if path is None and os.environ.get("PYTEST_CURRENT_TEST"):
+        return view
+    if path is None:
+        root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        path = os.path.join(root, "state", "thf", "research_mandate.jsonl")
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    row = dict(view, source=source, asof=asof if isinstance(asof, str) else getattr(asof, "isoformat", lambda: None)())
+    with open(path, "a", encoding="utf-8") as handle:
+        handle.write(json.dumps(row, default=str) + "\n")
+        handle.flush()
+        os.fsync(handle.fileno())
+    return view
+
+
 def observe(seat, reply, asof=None, source="desk.run", path=None):
     if os.environ.get("PYTEST_CURRENT_TEST") and path is None:
         return None
