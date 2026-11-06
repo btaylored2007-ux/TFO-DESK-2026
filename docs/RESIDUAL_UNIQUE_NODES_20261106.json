@@ -77,6 +77,21 @@
       "test_bridge_maintenance_20261104.py::MaintenanceTests::test_client_second_guard_rolls_back_reserved_quota"
     ]
   },
+  "after_fixture_environment_2f5e315": {
+    "command": "cd /tmp/thf-clean5 && python3 -m pytest veteran_desk/tests --continue-on-collection-errors -q --tb=line",
+    "result": "779 passed, 20 failed, 0 errors, 139 subtests passed",
+    "unique_nodes": 20,
+    "formula": "20 failed + 0 errors",
+    "scoped_acceptance": "79 passed",
+    "oanda_isolated": "41 passed",
+    "book_sha256": "b4453b503f33e34110519bf4d7a9bf391ecc2802edbd87acca3e77dc96b7e891",
+    "pandas": "2.2.3 installed with python3 -m pip install --user pandas==2.2.3. Receipt docs/TEST_DEPENDENCY_RECEIPT_20261106.json. Without it, test_paid_first_frame_shape_and_adjust raises ModuleNotFoundError.",
+    "pit_guard": "Live P.con() still raises PermissionError and is asserted. The ten former guard nodes use a temp pit.sqlite.",
+    "borrow": "Dedupe and cancel-rearm use a synthetic fresh ibkr borrow file. test_short_without_borrow_snapshot_stays_blocked still requires the production reject.",
+    "chatgpt_repo_sha256": "c477d99674f5d6dd49bd2be60c21d35f8716fbd1f72e790ad7832c2645920098",
+    "chatgpt": "The delivery health probe now runs only after a maintenance recheck, and another recheck still runs immediately before the POST. A hold rolls the hourly slot back and does not call urlopen. Not deployed. The live file remains 26446b5b61218bfc370fff62988db47efecb7b8afafd15e694ceaecf35deac0c.",
+    "remaining": "The 20 book and gate policy nodes. They are not accepted."
+  },
   "after_historical_universe_a513cff": {
     "command": "cd /tmp/thf-clean4 && python3 -m pytest veteran_desk/tests --continue-on-collection-errors -q --tb=line",
     "result": "765 passed, 33 failed, 10 errors, 139 subtests passed",
