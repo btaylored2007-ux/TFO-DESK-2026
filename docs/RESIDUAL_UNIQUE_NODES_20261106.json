@@ -1,0 +1,88 @@
+{
+  "command": "cd /tmp/thf-clean2 && python3 -m pytest veteran_desk/tests --continue-on-collection-errors -q --tb=line",
+  "tree": "8c14efe",
+  "python": "3.12.3",
+  "pytest": "9.2.0",
+  "result": "754 passed, 44 failed, 9 errors, 139 subtests passed",
+  "unique_nodes": 45,
+  "formula": "44 failed + 9 errors - 8 nodes that appear in both lists = 45",
+  "overlap_failed_and_error": [
+    "veteran_desk/tests/test_desk.py::test_scorecard_shape",
+    "veteran_desk/tests/test_e2e_autoarm.py::test_e2e",
+    "veteran_desk/tests/test_fwd_cancelled_20261028.py::test_cancelled_never_marked",
+    "veteran_desk/tests/test_scan_breadth_20261029.py::test_crypto_seat_uses_kraken_24h",
+    "veteran_desk/tests/test_scan_breadth_20261029.py::test_pack_scan_line_and_topn",
+    "veteran_desk/tests/test_scan_breadth_20261029.py::test_pack_trend_not_swamped_by_crypto",
+    "veteran_desk/tests/test_withdraw_sticks_20261029.py::test_withdraw_landing_mid_tick_is_not_clobbered",
+    "veteran_desk/tests/test_withdraw_sticks_20261029.py::test_withdrawn_after_arm_is_cancelled_and_never_rearmed"
+  ],
+  "scoped_acceptance": "78 passed on the security, tenant, sequence, learning-health, bank snapshot, feed, integrated, chat-image, bank, exit-rail, learning, Yahoo-callsite, source-completeness, and FX characterization tests",
+  "oanda_isolated": "41 passed",
+  "book_sha256_unchanged": "b4453b503f33e34110519bf4d7a9bf391ecc2802edbd87acca3e77dc96b7e891",
+  "no_archive": "No unprotected production defect was fixed. No live base was guessed. No archive was built.",
+  "classes": {
+    "unresolved_book_or_gate_policy": [
+      "test_a1pct_20261031.py::test_non_a_2pct_and_aplus_4pct",
+      "test_a1pct_20261031.py::test_cut_non_a_below_2pct_rejected_never_1pct",
+      "test_costmodel_hold_20261030.py::test_giveback_fires_open_held_closed",
+      "test_desk.py::test_blocks",
+      "test_floor_fix_20261029.py::test_crypto_floor_half_pct",
+      "test_fx_settlement_20261029.py::test_round_trip_cash_via_tick",
+      "test_gate_v2.py::test_base_rate_negative_blocks",
+      "test_gate_v2.py::test_hard_rules_kept",
+      "test_gate_v2.py::test_never_arms",
+      "test_kai_floor_tol_20261029.py::test_genuine_0p4pct_rejected",
+      "test_kai_rails_20261029.py::test_below_floor_rejected",
+      "test_kai_rails_20261029.py::test_other_seats_unchanged",
+      "test_krakenfx_20261029.py::test_usdkrw_theo_case_risk",
+      "test_one_sizing.py::test_band",
+      "test_one_sizing.py::test_cut_toward_2pct_never_below",
+      "test_railfix_20261029.py::test_crypto_seat_floor_kept",
+      "test_railfix_20261029.py::test_rebook_below_floor_rejected_not_lifted",
+      "test_railfix_20261029.py::test_risk_plan_rejects_sub_floor",
+      "test_venuestale_20261029.py::test_lse_over_25_no_fill",
+      "test_venuestale_20261029.py::test_realtime_venue_still_15"
+    ],
+    "live_write_guard_data_pit": [
+      "test_desk.py::test_scorecard_shape",
+      "test_e2e_autoarm.py::test_e2e",
+      "test_fwd_cancelled_20261028.py::test_cancelled_never_marked",
+      "test_infra_20261029.py::test_prior_close_rejects_bogus_previous_close",
+      "test_scan_breadth_20261029.py::test_crypto_seat_uses_kraken_24h",
+      "test_scan_breadth_20261029.py::test_pack_scan_line_and_topn",
+      "test_scan_breadth_20261029.py::test_pack_trend_not_swamped_by_crypto",
+      "test_withdraw_sticks_20261029.py::test_withdraw_landing_mid_tick_is_not_clobbered",
+      "test_withdraw_sticks_20261029.py::test_withdrawn_after_arm_is_cancelled_and_never_rearmed"
+    ],
+    "missing_pit_or_queue_fixture": [
+      "test_book_weekly_hook.py::test_tick_writes_weekly_beside_temp_book_only",
+      "test_datalayer_20261030.py::test_paid_first_frame_shape_and_adjust",
+      "test_desk.py::test_full_pipeline_mocked_llm_temp_queue",
+      "test_gate_stale_crypto_hkd_20261029.py::test_crypto_history_atr_is_coin_scale_not_etf",
+      "test_guard_live_paths_20261029.py::test_guard_blocks_live_and_allows_tmp",
+      "test_kai_rails_20261029.py::test_wide_atr_sized_down_not_skipped",
+      "test_scan_breadth_20261029.py::test_dead_names_dropped",
+      "test_scan_breadth_20261029.py::test_news_has_asia",
+      "test_scan_breadth_20261029.py::test_scan_file_exists_and_cleared",
+      "test_scan_breadth_20261029.py::test_seat_list_broad_ge_500",
+      "test_scan_breadth_20261029.py::test_seat_list_sector_or_full"
+    ],
+    "book_tick_did_not_arm_on_synthetic_or_empty_book": [
+      "test_book_payouts.py::test_tick_arms_only_ticked_with_stop_and_2to5pct_risk",
+      "test_dedupe_arm_20261028.py::test_dedupe",
+      "test_no_rearm_20261028.py::test_cancelled_never_rearms",
+      "test_offhours_rebook_20261028.py::test_flag_then_rebook"
+    ],
+    "bridge_health_read_before_second_guard": [
+      "test_bridge_maintenance_20261104.py::MaintenanceTests::test_client_second_guard_rolls_back_reserved_quota"
+    ]
+  },
+  "notes": {
+    "pandas": "test_paid_first_frame_shape_and_adjust raises ModuleNotFoundError: pandas. Documented as an environment package. Not vendored.",
+    "weekly_hook": "OperationalError: unable to open database file. The weekly score opens the pit database. No scan-universe or sqlite fixture was invented, and the data/pit guard was not weakened.",
+    "gate_empty_history": "test_crypto_history_atr_is_coin_scale_not_etf hits gate_v2.arrays on an empty bar list (IndexError at c[0]). The empty list comes from a checkout with no pit bars. Not treated as a proven production defect.",
+    "arm_failures": "awaiting_funder instead of armed, KeyError 'A', and 'A' not in positions are book.tick results on these fixtures. book.py was not edited.",
+    "bridge": "The second maintenance guard rolls the quota back. ask() has already GET http://127.0.0.1:18891/health. chatgpt_bridge.py was not changed. No live hash was taken for an archive.",
+    "still_not_in_git": "Committed code names thf_hub, thf_order_diagnostics, and vendor_health. None of those files are in the 6 Nov Singapore baseline or the workspace. They were not invented. thf_push.py matches the baseline but the committed vd_engine does not import it, so it stays out. local_llm.py, seat_cli.py, and vd_engine.py match the baseline and stay uncommitted."
+  }
+}
