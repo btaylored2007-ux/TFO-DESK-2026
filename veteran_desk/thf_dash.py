@@ -13,6 +13,7 @@ BRAND_TYPES = {
     'mark.svg': 'image/svg+xml',
     'wordmark.svg': 'image/svg+xml',
     'tokens.css': 'text/css; charset=utf-8',
+    'apple-touch-icon.png': 'image/png',
 }
 STATIC_EXACT = ('/chat.js', '/ticker.js')
 from veteran_desk.thf_http import wire_payload, etag_matches, mutation_error, jsonl_tail, SnapshotView

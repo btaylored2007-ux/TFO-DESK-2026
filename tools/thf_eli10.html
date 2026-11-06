@@ -1,6 +1,7 @@
 <!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#10243E"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="apple-mobile-web-app-title" content="Transparent Trading">
 <title>Transparent Trading · Paper</title>
 <link rel="icon" href="/assets/brand/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/assets/brand/apple-touch-icon.png">
 <link rel="stylesheet" href="/assets/brand/tokens.css">
 <style>
 /* Phone hub. Retail first: one figure, two counts, one health line. Provider status is not on this page. */
@@ -68,7 +69,9 @@ body.tab-chat{padding-bottom:calc(var(--tb) + env(safe-area-inset-bottom))}
 .refreshbar #refresh-status{flex:1;min-width:8rem}
 .fresh-more{font-size:12px;color:var(--mu)}.fresh-more summary{cursor:pointer;font-weight:650;color:var(--ac)}
 .refreshbar .btn{margin:0;flex:none;min-height:36px;padding:6px 12px}
-.start-here{margin:0 0 8px;padding:0 14px}.start-here summary{cursor:pointer;font-weight:650;font-size:14px;padding:12px 0;min-height:44px}.start-here p{font-size:14px;margin:4px 0 8px}
+.start-here{margin:0 0 8px;padding:0 14px}.start-here summary{cursor:pointer;font-weight:650;font-size:14px;padding:12px 0;min-height:44px;display:flex;align-items:center;gap:8px}.start-here summary::-webkit-details-marker{display:none}.start-here p{font-size:14px;margin:4px 0 8px}
+#start-dismiss{margin-left:auto;border:0;background:transparent;color:var(--ac);font-size:13px;font-weight:650;min-height:32px;padding:4px 2px}
+.seat-total{margin:4px 2px 2px;font-size:14px;color:var(--mu)}.seat-total b{font-size:16px;font-weight:650}
 [role=button]{cursor:pointer}button:disabled{cursor:wait;opacity:.65}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
 </style></head>
@@ -78,7 +81,7 @@ body.tab-chat{padding-bottom:calc(var(--tb) + env(safe-area-inset-bottom))}
 <header class="hd"><h1><img class="brand-mark" src="/assets/brand/favicon.svg" alt=""><span class="brand-name">Transparent Trading</span> <span class="pill">PAPER</span></h1><div class="sub" id="hd-sub">Paper trading. Not a live broker. Times are WITA.</div><div class="sub links"><a href="/desk/chat">Chat</a> · <a href="/classic">Previous page</a></div></header>
 <nav id="tabbar" class="tabbar" role="tablist" aria-label="Dashboard pages"></nav>
 <main id="main" tabindex="-1">
-<details class="card start-here"><summary>New here? Start with these three steps</summary><p><b>1. Home:</b> see how the practice fund is doing. Green means a check passed; it does not promise a profit.</p><p><b>2. Trades:</b> see what is open, what is waiting, and how much each trade can lose at its stop.</p><p><b>3. Chat:</b> ask a trader to explain an idea. Open Health for a clear list of anything that needs attention.</p><p class="mu">All money is simulated. The time under the title says when the page was checked; each trade shows when its price was checked.</p></details>
+<details class="card start-here" id="start-here"><summary>New here? Start with these three steps <button type="button" id="start-dismiss">Hide</button></summary><p><b>1. Home:</b> see how the practice fund is doing. Green means a check passed; it does not promise a profit.</p><p><b>2. Trades:</b> see what is open, what is waiting, and how much each trade can lose at its stop.</p><p><b>3. Chat:</b> ask a trader to explain an idea. Open Health for a clear list of anything that needs attention.</p><p class="mu">All money is simulated. The time under the title says when the page was checked; each trade shows when its price was checked.</p></details>
 <div id="refreshbar" class="refreshbar"><span id="refresh-status" role="status" aria-live="polite" aria-atomic="true">Loading the latest figures…</span><details id="refresh-more" class="fresh-more"><summary>Details</summary><span id="refresh-detail"></span></details><button type="button" class="btn" id="refresh-now" aria-label="Refresh this dashboard page">Refresh</button></div>
 <section id="p-home" role="tabpanel" aria-labelledby="tab-home" class="pane on" data-title="Home"><div class="card">Loading…</div></section>
 <section id="p-trades" role="tabpanel" aria-labelledby="tab-trades" class="pane" data-title="Trades"></section>
