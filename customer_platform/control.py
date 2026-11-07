@@ -124,7 +124,10 @@ class Control:
             dropped = list(state.get("queue") or [])
             state["queue"] = []
             state["state"] = "stopped"
-            state["engine"] = "unconnected"
+            if state.get("replay_armed"):
+                state["engine"] = "paper_replay"
+            else:
+                state["engine"] = "unconnected"
             self._write(state, "stop", {"dropped": len(dropped), "flattened": False})
             canceled = self.cancel_pending_buys()
             return {"canceled_entry_orders": canceled, "dropped_queued": len(dropped), "flattened": False,
@@ -205,6 +208,16 @@ class Control:
             self._write(state, "engine_fill", {"orders_sent": state["orders_sent"]})
             return state["orders_sent"]
 
+    def set_replay_print(self, price):
+        with self._hold():
+            state = self.load()
+            if not state.get("replay_armed"):
+                raise ResetBlocked("replay", "synthetic replay is not armed")
+            state["replay_print"] = str(price)
+            state["replay_label"] = "synthetic replay print, not a market price"
+            self._write(state, "replay_print", {"price": state["replay_print"]})
+            return {"label": state["replay_label"], "price": state["replay_print"]}
+
     def arm_replay(self):
         with self._hold():
             state = self.load()
@@ -214,7 +227,7 @@ class Control:
 
     def _check(self, state, grade, trader_id):
         if state["state"] not in {"replay", "running"}:
-            raise ResetBlocked("stopped", "Stopped. New entries are blocked. Positions stay protected.")
+            raise ResetBlocked("stopped", "New entries are off.")
         feeds = self._current_feeds()
         state["feeds"] = feeds
         if blocked(feeds):

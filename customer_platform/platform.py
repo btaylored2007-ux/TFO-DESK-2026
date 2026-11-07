@@ -222,6 +222,15 @@ class Platform:
         action = "trade_close" if side == "sell" else "trade_open"
         ctx = self._require(token, action, claimed)
         kwargs["trader_id"] = trader_id
+        claimed_account = kwargs.pop("account_id", None)
+        if claimed_account not in (None, "", ctx["tenant_id"]):
+            raise Denied("account does not match the session")
+        kwargs["account_id"] = ctx["tenant_id"]
+        kwargs.setdefault("strategy_id", "unattributed")
+        kwargs.setdefault("strategy_version", "unknown")
+        kwargs.setdefault("decision", "customer_order")
+        armed = self._control(ctx["tenant_id"]).load().get("replay_armed")
+        kwargs.setdefault("feed", "synthetic_replay" if armed else "unknown")
         if side == "buy":
             kwargs["stop"] = self._entry_stop(ctx["tenant_id"], kwargs.get("limit_price"), kwargs.get("stop"))
         if side == "sell":
@@ -248,10 +257,13 @@ class Platform:
         return format(computed, "f")
 
     def set_stop_distance(self, token, distance, claimed_tenant=None):
+        from decimal import Decimal, InvalidOperation
         ctx = self._require(token, "admin", claimed_tenant)
-        from decimal import Decimal
-        width = Decimal(str(distance))
-        if width <= 0 or width >= 1:
+        try:
+            width = Decimal(str(distance))
+        except InvalidOperation as exc:
+            raise ResetBlocked("stop", "stop distance is not valid") from exc
+        if not width.is_finite() or width <= 0 or width >= 1:
             raise ResetBlocked("stop", "stop distance is not valid")
         book = self._book(ctx["tenant_id"])
         state = book.load()
@@ -472,7 +484,10 @@ class Platform:
     def key_status(self, token, claimed_tenant=None):
         from customer_platform.ai_vault import public_keys, vault_status
         ctx = self._require(token, "read", claimed_tenant)
-        status = vault_status()
+        status = dict(vault_status())
+        reason = status.get("reason") or ""
+        if "CUSTOMER_PLATFORM" in reason or "not set" in reason or "not installed" in reason:
+            status["reason"] = "Key storage is not ready on this server."
         rows = public_keys(self._key_path(ctx["tenant_id"])) if status["available"] else []
         return {"keys": rows, "status": status}
 
@@ -1024,6 +1039,12 @@ class Platform:
         result = self._control(ctx["tenant_id"]).arm_replay()
         self._audit(ctx["tenant_id"], ctx["user_id"], "arm_replay", True)
         return result
+
+    def set_replay_print(self, token, price, claimed_tenant=None):
+        ctx = self._require(token, "admin", claimed_tenant)
+        if claimed_tenant not in (None, "", ctx["tenant_id"]):
+            raise Denied("account does not match the session")
+        return self._control(ctx["tenant_id"]).set_replay_print(price)
 
     def paper_tick_tenant(self, tenant_id):
         from customer_platform.paper_engine import tick_tenant

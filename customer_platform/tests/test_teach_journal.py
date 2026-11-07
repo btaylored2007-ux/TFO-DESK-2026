@@ -66,7 +66,7 @@ def test_rails_and_reset_keep_the_skill_and_journal(tmp_path):
     assert blocked["last_test"]["risk_ok"] is False and blocked["last_test"]["validated_skill"] is False
     with pytest.raises(ResetBlocked):
         desk.teach_status(token, saved["id"], "paper_testing", evidence_ids=[sold["id"]])
-    clean = desk.teach_save(token, trader_ids=["desk"], text="Entry: plan\nExit: flat\nRisk: small\nMarket: shares\n")
+    clean = desk.teach_save(token, trader_ids=["desk"], text="Entry: plan\nExit: flat\nRisk: stop 5 percent below entry\nMarket: shares\n")
     tested = desk.teach_run_test(token, clean["id"])
     assert tested["last_test"]["synthetic"] is True and tested["status"] == "paper_testing"
     reviewed = desk.teach_status(token, tested["id"], "ready_for_review")

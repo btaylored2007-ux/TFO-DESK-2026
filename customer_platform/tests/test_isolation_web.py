@@ -360,7 +360,7 @@ def test_loopback_web_signup_and_reset_preview(tmp_path):
         with pytest.raises(RuntimeError):
             bind(desk, host="0.0.0.0")
         status, home = request("GET", "/")
-        assert status == 200 and "Create a subscription" in home and "public leaderboard" in home
+        assert status == 200 and "Create practice account" in home and "public leaderboard" in home
         status, missing = request("GET", "/leaderboard")
         assert status == 404 and "10000.00" not in missing
         status, _page = request("POST", "/signup", {

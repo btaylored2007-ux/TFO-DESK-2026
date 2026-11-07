@@ -67,25 +67,36 @@ def worker_loop(platform, stop, interval=30):
 def serve(platform, host, port):
     if host not in LOOPBACK:
         raise RuntimeError("customer web app refuses a non-loopback host")
-    stop = threading.Event()
-    threading.Thread(target=_paper_loop, args=(platform, stop), name="customer-paper", daemon=True).start()
+    stop = _ensure_service(platform)
     httpd = ThreadingHTTPServer((host, port), handler_for(platform))
     try:
         httpd.serve_forever()
     finally:
         stop.set()
+        platform._service_started = False
 
 
 def bind(platform, host="127.0.0.1", port=0):
     if host not in LOOPBACK:
         raise RuntimeError("customer web app refuses a non-loopback host")
-    stop = threading.Event()
-    threading.Thread(target=_paper_loop, args=(platform, stop), name="customer-paper", daemon=True).start()
+    stop = _ensure_service(platform)
     httpd = ThreadingHTTPServer((host, port), handler_for(platform))
     thread = threading.Thread(target=httpd.serve_forever, name="customer-web", daemon=True)
     thread.start()
     httpd.paper_stop = stop
     return httpd
+
+
+def _ensure_service(platform):
+    existing = getattr(platform, "_service_stop", None)
+    if getattr(platform, "_service_started", False) and existing is not None:
+        return existing
+    stop = threading.Event()
+    platform._service_stop = stop
+    platform._service_started = True
+    threading.Thread(target=_paper_loop, args=(platform, stop), name="customer-paper", daemon=True).start()
+    threading.Thread(target=worker_loop, args=(platform, stop, 30), name="customer-brain", daemon=True).start()
+    return stop
 
 
 def _paper_loop(platform, stop):
@@ -233,6 +244,7 @@ def handler_for(platform):
                 platform = self.server_platform()
                 self._html(200, brain_page(
                     platform.brain_status(token), platform.brain_lessons(token), platform.starter(), self._csrf(),
+                    ideas=platform.ideas(token),
                 ))
             elif path == "/education":
                 self._html(200, education_page(self.server_platform().education()))
@@ -271,6 +283,14 @@ def handler_for(platform):
                 token = platform.operator_login(form.get("email", ""), form.get("password", ""))
                 self._redirect("/admin", operator=token)
                 return
+            if path == "/admin/incident":
+                operator = self._cookies().get("cp_operator")
+                platform.operator_incident_action(
+                    operator, form.get("incident_id", ""), form.get("action", ""),
+                    learning=form.get("learning", ""), outcome=form.get("outcome") or "escalated",
+                )
+                self._redirect("/admin")
+                return
             if path == "/payments/webhook":
                 raw = self._raw()
                 signature = self.headers.get("X-Customer-Platform-Signature", "")
@@ -299,6 +319,10 @@ def handler_for(platform):
             elif path == "/desk/replay":
                 platform.arm_synthetic_replay(token)
                 self._html(200, desk(platform.desk(token), self._csrf()))
+            elif path == "/desk/replay/print":
+                platform.set_replay_print(token, form.get("price", ""))
+                platform.paper_tick_tenant(platform.store.context(token)["tenant_id"])
+                self._html(200, desk(platform.desk(token), self._csrf()))
             elif path == "/desk/stop":
                 platform.stop_trading(token)
                 self._html(200, desk(platform.desk(token), self._csrf()))
@@ -307,6 +331,7 @@ def handler_for(platform):
                     token, symbol=form.get("symbol", ""), side=form.get("side", "buy"),
                     qty=form.get("qty", "1"), limit_price=form.get("limit_price", ""),
                     stop=form.get("stop") or None,
+                    account_id=form.get("account_id") or None,
                     idempotency_key=form.get("idempotency_key") or ("web-" + secrets.token_hex(8)),
                 )
                 platform.paper_tick_tenant(platform.store.context(token)["tenant_id"])
@@ -368,13 +393,6 @@ def handler_for(platform):
             elif path == "/teach/rollback":
                 platform.teach_rollback(token, form.get("skill_id", ""), form.get("version", ""))
                 self._redirect("/teach")
-            elif path == "/admin/incident":
-                operator = self._cookies().get("cp_operator")
-                platform.operator_incident_action(
-                    operator, form.get("incident_id", ""), form.get("action", ""),
-                    learning=form.get("learning", ""), outcome=form.get("outcome") or "escalated",
-                )
-                self._redirect("/admin")
             elif path == "/teach/save":
                 platform.teach_save(
                     token,

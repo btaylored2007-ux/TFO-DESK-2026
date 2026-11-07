@@ -208,7 +208,7 @@ def public_idea(idea):
             "untrusted": True,
             "version": version["version"],
         })
-    return {"idea_id": idea["idea_id"], "versions": versions, "raw_body_in_response": False}
+    return {"idea_id": idea["idea_id"], "note": scan_excerpt((idea["versions"][-1].get("body") if idea.get("versions") else "") or ""), "versions": versions, "raw_body_in_response": False}
 
 
 def scan_excerpt(body):

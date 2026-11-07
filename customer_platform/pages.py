@@ -43,8 +43,7 @@ def page(title, body, *, csrf="", logged_in=False):
 [[BODY]]
 </main>
 <footer>
-  Private to this login. Practice figures stay on this subscription.
-  This template does not publish a leaderboard and it is not the owner desk.
+  Private to this login. Practice figures stay here. Not a public leaderboard.
 </footer>
 </body>
 </html>
@@ -58,8 +57,8 @@ def home(status, csrf, message=""):
     if status.get("web_signup_enabled"):
         signup = """
         <section class="card">
-          <h2>Create a subscription</h2>
-          <p>This creates an isolated practice desk on this loopback app. It does not open a public website.</p>
+          <h2>Create practice account</h2>
+          <p>This opens a private practice desk. It is not a paid subscription.</p>
           <form method="post" action="/signup">
             <input type="hidden" name="csrf" value="{csrf}">
             <label>Email <input name="email" autocomplete="username" required></label>
@@ -75,15 +74,12 @@ def home(status, csrf, message=""):
         """.format(csrf=esc(csrf))
     else:
         signup = "<section class=\"card\"><h2>Signup is closed</h2><p>This process was started without web signup. Login still works for accounts that already exist.</p></section>"
-    later = ", ".join(status.get("later_not_built") or [])
+    later = ""
     body = """
     {notice}
-    <section class="banner">
-      <p>Hosted customer web app. Browser login and an isolated dashboard. Not a desktop install.</p>
-      <p>Later, and not built here: {later}. Private performance is not published.</p>
-    </section>
     <section class="card">
       <h2>Log in</h2>
+      <p>Practice only. Live prices, news, and charges are not available.</p>
       <form method="post" action="/login">
         <input type="hidden" name="csrf" value="{csrf}">
         <label>Email <input name="email" autocomplete="username" required></label>
@@ -92,7 +88,7 @@ def home(status, csrf, message=""):
       </form>
     </section>
     {signup}
-    """.format(notice=notice, later=esc(later), csrf=esc(csrf), signup=signup)
+    """.format(notice=notice, csrf=esc(csrf), signup=signup)
     return page("Practice desk", body, csrf=csrf)
 
 
@@ -251,7 +247,7 @@ def result_page(result):
     return page("Reset result", body, logged_in=True)
 
 
-def brain_page(status, lessons, pack, csrf, message=""):
+def brain_page(status, lessons, pack, csrf, ideas=None, message=""):
     notice = "<p class=\"warning\">{0}</p>".format(esc(message)) if message else ""
     rows = "".join(
         "<tr><td>{status}</td><td>{kind}</td><td>{effect}</td><td>{text}</td></tr>".format(
@@ -259,42 +255,33 @@ def brain_page(status, lessons, pack, csrf, message=""):
         )
         for row in lessons
     ) or "<tr><td colspan=\"4\">No persisted lesson yet.</td></tr>"
+    notes = "".join(
+        "<li>{0}</li>".format(esc(item.get("note") or "Saved note."))
+        for item in ideas or []
+    ) or "<li>No saved note yet.</li>"
     rules = "".join("<li>{0}</li>".format(esc(rule["text"])) for rule in pack["rules"])
     body = """
     {notice}
     <section class="card">
-      <h2>This subscription's brain</h2>
-      <p>Notes from this desk. They do not place trades.</p>
-      <p>{count} saved.</p>
-      <form method="post" action="/brain/run">
-        <input type="hidden" name="csrf" value="{csrf}">
-        <button type="submit">Run one brain update</button>
-      </form>
-    </section>
-    <section class="card">
-      <h2>Persisted lessons</h2>
-      <table><thead><tr><th>Status</th><th>Kind</th><th>Trading effect</th><th>Statement</th></tr></thead><tbody>{rows}</tbody></table>
-    </section>
-    <section class="card">
-      <h2>Submit research</h2>
-      <p>Text is stored as data. It does not become an instruction, and it does not change risk rails.</p>
+      <h2>Notes on this login</h2>
+      <p>Saved notes do not place trades.</p>
+      <ul>{notes}</ul>
       <form method="post" action="/brain/idea">
         <input type="hidden" name="csrf" value="{csrf}">
         <label>Note <textarea name="body" rows="4" required></textarea></label>
-        <button type="submit">Save as research</button>
+        <button type="submit">Save note</button>
       </form>
     </section>
     <section class="card">
-      <h2>Starter pack, separate from the brain</h2>
-      <p>Version {version}. This pack does not make the brain updated.</p>
-      <ul>{rules}</ul>
+      <h2>Lessons from this desk</h2>
+      <p>{count} saved.</p>
+      <table><thead><tr><th>Status</th><th>Kind</th><th>Trading effect</th><th>Statement</th></tr></thead><tbody>{rows}</tbody></table>
     </section>
     """.format(
-        notice=notice, statement=esc(status["statement"]), csrf=esc(csrf), rows=rows,
-        count=len(lessons), version=esc(pack["version"]), rules=rules,
+        notice=notice, csrf=esc(csrf), rows=rows, notes=notes,
+        count=len(lessons), rules=rules,
     )
-    return page("Learning brain", body, logged_in=True)
-
+    return page("Notes", body, logged_in=True)
 
 def education_page(catalog):
     blocks = []
@@ -434,7 +421,7 @@ def chart_svg(chart):
     high = max(values)
     span = high - low or Decimal("1")
     width = 640
-    height = 200
+    height = 96
     step = Decimal(width) / Decimal(max(len(values) - 1, 1))
     coords = []
     for index, value in enumerate(values):
@@ -446,7 +433,7 @@ def chart_svg(chart):
     <svg class="chart" viewBox="0 0 {width} {height}" role="img" aria-label="{label}">
       <polyline fill="none" stroke="#143d34" stroke-width="2" points="{points}"/>
     </svg>
-    <p>{label}. {count} ledger points. Currency {cur}.</p>
+    <p>{label}. {count} stored points. {cur}.</p>
     """.format(width=width, height=height, points=" ".join(coords), label=esc(label), count=len(points), cur=esc(chart["currency"]))
 
 
@@ -637,8 +624,8 @@ def school_page(catalog):
             ) + "</ul>"
         else:
             lessons = "<p>Locked until the previous module is cleared on the server.</p>"
-        items.append("<li><span>{order}. {label}</span> <small>Unpublished draft</small>{lessons}</li>".format(
-            order=module["order"], label=esc(module["label"]), lessons=lessons,
+        items.append("<li><span>{label}</span> <small>Unpublished draft</small>{lessons}</li>".format(
+            label=esc(module["label"]), lessons=lessons,
         ))
     body = """
     <section class="card">

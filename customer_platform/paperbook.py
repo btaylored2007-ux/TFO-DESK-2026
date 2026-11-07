@@ -161,7 +161,7 @@ class PaperBook:
         self.save(state)
         return state
 
-    def place_order(self, *, symbol, side, qty, limit_price, sector=None, idempotency_key, fixture=False, trader_id="desk", stop=None):
+    def place_order(self, *, symbol, side, qty, limit_price, sector=None, idempotency_key, fixture=False, trader_id="desk", stop=None, account_id="", strategy_id="unattributed", strategy_version="unknown", decision="customer_order", feed="unknown"):
         state = self.load()
         self.assert_paper(state)
         existing = self._order_idem(state, idempotency_key)
@@ -203,6 +203,11 @@ class PaperBook:
             "status": "pending",
             "symbol": symbol,
             "stop": stop_text,
+            "strategy_id": strategy_id or "unattributed",
+            "strategy_version": strategy_version or "unknown",
+            "decision": decision or "customer_order",
+            "feed": feed or "unknown",
+            "account_id": account_id or "unknown",
             "trader_id": trader_id or "desk",
             "utc": self.now(),
         }
@@ -291,7 +296,7 @@ class PaperBook:
             "fx_to_account": format(rate, "f"),
             "id": new_id("lg_"),
             "kind": "fill",
-            "label": "caller-supplied paper price, not a market print",
+            "label": "synthetic replay print, not a market price" if order.get("feed") == "synthetic_replay" else "price source unknown, not a market print",
             "not_pnl": False,
             "notional_account": money_text(notional, currency),
             "order_id": order_id,
@@ -302,6 +307,11 @@ class PaperBook:
             "side": order["side"],
             "symbol": order["symbol"],
             "trader_id": order.get("trader_id") or "desk",
+            "account_id": order.get("account_id") or "unknown",
+            "strategy_id": order.get("strategy_id") or "unknown",
+            "strategy_version": order.get("strategy_version") or "unknown",
+            "decision": order.get("decision") or "unknown",
+            "feed": order.get("feed") or "unknown",
             "utc": self.now(),
         }
         if order["side"] == "sell":
@@ -498,6 +508,11 @@ class PaperBook:
             "sector": order["sector"],
             "status": "open",
             "stop": order.get("stop") or "",
+            "account_id": order.get("account_id") or "unknown",
+            "trader_id": order.get("trader_id") or "unknown",
+            "strategy_id": order.get("strategy_id") or "unknown",
+            "strategy_version": order.get("strategy_version") or "unknown",
+            "feed": order.get("feed") or "unknown",
             "symbol": order["symbol"],
         })
 

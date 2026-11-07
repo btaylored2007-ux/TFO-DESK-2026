@@ -22,6 +22,12 @@ STATUSES = (
 FIELDS = ("entry", "exit", "risk", "market")
 MAX_BYTES = 64 * 1024
 _RAIL = re.compile(r"(disable stops|shorts on|no stop|ignore risk|live order)", re.I)
+_WEAK = re.compile(
+    r"\b(ignore|skip|override|bypass|disable|forget|optional)\b.{0,48}\b(stop|risk|limit)\b"
+    r"|\b(stop|risk)\b.{0,48}\b(sure|optional|ignore|skip|override)\b",
+    re.I,
+)
+_SUPPORTED_RISK = re.compile(r"\bstop\b.+\b(below|under|at)\b|\bone position\b|\bsize\b.+\b(limit|cap)\b", re.I)
 _URL = re.compile(r"https?://|www\.", re.I)
 
 
@@ -69,7 +75,7 @@ class Skills:
         skill = self._skill(body, skill_id)
         version = skill["versions"][-1]["version"]
         text = " ".join([skill.get("source_text") or ""] + list(skill["rules"].values()))
-        risk_ok = _RAIL.search(text) is None and all(skill["rules"].get(key) for key in ("entry", "exit", "risk"))
+        risk_ok, review = _review_teaching(text, skill["rules"])
         record = {
             "human_attested": False,
             "id": new_id("st_"),
@@ -88,6 +94,7 @@ class Skills:
         shown["last_test"] = {
             "id": record["id"],
             "passed": False,
+            "review": review,
             "risk_ok": risk_ok,
             "synthetic": True,
             "validated_skill": False,
@@ -196,6 +203,18 @@ class Skills:
             if skill["id"] == skill_id:
                 return skill
         raise ResetBlocked("skill", "skill was not found on this account")
+
+
+def _review_teaching(text, rules):
+    """Supported risk wording only. Anything else stays in review. This is not a claim that all sentences are safe."""
+    if _RAIL.search(text) or _WEAK.search(text):
+        return False, "needs_review"
+    risk = (rules or {}).get("risk") or ""
+    if not (_SUPPORTED_RISK.search(risk) or _SUPPORTED_RISK.search(text)):
+        return False, "needs_review"
+    if not all((rules or {}).get(key) for key in ("entry", "exit", "risk")):
+        return False, "needs_review"
+    return True, "supported"
 
 
 def _read_rules(text, rules):

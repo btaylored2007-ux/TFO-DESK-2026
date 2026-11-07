@@ -76,7 +76,7 @@ def test_http_paper_replay_teach_ask_keys_and_incidents(tmp_path, monkeypatch):
         status, trader = request("POST", "/desk/trader", {"csrf": cookies["cp_csrf"], "trader_id": "desk", "enabled": "yes"})
         assert status == 200
         status, keys = request("GET", "/keys")
-        assert status == 200 and "type=\"password\"" in keys and "not set" in keys
+        assert status == 200 and "type=\"password\"" in keys and "not ready" in keys
         status, refused = request("POST", "/keys", {"csrf": cookies["cp_csrf"], "provider": "openai", "secret": "sk-test-secret-value"})
         assert status == 400 and "sk-test-secret-value" not in refused
         status, teach = request("GET", "/teach")

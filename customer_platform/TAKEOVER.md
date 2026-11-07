@@ -90,7 +90,7 @@ Dependencies: Python 3.12 standard library, `pytest` for tests, and `veteran_des
 
 ## Tests last run
 
-- Combined command in `TEST_INVENTORY.md`: 40 passed (34 customer tests and the original 6 foundation tests). No network. That count is not acceptance and not a claim that the course or the app is finished.
+- Combined command in `TEST_INVENTORY.md`: 41 passed (35 customer tests and the original 6 foundation tests). No network. That count is not acceptance and not a claim that the course or the app is finished.
 
 Negative cases in the customer tests: wrong tenant, live venue, float/NaN/negative/extra decimals, open position, pending order, zero capital without acknowledgement, idempotency conflict, race, three crash points, rails tamper, cross-tenant idea read, prompt injection, secret redaction, unsigned webhook, live-mode webhook, sector opt-out still allowing an exit, non-loopback bind refused, `/leaderboard` returns 404.
 
