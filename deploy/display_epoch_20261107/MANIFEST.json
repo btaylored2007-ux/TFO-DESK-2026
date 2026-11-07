@@ -1,0 +1,22 @@
+{
+  "phase": "review",
+  "status": "STAGED_PACKAGE_NOT_DEPLOYED",
+  "singapore_deployed": false,
+  "verified_live": false,
+  "restart": "not performed",
+  "book_must_remain": "b4453b503f33e34110519bf4d7a9bf391ecc2802edbd87acca3e77dc96b7e891",
+  "note": "Read model only. Does not write the display mark and does not include the UI files. Production roots are refused.",
+  "replace": [
+    {
+      "path": "veteran_desk/thf_dash.py",
+      "base_sha256": "4414a765d4a19491cff739fdc7cee5dbfeb77403902ad7f62ad3a5895eabe8ba",
+      "target_sha256": "a27c5ba61f0f83f07ce2d6beed1bed9d98026d5405c8f5c6140b86ba2633d35b"
+    }
+  ],
+  "new_files": [
+    {
+      "path": "veteran_desk/thf_display_epoch.py",
+      "target_sha256": "b06e38c075297d0b89ac46737af60a9b2701388d75660cfa6934f4d2a24ec59f"
+    }
+  ]
+}

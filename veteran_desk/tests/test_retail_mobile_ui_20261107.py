@@ -53,7 +53,7 @@ def test_retail_templates_do_not_paint_provider_status():
     assert "--hd:#f6f3ee" in CHAT
     assert "risk-free" not in PAGE and "risk-free" not in ELI and "risk-free" not in CHAT
     assert 'class="delta ' in ELI
-    assert "Since inception" in ELI and "h.since_txt" in ELI and "h.seed_txt" in ELI and "h.equity_txt" in ELI
+    assert "Since inception" in ELI and "equity minus capital" in ELI and "h.since_txt" in ELI and "h.seed_txt" in ELI and "h.equity_txt" in ELI
     assert "since_reset_txt" in ELI and "Since reset" in ELI
     assert "font-variant-numeric:tabular-nums" in PAGE
     assert 'TABS=["home","trades","chat","seats","health"]' in ELI.replace(" ", "")

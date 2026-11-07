@@ -1,0 +1,18 @@
+{
+  "id": "owner-display-20261107T121234Z",
+  "set_utc": "2026-11-07T12:12:34Z",
+  "set_wita": "2026-11-07 20:12:34 WITA",
+  "basis": "pnl_since_inception_aud",
+  "pnl_since_inception_aud": -32244.72,
+  "equity_aud": 5467755.28,
+  "seed_aud": 5500000.0,
+  "cash_aud": 5215592.61,
+  "invested_aud": 1052495.42,
+  "commission_expense_aud": 649.69,
+  "today_06_00_aud": 311.53,
+  "book_midnight_today_aud": 193.34,
+  "open": 7,
+  "armed": 1,
+  "capital_note": "One capital injection of 5500000 AUD (USD 3871331.21) at 2026-10-30T11:20:44Z, audusd_at_seed 0.7038784027099609. Seed on this reading equals that injection. Invested is not cash allocated and is not capital.",
+  "source": "Owner server reading 2026-11-07 20:12:34 WITA. Not a copy of the ledger."
+}

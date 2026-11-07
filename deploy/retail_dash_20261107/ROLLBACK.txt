@@ -30,14 +30,14 @@ The receipt status is APPLIED_NOT_DEPLOYED. restart is "not performed". verified
 The receipt lists before and after sha256 values. The book file is checked and not written.
 veteran_desk/thf_home.py, thf_http.py, thf_hub.py, and tools/thf_chat.html must stay on the captured hashes. A different hash blocks the run.
 
-Roll back that same staging root, before anyone copies files by hand:
+Roll back that same staging root:
 
   python3 deploy/retail_dash_20261107/install.py --root <staging> --staging --rollback
 
 Rollback refuses if a replaced file is no longer the recorded target, if a backup is missing, or if an unchanged captured file has drifted.
 It writes state/thf/retail_dash_20261107_rollback.json. A copy that fails part-way is undone before a receipt is written.
 
-Human-only step, which this package will not perform: after the receipt's before hashes have been compared with the files on /opt/tfo/dash/base, an operator on that machine may copy receipt.replaced and receipt.installed_new from the staging tree onto /opt/tfo/dash/base and then restart only tfo-dash-thf.service. Do not restart tick, engine, or book. Do not edit nginx. If that hand copy has already happened, rolling back the staging directory does not restore production; the receipt's before hashes are the bytes to copy back by hand, followed by the same single service restart.
+This installer does not copy files onto /opt/tfo and does not restart a service. Do not hand-copy the staging tree onto the dash root. A production apply, if one is reviewed later, has to be a separate supported release that still refuses to be this installer with the guard removed. Do not restart tick, engine, or book. Do not edit nginx.
 
 Nginx is not in this package. POST /api/chat and POST /desk/chat stay 403 on 100.120.8.11:18870. Do not add those paths to the POST allow-list.
 Loopback remains 127.0.0.1:28870. GET success and an empty POST that returns 400 or 413 prove the route exists. They do not, by themselves, prove a chat send or an image upload.

@@ -108,7 +108,10 @@ def classify(live):
             rows.append(dict(path=rel, state="ABSENT_REFUSED", sha256=None))
             continue
         current = sha256(dest)
-        if current == item["target_sha256"]:
+        leave = item.get("leave_sha256") or []
+        if isinstance(leave, str):
+            leave = [leave]
+        if current == item["target_sha256"] or current in leave:
             state = "CURRENT"
         elif current in allowed_bases(item):
             state = "REPLACE"

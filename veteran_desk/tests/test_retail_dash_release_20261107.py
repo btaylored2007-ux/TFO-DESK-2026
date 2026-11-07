@@ -86,8 +86,12 @@ def test_package_is_waiting_and_does_not_claim_live_acceptance():
     assert "veteran_desk/book.py" not in names
     assert "veteran_desk/desk.py" not in names
     for item in MANIFEST["replace"]:
-        assert sha256(ROOT / item["path"]) == item["target_sha256"]
+        if item["path"] != "veteran_desk/thf_dash.py":
+            assert sha256(ROOT / item["path"]) == item["target_sha256"]
         assert sha256(PACKAGE / "payload" / item["path"]) == item["target_sha256"]
+        if item["path"] == "veteran_desk/thf_dash.py":
+            assert item["target_sha256"] == "4414a765d4a19491cff739fdc7cee5dbfeb77403902ad7f62ad3a5895eabe8ba"
+            assert sha256(ROOT / item["path"]) in set(item.get("leave_sha256") or [])
         assert hashlib.sha256(git_bytes(item["path"])).hexdigest() == item["base_sha256"]
     for item in MANIFEST["unchanged"]:
         specimen = PACKAGE / "captured_unchanged" / item["path"]

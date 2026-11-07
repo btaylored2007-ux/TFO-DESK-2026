@@ -50,7 +50,7 @@
     {
       "path": "tools/thf_eli10.js",
       "base_sha256": "1f796ba679cc49970d1df6acb82eaf5fbd348c17e29e86c98e4abeb0fe856d8a",
-      "target_sha256": "4ea11e00ace815b4adb91cebe288d07336ebc5568527b72ce9e723ae4a6a5219",
+      "target_sha256": "9f0a868bb51e330f88fef127aa0423f41f54f156415ca8d1b8b191a439a1b50d",
       "also_base_sha256": [
         "36b3f9fc88240c5bbeb59e431448709987f7967f44185752d94f559132cbb235",
         "c4a977ad2ca04131e22355cc62e32fa04d075dfc88243758e7eab04a03bd8718"
@@ -77,7 +77,10 @@
     {
       "path": "veteran_desk/thf_dash.py",
       "base_sha256": "bbaf57edd303350ec7fd0749ce068d4aa89fa6c223cccaeae26cee0f641cd58e",
-      "target_sha256": "4414a765d4a19491cff739fdc7cee5dbfeb77403902ad7f62ad3a5895eabe8ba"
+      "target_sha256": "4414a765d4a19491cff739fdc7cee5dbfeb77403902ad7f62ad3a5895eabe8ba",
+      "leave_sha256": [
+        "a27c5ba61f0f83f07ce2d6beed1bed9d98026d5405c8f5c6140b86ba2633d35b"
+      ]
     },
     {
       "path": "veteran_desk/thf_chat_home.py",
