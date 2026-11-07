@@ -85,6 +85,7 @@ def test_a_busy_or_cooling_provider_does_not_finish_the_pair(tmp_path, monkeypat
 
     for name in SAMPLER.CALLS:
         monkeypatch.setitem(SAMPLER.CALLS, name, make(name))
+    monkeypatch.setattr(SAMPLER, "ensure_coverage", lambda *a, **k: [])
     path = tmp_path / "state/thf"
     path.mkdir(parents=True)
     (path / "shadow_sampler.json").write_text(json.dumps(dict(
