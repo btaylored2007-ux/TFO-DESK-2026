@@ -1,0 +1,46 @@
+{
+  "example": true,
+  "ready": false,
+  "signed": false,
+  "signed_means": "operator_record_not_cryptographic_signature",
+  "production_approval": false,
+  "authorization_id": "",
+  "authorization_verbatim": "",
+  "scope_ref": "",
+  "provenance": {
+    "quote_role": "",
+    "quote_role_values": ["actual_words", "coordinator_interpretation"],
+    "coordinator_note": "",
+    "not_a_new_user_approval": false,
+    "schema_note": "signed records an operator's existing scope. It is not an owner cryptographic signature. quote_role actual_words means authorization_verbatim is the recorded words. quote_role coordinator_interpretation means the verbatim field is the coordinator's reading, and coordinator_note must say so. This example supplies neither and is not a user approval."
+  },
+  "preflight": {"status": "pending", "sha256": null},
+  "coordinator_bound": {
+    "package": "shadow_throughput_src_20261107",
+    "package_sha256": "efd7f25605cc64a9e7280a710c76b7fffaef6c07b542fd3ecb3f5cbfa4db212d",
+    "files": [
+      {
+        "path": "veteran_desk/thf_shadow_sampler.py",
+        "base_sha256": "7e2eeb3e544814411f7fb2371b50b232746e2edec9a971197c46b319570de2bf",
+        "target_sha256": "d10f5cb6655a02606f249e22f0205e83e362c9fd68983c74acf79907d44c1b42"
+      },
+      {
+        "path": "veteran_desk/thf_shadow_bench.py",
+        "base_sha256": "957539fa9d52ac1d63e3fb9c7064e0d54aae6af88f687f01b477afaf3795e3fa",
+        "target_sha256": "96e084dccefe62bc29406485c259154c1981dcd211fbc60b553e886866a4b62c"
+      }
+    ],
+    "roots": ["/opt/tfo/live/thf", "/opt/tfo/dash/base"]
+  },
+  "no_engine_restart": true,
+  "no_tick_restart": true,
+  "no_nginx_change": true,
+  "no_gpt_restart": true,
+  "no_forced_sampler_run": true,
+  "no_quota_change": true,
+  "no_clock_change": true,
+  "no_provider_call": true,
+  "no_timer_stop": true,
+  "no_unit_change": true,
+  "no_codemerge_write": true
+}
