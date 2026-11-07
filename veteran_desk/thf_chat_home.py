@@ -167,7 +167,8 @@ def group(rows, reg=None):
     return g
 def summarize(cid, chat_rows, reg, hb=None, now=None):
     vis = [r for r in chat_rows if kind(r) != "noise"]; last = vis[-1] if vis else None
-    imp = [r["k"] for r in chat_rows if important(r)][-HOME_IMP_N:]
+    all_imp = [r["k"] for r in chat_rows if important(r)]
+    imp = all_imp[-HOME_IMP_N:]
     meta = reg.get(cid)
     if meta: d = dict(id=cid, name=meta["name"], desk=meta["desk"], label=meta["label"], av=meta["av"], color=meta["color"], pinned=meta["pinned"], star=meta["star"], admin=meta["admin"], can_send=meta["can_send"])
     elif cid == "ALL": d = dict(id="ALL", name="All desk", desk="every seat", label="All desk", av="A", color=COLOR["ALL"], pinned=False, star=False, admin=False, can_send=True)
@@ -183,7 +184,7 @@ def summarize(cid, chat_rows, reg, hb=None, now=None):
             preview="Cached desk update: "+preview
         pv = ("You: " if kd == "me" else "" if kd == "them" else "Message from %s: " % s["nm"]) + re.sub(r"\s+", " ", preview).strip()[:PREVIEW_N]
         if not s["text"].strip() and s.get("images"): pv += "[image]"
-    d.update(last=dict(k=last["k"], ts=last.get("ts_wita"), f=last.get("from")) if last is not None else None, preview=pv, imp=imp, n=len(vis), pending=_pending(chat_rows, now))
+    d.update(last=dict(k=last["k"], ts=last.get("ts_wita"), f=last.get("from")) if last is not None else None, preview=pv, imp=imp, imp_more=len(all_imp) > HOME_IMP_N, n=len(vis), pending=_pending(chat_rows, now))
     h = (hb or {}).get(cid) if hb else None
     if h: d["status"] = dict(mode=h.get("mode"), model=h.get("model") or h.get("chat_model"), seen=h.get("last_seen") or h.get("last_round"))
     return d
