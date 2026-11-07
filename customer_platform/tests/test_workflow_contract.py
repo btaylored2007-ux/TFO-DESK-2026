@@ -7,6 +7,7 @@ import sys
 import textwrap
 
 from customer_platform.files import release_file_lock, try_file_lock
+from customer_platform.school_fixture import FIXTURE_ID, FIXTURE_MODULE, FIXTURE_SCHEMA, FIXTURE_VERSION
 from customer_platform.http_app import bind
 from customer_platform.platform import Platform
 
@@ -44,7 +45,7 @@ def test_two_processes_take_one_writer(tmp_path):
     assert position["decision"] == "customer_order" and position["decision_order_id"] == opened["order_id"]
     desk.stop_trading(token)
     desk.set_replay_print(token, "80.00")
-    lock = try_file_lock(os.path.join(desk._tenant_dir(tenant), "paper", "engine.lock"))
+    lock = try_file_lock(os.path.join(desk._tenant_dir(tenant), "writer.lock"))
     assert lock is not None
     busy = _tick_process(tmp_path / "store", tenant)
     assert busy["reason"] == "writer busy" and busy["filled"] == 0
@@ -88,19 +89,19 @@ def test_active_rule_places_one_synthetic_order_and_fixture_school_grades(tmp_pa
             "csrf": cookies["cp_csrf"], "email": "ada@example.com", "password": "correct-horse-1",
             "display_name": "Ada", "starting_capital": "10000.00", "currency": "USD",
         })
-        status, closed = request("POST", "/school/begin", {"csrf": cookies["cp_csrf"], "module_id": "tts.m01"})
+        status, closed = request("POST", "/school/begin", {"csrf": cookies["cp_csrf"], "module_id": FIXTURE_MODULE})
         assert status == 400 and "correct_option" not in closed
         token = desk.login("ada@example.com", "correct-horse-1")
         desk.authorize_synthetic_school(token, _fixture_course())
-        status, quiz = request("POST", "/school/begin", {"csrf": cookies["cp_csrf"], "module_id": "tts.m01"})
+        status, quiz = request("POST", "/school/begin", {"csrf": cookies["cp_csrf"], "module_id": FIXTURE_MODULE})
         assert status == 200 and "correct_option" not in quiz and "Synthetic?" in quiz
         attempt = quiz.split("attempt_id\" value=\"", 1)[1].split("\"", 1)[0]
         status, graded = request("POST", "/school/grade", {
-            "csrf": cookies["cp_csrf"], "attempt_id": attempt, "answer-tts.m01.q01": "a",
+            "csrf": cookies["cp_csrf"], "attempt_id": attempt, "answer-fixture.only.q01": "a",
         })
         assert status == 200 and "True" in graded
         status, practical = request("POST", "/school/practical", {
-            "csrf": cookies["cp_csrf"], "module_id": "tts.m01", "text": "Synthetic practical note.",
+            "csrf": cookies["cp_csrf"], "module_id": FIXTURE_MODULE, "text": "Synthetic practical note.",
         })
         assert status == 200 and "False" in practical
         capstone = {"csrf": cookies["cp_csrf"]}
@@ -152,7 +153,7 @@ def _tick_process(root, tenant):
 
 def _fixture_course():
     questions = [{
-        "id": "tts.m01.q01",
+        "id": "fixture.only.q01",
         "pool": "A",
         "stem": "Synthetic?",
         "correct_option": "a",
@@ -166,13 +167,14 @@ def _fixture_course():
         "capstone": {"criteria": [{"id": "c{0}".format(index)} for index in range(10)]},
         "label": "SYNTHETIC FIXTURE",
         "modules": [{
-            "id": "tts.m01",
-            "lessons": [{"id": "tts.m01.l1", "title": "One", "body": "Synthetic lesson.", "layer": "core"}],
+            "id": FIXTURE_MODULE,
+            "lessons": [{"id": "fixture.only.l1", "title": "One", "body": "Synthetic lesson.", "layer": "core"}],
             "number": 1,
             "practical_required": False,
             "questions": questions,
             "title": "Synthetic module",
         }],
-        "schema": "tts-course",
-        "version": "synthetic-fixture",
+        "schema": FIXTURE_SCHEMA,
+        "fixture_id": FIXTURE_ID,
+        "version": FIXTURE_VERSION,
     }

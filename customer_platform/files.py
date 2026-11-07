@@ -154,6 +154,38 @@ def release_file_lock(handle):
     handle.close()
 
 
+_WRITER_DEPTH = threading.local()
+
+
+@contextmanager
+def tenant_writer(tenant_dir):
+    """One exclusive lock for every mutation of this tenant.
+
+    A second process gets ``busy`` immediately. The same thread may re-enter.
+    The lock is the kernel flock, so it drops if the process dies.
+    """
+    depth = getattr(_WRITER_DEPTH, "n", 0)
+    if depth:
+        _WRITER_DEPTH.n = depth + 1
+        try:
+            yield "held"
+        finally:
+            _WRITER_DEPTH.n = depth
+        return
+    path = os.path.join(tenant_dir, "writer.lock")
+    ensure_dir(tenant_dir)
+    handle = try_file_lock(path)
+    if handle is None:
+        yield "busy"
+        return
+    _WRITER_DEPTH.n = 1
+    try:
+        yield "held"
+    finally:
+        _WRITER_DEPTH.n = 0
+        release_file_lock(handle)
+
+
 @contextmanager
 def file_lock(path):
     ensure_dir(os.path.dirname(path))

@@ -60,27 +60,96 @@ class Skills:
         return self._save(user_id, trader_ids, parsed, source_text=text[:4000], upload_id=upload_id)
 
     def executable_rules(self):
-        """Active versions whose own test accepted the written risk rule. Not a model reading."""
+        """Active written rules. A provider interpretation is not this fallback."""
         rows = []
         for skill in self._load()["skills"]:
-            if skill.get("status") != "active" or not skill.get("versions"):
+            if skill.get("rules_source") == "provider_interpretation":
                 continue
-            version = skill["versions"][-1]["version"]
-            tests = [item for item in skill.get("tests") or [] if item.get("risk_ok")]
-            if not tests:
-                continue
-            entry = skill["rules"].get("entry") or ""
-            symbol = _symbol_in(entry)
-            percent = _stop_percent(skill["rules"].get("risk") or "")
-            if not symbol or percent is None:
-                continue
-            rows.append({
-                "percent": percent,
-                "skill_id": skill["id"],
-                "symbol": symbol,
-                "version": version,
-            })
+            row = self._active_rule(skill)
+            if row:
+                rows.append(row)
         return rows
+
+    def provider_rules(self):
+        """Active skills whose schema came from the provider client and whose own test passed the risk wording."""
+        rows = []
+        for skill in self._load()["skills"]:
+            if skill.get("rules_source") != "provider_interpretation":
+                continue
+            row = self._active_rule(skill)
+            if not row:
+                continue
+            latest = [item for item in skill.get("interpretations") or [] if item.get("ok")]
+            if not latest:
+                continue
+            current = latest[-1]
+            if current.get("symbol") != row["symbol"] or str(current.get("stop_percent")) != str(row["percent"]):
+                continue
+            row["host"] = current.get("host") or ""
+            row["provider"] = current.get("provider") or ""
+            row["synthetic"] = bool(current.get("synthetic"))
+            row["teaching"] = skill.get("source_text") or ""
+            rows.append(row)
+        return rows
+
+    def record_interpretation(self, skill_id, parsed):
+        """Store a schema against a new draft version. A model cannot set this skill active."""
+        body = self._load()
+        skill = self._skill(body, skill_id)
+        if skill.get("status") == "active":
+            raise ResetBlocked("status", "an active skill is not rewritten by a model")
+        if not parsed.get("ok"):
+            skill.setdefault("interpretations", []).append({
+                "ok": False,
+                "provider": parsed.get("provider") or "",
+                "reason": parsed.get("reason") or "refused",
+                "self_approved": False,
+                "version": skill["versions"][-1]["version"] if skill.get("versions") else 0,
+            })
+            write_json(self.path, body)
+            shown = _public(skill)
+            shown["activated"] = False
+            shown["interpretation"] = "refused"
+            shown["reason"] = parsed.get("reason") or "refused"
+            return shown
+        rules = {
+            "entry": "buy " + parsed["symbol"],
+            "exit": "flat",
+            "market": "shares",
+            "risk": "stop {0} percent below entry".format(parsed["stop_percent"]),
+        }
+        self._version(skill, status="draft", rules=rules)
+        skill["rules_source"] = "provider_interpretation"
+        version = skill["versions"][-1]["version"]
+        skill.setdefault("interpretations", []).append({
+            "host": parsed.get("host") or "",
+            "ok": True,
+            "provider": parsed.get("provider") or "",
+            "self_approved": False,
+            "stop_percent": parsed["stop_percent"],
+            "symbol": parsed["symbol"],
+            "synthetic": bool(parsed.get("synthetic")),
+            "version": version,
+        })
+        write_json(self.path, body)
+        shown = _public(skill)
+        shown["activated"] = False
+        shown["interpretation"] = "stored"
+        shown["synthetic"] = bool(parsed.get("synthetic"))
+        return shown
+
+    def _active_rule(self, skill):
+        if skill.get("status") != "active" or not skill.get("versions"):
+            return None
+        version = skill["versions"][-1]["version"]
+        tests = [item for item in skill.get("tests") or [] if item.get("risk_ok")]
+        if not tests:
+            return None
+        symbol = _symbol_in(skill["rules"].get("entry") or "")
+        percent = _stop_percent(skill["rules"].get("risk") or "")
+        if not symbol or percent is None:
+            return None
+        return {"percent": percent, "skill_id": skill["id"], "symbol": symbol, "version": version}
 
     def list_skills(self):
         return [_public(skill) for skill in self._load()["skills"]]

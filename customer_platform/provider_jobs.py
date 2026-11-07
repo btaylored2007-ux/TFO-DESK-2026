@@ -102,6 +102,14 @@ class ProviderJobs:
         self._save(body)
         return _public(job)
 
+    def note(self, job_id, status, error):
+        body = self._load()
+        job = self._job(body, job_id)
+        job["status"] = status
+        job["error"] = error
+        self._save(body)
+        return _public(job)
+
     def cancel(self, job_id):
         body = self._load()
         job = self._job(body, job_id)

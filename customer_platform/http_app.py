@@ -389,8 +389,14 @@ def handler_for(platform):
                 self._redirect("/keys")
             elif path == "/keys/test":
                 result = platform.key_test(token, form.get("provider", ""))
-                notice = "Connection test was not sent." if not result.get("called") else "Connection test returned."
+                notice = result.get("reason") or ("Connection test returned." if result.get("called") else "Connection test was not sent.")
                 self._html(200, keys_page(platform.key_status(token), self._csrf(), notice=notice))
+            elif path == "/keys/send":
+                platform.enable_provider_send(token, form.get("provider", ""), form.get("confirmation", ""))
+                self._redirect("/keys")
+            elif path == "/teach/interpret":
+                platform.teach_interpret(token, form.get("skill_id", ""))
+                self._redirect("/teach")
             elif path == "/teach/upload":
                 platform.teach_upload(
                     token,

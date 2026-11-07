@@ -303,6 +303,39 @@ class Brain:
         self.log("brain run " + status + " lessons " + str(len(staged_lessons)))
         return run
 
+    def record_provider_lesson(self, *, tenant_id, fill_id, skill_id, version, decision, feed):
+        """A private record of one paper decision. This does not call a model or place an order."""
+        self.assert_rails()
+        evidence_id = "ev_" + sha256_bytes((tenant_id + fill_id).encode("utf-8"))[:20]
+        lesson_id = "ls_" + sha256_bytes((tenant_id + "provider" + fill_id).encode("utf-8"))[:20]
+        append_jsonl(os.path.join(self.dir, "evidence.jsonl"), {
+            "evidence_id": evidence_id,
+            "kind": "provider_decision",
+            "ledger_id": fill_id,
+            "tenant_id": tenant_id,
+        })
+        append_jsonl(os.path.join(self.dir, "lessons.jsonl"), {
+            "evidence_ids": [evidence_id],
+            "kind": "provider_decision",
+            "lesson_id": lesson_id,
+            "provenance": {
+                "decision": decision,
+                "feed": feed,
+                "skill_id": skill_id,
+                "source_kind": "provider_schema",
+                "strategy_version": str(version),
+            },
+            "quarantine": False,
+            "statement": (
+                "Paper decision {decision} for {skill} version {version} on {feed}. "
+                "Not a live fill and not a model approval."
+            ).format(decision=decision, skill=skill_id, version=version, feed=feed),
+            "status": "candidate",
+            "trading_effect": "none",
+            "utc": self.clock(),
+        })
+        return {"lesson_id": lesson_id, "trading_effect": "none"}
+
     def accept_lesson(self, lesson_id):
         """Record a validated paper hypothesis. This does not place an order or edit rails."""
         self.assert_rails()

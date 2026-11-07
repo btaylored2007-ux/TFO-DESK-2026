@@ -67,6 +67,7 @@ class Platform:
         self._ask_fixture = {}
         self._school_override = {}
         self._provider_transport = {}
+        self._scratch_opener = {}
         self.pass_mark = os.environ.get("CUSTOMER_PLATFORM_PASS_MARK", "0.80")
         self.school_draft = load_author_draft()
         self.incidents = None
@@ -195,6 +196,7 @@ class Platform:
             "trading": self._control(ctx["tenant_id"]).view(),
             "stop_distance": state.get("stop_distance") or "",
             "active_strategies": len(self._skills(ctx["tenant_id"]).executable_rules()),
+            "provider_strategies": len(self._skills(ctx["tenant_id"]).provider_rules()),
             "venue": state["venue"],
         }
 
@@ -223,26 +225,27 @@ class Platform:
         side = kwargs.get("side")
         action = "trade_close" if side == "sell" else "trade_open"
         ctx = self._require(token, action, claimed)
-        kwargs["trader_id"] = trader_id
-        claimed_account = kwargs.pop("account_id", None)
-        if claimed_account not in (None, "", ctx["tenant_id"]):
-            raise Denied("account does not match the session")
-        kwargs["account_id"] = ctx["tenant_id"]
-        kwargs.setdefault("strategy_id", "unattributed")
-        kwargs.setdefault("strategy_version", "unknown")
-        kwargs.setdefault("decision", "customer_order")
-        armed = self._control(ctx["tenant_id"]).load().get("replay_armed")
-        kwargs.setdefault("feed", "synthetic_replay" if armed else "unknown")
-        if side == "buy":
-            kwargs["stop"] = self._entry_stop(ctx["tenant_id"], kwargs.get("limit_price"), kwargs.get("stop"))
-        if side == "sell":
-            order = self._book(ctx["tenant_id"]).place_order(**kwargs)
-        else:
-            def _place():
-                return self._book(ctx["tenant_id"]).place_order(**kwargs)
-            order, _seq = self._control(ctx["tenant_id"]).enter(_place, grade=grade, trader_id=trader_id)
-        self._audit(ctx["tenant_id"], ctx["user_id"], "place_order", True)
-        return order
+        with self._gate(ctx["tenant_id"]):
+            kwargs["trader_id"] = trader_id
+            claimed_account = kwargs.pop("account_id", None)
+            if claimed_account not in (None, "", ctx["tenant_id"]):
+                raise Denied("account does not match the session")
+            kwargs["account_id"] = ctx["tenant_id"]
+            kwargs.setdefault("strategy_id", "unattributed")
+            kwargs.setdefault("strategy_version", "unknown")
+            kwargs.setdefault("decision", "customer_order")
+            armed = self._control(ctx["tenant_id"]).load().get("replay_armed")
+            kwargs.setdefault("feed", "synthetic_replay" if armed else "unknown")
+            if side == "buy":
+                kwargs["stop"] = self._entry_stop(ctx["tenant_id"], kwargs.get("limit_price"), kwargs.get("stop"))
+            if side == "sell":
+                order = self._book(ctx["tenant_id"]).place_order(**kwargs)
+            else:
+                def _place():
+                    return self._book(ctx["tenant_id"]).place_order(**kwargs)
+                order, _seq = self._control(ctx["tenant_id"]).enter(_place, grade=grade, trader_id=trader_id)
+            self._audit(ctx["tenant_id"], ctx["user_id"], "place_order", True)
+            return order
 
     def _entry_stop(self, tenant_id, limit_price, stop):
         if stop not in (None, ""):
@@ -376,9 +379,10 @@ class Platform:
 
     def teach_save(self, token, *, trader_ids, text="", rules=None, claimed_tenant=None):
         ctx = self._require(token, "trade_open", claimed_tenant)
-        return self._skills(ctx["tenant_id"]).save_description(
-            user_id=ctx["user_id"], trader_ids=trader_ids, text=text, rules=rules,
-        )
+        with self._gate(ctx["tenant_id"]):
+            return self._skills(ctx["tenant_id"]).save_description(
+                user_id=ctx["user_id"], trader_ids=trader_ids, text=text, rules=rules,
+            )
 
     def teach_upload(self, token, *, trader_ids, filename, data, claimed_tenant=None):
         ctx = self._require(token, "trade_open", claimed_tenant)
@@ -388,19 +392,21 @@ class Platform:
 
     def teach_status(self, token, skill_id, status, evidence_ids=None, claimed_tenant=None):
         ctx = self._require(token, "admin", claimed_tenant)
-        before = self._rails_bytes(ctx["tenant_id"])
-        result = self._skills(ctx["tenant_id"]).set_status(skill_id, status, evidence_ids=evidence_ids, known_evidence=[])
-        if self._rails_bytes(ctx["tenant_id"]) != before:
-            raise ResetBlocked("rails", "a skill cannot change hard rails")
-        return result
+        with self._gate(ctx["tenant_id"]):
+            before = self._rails_bytes(ctx["tenant_id"])
+            result = self._skills(ctx["tenant_id"]).set_status(skill_id, status, evidence_ids=evidence_ids, known_evidence=[])
+            if self._rails_bytes(ctx["tenant_id"]) != before:
+                raise ResetBlocked("rails", "a skill cannot change hard rails")
+            return result
 
     def teach_run_test(self, token, skill_id, claimed_tenant=None):
         ctx = self._require(token, "admin", claimed_tenant)
-        before = self._rails_bytes(ctx["tenant_id"])
-        result = self._skills(ctx["tenant_id"]).run_paper_test(skill_id)
-        if self._rails_bytes(ctx["tenant_id"]) != before:
-            raise ResetBlocked("rails", "a skill cannot change hard rails")
-        return result
+        with self._gate(ctx["tenant_id"]):
+            before = self._rails_bytes(ctx["tenant_id"])
+            result = self._skills(ctx["tenant_id"]).run_paper_test(skill_id)
+            if self._rails_bytes(ctx["tenant_id"]) != before:
+                raise ResetBlocked("rails", "a skill cannot change hard rails")
+            return result
 
     def teach_attest(self, token, skill_id, claimed_tenant=None):
         ctx = self._require(token, "trade_open", claimed_tenant)
@@ -408,7 +414,22 @@ class Platform:
 
     def teach_rollback(self, token, skill_id, version, claimed_tenant=None):
         ctx = self._require(token, "admin", claimed_tenant)
-        return self._skills(ctx["tenant_id"]).rollback(skill_id, version)
+        with self._gate(ctx["tenant_id"]):
+            return self._skills(ctx["tenant_id"]).rollback(skill_id, version)
+
+    def teach_interpret(self, token, skill_id, claimed_tenant=None):
+        ctx = self._require(token, "admin", claimed_tenant)
+        skills = self._skills(ctx["tenant_id"])
+        skill = skills._skill(skills._load(), skill_id)
+        decision = self.provider_decide(ctx["tenant_id"], {
+            "percent": "",
+            "skill_id": skill_id,
+            "symbol": "",
+            "teaching": skill.get("source_text") or "",
+            "version": "",
+        }, match_reviewed=False)
+        with self._gate(ctx["tenant_id"]):
+            return skills.record_interpretation(skill_id, decision)
 
     def ask(self, token, text, idempotency_key, claimed_tenant=None):
         ctx = self._require(token, "trade_open", claimed_tenant)
@@ -443,22 +464,98 @@ class Platform:
         status = vault_status()
         keys = public_keys(self._key_path(tenant_id)) if status["available"] else []
         provider = keys[0]["provider"] if keys else "openai"
+        gate = self._provider_gate(tenant_id, provider)
         transport = self._provider_transport.get(tenant_id)
+        use_legacy = transport is not None and gate["send"]
         jobs = ProviderJobs(
             os.path.join(self._tenant_dir(tenant_id), "requests", "provider_jobs.json"),
             self.clock,
-            transport=transport,
+            transport=transport if use_legacy else None,
         )
-        job = jobs.open_job(request_id=row["id"], provider=provider, has_credential=bool(keys))
-        secret = ""
-        if keys and transport is not None:
-            secret = self._customer_secret(tenant_id, provider)
-        result = jobs.run(job["id"], secret)
+        job = jobs.open_job(request_id=row["id"], provider=provider if provider in ("openai", "anthropic", "grok", "deepseek") else "openai", has_credential=bool(keys))
+        if not keys:
+            result = jobs.run(job["id"], "")
+            provenance = "no customer credential"
+        elif not gate["send"]:
+            result = jobs.note(job["id"], "unconnected", gate["reason"])
+            provenance = gate["reason"]
+        elif use_legacy:
+            result = jobs.run(job["id"], self._customer_secret(tenant_id, provider))
+            provenance = result["error"] or "scratch transport; not a provider acceptance"
+        else:
+            from customer_platform.provider_client import ProviderClient
+            parsed = ProviderClient(opener=self._scratch_opener.get(tenant_id)).decide(
+                provider=provider, secret=self._customer_secret(tenant_id, provider), teaching=row.get("text") or "",
+            )
+            if parsed.get("ok"):
+                result = jobs.note(job["id"], "complete", "")
+                provenance = "scratch reply stored; not a provider acceptance" if parsed.get("synthetic") else "provider reply stored; live acceptance was not certified here"
+            else:
+                result = jobs.note(job["id"], "failed" if parsed.get("called") else "unconnected", parsed.get("reason") or "provider failed")
+                provenance = parsed.get("reason") or "provider failed"
         view = dict(row)
         view["calls"] = 0
         view["job"] = result["status"]
-        view["provenance"] = result["error"] or "not_sent"
+        view["provenance"] = provenance
         return view
+
+    def _provider_gate(self, tenant_id, provider):
+        from customer_platform.ai_vault import public_keys, vault_status
+        from customer_platform.provider_client import ADAPTERS, public_egress_allowed
+        client = "configured"
+        if provider not in ADAPTERS:
+            return {"client": client, "reason": "provider is not configurable", "send": False}
+        if not vault_status()["available"]:
+            return {"client": client, "reason": "Key storage is not ready on this server.", "send": False}
+        if not any(row["provider"] == provider for row in public_keys(self._key_path(tenant_id))):
+            return {"client": client, "reason": "no customer credential", "send": False}
+        consent = read_json(self._provider_path(tenant_id), {})
+        if not consent.get("send_enabled") or consent.get("provider") != provider:
+            return {"client": client, "reason": "provider client is configured; outbound send is off", "send": False}
+        if self._control(tenant_id).load().get("state") != "replay":
+            return {"client": client, "reason": "outbound send is off until paper replay is started", "send": False}
+        if self._scratch_opener.get(tenant_id) is None and self._provider_transport.get(tenant_id) is None and not public_egress_allowed():
+            return {"client": client, "reason": "provider client is configured; public egress is off", "send": False}
+        return {"client": client, "provider": provider, "reason": "", "send": True}
+
+    def _provider_path(self, tenant_id):
+        return os.path.join(self._tenant_dir(tenant_id), "provider.json")
+
+    def enable_provider_send(self, token, provider, confirmation, claimed_tenant=None):
+        from customer_platform.provider_client import ADAPTERS, SEND_PHRASE
+        ctx = self._require(token, "admin", claimed_tenant)
+        if confirmation != SEND_PHRASE:
+            raise ResetBlocked("confirmation_required", "provider send needs an explicit confirmation")
+        if provider not in ADAPTERS:
+            raise Denied("provider is not configurable")
+        gate = self._provider_gate(ctx["tenant_id"], provider)
+        if gate["reason"] == "no customer credential" or gate["reason"].startswith("Key storage"):
+            raise ResetBlocked("credential", gate["reason"])
+        if not any(row["provider"] == provider for row in self.key_status(token)["keys"]):
+            raise ResetBlocked("credential", "no customer credential")
+        write_json(self._provider_path(ctx["tenant_id"]), {"provider": provider, "send_enabled": True})
+        return {"provider": provider, "public_egress": False, "send_enabled": True}
+
+    def install_scratch_opener(self, token, opener, claimed_tenant=None):
+        ctx = self._require(token, "admin", claimed_tenant)
+        if not callable(opener):
+            raise Denied("scratch opener was refused")
+        self._scratch_opener[ctx["tenant_id"]] = opener
+        return {"network": "scratch", "provider_acceptance": False, "public_egress": False}
+
+    def provider_decide(self, tenant_id, rule, match_reviewed=True):
+        provider = (read_json(self._provider_path(tenant_id), {}) or {}).get("provider") or "openai"
+        gate = self._provider_gate(tenant_id, provider)
+        if not gate["send"]:
+            return {"called": False, "ok": False, "provider": provider, "reason": gate["reason"]}
+        from customer_platform.provider_client import ProviderClient
+        reviewed = rule if match_reviewed else None
+        return ProviderClient(opener=self._scratch_opener.get(tenant_id)).decide(
+            provider=provider,
+            secret=self._customer_secret(tenant_id, provider),
+            teaching=rule.get("teaching") or "",
+            reviewed=reviewed,
+        )
 
     def _customer_secret(self, tenant_id, provider):
         from cryptography.fernet import Fernet
@@ -514,9 +611,14 @@ class Platform:
         return remove_key(self._key_path(ctx["tenant_id"]), provider)
 
     def key_test(self, token, provider, claimed_tenant=None):
-        from customer_platform.ai_vault import connection_test
+        from customer_platform.provider_client import ProviderClient
         ctx = self._require(token, "admin", claimed_tenant)
-        return connection_test(self._key_path(ctx["tenant_id"]), provider, transport=None)
+        gate = self._provider_gate(ctx["tenant_id"], provider)
+        if not gate["send"]:
+            return {"called": False, "client": gate["client"], "reason": gate["reason"]}
+        return ProviderClient(opener=self._scratch_opener.get(ctx["tenant_id"])).probe(
+            provider=provider, secret=self._customer_secret(ctx["tenant_id"], provider),
+        )
 
     def _key_path(self, tenant_id):
         return os.path.join(self._tenant_dir(tenant_id), "vault", "keys.json")
@@ -614,17 +716,18 @@ class Platform:
             raise ResetBlocked("order", "pending order was not found")
         action = "trade_close" if pending[0]["side"] == "sell" else "trade_open"
         ctx = self._require(token, action, claimed_tenant)
-        if fixture and not state.get("fixture"):
-            raise Denied("fixture fills are only available on a fixture account")
-        if pending[0]["side"] == "buy":
-            def _fill():
-                return self._book(ctx["tenant_id"]).fill_order(order_id, price=price, fx=fx, fixture=fixture)
-            row, _seq = self._control(ctx["tenant_id"]).enter(_fill, trader_id=pending[0].get("trader_id") or "desk")
-        else:
-            row = self._book(ctx["tenant_id"]).fill_order(order_id, price=price, fx=fx, fixture=fixture)
-        self._brain(ctx["tenant_id"]).mark_pending()
-        self._audit(ctx["tenant_id"], ctx["user_id"], "fill_order", True)
-        return row
+        with self._gate(ctx["tenant_id"]):
+            if fixture and not state.get("fixture"):
+                raise Denied("fixture fills are only available on a fixture account")
+            if pending[0]["side"] == "buy":
+                def _fill():
+                    return self._book(ctx["tenant_id"]).fill_order(order_id, price=price, fx=fx, fixture=fixture)
+                row, _seq = self._control(ctx["tenant_id"]).enter(_fill, trader_id=pending[0].get("trader_id") or "desk")
+            else:
+                row = self._book(ctx["tenant_id"]).fill_order(order_id, price=price, fx=fx, fixture=fixture)
+            self._brain(ctx["tenant_id"]).mark_pending()
+            self._audit(ctx["tenant_id"], ctx["user_id"], "fill_order", True)
+            return row
 
     def cancel_order(self, token, order_id, *, confirmation, claimed_tenant=None):
         ctx = self._require(token, "trade_close", claimed_tenant)
@@ -669,6 +772,13 @@ class Platform:
     def reset_capital(self, token, *, amount=None, preview_token, confirmation, idempotency_key,
                       acknowledge_zero=False, claimed_tenant=None, crash_at=None):
         ctx = self._require(token, "admin", claimed_tenant)
+        with self._gate(ctx["tenant_id"]):
+            return self._reset_held(
+                ctx, amount=amount, preview_token=preview_token, confirmation=confirmation,
+                idempotency_key=idempotency_key, acknowledge_zero=acknowledge_zero, crash_at=crash_at,
+            )
+
+    def _reset_held(self, ctx, *, amount, preview_token, confirmation, idempotency_key, acknowledge_zero, crash_at):
         result = self._reset(ctx["tenant_id"]).apply(
             amount=amount,
             preview_token=preview_token,
@@ -1078,11 +1188,28 @@ class Platform:
         return Skills(self._tenant_dir(tenant_id), self.clock, ai_connected=False)
 
     def authorize_synthetic_school(self, token, course, claimed_tenant=None):
+        from customer_platform.school_fixture import is_isolated_fixture
         ctx = self._require(token, "admin", claimed_tenant)
-        if not isinstance(course, dict) or course.get("label") != "SYNTHETIC FIXTURE":
-            raise Denied("only a labelled synthetic fixture course can be opened")
+        real_path = os.path.join(os.path.dirname(__file__), "school_content", "draft", "course.json")
+        with open(real_path, "rb") as handle:
+            real = handle.read()
+        if not is_isolated_fixture(course, real):
+            raise Denied("only an isolated synthetic fixture can be opened")
         self._school_override[ctx["tenant_id"]] = course
         return {"published_real_course": False, "synthetic": True}
+
+    def _gate(self, tenant_id):
+        from contextlib import contextmanager
+        from customer_platform.files import tenant_writer
+
+        @contextmanager
+        def _open():
+            with tenant_writer(self._tenant_dir(tenant_id)) as gate:
+                if gate == "busy":
+                    raise ResetBlocked("writer", "writer busy")
+                yield
+
+        return _open()
 
     def _school(self, tenant_id):
         override = self._school_override.get(tenant_id)

@@ -278,7 +278,7 @@ class PaperBook:
         epoch = self.epoch(state)
         realized = Decimal("0")
         if order["side"] == "buy":
-            self._assert_new_risk(state, notional)
+            self._assert_new_risk(state, notional, exclude_order_id=order["order_id"])
             cash = parse_signed_money(epoch["capital_balance"], currency)
             if notional > cash:
                 raise ResetBlocked("cash", "practice capital is below the paper notional")
@@ -470,7 +470,7 @@ class PaperBook:
         })
         return row
 
-    def _assert_new_risk(self, state, notional):
+    def _assert_new_risk(self, state, notional, exclude_order_id=None):
         snapshot = self.equity(state)
         currency = state["currency"]
         equity = parse_signed_money(snapshot["amount"], currency)
@@ -479,7 +479,15 @@ class PaperBook:
                 "zero_equity",
                 "equity is zero or negative, so new entries are blocked; no ratio was computed",
             )
-        if notional > equity:
+        pending = Decimal("0")
+        for order in state["orders"]:
+            if order.get("order_id") == exclude_order_id:
+                continue
+            if order.get("status") == "pending" and order.get("side") == "buy":
+                pending += exact_notional(
+                    Decimal(order["qty"]), parse_money(order["limit_price"], currency), Decimal("1"), currency,
+                )
+        if notional + pending > equity:
             raise ResetBlocked("equity_cap", "paper notional cannot exceed equity")
 
     def _open_qty(self, state, symbol):

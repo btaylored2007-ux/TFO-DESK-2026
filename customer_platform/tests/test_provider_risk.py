@@ -56,6 +56,10 @@ def test_provider_job_uses_only_this_tenant_key_and_does_not_invent_an_answer(tm
     desk.key_save(token, "openai", "ada-secret-key-42")
     still = desk.ask(token, "Again?", "ask-job-02")
     assert still["job"] == "unconnected" and still["answer"] == "No answer yet."
+    assert still["provenance"] == "provider client is configured; outbound send is off"
+    desk.arm_synthetic_replay(token)
+    desk.enable_provider_send(token, "openai", "Send to my provider")
+    desk.start_trading(token)
     job_path = os.path.join(desk._tenant_dir(created["tenant_id"]), "requests", "provider_jobs.json")
     stored = open(desk._key_path(created["tenant_id"]), encoding="utf-8").read() + open(job_path, encoding="utf-8").read()
     assert "ada-secret-key-42" not in stored and "bea-secret-key-99" not in stored

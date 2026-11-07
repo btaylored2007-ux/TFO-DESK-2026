@@ -172,7 +172,12 @@ def desk(model, csrf):
         headline=esc(trading["headline"]),
         notice=esc(trading.get("notice") or ""),
         action=_trade_action(trading, csrf),
-        strategy="<p>An active written rule can place one paper order from the synthetic print. This is not AI trading.</p>" if model.get("active_strategies") else "",
+        strategy=(
+            "<p>A reviewed provider schema can place one paper order from the synthetic print. The model does not set the price, the stop, or the approval.</p>"
+            if model.get("provider_strategies") else
+            "<p>An active written rule can place one paper order from the synthetic print. This is not AI trading.</p>"
+            if model.get("active_strategies") else ""
+        ),
         figures=figures, chart=chart, holdings=holdings, policy=policy,
         distance=esc(distance), csrf=esc(csrf),
         a1="selected" if str(trading.get("activity")) == "1" else "",
@@ -547,6 +552,7 @@ def keys_page(model, csrf, notice=""):
       <h2>Your provider keys</h2>
       {warning}
       <p>Keys belong to this login. They are not an operator subscription and they are not sent to the browser after save. Available: {available}.</p>
+      <p>The provider client is part of this app. Outbound send stays off until you confirm it and paper replay is started. A missing key is not a missing client. Public egress stays off on this server.</p>
       <ul>{rows}</ul>
       <form method="post" action="/keys">
         <input type="hidden" name="csrf" value="{csrf}">
