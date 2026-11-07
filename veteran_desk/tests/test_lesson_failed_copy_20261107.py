@@ -51,6 +51,7 @@ def _inject(module, predicate):
         return real(src, dst, *args, **kwargs)
 
     module.shutil.copy2 = wrapped
+    return real
 
 
 def test_failed_copy_after_a_successful_write_restores_the_tree(tmp_path, capsys):
@@ -63,8 +64,11 @@ def test_failed_copy_after_a_successful_write_restores_the_tree(tmp_path, capsys
         seen["n"] += 1
         return seen["n"] == 2
 
-    _inject(install, second_payload)
-    code = install.main(["--root", str(root), "--staging", "--apply"])
+    real = _inject(install, second_payload)
+    try:
+        code = install.main(["--root", str(root), "--staging", "--apply"])
+    finally:
+        install.shutil.copy2 = real
     out = capsys.readouterr().out
     assert code == 2
     assert "APPLY_REFUSED" in out
@@ -79,8 +83,11 @@ def test_failed_new_file_after_replaces_is_removed(tmp_path, capsys):
     install = _load()
     root = _stage(tmp_path)
     before = _bases(root)
-    _inject(install, lambda src: src.endswith("feed_status_facts.py"))
-    code = install.main(["--root", str(root), "--staging", "--apply"])
+    real = _inject(install, lambda src: src.endswith("feed_status_facts.py"))
+    try:
+        code = install.main(["--root", str(root), "--staging", "--apply"])
+    finally:
+        install.shutil.copy2 = real
     out = capsys.readouterr().out
     assert code == 2
     assert "FAILED_COPY veteran_desk/feed_status_facts.py: injected" in out

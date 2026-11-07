@@ -76,7 +76,10 @@ def test_failed_copy_restores_the_finished_replace(tmp_path, capsys):
         return real(src, dst, *args, **kwargs)
 
     install.shutil.copy2 = wrapped
-    code = install.main(["--root", str(root), "--staging", "--apply"])
+    try:
+        code = install.main(["--root", str(root), "--staging", "--apply"])
+    finally:
+        install.shutil.copy2 = real
     out = capsys.readouterr().out
     assert code == 2
     assert "FAILED_COPY" in out and "injected" in out

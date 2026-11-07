@@ -13,6 +13,7 @@ import datetime as dt
 import hashlib
 import json
 import os
+import re
 import time
 from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeout
 
@@ -79,6 +80,8 @@ def classify_error(error):
         return "unavailable"
     if any(word in text for word in ("timeout", "deadline", "no time left", "timed out")):
         return "timeout"
+    if "busy" in text:
+        return "busy"
     if any(word in text for word in ("quota", "rate limit", "usage limit", "too many", "insufficient balance")):
         return "quota"
     if "cooling" in text:
@@ -308,8 +311,40 @@ TRANSIENT = ("busy", "cooldown", "timed out", "timeout", "unreachable", "restart
 DEFER_LIMIT = 3
 
 
+def budget_spent(row):
+    """A timeout that used the allowance is a finished failure. It is not a reason to pay for the same call again."""
+    text = ((row.get("error") or "") + " " + (row.get("availability") or "")).lower()
+    if "shadow wait exceeded" in text:
+        return True
+    if "timeout" not in text:
+        return False
+    latency = row.get("latency_ms")
+    budget = row.get("budget_s")
+    if isinstance(budget, (int, float)) and budget > 0 and isinstance(latency, (int, float)):
+        return latency >= float(budget) * 800
+    match = re.search(r"timeout after (\d+)s", text)
+    if match and "claude" in text and int(match.group(1)) >= 80:
+        return True
+    if "grok timeout" in text and isinstance(latency, (int, float)) and latency >= 80000:
+        return True
+    return False
+
+
+def fast_defer(row):
+    """An immediate busy or unreachable result did not start a model."""
+    if row.get("ok"):
+        return False
+    text = ((row.get("error") or "") + " " + (row.get("availability") or "")).lower()
+    if "timeout" in text or "shadow wait" in text:
+        return False
+    if not any(word in text for word in ("busy", "restart", "unreachable")):
+        return False
+    latency = row.get("latency_ms")
+    return not isinstance(latency, (int, float)) or latency < 1000
+
+
 def is_transient(row):
-    if row.get("availability") == "quota":
+    if row.get("availability") == "quota" or budget_spent(row):
         return False
     text = ((row.get("error") or "") + " " + (row.get("availability") or "")).lower()
     if "usage limit" in text or "sign-in" in text:
@@ -362,6 +397,7 @@ def run_job(job, timeout, budgets=None, only=None):
             scored=bool(result.get("scored")), prompt_hash=prompt_hash, data_asof=job.get("data_asof"),
             output_hash=BENCH._hash(text) if text else None, preview=BENCH.redact(text)[:180],
             score=score, tokens="unknown", cost_usd="unknown", latency_ms=result.get("latency_ms"),
+            budget_s=int(budgets.get(name, timeout)),
             shadow_calls=1, kind="shadow_evaluation", paper_only=True)
 
     names = [name for name in BENCH.provider_order(str(job.get("task_id") or prompt_hash)) if only is None or name in only]
@@ -374,6 +410,8 @@ def run_job(job, timeout, budgets=None, only=None):
                 rows.append(dict(version=VERSION, task_id=job.get("task_id"), seat=seat,
                                  provider_requested=name, availability="timeout",
                                  ok=False, scored=False, error="shadow wait exceeded", shadow_calls=1,
+                                 latency_ms=int(budgets.get(name, timeout)) * 1000,
+                                 budget_s=int(budgets.get(name, timeout)),
                                  kind="shadow_evaluation", prompt_hash=prompt_hash, data_asof=job.get("data_asof")))
     return rows
 
@@ -460,8 +498,10 @@ def once(root, now=None):
     ran = 0
     invalid = 0
     closed_limit = 0
+    fast = 0
     samples = _read_samples(root)
-    for job in pending_jobs(root)[:int(config.get("max_jobs_per_run") or 1)]:
+    cap = max(1, int(config.get("max_jobs_per_run") or 1))
+    for job in pending_jobs(root)[:cap]:
         task_id = job.get("task_id")
         if usable_prompt(job) is None:
             _append(jobs_path(root), dict(event="invalid", reason="empty_prompt", task_id=task_id, utc=_now(), providers=[]))
@@ -488,7 +528,9 @@ def once(root, now=None):
         _append(jobs_path(root), dict(event=event, task_id=task_id, utc=_now(),
                                      providers=[row.get("provider_requested") for row in rows], deferred=deferred))
         ran += 1
-    status.update(called=True, jobs=ran, invalid_empty_prompt=invalid, closed_at_defer_limit=closed_limit, availability="ran", provider_timeout_s=timeout,
+        if rows and all(fast_defer(row) for row in rows):
+            fast += 1
+    status.update(called=True, jobs=ran, fast_deferred=fast, invalid_empty_prompt=invalid, closed_at_defer_limit=closed_limit, availability="ran", provider_timeout_s=timeout,
                   chatgpt_timeout_s=budgets.get("chatgpt"),
                   identity=dict(uid=os.geteuid(), home=os.path.expanduser("~")))
     samples = []

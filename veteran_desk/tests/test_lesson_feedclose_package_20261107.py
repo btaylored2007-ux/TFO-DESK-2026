@@ -154,7 +154,10 @@ def test_unknown_hash_partial_failure_and_existing_new_file_do_not_write(tmp_pat
         return real(src, dst, *args, **kwargs)
 
     inst.shutil.copy2 = fail_second_payload
-    assert inst.apply_plan(str(root), inst.plan(str(root))) is False
+    try:
+        assert inst.apply_plan(str(root), inst.plan(str(root))) is False
+    finally:
+        inst.shutil.copy2 = real
     for rel in REPLACED:
         assert _sha(root / rel) == _sha(PKG / "base" / rel)
     assert not (root / "veteran_desk" / "feed_status_facts.py").exists()
