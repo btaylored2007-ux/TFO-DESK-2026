@@ -139,7 +139,12 @@ def reconcile(roots):
         receipt = json.loads(receipt_path.read_text(encoding="utf-8")) if receipt_path.is_file() else None
         outcome = None if not receipt else receipt.get("restart_outcome")
         if latest == "restart_ok":
-            state = "RESTART_RECORDED" if outcome == "RECORDED" else "RESTART_JOURNAL_OK_RECEIPT_STALE"
+            if outcome == "RECORDED":
+                state = "RESTART_RECORDED"
+            elif outcome == "UNKNOWN":
+                state = "RESTART_JOURNAL_OK_RECEIPT_UNKNOWN"
+            else:
+                state = "RESTART_JOURNAL_OK_RECEIPT_STALE"
         elif latest in ("restart_begin", "restart_failed"):
             state = "RESTART_UNKNOWN" if latest == "restart_begin" else "RESTART_FAILED"
         elif latest in ("restored_before_restart", "rolled_back"):
@@ -428,7 +433,7 @@ PROTECTED = (
 def recover_release(roots, action, restarter=None):
     """Operator recovery. Restores only the display write-set, or restarts dash once.
     Does not reapply, does not write the book, and does not restart the engine."""
-    if action not in ("restore-files", "restart-dash"):
+    if action not in ("restore-files", "restart-dash", "note-stale-receipt"):
         raise ReleaseError("REFUSED_RECOVERY")
     pair = tuple(roots)
     if len(pair) != 2 or pair[0] == pair[1]:
@@ -463,6 +468,23 @@ def recover_release(roots, action, restarter=None):
             _journal(root, "restart_ok")
         _same_books(pair, books)
         return {"action": "restart-dash", "unit": unit, "book_written": False}
+    if action == "note-stale-receipt":
+        for root in pair:
+            if "restart_ok" not in _events(root):
+                raise ReleaseError("REFUSED_RECOVERY")
+            for item in ALLOW["archives"][0]["files"]:
+                dest = Path(root) / item["path"]
+                if not dest.is_file() or file_sha(dest) != item["target"]:
+                    raise ReleaseError("REFUSED_VERIFY")
+        receipt = {
+            "release": ALLOW["release"], "deployed": True, "restored": False, "production": True,
+            "restart_outcome": "UNKNOWN", "dash_restarted": None, "book_written": False,
+            "book_observed_sha256": sha256(books[pair[0]]),
+            "journal_restart_ok": True, "mark": "PENDING",
+        }
+        _write_receipt(pair, receipt)
+        _same_books(pair, books)
+        return {"action": "note-stale-receipt", "book_written": False, "dash_restarted": None}
     for root in pair:
         for item in ALLOW["archives"][0]["files"]:
             rel = item["path"]
@@ -496,13 +518,18 @@ def socket_host():
     return socket.gethostname()
 
 
+def operator_apply_allowed():
+    """False flags are a refusal. Editing them in place is not an approval."""
+    return ALLOW.get("deployment_ready") is True and ALLOW.get("ops_review_ready") is True
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description="Apply the display-epoch UI archive on tfo-sgp1 only.")
     parser.add_argument("--approval")
     parser.add_argument("--archive")
     parser.add_argument("--restart-dash", action="store_true")
     parser.add_argument("--reconcile", action="store_true")
-    parser.add_argument("--recover", choices=("restore-files", "restart-dash"))
+    parser.add_argument("--recover", choices=("restore-files", "restart-dash", "note-stale-receipt"))
     args = parser.parse_args(argv)
     if args.recover:
         try:
@@ -520,6 +547,10 @@ def main(argv=None):
         return 0
     if not args.approval or not args.archive:
         print("REFUSED_APPROVAL")
+        print("NOT_DEPLOYED")
+        return 2
+    if not operator_apply_allowed():
+        print("REFUSED_NOT_READY")
         print("NOT_DEPLOYED")
         return 2
     try:

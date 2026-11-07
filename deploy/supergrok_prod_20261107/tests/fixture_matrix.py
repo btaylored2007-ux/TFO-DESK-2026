@@ -14,7 +14,7 @@ release = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(release)
 BASE = PKG / "fixture_base"
 PINNED = PKG / "pinned_untouched"
-STAGING = PKG.parent / "owner_chat_20261107" / "install.py"
+STAGING = PKG / "boundary" / "install.py"
 
 
 def fail(message):

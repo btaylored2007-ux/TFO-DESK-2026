@@ -4,6 +4,7 @@
   "applied": false,
   "deployment_ready": false,
   "ops_review_ready": false,
+  "readiness_contract": "Operator apply is refused while either flag is not true. Changing these booleans in place is not an approval. Independent preflight evidence is not approval.",
   "capture_sha256": "94c0f2dd4133dac72c506e383f733bb761d15a725364d9484344eab24f8265ec",
   "host": "tfo-sgp1",
   "roots": [

@@ -157,6 +157,9 @@ def main():
         report = release.reconcile((live, dash))
         if any(row["state"] != "RESTART_RECORDED" for row in report):
             fail("reconcile " + str(report))
+        for item in ALLOW["archives"][0]["files"]:
+            if release.file_sha(live / item["path"]) != item["target"] or release.file_sha(dash / item["path"]) != item["target"]:
+                fail("reconcile files drifted")
         restored = release.recover_release((live, dash), "restore-files")
         if restored["book_written"] is not False:
             fail("restore wrote book")
@@ -184,6 +187,116 @@ def main():
             fail("explicit dash restart")
         if (dash / "veteran_desk/book.py").read_bytes() != book:
             fail("restart changed book")
+    with tempfile.TemporaryDirectory() as raw:
+        tmp = Path(raw)
+        live, dash = tmp / "live", tmp / "dash"
+        tree(live)
+        tree(dash)
+        (dash / "veteran_desk/book.py").write_bytes(b"other-book\n")
+        try:
+            apply(tmp, live, dash)
+        except release.ReleaseError as error:
+            if error.code != "REFUSED_BOOK_DIVERGED":
+                fail(error.code)
+        else:
+            fail("diverged books")
+        if release.file_sha(live / "veteran_desk/thf_dash.py") != ALLOW["archives"][0]["files"][0]["bases"][0]:
+            fail("diverged books wrote dash")
+    with tempfile.TemporaryDirectory() as raw:
+        tmp = Path(raw)
+        live, dash = tmp / "live", tmp / "dash"
+        tree(live)
+        tree(dash)
+        book = (live / "veteran_desk/book.py").read_bytes()
+        real_receipt = release._write_receipt
+
+        def fail_receipt(pair, body):
+            raise OSError("receipt disk full")
+
+        release._write_receipt = fail_receipt
+        try:
+            try:
+                apply(tmp, live, dash, restart="dash", restarter=lambda _unit: None)
+            except release.ReleaseError as error:
+                if error.code != "RECEIPT_FAILED":
+                    fail(error.code)
+            else:
+                fail("pre-restart receipt failure ignored")
+        finally:
+            release._write_receipt = real_receipt
+        if (live / "veteran_desk/book.py").read_bytes() != book:
+            fail("pre-restart receipt failure changed book")
+        if release.file_sha(live / "veteran_desk/thf_dash.py") != ALLOW["archives"][0]["files"][0]["bases"][0]:
+            fail("pre-restart receipt failure kept new dash")
+        if (live / "veteran_desk/thf_display_epoch.py").exists():
+            fail("pre-restart receipt failure kept epoch")
+        if release._events(live)[-1] != "restored_before_restart":
+            fail("pre-restart journal")
+        if any(row["state"] != "RESTORED" for row in release.reconcile((live, dash))):
+            fail("pre-restart reconcile")
+    with tempfile.TemporaryDirectory() as raw:
+        tmp = Path(raw)
+        live, dash = tmp / "live", tmp / "dash"
+        tree(live)
+        tree(dash)
+        book = (live / "veteran_desk/book.py").read_bytes()
+        calls = []
+        real_receipt = release._write_receipt
+        state = {"n": 0}
+
+        def fail_after(pair, body):
+            state["n"] += 1
+            if state["n"] >= 2:
+                raise OSError("receipt disk full")
+            return real_receipt(pair, body)
+
+        release._write_receipt = fail_after
+        try:
+            try:
+                apply(tmp, live, dash, restart="dash", restarter=calls.append)
+            except release.ReleaseError as error:
+                if error.code != "RECEIPT_AFTER_RESTART_FAILED":
+                    fail(error.code)
+            else:
+                fail("post-restart receipt failure ignored")
+        finally:
+            release._write_receipt = real_receipt
+        saved = json.loads((live / "state/thf/display_release_20261107_receipt.json").read_text(encoding="utf-8"))
+        if saved.get("dash_restarted") is False or saved.get("restart_outcome") == "RECORDED":
+            fail("stale receipt claimed a recorded restart or false")
+        if "restart_ok" not in release._events(live) or calls != ["tfo-dash-thf.service"]:
+            fail("post-restart journal")
+        for item in ALLOW["archives"][0]["files"]:
+            if release.file_sha(live / item["path"]) != item["target"]:
+                fail("post-restart files")
+        if (live / "veteran_desk/book.py").read_bytes() != book:
+            fail("post-restart book")
+        if any(row["state"] != "RESTART_JOURNAL_OK_RECEIPT_STALE" for row in release.reconcile((live, dash))):
+            fail("stale reconcile")
+        try:
+            apply(tmp, live, dash, restart="dash", restarter=calls.append)
+        except release.ReleaseError as error:
+            if error.code != "REFUSED_RERUN":
+                fail(error.code)
+        else:
+            fail("apply after stale receipt")
+        if calls != ["tfo-dash-thf.service"]:
+            fail("stale receipt restarted again")
+        noted = release.recover_release((live, dash), "note-stale-receipt")
+        if noted["dash_restarted"] is not None or calls != ["tfo-dash-thf.service"]:
+            fail("note restarted or stored false")
+        saved = json.loads((live / "state/thf/display_release_20261107_receipt.json").read_text(encoding="utf-8"))
+        if saved.get("restart_outcome") != "UNKNOWN" or saved.get("dash_restarted") is not None or saved.get("journal_restart_ok") is not True:
+            fail("noted receipt")
+        if any(row["state"] != "RESTART_JOURNAL_OK_RECEIPT_UNKNOWN" for row in release.reconcile((live, dash))):
+            fail("unknown reconcile")
+        for item in ALLOW["archives"][0]["files"]:
+            if release.file_sha(dash / item["path"]) != item["target"]:
+                fail("note changed files")
+        if (dash / "veteran_desk/book.py").read_bytes() != book:
+            fail("note changed book")
+    if release.operator_apply_allowed():
+        fail("readiness flags allow apply")
     print("FIXTURE_OK")
     return 0
 
