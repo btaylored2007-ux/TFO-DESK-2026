@@ -22,7 +22,8 @@ def _run(tmp, t, fp):   # self-contained temp book: fresh seats from BK.load() o
     px = lambda s: dict(last=68.5, hi=68.6, lo=68.4, asof="x")
     return BK.tick(price_fn=px, au=0.65, queue_path=q), p
 def test_flag_then_rebook():
-    tmp = tempfile.mkdtemp(); old = (BK.BOOK, BK.now, BK.first_print_after_open)
+    tmp = tempfile.mkdtemp(); old = (BK.BOOK, BK.now, BK.first_print_after_open, BK.posture)
+    BK.posture = lambda: ("calm", "risk-off")
     try:
         D, p = _run(tmp, dt.datetime(2026, 10, 28, 13, 5, tzinfo=U), None)   # 21:05 WITA: closed -> flagged, held
         x = D["seats"]["energy"]["positions"]["VET-XLE-20261028-121530-energy"]
@@ -33,4 +34,4 @@ def test_flag_then_rebook():
         assert not x["rebook_pending"] and x["fill"] == 68.20 and x["stop"] == 66.0 and x["target"] == 72.6 and x["cost_aud"] > 0
         assert 0.02 - 1e-6 <= x["risk_pct_actual"] <= 0.05 + 1e-6, x["risk_pct_actual"]
         print("REBOOK", x["shares"], x["risk_pct_actual"], x["cost_aud"], D["seats"]["energy"]["equity_aud"])
-    finally: BK.BOOK, BK.now, BK.first_print_after_open = old
+    finally: BK.BOOK, BK.now, BK.first_print_after_open, BK.posture = old

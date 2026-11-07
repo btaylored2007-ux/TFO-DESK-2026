@@ -1,0 +1,24 @@
+--- /agent/repos/TFO-DESK-2026/deploy/chatgpt_maintenance_guard_20261106/base/veteran_desk/chatgpt_bridge.py	2026-11-06 16:54:19.529735500 +0000
++++ /agent/repos/TFO-DESK-2026/deploy/chatgpt_maintenance_guard_20261106/payload/veteran_desk/chatgpt_bridge.py	2026-11-06 16:54:19.529735500 +0000
+@@ -82,9 +82,7 @@
+                 seat=seat, workload=workload, deadline=deadline, request_id=rid,
+                 wait_for_slot=bool(not skip_if_busy and (workload == "trader" or (workload in ("chat", "learning") and wait_for_slot))))
+     if imgs: body["images"] = imgs   # absolute paths under chat_imgs (or probe dir); web worker attaches via file input
+-    use_ack = health().get("delivery") == "ack_poll_v1"
+-    if use_ack: body["ack"] = True
+-    rq = urllib.request.Request(URL + "/ask", data=json.dumps(body).encode(), headers={"Content-Type": "application/json"})
++    use_ack = False
+     def _poll():
+         import urllib.parse
+         while time.time() < deadline:
+@@ -100,6 +98,10 @@
+             time.sleep(0.05 if os.environ.get("PYTEST_CURRENT_TEST") else 1)
+         raise RuntimeError("chatgpt poll deadline; request was not submitted again")
+     try:
++        _BM.client_guard()  # A hold here is before the delivery probe, so that probe is not opened.
++        use_ack = health().get("delivery") == "ack_poll_v1"
++        if use_ack: body["ack"] = True
++        rq = urllib.request.Request(URL + "/ask", data=json.dumps(body).encode(), headers={"Content-Type": "application/json"})
+         _BM.client_guard()  # Recheck immediately before submission, after preparation.
+         _BM.mark_submission()
+         d = json.loads(urllib.request.urlopen(rq, timeout=20 if use_ack else timeout + 60).read())

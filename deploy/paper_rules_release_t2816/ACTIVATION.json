@@ -1,0 +1,26 @@
+{
+  "release": "paper_rules_release_t2816",
+  "rejected_control": "145af9c bound package f65604a0 to gate base 5582d153. That base is not the live file. Do not apply it.",
+  "capture": {
+    "wita": "2026-11-07 19:43:17 WITA",
+    "archive_sha256": "7a2cd5f9cd4d031e80fc141ee94b2b3af5ada5cac61f7fb5ae904ba43fc1175a",
+    "gate_sha256": "2326feaa522d4c9de014d1523435aeb8ab83fd817e45396448beb50363446d54",
+    "book_sha256": "b4453b503f33e34110519bf4d7a9bf391ecc2802edbd87acca3e77dc96b7e891",
+    "live_equals_dash": true
+  },
+  "gate_delta": "Against 5582d153 the captured gate differs only in the final return: needs_brett_tick is false and the added comment is absent. armed and can_arm stay false. This package does not install the true flag.",
+  "grade_b": "book.risk_plan halves the seat full risk. The gate line is x1.0. The old x0.5 warning was a second cut. The new warning says the half is already in the book.",
+  "locks": {
+    "tfo-dash-refresh": "honours tools/.code_release.lock and tools/deploy.lock",
+    "tfo-thf-tick": "honours .tick.flock by skipping the whole tick, including stops, when that lock is held. This release only observes it.",
+    "book_writer": "tick and seat_cli take state/thf/.book.flock around the ledger write. This release only observes it.",
+    "shadow_sampler": "thf_shadow_sampler.py does not check those locks. The release can only see tfo-thf-shadow.service. A start during the replace is still possible."
+  },
+  "partial_activation": {
+    "next_tick": "A new python -m veteran_desk.book tick process imports the new book. The 19:36:22 WITA sampler run loaded the deployed 7e2eeb3e sampler. It did not load this gate.",
+    "still_old": ["vd_engine daemon PID 372060 since Nov 6", "engine_supervisor PID 366917 since Nov 6", "dash PID 1889022 since 19:17:56 WITA"],
+    "in_process_reload": "unsupported and not added"
+  },
+  "quote": {"id": "t2816u", "wita": "2026-11-07 19:42 WITA", "text": "Ok fix these and deploy."},
+  "prior_quote": {"id": "t2809u", "wita": "2026-11-07 18:52 WITA", "text": "Explicitly authorisation to deploy and clear the blocks."}
+}

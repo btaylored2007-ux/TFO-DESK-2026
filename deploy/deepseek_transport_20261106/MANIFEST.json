@@ -1,0 +1,12 @@
+{
+  "book_must_remain": "b4453b503f33e34110519bf4d7a9bf391ecc2802edbd87acca3e77dc96b7e891",
+  "files": [
+    {
+      "path": "veteran_desk/deepseek_bridge.py",
+      "payload_sha256": "bbe02efdf47ee3738dd4d6f34251fc01d7461578e856566248c3b814f8cc3149",
+      "base_sha256": [
+        "b632ddeeea08bdd2d9c036767871b99f57a156a32c7890a9e6eb707eb38d6175"
+      ]
+    }
+  ]
+}

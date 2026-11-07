@@ -1,0 +1,33 @@
+{
+  "book_must_remain": "b4453b503f33e34110519bf4d7a9bf391ecc2802edbd87acca3e77dc96b7e891",
+  "files": [
+    {
+      "path": "tools/chatgpt_admission.py",
+      "payload_sha256": "dceb94c59f426fb2a68f5fdd1f98e99df31de1c57dd860b1e481fef5d32addd8",
+      "base_sha256": [
+        "dceb94c59f426fb2a68f5fdd1f98e99df31de1c57dd860b1e481fef5d32addd8"
+      ]
+    },
+    {
+      "path": "tools/chatgpt_web.py",
+      "payload_sha256": "cc86f0afeef4e26ca609b669356c95c4f4009b9d571dbd710303d8a4a73779a4",
+      "base_sha256": [
+        "d1554bac584951c3829f04d852f6d6f0fb8ca909e4cf4ba440c5d1dd13769399"
+      ]
+    },
+    {
+      "path": "veteran_desk/chatgpt_bridge.py",
+      "payload_sha256": "26446b5b61218bfc370fff62988db47efecb7b8afafd15e694ceaecf35deac0c",
+      "base_sha256": [
+        "e094a13c119e311be0e79fcecf715ed0d7cc28656b7d0b923740c2cc868e268a"
+      ]
+    },
+    {
+      "path": "veteran_desk/thf_chat_home.py",
+      "payload_sha256": "788b979aaedbb681383500db7695a256f91d72700833cb160a7b3e16d31959c6",
+      "base_sha256": [
+        "b1184435dc3ccad8771133e59b26852d3ab184171ae35e383c7601f0119de7ff"
+      ]
+    }
+  ]
+}

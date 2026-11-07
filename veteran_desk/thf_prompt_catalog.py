@@ -1,0 +1,45 @@
+"""Source-owned THF prompt library; editable text, explicit actions, no automatic trade approval."""
+PRESETS = [
+ ("status","Desk status","Quick desk update","ask","all","Give me a short update: net results, open and armed trades, fresh opportunities, problems and what you will do next."),
+ ("positions","Desk status","Review my positions","ask","all","Review every position you own. Explain the thesis, current result, stop, next decision and main risk in plain English."),
+ ("blocks","Desk status","What stopped a trade?","ask","all","List the exact checks that stopped your latest candidates, the evidence and the next useful action. Separate software faults from real risk, liquidity or stale-price limits."),
+ ("capacity","Desk status","Risk and trading capacity","ask","all","Show your available trading capacity and existing sector/direction overlap. Identify what you can consider within the current rules."),
+ ("hunt","Trading","Push a fresh A/A+ hunt","push","trader","Run a fresh hunt across your own universe. Rank the best A/A+ setups using paid evidence, fresh prices, realistic costs and your normal limits. Explain what you chose or why you stood aside."),
+ ("secondlook","Trading","Second look at held trades","ask","trader","Review your held and armed trades: HOLD, TIGHTEN_STOP, HALF_BANK, CANCEL or CLOSE with evidence. Never widen a stop. Explain the next protective action."),
+ ("catalyst","Trading","Find upcoming catalysts","ask","trader","Find upcoming catalysts for your best candidates using the paid news, earnings and filings data. Show sources and times; say when evidence is missing."),
+ ("profit","Trading","Protect open profits","push","trader","Check your open winners against the existing half-bank, fee-floor, trailing-stop and giveback rules. Take only the protective actions your seat is authorised to take and report the audited result."),
+ ("stale","Trading","Check stale orders and prices","push","trader","Check your armed orders and quote ages. Review stale or unreachable entries under the existing rules and report what you cancelled, retained or escalated."),
+ ("liquidity","Trading","Check liquidity and costs","ask","trader","Check spread, recent volume, participation, borrow where relevant and round-trip costs on your best candidates. Show the evidence and realistic exit capacity."),
+ ("killcase","Trading","Challenge the best idea","ask","trader","Make the strongest evidence-based case against your best idea. Check crowding, correlation, stale prices, liquidity, catalysts and stop placement. Distinguish facts from hypotheses."),
+ ("rank","Trading","Rank the next three ideas","ask","trader","Rank your next three ideas with grade, direction, entry trigger, protective stop, reward/risk, catalyst and what would invalidate each. Use your own fresh evidence."),
+ ("rollcall","Teamwork","Ask every seat for a report","ask","admin","Collect a short report from every trader and staff member: what they checked, positions, current work, problems and next action. Summarise missing replies without inventing answers."),
+ ("handover","Teamwork","Prepare a clear handover","ask","all","Prepare a handover with positions or work owned, decisions made, pending tasks, deadlines, evidence and the next responsible person."),
+ ("peerask","Teamwork","Ask a colleague for a second view","ask","all","Ask the relevant colleague for a direct second view on your most important current decision. Give the facts, a precise question and report their reply."),
+ ("feeds","Operations","Paid-feed health check","push","admin","Check every paid feed and quote source, source timestamps, failures and fallbacks. Identify affected seats and the concrete repair or escalation. Optional research misses are not trade vetoes."),
+ ("health","Operations","Engine and queue health","push","admin","Check THF engine, tick, chat, scheduled tasks, message delivery and coding queue health. Report exact faults and evidence. Route code work to Simon/Fixer."),
+ ("codejob","Operations","Queue an engineering fix","push","admin","Simon/Fixer: inspect the THF problem described below, identify the cause, propose the smallest permanent source fix, back it up, test it and report a verified deployment receipt. Problem: "),
+ ("codestatus","Operations","Coding-job progress","ask","admin","Show engineering work that is running, queued, parked or completed. For completed changes cite the deployment receipt and tests; do not treat a diagnosis as an applied repair."),
+ ("audit","Operations","Review permanent changes","ask","admin","Review the current THF release, source authority, deployment log, rollback copies and any drift. Confirm that refresh and sync cannot restore retired code."),
+ ("money","Operations","Reconcile the money view","ask","admin","Reconcile displayed equity, net profit, costs and funding transfers to the real source records. Keep the 06:00 WITA dashboard day distinct from book risk-day figures."),
+ ("missing","Operations","Find missing data or replies","push","admin","Check for missing data, unacknowledged pushes, deferred answers and overdue work. Retry or route within your authority and report what remains unresolved."),
+ ("brain","Brain and learning","Show my brain and lessons","ask","all","Explain what is in your own brain: standing facts, recent journal, lessons, untested hypotheses and the next review. Use your own records."),
+ ("daily_learn","Brain and learning","Daily learning review","learn","all","Review your own decisions, closed trades or completed staff work and recent journal. Identify one evidence-based lesson, one untested hypothesis and a specific next check. Compare relevant peer evidence without copying trades blindly."),
+ ("loss_learn","Brain and learning","Learn from losses and failures","learn","all","Review your recent losses, misses or failed work. Identify controllable causes, evidence, what worked and one habit to test next. Do not change risk limits or code as part of this review."),
+ ("miss_learn","Brain and learning","Learn from missed opportunities","learn","all","Review opportunities or work you missed. Separate good discipline from avoidable delay, data faults and process mistakes. Record one testable lesson with evidence."),
+ ("hypothesis","Brain and learning","Retest an existing lesson","learn","all","Retest a recent lesson or hypothesis against subsequent results. Say whether evidence supports, contradicts or remains insufficient, and what you will check next."),
+ ("peer_learn","Brain and learning","Learn from competing desks","learn","all","Study dated Veteran Desk, OANDA Aggro and Fundamental trades and data. Identify one repeatable process improvement relevant to your role, with evidence and a test. Recheck every trading idea against THF's own quotes and rules."),
+ ("competition","Competition","Show the competition","ask","all","Review THF versus Veteran Desk, OANDA Aggro and Fundamental over the same competition window. Explain net returns, funding adjustments, drawdown, data freshness and the most useful gap to close."),
+ ("catchup","Competition","Find why peers are ahead","ask","all","Use the competition records and peer trades to explain where THF is losing ground: opportunity selection, entry timing, exits, costs or avoidable delay. Give three evidence-based improvements."),
+ ("peerhunt","Competition","Push a peer-informed hunt","push","trader","Review relevant peer open and recently closed trades as research leads, then run your own fresh THF hunt. Choose only ideas that pass your own prices, liquidity, stops and limits. Report differences from the peer setup."),
+ ("coach","Competition","Head-of-desk competition plan","ask","admin","Build an evidence-based THF improvement plan from the competition. Assign clear work to the right seats, compare results at the next review and prioritise net return with controlled drawdown. Never promise a win or manufacture activity."),
+ ("morning","Scheduled reports","Morning desk briefing","ask","all","Prepare the next-session briefing: positions or work owned, fresh risks, paid-feed evidence, top priorities and tasks due. State what needs action and who owns it."),
+ ("close","Scheduled reports","End-of-session review","learn","all","Review the completed session: outcomes after costs, decisions, misses, operational work, lessons and the next-session plan. Keep observations distinct from hypotheses."),
+ ("weekly","Scheduled reports","Weekly brain and process review","learn","all","Review the week's own records and competition evidence. Retain supported lessons, challenge weak ones and identify one measurable experiment for the next week. Do not loosen risk limits.")
+]
+def catalog(role="all"):
+    allowed={"all",role}
+    return [dict(id=i,category=g,label=l,mode=m,audience=a,text=t,
+                 suggested_every_minutes=10080 if i=="weekly" else 1440 if i in ("daily_learn","morning","close") else None)
+            for i,g,l,m,a,t in PRESETS if role=="all" or a in allowed]
+def get(key):
+    return next((dict(id=i,category=g,label=l,mode=m,audience=a,text=t) for i,g,l,m,a,t in PRESETS if i==key),None)

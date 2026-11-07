@@ -1,0 +1,32 @@
+[
+  {
+    "path": "veteran_desk/book.py",
+    "sha256": "b4453b503f33e34110519bf4d7a9bf391ecc2802edbd87acca3e77dc96b7e891",
+    "size": 200375,
+    "mtime": 1793951301.5945585
+  },
+  {
+    "path": "tests/test_bank07_20261106.py",
+    "sha256": "cdebd6073bf06800ccd85b9ac21da938704baca7fd067517adaa16d3444e205c",
+    "size": 7121,
+    "mtime": 1793949577.047577
+  },
+  {
+    "path": "veteran_desk/seat_cli.py",
+    "sha256": "40d3d070601903b6a74b9e4a4af7528e1edf25d65bb82572fa1970d0b3d4cd01",
+    "size": 41565,
+    "mtime": 1793717210.7057817
+  },
+  {
+    "path": "veteran_desk/seat_actions.py",
+    "sha256": "7c7c382954e11c191ee9afae471bfd0663e645bd6f805ba7b1c89fdc4e83cc79",
+    "size": 13226,
+    "mtime": 1793702573.2757652
+  },
+  {
+    "path": "run_thf_engine_sgp.sh",
+    "sha256": "bafc10872e3173fa008733fc5ce728c04fc96a71153af7b5150bb56ad2fd2b19",
+    "size": 358,
+    "mtime": 1793945040.8258073
+  }
+]

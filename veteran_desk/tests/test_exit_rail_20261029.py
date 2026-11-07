@@ -3,10 +3,11 @@ giveback flatten (<=60% of peak once peak>=2R), hard stop wins, tighten-only; se
 import datetime as dt, json, os, sys, tempfile, copy
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 from veteran_desk import book as BK, seat_cli as SC
+from veteran_desk.tests.synthetic_book import skeleton
 U = dt.timezone.utc; T = dt.datetime(2026, 10, 28, 18, 45, tzinfo=U)   # US session open, past open window
 
 def _book(pos, seat="energy"):
-    tmp = tempfile.mkdtemp(); D = copy.deepcopy(json.load(open(BK._REAL_BOOK)))
+    tmp = tempfile.mkdtemp(); D = copy.deepcopy(skeleton())
     for B in D["seats"].values(): B["positions"] = {}; B["closed"] = []; B["cash_aud"] = B["seed_aud"]
     D["hedge"] = {"disabled": True}; D["kill_switch"] = {"state": "OK"}; D["peak_equity_aud"] = None
     D["seats"][seat]["positions"][pos["id"]] = pos
@@ -57,17 +58,17 @@ def test_trail_short():
     p = _p(D); assert p["rail_state"] == "trailing" and abs(p["stop"] - 98.4) < 1e-6
 
 def test_half_bank_at_2R_before_T1():
-    path, q = _book(_pos(target=112.0))   # T1 at 6R
-    D, evs = _tick(path, q, [dict(last=104.1, hi=104.2, lo=103.8)])   # peak 2.1R, current 2.05R (no giveback)
+    path, q = _book(_pos(target=112.0))   # T1 is far; 0.7R net banks first
+    D, evs = _tick(path, q, [dict(last=101.6, hi=101.7, lo=101.2)])   # net crosses 0.7R; still under the old 2R price
     p = _p(D); half = [c for c in _closed(D) if c["id"] == "P1-T1"]
-    assert half and half[0]["shares"] == 50 and half[0]["exit"] == 104.0 and half[0]["exit_reason"] == "rail_2R_scale_out"
+    assert half and half[0]["shares"] == 50 and half[0]["exit"] == 101.6 and half[0]["exit_reason"] == "rail_0_7R_aud_scale_out"
     assert p["shares"] == 50 and p["t1_done"] and p["rail_state"] == "t1_done" and p["stop"] >= 100.0
 
 def test_half_bank_at_T1_short_keeps_semantics():
-    path, q = _book(_pos("SHORT", target=97.0))   # T1 at 1.5R
-    D, _ = _tick(path, q, [dict(last=97.2, hi=97.6, lo=96.9)])
+    path, q = _book(_pos("SHORT", target=99.2))   # 0.4R, before the 0.7R bank
+    D, _ = _tick(path, q, [dict(last=99.2, hi=99.4, lo=99.0)])
     half = [c for c in _closed(D) if c["id"] == "P1-T1"][0]; p = _p(D)
-    assert half["exit"] == 97.0 and half["exit_reason"] == "target1_scale_out" and p["shares"] == 50 and p["target"] == 94.0 and p["stop"] <= 100.0
+    assert half["exit"] == 99.2 and half["exit_reason"] == "target1_scale_out" and p["shares"] == 50 and p["stop"] <= 100.0
 
 def test_giveback_flatten(monkeypatch):
     monkeypatch.setattr(BK, "FULL_FLAT_PCT", None)   # 2026-10-30 fullflat: fixture runs +5.8% vs basis; this test isolates the R giveback geometry

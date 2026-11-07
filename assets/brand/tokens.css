@@ -1,0 +1,42 @@
+/* Transparent Trading display tokens. Internal routes stay /desk/chat and THF. */
+:root {
+  --tt-navy: #10243e;
+  --tt-ink: #142033;
+  --tt-paper: #f4f7f6;
+  --tt-surface: #ffffff;
+  --tt-line: #d5dee6;
+  --tt-muted: #3e5160;
+  --tt-teal: #1f4e5f;
+  --tt-focus: #0b5f63;
+  --tt-danger: #8c2f2f;
+  --tt-warning: #8a5a12;
+  --tt-ok: #1d5c38;
+  --tt-font: Inter, "Noto Sans", "Segoe UI", sans-serif;
+  --tt-space: 8px;
+  --tt-radius: 12px;
+  color-scheme: light;
+}
+:root[data-theme="dark"] {
+  --tt-navy: #071422;
+  --tt-ink: #e7eef2;
+  --tt-paper: #0c1622;
+  --tt-surface: #152433;
+  --tt-line: #2a3e50;
+  --tt-muted: #c5d0d8;
+  --tt-teal: #8fb8c4;
+  --tt-focus: #9ad4d1;
+  --tt-danger: #f0b4b0;
+  --tt-warning: #e6c48a;
+  --tt-ok: #9dceb0;
+  color-scheme: dark;
+}
+body.tt {
+  margin: 0;
+  background: var(--tt-paper);
+  color: var(--tt-ink);
+  font-family: var(--tt-font);
+  font-size: 16px;
+  line-height: 1.45;
+}
+.tt-mark { width: 28px; height: 28px; color: var(--tt-navy); display: block; }
+:root[data-theme="dark"] .tt-mark { color: var(--tt-ink); }

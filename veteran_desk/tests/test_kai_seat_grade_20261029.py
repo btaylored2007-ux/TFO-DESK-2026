@@ -16,8 +16,8 @@ def _arm(seat, grade="A", stop=135.0, mult=1.0, eid="VET-K-1"):
     ev = {x[0]: tuple(x) for x in D["last_events"]}
     return D["seats"][seat]["positions"].get(eid), ev.get(eid)
 def test_non_crypto_seat_kraken_keeps_2pct_floor():
-    p, ev = _arm("price_action", mult=0.4)   # tfo_review_fix_20261031: cut A wants 0.8% -> sizes to max(cut,1%), not rejected (book only arms A/A+)
-    assert p is not None and abs(p["risk_pct"] - .01) < 1e-9
+    p, ev = _arm("price_action", mult=0.4)   # t2808u: price_action full risk is 2%; the 0.4 cut stays at 0.8% and is not lifted to 1%.
+    assert p is not None and abs(p["risk_pct"] - .008) < 1e-9
 def test_crypto_seat_gets_band():
     p, ev = _arm("crypto", mult=0.5)          # 1% x0.5 = 0.5% -> allowed on the crypto seat
     assert p and p["status"] in ("armed", "open") and abs(p["risk_pct"] - .005) < 1e-9   # floortol 16:24: integer-unit rounding below 0.5% accepted

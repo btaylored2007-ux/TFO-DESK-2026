@@ -17,7 +17,8 @@ def test_gate_takes_seat_risk_pct():
     r = g(P0(risk_pct=1.5)); assert r["passed"] and abs(r["risk_pct"] - .015) < 1e-9 and abs(r["seat_risk_pct"] - .015) < 1e-9
 # 2 override half size
 def test_override_half_size():
-    r = g(P0(grade="A", grade_seat="A+")); assert r["override"] and any("override" in w for w in r["warnings"]) and abs(r["risk_pct"] - .01) < 1e-9
+    # t2808u: the override half is a real cut. It is not lifted back to 1%.
+    r = g(P0(grade="A", grade_seat="A+")); assert r["override"] and any("override" in w for w in r["warnings"]) and abs(r["risk_pct"] - .005) < 1e-9
 # 3 slip collar constant
 def test_slip_collar_15bps(): assert BK.SLIP_COLLAR_BPS == 15.0 and BK.MAX_SLIP == .0015
 # 4 pre-arm futures units + 30% margin headroom
@@ -86,7 +87,8 @@ def test_lesson_loop_close_stats_prompt():
 def test_prompt_schema_has_risk_and_lessons():
     src = open(DK.__file__).read(); assert '\\"risk_pct\\"' in src and '\\"lessons_respected\\"' in src and "_ll_block(seat)" in src
 def test_missing_lessons_respected_halves():
-    r = g(P0(_ll_required=True)); assert any("lessons_respected missing" in w for w in r["warnings"]) and abs(r["risk_pct"] - .01) < 1e-9
+    # t2808u: the missing-lessons half stays a half. It is not lifted back to 1%.
+    r = g(P0(_ll_required=True)); assert any("lessons_respected missing" in w for w in r["warnings"]) and abs(r["risk_pct"] - .005) < 1e-9
 # losing-seat rule on VD too (temp dir under pytest)
 def test_vd_stern_review(monkeypatch):
     monkeypatch.delenv("THF_DESK", raising=False); d = tempfile.mkdtemp(); monkeypatch.setenv("SEAT_REVIEW_DIR", d)

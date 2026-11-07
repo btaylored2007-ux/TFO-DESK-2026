@@ -1,0 +1,4 @@
+python3 -m pytest veteran_desk/tests/test_chatgpt_stall_20261106.py veteran_desk/tests/test_chatgpt_stall_install_20261106.py veteran_desk/tests/test_thf_bridge_admission_20261104.py tests/test_bank07_20261106.py veteran_desk/tests/test_review_20261030.py::test_half_risk_a_allowed_at_1pct veteran_desk/tests/test_live_bank_snapshot_20261106.py -q --tb=short
+34 passed in 1.44s.
+book b4453b503f33e34110519bf4d7a9bf391ecc2802edbd87acca3e77dc96b7e891
+d601fe4 archive sha256 14e899a14d8a600efedbf43646b565ce21904c71aa0d6e75a03bf6c8906ce440 unchanged by this build.

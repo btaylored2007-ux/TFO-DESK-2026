@@ -1,0 +1,39 @@
+{
+  "name": "crypto_prepump_20261107",
+  "deployed": false,
+  "apply_to_production": false,
+  "book_must_remain": "b4453b503f33e34110519bf4d7a9bf391ecc2802edbd87acca3e77dc96b7e891",
+  "live_desk_sha256": "670a55e65f52e6730561f0bac46248ccdee965680444aaff62384e2252124dd4",
+  "note": "Bases are this branch before the pre-pump edit, not the Singapore desk hash. A live tree still on 670a55 is BLOCKED.",
+  "proven_edge": false,
+  "reviews_claimed": false,
+  "hunt48_shorts": "off",
+  "payloads": [
+    {
+      "path": "veteran_desk/desk.py",
+      "action": "replace_only_if_base",
+      "base_sha256": "eecfd886da9ead076530358c40af41ccf9d9a809f9b23b84a00d5e5e79077e1e",
+      "target_sha256": "1ac3fac3dfd4ccbaee1afd0675b1e59d51ee7de8c0ca68a4da5a2a68cb536300"
+    },
+    {
+      "path": "veteran_desk/thf_round.py",
+      "action": "replace_only_if_base",
+      "base_sha256": "c150e5987414e70c3b0ad751a4b7d61d6e4e37bcc90ce30517705fe87a326867",
+      "target_sha256": "41dcaba6fd2289fbdc203046c249021cfba1938e935440fc450c6b2aa3a3874e"
+    },
+    {
+      "path": "veteran_desk/thf_msgdesk.py",
+      "action": "replace_only_if_base",
+      "base_sha256": "72a8abaaa8a8127ccaa20db04f92e18cde229f37db788c7ce9ef2f513d13b81e",
+      "target_sha256": "bc5ae7e983ba4b322db587fbc5c5acc9b4579e3ee87677be0cf49160605d16ac"
+    }
+  ],
+  "new_files": [
+    {
+      "path": "veteran_desk/crypto_prepump.py",
+      "action": "install_only_if_absent",
+      "base_sha256": null,
+      "target_sha256": "8eac475f1de89cafdc9c0296aa28043a610263717b9e6ce7269c5444fddfdc64"
+    }
+  ]
+}

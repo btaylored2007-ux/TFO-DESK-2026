@@ -1,0 +1,32 @@
+{
+  "example": true,
+  "authorization_verbatim": "Explicitly authorisation to deploy and clear the blocks.",
+  "authorization_id": "t2809u",
+  "authorization_wita": "2026-11-07 18:52 WITA",
+  "decision_id": "t2808u",
+  "decision_wita": "2026-11-07 18:51 WITA",
+  "decision_record": "18:51 WITA delegated the paper-rule decisions. The 18:52 sentence is the deploy authorization. Neither sentence contains file hashes.",
+  "coordinator_bound": {
+    "package": "paper_rules_20261107",
+    "package_sha256": "f65604a081fb3787e8ef2d57d5117fc7b8d3aeb76103f33ad922cdad13eb257d",
+    "files": [
+      {
+        "path": "veteran_desk/book.py",
+        "base_sha256": "b4453b503f33e34110519bf4d7a9bf391ecc2802edbd87acca3e77dc96b7e891",
+        "target_sha256": "a739477001c33b23ad87ebdf8ca5fc40c76b441eb13100daf1bc67136eb12c7b"
+      },
+      {
+        "path": "veteran_desk/gate_v2.py",
+        "base_sha256": "5582d153fa2d4d7270de228dd4ca0df0321c2efc7380b0080edd8af9b6c1dcb0",
+        "target_sha256": "3ca464e4d34b93b3def67820c4ce64e9032217f5ea2b71f1f8cd8a062a409335"
+      }
+    ]
+  },
+  "host": "tfo-sgp1",
+  "roots": ["/opt/tfo/live/thf", "/opt/tfo/dash/base"],
+  "not_in_this_apply": ["empty_prompt_20261107", "review_budget_20261107", "retail_dash_20261107"],
+  "no_tick_restart": true,
+  "no_engine_restart": true,
+  "no_nginx_change": true,
+  "no_ledger_rewrite": true
+}

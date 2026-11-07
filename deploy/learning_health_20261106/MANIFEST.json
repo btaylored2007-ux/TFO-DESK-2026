@@ -1,0 +1,47 @@
+{
+  "book_must_remain": "b4453b503f33e34110519bf4d7a9bf391ecc2802edbd87acca3e77dc96b7e891",
+  "files": [
+    {
+      "path": "veteran_desk/lesson_trace.py",
+      "payload_sha256": "e63ed1fb7463bed9f8c748c5f927fd767e5820837e240f111cdddcf9aec90bac",
+      "base_sha256": [
+        "4771ecc9e567c881bb50c27c9330a13acbd7d375dec40730984dd291129e2813"
+      ]
+    },
+    {
+      "path": "veteran_desk/seat_brain.py",
+      "payload_sha256": "ab73bb07447775555c5da3b2eb630965b876fe68850c9955b7d1a20ef7638cbb",
+      "base_sha256": [
+        "dcb25dddadc5b8c2bfd3e36607b98a785912596cba94911baf39f8b7eb87cc31"
+      ]
+    },
+    {
+      "path": "veteran_desk/learning.py",
+      "payload_sha256": "7536a3d289f870d757e1758df01e1d0db47be5045cb9ceb6b9a3ac6a7ff704a3",
+      "base_sha256": [
+        "374f42b4e55e7276f651d5682aae0ed633cabf1b2a8d789e4ce8e8d348be7b90"
+      ]
+    },
+    {
+      "path": "veteran_desk/ai_cooldown.py",
+      "payload_sha256": "646850d9a4f28db88bf58703801c38e1e7f73715979091b3f5e658c1599cf5b3",
+      "base_sha256": [
+        "3f4e797ed934474535b0604b688a7a69ba801cf46678598aeea082554b3b6db7"
+      ]
+    },
+    {
+      "path": "veteran_desk/thf_grok.py",
+      "payload_sha256": "2a6a975735fce2f3ed214b5eb35af84ce90629d7403204c8691bab9757568561",
+      "base_sha256": [
+        "2adbecef98d5f98e0d76e48795846b153dfa71f138bbe0a36faa31f28eb468cd"
+      ]
+    },
+    {
+      "path": "veteran_desk/thf_shadow_sampler.py",
+      "payload_sha256": "220226bed82c7285f19ff2dacb01df7948936531be034c620bf3061586110c46",
+      "base_sha256": [
+        "86204eb2557c26f2ad30c59181e134950f59620e9b02428eacabefa8396b43fe"
+      ]
+    }
+  ]
+}

@@ -14,8 +14,19 @@ def ctx(sym):
             R = [r for r in ((js or {}).get("results") or []) if all(k in r for k in ("t", "o", "h", "l", "c"))]
             if R:
                 d0 = dt.datetime.fromtimestamp(R[-1]["t"] / 1000, UTC).date(); T = [r for r in R if dt.datetime.fromtimestamp(r["t"] / 1000, UTC).date() == d0]
-                out = dict(src="massive_aggs_5m", today_bar=dict(date=str(d0), o=T[0]["o"], h=max(r["h"] for r in T), l=min(r["l"] for r in T), c=T[-1]["c"], v=sum(r.get("v", 0) for r in T)),
+                _hs=[r["h"] for r in T]; _ls=[r["l"] for r in T]; _h,_l=max(_hs),min(_ls); _med=sorted((_hs[i]-_ls[i]) for i in range(len(T)))[len(T)//2] if T else 0
+                # across 2026-10-31: clamp wild 5m ticks (ABBV 279-303.7 vs daily ~291-298) — fail-open, never block
+                if _med > 0 and (_h - _l) > max(8 * _med, 0.08 * abs(T[-1]["c"])):
+                    _hs2=[h for h in _hs if h <= T[-1]["c"] + 4*_med]; _ls2=[l for l in _ls if l >= T[-1]["c"] - 4*_med]
+                    if _hs2 and _ls2: _h,_l=max(_hs2),min(_ls2)
+                out = dict(src="massive_aggs_5m", today_bar=dict(date=str(d0), o=T[0]["o"], h=_h, l=_l, c=T[-1]["c"], v=sum(r.get("v", 0) for r in T)),
                            last_5m=[dict(t=dt.datetime.fromtimestamp(r["t"] / 1000, UTC).strftime("%H:%M"), o=r["o"], h=r["h"], l=r["l"], c=r["c"]) for r in R[-12:]])
+    except Exception: pass
+    try:   # tfo_paidrt_20261031: persisted 1m/5m/15m (companion store, not pit)
+        from veteran_desk import intraday_store as _IB
+        sm = _IB.summary(sym, n=12)
+        if sm: out["intraday"] = dict(tf=sm["tf"], n=sm["n"], src=sm["src"], last=sm["last"], last_utc=sm["last_utc"],
+                                      bars=[dict(t=r["utc"][11:16], o=r["o"], h=r["h"], l=r["l"], c=r["c"]) for r in sm["bars"][-12:]])
     except Exception: pass
     try:
         base = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))

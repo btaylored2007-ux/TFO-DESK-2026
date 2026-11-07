@@ -1,0 +1,26 @@
+{
+  "book_must_remain": "b4453b503f33e34110519bf4d7a9bf391ecc2802edbd87acca3e77dc96b7e891",
+  "files": [
+    {
+      "path": "veteran_desk/lesson_trace.py",
+      "payload_sha256": "99313083f15c7449edf4a21c849b59f642c57c71b7ddebefce17acb43bdc7370",
+      "base_sha256": [
+        "e63ed1fb7463bed9f8c748c5f927fd767e5820837e240f111cdddcf9aec90bac"
+      ]
+    },
+    {
+      "path": "veteran_desk/seat_brain.py",
+      "payload_sha256": "a294b07d3503411ef441dcaa709cc4e98caba8746a3d69ce42c095342a2c7ab0",
+      "base_sha256": [
+        "ab73bb07447775555c5da3b2eb630965b876fe68850c9955b7d1a20ef7638cbb"
+      ]
+    },
+    {
+      "path": "veteran_desk/thf_shadow_sampler.py",
+      "payload_sha256": "a779a30626e765e5d6351ab851399240154802a54cdb955c309e8f97d4ad28ef",
+      "base_sha256": [
+        "220226bed82c7285f19ff2dacb01df7948936531be034c620bf3061586110c46"
+      ]
+    }
+  ]
+}

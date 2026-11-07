@@ -2,14 +2,16 @@
 import json, os, sys, tempfile, datetime as dt
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 from veteran_desk import book as BK, desk as D, seat_cli as SC, pit as P, payouts as PY
+from veteran_desk.tests.isolated_pit import open_pit, seed_bars
 import funder_gate as FG
 from veteran_desk import learning as LN
 import pytest
 @pytest.fixture(autouse=True)
 def _legacy_cash_rule(monkeypatch): monkeypatch.setattr(BK, "MARGIN_HEADROOM", 1.0)   # tfo_review_20261030: withdraw logic test; 30% headroom tested in test_review_20261030
 
-def _setup():
+def _setup(monkeypatch):
     tmp = tempfile.mkdtemp(); q = os.path.join(tmp, "state", "funder_queue.json"); os.makedirs(os.path.dirname(q))
+    c = open_pit(tmp, monkeypatch); seed_bars(c, "XOM", close=100.0, spread=1.0); seed_bars(c, "AUDUSD=X", close=0.65, spread=0.001)
     keep = dict(P=(PY.DEFAULT_OUT_PATH, PY.DEFAULT_FWD_PATH, PY.DEFAULT_SCORE_PATH), so=BK.session_open, now=BK.now, b=(BK.BOOK, BK.firm_ok, BK.posture), upd=FG.update, ca=LN.critique_async); LN.critique_async = lambda *a, **k: None   # never write live learning files
     PY.DEFAULT_OUT_PATH, PY.DEFAULT_FWD_PATH, PY.DEFAULT_SCORE_PATH = (os.path.join(tmp, x) for x in ("payouts.json", "fwd.json", "score.json"))
     BK.session_open = lambda v, t: True; BK.now = lambda: dt.datetime(2026, 10, 28, 15, 0, tzinfo=dt.timezone.utc)
@@ -24,8 +26,8 @@ def _propose(q):
     px = dict(XOM=dict(last=e * .999, hi=e * .999, lo=e * .998)); return r["id"], (lambda s: px.get(s))
 def _setq(q, i, **kw):
     Q = json.load(open(q)); Q["entries"][i].update(kw); json.dump(Q, open(q, "w"))
-def test_withdrawn_after_arm_is_cancelled_and_never_rearmed():
-    tmp, q, k = _setup()
+def test_withdrawn_after_arm_is_cancelled_and_never_rearmed(monkeypatch):
+    tmp, q, k = _setup(monkeypatch)
     try:
         i, fn = _propose(q); D1 = BK.tick(price_fn=fn, au=.65, queue_path=q); assert D1["seats"]["energy"]["positions"][i]["status"] == "armed"
         _setq(q, i, state="withdrawn")   # the 13:03 shape: queue withdrawn, book still ARMED
@@ -33,8 +35,8 @@ def test_withdrawn_after_arm_is_cancelled_and_never_rearmed():
         assert json.load(open(q))["entries"][i]["state"] == "withdrawn"
         D3 = BK.tick(price_fn=fn, au=.65, queue_path=q); assert i not in D3["seats"]["energy"]["positions"]
     finally: _restore(k)
-def test_withdraw_landing_mid_tick_is_not_clobbered():
-    tmp, q, k = _setup()
+def test_withdraw_landing_mid_tick_is_not_clobbered(monkeypatch):
+    tmp, q, k = _setup(monkeypatch)
     try:
         i, fn = _propose(q); real = FG.update
         def racing(f, path=None):   # a seat_cli withdraw lands between the tick's queue read and its write-back

@@ -74,7 +74,7 @@ def _chain(root, start, end, ref):
     for k in range(0, 15):
         m = (ref.month - 1 + k) % 12; y = ref.year + (ref.month - 1 + k) // 12; tk = f"{root}{MCODE[m]}{y % 100:02d}.{sfx}"
         _t = dt.date.today(); _cur = _t.year * 12 + _t.month - 1
-        if root == "BZ" and y * 12 + m < _cur + 2: continue   # tfo_seatpipe_brent_20261030: Brent month M expires ~last biz day of M-2; expired months 404 on Yahoo - skip
+        if root == "BZ" and y * 12 + m < _cur: continue   # tfo_seatpipe_brent_20261030: Brent month M expires ~last biz day of M-2; expired months 404 on Yahoo - skip. seatdata_20261103 (D25): was < _cur + 2, which also dropped the JUST-expired month (Dec on 3 Nov, still served by Yahoo) -> the real Dec->Jan switch on 2 Nov went unmatched and a bogus 'open_gap' roll was guessed on 30 Oct (BZ 2 Nov read -10.9% vs -7.6% true)
         px = _yf_close(tk, start, end)
         if px: out[tk] = px
     return out

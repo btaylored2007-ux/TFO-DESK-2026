@@ -125,7 +125,12 @@ def eodhd_quote(sym, get=None, now_utc=None, max_age_min=30):
     return dict(last=last, hi=float(js.get("high") or last), lo=float(js.get("low") or last), open=float(js.get("open") or last),
                 prev_close=js.get("previousClose"), asof=ts.isoformat(), age_min=round(age, 1), stale=age > max_age_min, src="eodhd_rt")
 def quote(sym, yahoo_fn=None, now_utc=None):
-    """Paid-first quote. US: Massive 5m -> EODHD rt; non-US: EODHD rt (delayed, flagged). Yahoo only if both fail/stale."""
+    """Paid-first quote. EU/LSE: EODHD Cboe websocket when healthy. US: Massive 5m -> EODHD rt. Else EODHD rt. Yahoo only if those fail."""
+    try:
+        from veteran_desk import eodhd_eu_ws as _EU
+        q = _EU.live_px(sym, now=now_utc)
+        if q: return q
+    except Exception: pass
     try:
         from veteran_desk import massive as _MS
         if eodhd_symbol(sym) and eodhd_symbol(sym).endswith(".US"):
@@ -183,3 +188,14 @@ def health(get=None):
         out["massive"] = dict(ok=bool(q), key_present=bool(_MS._key()), breaker=[k for k, v in _MS._BRK.items() if v > time.time()])
     except Exception as e: out["massive"] = dict(ok=False, err=str(e)[:80])
     out["stats"] = dict(STATS); return out
+
+def yahoo_chart_url(sym, params=None, host="query1"):
+    """Public chart URL for explicit fallback/repair readers; credentials are never attached."""
+    if host not in ("query1", "query2"): raise ValueError("invalid public chart host")
+    url = "https://%s.finance.yahoo.com/v8/finance/chart/%s" % (host, urllib.parse.quote(str(sym), safe=""))
+    return url + ("?" + urllib.parse.urlencode(params) if params else "")
+
+def yahoo_chart_response(sym, params=None, host="query1", timeout=20, headers=None):
+    """Central public fallback transport. Callers retain their paid-first selection, retries and validation."""
+    import requests
+    return requests.get(yahoo_chart_url(sym, params, host), headers=headers or {"User-Agent": "Mozilla/5.0"}, timeout=timeout)

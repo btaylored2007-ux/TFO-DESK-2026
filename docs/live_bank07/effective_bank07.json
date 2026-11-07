@@ -1,0 +1,23 @@
+{
+  "RAIL_BANK_R": 0.7,
+  "RAIL_BANK_ALL_POSITIONS": true,
+  "RAIL_BANK_GRADES": [
+    "A",
+    "A+"
+  ],
+  "RAIL_BANK_R_SEAT": {},
+  "RAIL_HALF_R": 2.0,
+  "REVG_BANK_FRAC": 0.5,
+  "rule_ids": [
+    "tfo_partial_cut_20261030",
+    "bank07_20261106"
+  ],
+  "engine_unit": "tfo-thf-engine.service",
+  "exec": "run_thf_engine_sgp.sh -> engine_supervisor -> vd_engine",
+  "test": "tests/test_bank07_20261106.py 7 passed",
+  "tick_unit": "tfo-thf-tick.timer -> tfo-thf-tick.service -> run_thf_tick_sgp.sh",
+  "tick_interval": "every 2 min OnCalendar=*:0/2",
+  "tick_last_success_wita": "2026-11-06 20:38:20",
+  "book_mtime_wita": "2026-11-06 20:38:07",
+  "vd_engine_note": "vd_engine HARD never writes book/rails; tick service is the rail executor"
+}

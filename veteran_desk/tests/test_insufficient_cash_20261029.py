@@ -4,6 +4,7 @@ Fixtures are temp books built from a copy of the live book; nothing live is writ
 import copy, datetime as dt, json, os, sys, tempfile
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 from veteran_desk import book as BK
+from veteran_desk.tests.synthetic_book import skeleton
 from veteran_desk import execution_rules as XR
 import funder_gate as FG
 from veteran_desk import payouts_bridge as PB
@@ -14,7 +15,7 @@ U = dt.timezone.utc; T = dt.datetime(2026, 10, 28, 18, 45, tzinfo=U)   # Wed 14:
 AU = 0.65; C_US = BK.COST_RT.get("US", .002) / 2; C_LEG = BK.COST_RT_LEGACY_20261029["US"] / 2   # costmodel 20261030: new fills cost = leg_cost_aud entry; pre-cutover audits = legacy half-RT
 _PATCH = ("BOOK", "now", "fallback_quote", "posture", "firm_ok", "first_print_after_open", "session_open")
 def _book(seat, cash, positions):
-    D = copy.deepcopy(json.load(open(BK._REAL_BOOK)))
+    D = copy.deepcopy(skeleton())
     for B in D["seats"].values(): B["positions"] = {}
     D["hedge"] = {}; D["kill_switch"] = {}; D["peak_equity_aud"] = 1.0   # peak = this temp book's own equity: stripping live positions must not trip the -12% kill-switch FLAT
     D["seats"][seat]["cash_aud"] = float(cash); D["seats"][seat]["positions"] = positions

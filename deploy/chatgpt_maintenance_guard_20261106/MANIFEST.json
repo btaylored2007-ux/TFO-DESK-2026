@@ -1,0 +1,11 @@
+{
+  "name": "chatgpt_maintenance_guard_20261106",
+  "deployed": false,
+  "only_file": "veteran_desk/chatgpt_bridge.py",
+  "base_sha256": "26446b5b61218bfc370fff62988db47efecb7b8afafd15e694ceaecf35deac0c",
+  "target_sha256": "c477d99674f5d6dd49bd2be60c21d35f8716fbd1f72e790ad7832c2645920098",
+  "diff_sha256": "53d01dfca611b62762e1d84dcd87eb5f6d1e961cdef9a18b3c5751823509329e",
+  "book_must_remain": "b4453b503f33e34110519bf4d7a9bf391ecc2802edbd87acca3e77dc96b7e891",
+  "excluded": ["book.py", "gate_v2.py", "desk.py", "scan fixtures", "pandas", "pit tests", "borrow fixtures"],
+  "ack_poll": "ask still sets ack only when health() reports delivery ack_poll_v1, then polls that request_id and does not submit a second ask."
+}

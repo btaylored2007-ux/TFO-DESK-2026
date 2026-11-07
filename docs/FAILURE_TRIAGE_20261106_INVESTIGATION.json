@@ -1,0 +1,115 @@
+{
+  "supersedes": "The 751 passed / 141 failed / 15 errors figure is retired. It was a dirty working tree (uncommitted llm_backend.py, local_llm.py, seat_cli.py, vd_engine.py, plus untracked tests), not origin/main and not commit 98cf8a0.",
+  "original_classification_kept": "docs/FAILURE_TRIAGE_20261106.json",
+  "paired_baseline": {
+    "main_sha": "b77e4d4b692ac17a3ee4327024af9ee563627010",
+    "main_command": "cd /tmp/thf-main && python3 -m pytest veteran_desk/tests --continue-on-collection-errors -q --tb=line --junitxml=/tmp/junit-main.xml",
+    "main_result": "308 passed, 103 failed, 13 errors",
+    "branch_sha": "98cf8a0f6752ac84bb0345ad97c51c73ee6cc629",
+    "branch_before_harness": "605 passed, 153 failed, 14 errors",
+    "branch_after_first_test_edits": "699 passed, 75 failed, 10 errors"
+  },
+  "count_map_75_failed_10_errors_vs_78_nodes": {
+    "pytest_summary": "75 failed, 10 errors",
+    "unique_failed_nodes": 75,
+    "unique_error_nodes": 10,
+    "nodes_in_both_lists": 7,
+    "unique_nodes": 78,
+    "formula": "75 + 10 - 7 = 78",
+    "seven_overlap": [
+      "veteran_desk/tests/test_desk.py::test_scorecard_shape",
+      "veteran_desk/tests/test_fwd_cancelled_20261028.py::test_cancelled_never_marked",
+      "veteran_desk/tests/test_scan_breadth_20261029.py::test_crypto_seat_uses_kraken_24h",
+      "veteran_desk/tests/test_scan_breadth_20261029.py::test_pack_scan_line_and_topn",
+      "veteran_desk/tests/test_scan_breadth_20261029.py::test_pack_trend_not_swamped_by_crypto",
+      "veteran_desk/tests/test_withdraw_sticks_20261029.py::test_withdraw_landing_mid_tick_is_not_clobbered",
+      "veteran_desk/tests/test_withdraw_sticks_20261029.py::test_withdrawn_after_arm_is_cancelled_and_never_rearmed"
+    ],
+    "why": "Pytest counts a test that fails its assertion and then trips the live-write guard at teardown as one failure and one error. The junit node list kept one row per test, 68 failed plus 10 errors, because those seven were stored once. 75 and 78 are the same set, not two populations."
+  },
+  "later_harness_run": {
+    "command": "cd /tmp/thf-head && python3 -m pytest veteran_desk/tests --continue-on-collection-errors -q --tb=line",
+    "result": "67 failed, 707 passed, 11 errors, unique nodes 70 (67 + 11 - 8 overlap)",
+    "what_changed": "Session clock reset so a leaked session_open cannot mark TSE open. Limit tests set a known posture because this checkout has no news regime file. An empty synthetic payouts file replaces a missing owner payouts file. book.py was not edited."
+  },
+  "fx_cash_reproducer": {
+    "node": "veteran_desk/tests/test_fx_settlement_20261029.py::test_round_trip_cash_via_tick",
+    "setup": "Synthetic BK.load(0.70) ledger, macro seat cash 500000, armed SHORT EURUSD=X 1000000 units, entry 1.1174, limit, scale_t1 false, mark last=1.1174 hi=1.1180 lo=1.1170, au=0.70, firm_ok true, session_open true, posture calm/risk-off.",
+    "quote_to_aud": 0.7,
+    "uncapped_notional_aud": 1596285.7142857143,
+    "uncapped_entry_cost_aud": 111.74,
+    "uncapped_parts_aud": {"spread": 79.81, "comm": 31.93},
+    "cost_rate": 0.00007,
+    "cost_rate_source": "FX spread 0.5 bp plus FX commission 0.2 bp. COST_RT['FX']/2 is the same 0.00007. No 3 bp FX-conversion add-on, because cost_tables.non_aud returns false for FX.",
+    "after_tick": {
+      "status": "open",
+      "shares": 125290,
+      "fill": 1.1174,
+      "cost_aud": 14.0,
+      "fill_notional_aud": 199998.63714285716,
+      "cash_aud": 499986.0,
+      "cash_delta_aud": 14.0,
+      "cash_equals_cost_aud": true,
+      "event": "seat_cap_notional_futfx_40pct at fill: 1000000 -> 125290 (was 319% of seat)"
+    },
+    "gap_aud": 97.74,
+    "gap_identity": "111.74 expected on the original 1000000 units minus 14.00 booked on the capped notional.",
+    "first_fill_left_open": "Status open is what the assertion requires. The failure is the cash figure, not a fill that refused to open.",
+    "main": "The same test passed on origin/main, whose book has RAIL_BANK_R 1.0 and did not produce this resize.",
+    "accounting": "Not a broken cash identity. The booked cost equals the cash leaving the seat, at 0.7 bp of the capped notional.",
+    "unresolved": "Whether a paper FX order that is 319% of seat equity should be cut to 40% at fill is a protected-book decision. This thread does not authorize that cut, and the current source comment is not treated as authorization. book.py was not edited. No installer.",
+    "live_hash_required_before_any_book_edit": "b4453b503f33e34110519bf4d7a9bf391ecc2802edbd87acca3e77dc96b7e891",
+    "review_site": "veteran_desk/book.py prefill_seat_cap and SEAT_FUTFX_NOTIONAL_CAP = 0.40"
+  },
+  "unclassified_28": [
+    {"node": "test_round_trip_cash_via_tick", "still_fails": true, "root": "Fill-time 40% FX notional cap resizes 1000000 to 125290. Cash identity holds at A$14. The A$97.74 is the uncapped cost minus that A$14.", "kind": "unresolved_protected_book_behavior"},
+    {"node": "test_non_a_2pct_and_aplus_4pct", "still_fails": true, "root": "main risk_plan grade B pct is 0.02. Branch pct is 0.01. Both live in book.py. Commit 54cfc4e loaded this book as the +0.7R file and bundled the B change with it. Not separately mandated here.", "kind": "unresolved_protected_book_behavior"},
+    {"node": "test_cut_non_a_below_2pct_rejected_never_1pct", "still_fails": true, "root": "main B mult 0.5 returns pct 0 and reject below_2pct_nonA_floor. Branch returns pct 0.01 and reject None.", "kind": "unresolved_protected_book_behavior"},
+    {"node": "test_band", "still_fails": true, "root": "Grade B risk_aud is 5000 on the branch and 10000 on main, for equity 500000.", "kind": "unresolved_protected_book_behavior"},
+    {"node": "test_cut_toward_2pct_never_below", "still_fails": true, "root": "Same B cut: branch sizes to 1% instead of rejecting.", "kind": "unresolved_protected_book_behavior"},
+    {"node": "test_other_seats_unchanged", "still_fails": true, "root": "A stays 0.01. B is 0.01 on the branch and 0.02 on main.", "kind": "unresolved_protected_book_behavior"},
+    {"node": "test_usdkrw_theo_case_risk", "still_fails": true, "root": "The unit conversion assertion is not the failure. int(risk_aud / per) uses B risk_aud 5000, so notional lands near 5000 instead of 10000.", "kind": "unresolved_protected_book_behavior"},
+    {"node": "test_risk_plan_rejects_sub_floor", "still_fails": true, "root": "Branch risk_plan does not return below_2pct_nonA_floor for B mult 0.45. Main does.", "kind": "unresolved_protected_book_behavior"},
+    {"node": "test_crypto_floor_half_pct", "still_fails": true, "root": "main crypto cut at mult 0.1 with the 0.5% floor returns reject below_crypto_floor and pct 0. Branch returns reject None.", "kind": "unresolved_protected_book_behavior"},
+    {"node": "test_below_floor_rejected", "still_fails": true, "root": "Same crypto floor: branch does not reject.", "kind": "unresolved_protected_book_behavior"},
+    {"node": "test_crypto_seat_floor_kept", "still_fails": true, "root": "Same crypto floor: branch does not reject.", "kind": "unresolved_protected_book_behavior"},
+    {"node": "test_genuine_0p4pct_rejected", "still_fails": true, "root": "Previously FileNotFound for the owner book. With an empty synthetic ledger the 0.4% crypto arm is now a position. The test requires no position and exit reason below_crypto_floor. Main could not run the assertion.", "kind": "unresolved_protected_book_behavior"},
+    {"node": "test_rebook_below_floor_rejected_not_lifted", "still_fails": true, "root": "Previously FileNotFound. The off-hours rebook stays open. The test requires cancelled and exit reason below_1pct_floor.", "kind": "unresolved_protected_book_behavior"},
+    {"node": "test_blocks", "still_fails": true, "root": "Only the grade B case flipped. risk_gate_v1 now returns passed true and risk_aud 250. Banned ticker, bad stop, choppy tape, chase, opposite call, factual kill, missing debate, stale data, poor reward, and the run cap still fail closed. desk.py was not edited in this pass.", "kind": "unresolved_gate_behavior"},
+    {"node": "test_hard_rules_kept", "still_fails": true, "root": "gate_v2 sizes grade B (warning and size 0.5) instead of blocking it. The stop, banned-asset, noise, kill-switch, and firm-halt checks were not the line that flipped.", "kind": "unresolved_gate_behavior"},
+    {"node": "test_base_rate_negative_blocks", "still_fails": true, "root": "A negative base_block_exp no longer makes passed false. gate_v2 comments say history sets size. That comment is not treated as authorization. gate_v2.py was not edited.", "kind": "unresolved_gate_behavior"},
+    {"node": "test_never_arms", "still_fails": true, "root": "armed is false and can_arm is false. needs_brett_tick is false. The safety flags that refuse an arm still hold. The Brett-tick flag changed in gate_v2.py. Not edited.", "kind": "unresolved_gate_behavior"},
+    {"node": "test_giveback_fires_open_held_closed", "still_fails": true, "root": "At 2026-10-28 12:00 UTC, XLE giveback books rail_giveback_protect at 101. _bank_acts_now returns true for a rail_giveback reason when px_age_min is inside the stale limit, so the closed-session defer does not run. The in-file note cites Brett on 5 Nov 2026. That note is not treated as authorization. Reproducer is this test. book.py was not edited.", "kind": "unresolved_protected_book_safety"},
+    {"node": "test_lse_over_25_no_fill", "still_fails": true, "root": "A 27 minute LSE mark fills at the entry. exec_note: price 27 min old (> 25) but trigger traded through (primary) - stale-fallback fill-at-entry. The test requires the order to stay armed. This is the stale-fallback branch in book.py. Not edited.", "kind": "unresolved_protected_book_safety"},
+    {"node": "test_realtime_venue_still_15", "still_fails": true, "root": "A 20 minute NORDIC mark fills the same way: stale-fallback fill-at-entry, limit 15.", "kind": "unresolved_protected_book_safety"},
+    {"node": "test_client_second_guard_rolls_back_reserved_quota", "still_fails": true, "root": "The second client_guard raises MaintenanceHold and the reserved hour slot is removed. Before that second guard, ask() calls health(), which GETs http://127.0.0.1:18891/health. The assertion forbids every urlopen. chatgpt_bridge.py was not edited.", "kind": "unresolved_bridge_ordering"},
+    {"node": "test_scheduled_head_trader_cancel_during_provider_has_no_inline_or_outer_actions", "still_fails": true, "root": "IndexError from ROOT.parents[2] because veteran_desk/intent.py is not in the commit and /tmp/thf-head has fewer than three parents. The workspace has an untracked intent.py. This is a missing tree file plus a brittle fallback, not an accounting defect.", "kind": "missing_tree_file"},
+    {"node": "test_e2e", "still_fails": true, "root": "The checkout has no payouts file, so the redirected temp path did not exist. An empty {\"seats\":{}} file removes that FileNotFound. The next line opens the pit database and the guard rejects os.makedirs data/pit. That is the same guard failure main reported. The guard was not weakened.", "kind": "import_side_effect"},
+    {"node": "test_fullflat_3R_held_closed_but_fires_open", "still_fails": false, "root": "Failed in the combined run because an earlier test left session_open forced true, so the closed-session hold did not apply. Isolated, and after the clock reset, it passes. The assertion was not removed.", "kind": "harness_leak"},
+    {"node": "test_tse_closed_no_fill", "still_fails": false, "root": "Same leaked session_open. Isolated, the note is 'venue session closed - no fill' and the test passes. After the clock reset it passes in the suite.", "kind": "harness_leak"},
+    {"node": "test_sell_limit_never_below_limit", "still_fails": false, "root": "With no news regime file, posture() is unknown and the fill is held. With posture forced to calm/risk-off, the short fills at 1.1174 and a bar that never reaches the limit stays armed. The price assertions remain.", "kind": "harness_missing_regime"},
+    {"node": "test_buy_limit_never_above_limit", "still_fails": false, "root": "Same missing regime. Passes once posture is known.", "kind": "harness_missing_regime"},
+    {"node": "test_stop_limit_explicit", "still_fails": false, "root": "Same missing regime. Passes once posture is known.", "kind": "harness_missing_regime"}
+  ],
+  "upgrade_regression_count": "Not zero as a reassurance. Twenty protected-book or gate nodes still fail after investigation. They are unresolved behavior deltas against main, not closed, and not labeled authorized.",
+  "missing_dependency_24": {
+    "thf_home.py": "11 tests plus hub collection. Committed thf_dash.py and thf_chat_home.py import veteran_desk.thf_home. The file is absent from the commit and present untracked in the workspace. Missing production module in git, not a stale test-only import.",
+    "communication_protocol.py": "2 autonomy tests and deepseek_bridge.py import it. Absent from the commit, untracked in the workspace. Missing production module in git.",
+    "ai_router": "4 tests and strategy_lab.py import veteran_desk.ai_router. Absent from the commit, untracked in the workspace. Missing production module in git.",
+    "thf_chat_tasks.py": "1 learning-retry test reads the file. thf_dash.py imports it. Absent from the commit, untracked in the workspace. Missing production module in git.",
+    "llm_backend.BRAIN_LOG": "test_native_trader_fast_path expects BRAIN_LOG. The committed llm_backend.py does not define it. An uncommitted working-tree edit does. Live hash of llm_backend.py was not collected, so no archive was built.",
+    "intent.py": "Not in the 24. The autonomy IndexError is the same class of missing file. Untracked in the workspace.",
+    "not_fetched": "No owner ledger and no provider secret was read."
+  },
+  "no_new_archive": "No unprotected deployed module was fixed. book.py, gate_v2.py, desk.py, and chatgpt_bridge.py were not edited. The bind archive was not replaced. Tenant foundation stays disabled.",
+  "parent_review_if_a_book_change_is_wanted": {
+    "confirm_live_sha256": "b4453b503f33e34110519bf4d7a9bf391ecc2802edbd87acca3e77dc96b7e891",
+    "do_not_force_write": true,
+    "sites": [
+      "prefill_seat_cap / SEAT_FUTFX_NOTIONAL_CAP for the FX A$97.74 case",
+      "_bank_acts_now giveback-while-closed",
+      "stale-fallback fill-at-entry around the fill loop",
+      "risk_plan grade B half and the removed below_crypto_floor / below_2pct rejects"
+    ]
+  }
+}

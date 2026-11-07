@@ -12,6 +12,6 @@ def test_summary_mode_is_short(tmp_path, monkeypatch):
     assert "CORE MEMORY" in s and "breakout20" in s and len(s) <= D.SEAT_MEM_SUMMARY_MAX
 def test_thf_gets_full_memory(tmp_path, monkeypatch):
     _mk(tmp_path, monkeypatch); s = D._seat_mem({"seat": "energy", "engine": "codex"}, desk="thf", full=True)
-    assert "Core memory energy" in s and len(s) > 5000
+    assert "legacy desk records excluded" in s and "breakout20" in s and "Core memory energy" not in s
 def test_missing_memory_is_silent(tmp_path, monkeypatch):
     monkeypatch.setattr(D, "BASE", str(tmp_path)); assert D._seat_mem({"seat": "nope", "engine": "codex"}) == ""

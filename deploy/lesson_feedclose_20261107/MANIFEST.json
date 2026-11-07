@@ -1,0 +1,100 @@
+{
+  "name": "lesson_feedclose_20261107",
+  "deployed": false,
+  "apply_to_production": false,
+  "prior_package_sha256": "d43852c7ff1c4fac10f0e4a2a1b87d9d24fa88eca331513a70020429d72f06aa",
+  "provenance_evidence_sha256": "8f738d5c7579d94569a8b626e76910e804bb60411b567eda702cac2d07ebf4a8",
+  "feed_capture_sha256": "71dfa9d9ecf7a3ed8f4e661dd27b7d7a7b0e867e8fd086aeb33cb01b271aaf2e",
+  "review_evidence_sha256": "8c65f0fd8f19e27d99ebf518db265b3019b6bd90b1d3c54218be318c160a2069",
+  "book_must_remain": "b4453b503f33e34110519bf4d7a9bf391ecc2802edbd87acca3e77dc96b7e891",
+  "genuine_verifiers": [],
+  "rule_gap_unaccepted": true,
+  "live_validated_count": 0,
+  "payloads": [
+    {
+      "path": "veteran_desk/lesson_trace.py",
+      "action": "replace_only_if_base",
+      "base_sha256": "99313083f15c7449edf4a21c849b59f642c57c71b7ddebefce17acb43bdc7370",
+      "target_sha256": "9f1a2391bcb76b1c10b7caa9e375855c589cdc5f26c75069a274cbf156b0a8ab",
+      "live_root": "/opt/tfo/live/thf",
+      "dash_root": "/opt/tfo/dash/base",
+      "live_equals_dash": true
+    },
+    {
+      "path": "veteran_desk/seat_brain.py",
+      "action": "replace_only_if_base",
+      "base_sha256": "a294b07d3503411ef441dcaa709cc4e98caba8746a3d69ce42c095342a2c7ab0",
+      "target_sha256": "71dea78808b7855c83cd562679189d78e0438493b8c60ced73ea85e72b2708ad",
+      "live_root": "/opt/tfo/live/thf",
+      "dash_root": "/opt/tfo/dash/base",
+      "live_equals_dash": true
+    },
+    {
+      "path": "veteran_desk/thf_round.py",
+      "action": "replace_only_if_base",
+      "base_sha256": "8ee00fb7519b2c27b5b32b98e56b29d42d3faa0528f7004e5772ad839b5c78f6",
+      "target_sha256": "05f1da8c02effc72a1b88a925cc79877fb6b3be1b577f0be5d567fef1d93d462",
+      "live_root": "/opt/tfo/live/thf",
+      "dash_root": "/opt/tfo/dash/base",
+      "live_equals_dash": true
+    },
+    {
+      "path": "veteran_desk/thf_msgdesk.py",
+      "action": "replace_only_if_base",
+      "base_sha256": "9607803a718f16041a712544bea1582df7e153a8286cb695b03c92f5ea12376e",
+      "target_sha256": "72a8abaaa8a8127ccaa20db04f92e18cde229f37db788c7ce9ef2f513d13b81e",
+      "live_root": "/opt/tfo/live/thf",
+      "dash_root": "/opt/tfo/dash/base",
+      "live_equals_dash": true
+    },
+    {
+      "path": "thf_feedkeeper.py",
+      "action": "replace_only_if_base",
+      "base_sha256": "dad09f369fe1fe7c7eb063456771920975cf62bb7417ede582b87a5e7c0bc7a3",
+      "target_sha256": "2e32739a27e4b3ff9c27d8ff510ce82666c036dfb2cc582eb5e032ac7b65b405",
+      "live_root": "/opt/tfo/live/thf",
+      "dash_root": "/opt/tfo/dash/base",
+      "live_equals_dash": true
+    },
+    {
+      "path": "veteran_desk/thf_home.py",
+      "action": "replace_only_if_base",
+      "base_sha256": "50d8b3dcab66bf154f2ce21433a84f7147ed446193e6c12f74731e15ed26c1ed",
+      "target_sha256": "0a546c850e93cf7aac5c11dfa531386e840c17f751d1d9cfa7edf578904e9bbf",
+      "live_root": "/opt/tfo/live/thf",
+      "dash_root": "/opt/tfo/dash/base",
+      "live_equals_dash": true
+    }
+  ],
+  "unchanged": [
+    {
+      "path": "veteran_desk/feed_health.py",
+      "action": "require_unchanged",
+      "sha256": "f44734c552d7cb4f751df9d039f414ec19ed9229a01a618f9673a24738a41edb",
+      "symbols": [
+        "us_rth_open",
+        "asia_session_open"
+      ],
+      "note": "Captured file matches the repo byte for byte. It is checked and not copied."
+    }
+  ],
+  "new_files": [
+    {
+      "path": "veteran_desk/feed_status_facts.py",
+      "action": "install_only_if_absent",
+      "base_sha256": null,
+      "target_sha256": "f06c72a8b4a127ede4ff1b3257d8de1ddbb052baf92d8d2618cbac6da265a221",
+      "note": "Absent on live and dash. Copied only when the destination is absent. A different existing file is refused."
+    }
+  ],
+  "remaining_blockers": [
+    "Not deployed. Production roots stay refused. tfo-thf-tick is not restarted.",
+    "GENUINE_VERIFIERS is empty. RULE_GAP is not accepted. Live validated count is 0.",
+    "The same 20 book and gate policy tests stay unaccepted. book.py is not in this package.",
+    "seat_brain.nightly still has no task id and stays fail-closed. No nightly ticket is invented.",
+    "thf_shadow_sampler.py was not in either capture. publish_authority and load signatures are unchanged, so it is not overwritten.",
+    "veteran_desk/desk.py was not in either capture. prompt_block(seat, 1100) still runs and does not write an included row.",
+    "A code-hands return string is not a ticket.",
+    "session_expected stays unknown except continuous crypto. The captured feed_health holiday lists are not a venue calendar."
+  ]
+}
