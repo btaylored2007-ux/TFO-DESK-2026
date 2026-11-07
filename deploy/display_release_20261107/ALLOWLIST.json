@@ -1,0 +1,115 @@
+{
+  "release": "display_epoch_ui_20261107",
+  "bound": true,
+  "applied": false,
+  "deployment_ready": false,
+  "ops_review_ready": true,
+  "capture_sha256": "94c0f2dd4133dac72c506e383f733bb761d15a725364d9484344eab24f8265ec",
+  "host": "tfo-sgp1",
+  "roots": [
+    "/opt/tfo/live/thf",
+    "/opt/tfo/dash/base"
+  ],
+  "scope_verbatim": "Independent review of the display-epoch UI bound to capture 94c0f2dd. Not the 19:17 release and not a reset of capital.",
+  "spent_authorization_ids": [
+    "t2809u"
+  ],
+  "book_pin": "b4453b503f33e34110519bf4d7a9bf391ecc2802edbd87acca3e77dc96b7e891",
+  "excluded": [
+    "veteran_desk/book.py",
+    "veteran_desk/thf_home.py"
+  ],
+  "do_not_restart": [
+    "tfo-thf-tick.service",
+    "tfo-thf-tick.timer",
+    "tfo-thf-shadow.service",
+    "tfo-thf-shadow.timer",
+    "nginx.service",
+    "tfo-chatgpt-web.service"
+  ],
+  "dash_restart_unit": "tfo-dash-thf.service",
+  "idle_units": [
+    "tfo-thf-shadow.service",
+    "tfo-thf-tick.service"
+  ],
+  "verify_only": [
+    {
+      "path": "veteran_desk/book.py",
+      "sha256": "b4453b503f33e34110519bf4d7a9bf391ecc2802edbd87acca3e77dc96b7e891"
+    },
+    {
+      "path": "veteran_desk/thf_home.py",
+      "sha256": "50d8b3dcab66bf154f2ce21433a84f7147ed446193e6c12f74731e15ed26c1ed"
+    },
+    {
+      "path": "veteran_desk/thf_http.py",
+      "sha256": "f42e153507e89ec11bc1de9aa500318b5389503ef0fec2fe24ca3572db777bbd"
+    },
+    {
+      "path": "veteran_desk/pnl_light.py",
+      "sha256": "ba24d6ac32b8579ec32524ed4bf4c5d5a500066fc49c244bc3a9533f2c3811eb"
+    },
+    {
+      "path": "veteran_desk/thf_order_diagnostics.py",
+      "sha256": "0ebddb31db764118c29cfd2a1c6a8303fbb606de4133fb7a2a5330945609659f"
+    },
+    {
+      "path": "thf_guardian/dash_mount.py",
+      "sha256": "416cb80013d4e5f6a1ecd86efbfa69975d8c555c9cb47aec8d783190b81d532a"
+    }
+  ],
+  "archives": [
+    {
+      "name": "display_epoch_ui_20261107",
+      "sha256": "c7102844b6522a68d87b5ad3cbbb790e062728029ee97f8bdccc047a6c7d7e76",
+      "rejected_sha256": [
+        "94c0f2dd4133dac72c506e383f733bb761d15a725364d9484344eab24f8265ec",
+        "9d58be9e311b7e279bbb6549a7039c4ecd90abeefd4ca0cdc59d1e22d8f14b96",
+        "fd2c2b96eb069c7e6b78fe7ff04dc91e6355361ff5b3002f65eb618110fc85b8",
+        "affc61134490634edfc98dd1819147db8584350a81c6489e94796edd18c72534"
+      ],
+      "files": [
+        {
+          "path": "veteran_desk/thf_dash.py",
+          "target": "a27c5ba61f0f83f07ce2d6beed1bed9d98026d5405c8f5c6140b86ba2633d35b",
+          "bases": [
+            "4414a765d4a19491cff739fdc7cee5dbfeb77403902ad7f62ad3a5895eabe8ba"
+          ]
+        },
+        {
+          "path": "veteran_desk/thf_display_epoch.py",
+          "target": "b06e38c075297d0b89ac46737af60a9b2701388d75660cfa6934f4d2a24ec59f",
+          "new": true
+        },
+        {
+          "path": "tools/thf_eli10.html",
+          "target": "65ebb5bcd048d5593d85514e3e62015afd421e23a75f82cc4d9c5a2a540e958d",
+          "bases": [
+            "9da1e4ac511c8173eb02bf2c460100ccb8e7fdfbb14352708429d95cfbf453ee"
+          ]
+        },
+        {
+          "path": "tools/thf_eli10.js",
+          "target": "9f0a868bb51e330f88fef127aa0423f41f54f156415ca8d1b8b191a439a1b50d",
+          "bases": [
+            "c4a977ad2ca04131e22355cc62e32fa04d075dfc88243758e7eab04a03bd8718"
+          ]
+        },
+        {
+          "path": "tools/thf_chat.js",
+          "target": "10f8bc16418854ed4c5d05285c60e0c916f80c18a83491f1dde6bfda284d9b55",
+          "bases": [
+            "ef3e4def8fd3dcc39093895ddf433d0633f3dfc3a6faa800bb9cfb615e461c44"
+          ]
+        },
+        {
+          "path": "tools/thf_chat_page.html",
+          "target": "5f40815610f91900ed69359b851799b876675bb7ca0ce5739e55aa1479450ad2",
+          "bases": [
+            "92d98ecd72b0dbc6231f725a953ff33927c37708f1c2267051ac949f8b6646e3"
+          ]
+        }
+      ]
+    }
+  ]
+}

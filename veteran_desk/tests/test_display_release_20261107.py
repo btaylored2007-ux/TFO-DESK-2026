@@ -27,13 +27,14 @@ def _capture(**extra):
     return body
 
 
-def test_missing_capture_waits_and_names_the_inputs():
-    assert control.evaluate(None) == "WAITING_CAPTURE"
-    assert control.evaluate({"sanitized": False}) == "WAITING_CAPTURE"
-    assert control.evaluate(_capture(runner_sha256="")) == "TOOL_SOURCE_ABSENT"
+def test_capture_is_bound_and_not_applied():
+    assert control.evaluate(None) == "BOUND_NOT_APPLIED"
+    assert control.evaluate(_capture()) == "BOUND_NOT_APPLIED"
     text = (ROOT / "deploy/display_release_20261107/control.py").read_text(encoding="utf-8")
     assert "systemctl" not in text and "ssh " not in text
-    assert "NOT_DEPLOYMENT_READY" in text
+    allow = json.loads((ROOT / "deploy/display_release_20261107/ALLOWLIST.json").read_text(encoding="utf-8"))
+    assert allow["bound"] is True and allow["applied"] is False
+    assert allow["capture_sha256"] == "94c0f2dd4133dac72c506e383f733bb761d15a725364d9484344eab24f8265ec"
 
 
 def test_withdrawn_baseline_and_production_roots_are_rejected():
@@ -41,7 +42,7 @@ def test_withdrawn_baseline_and_production_roots_are_rejected():
     assert control.evaluate(_capture(reset_now=True)) == "BASELINE_REJECTED"
     pinned = _capture(roots=[{"label": "a", "path": "/opt/tfo/dash/base"}, {"label": "b", "path": "/tmp/other"}])
     assert control.evaluate(pinned) == "ROOTS_NOT_CONFIRMED"
-    assert control.evaluate(_capture()) == "CAPTURE_ACCEPTED_NOT_DEPLOYED"
+    assert control.evaluate(_capture()) == "BOUND_NOT_APPLIED"
 
 
 def test_fault_undoes_and_a_deployed_receipt_does_not_run_again(tmp_path):

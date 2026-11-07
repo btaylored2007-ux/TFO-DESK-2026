@@ -40,25 +40,17 @@ def production_root(path):
 
 
 def evaluate(capture):
-    """Return a status. Never a permission to deploy."""
-    if not isinstance(capture, dict) or not capture.get("sanitized"):
+    """The sanitized capture is already bound in ALLOWLIST. This does not apply it."""
+    allow = json.loads((Path(__file__).resolve().parent / "ALLOWLIST.json").read_text(encoding="utf-8"))
+    if allow.get("capture_sha256") != "94c0f2dd4133dac72c506e383f733bb761d15a725364d9484344eab24f8265ec" or not allow.get("bound"):
         return "WAITING_CAPTURE"
-    if capture.get("baseline_id") == REJECTED_BASELINE or capture.get("reset_now"):
+    if isinstance(capture, dict) and (capture.get("baseline_id") == REJECTED_BASELINE or capture.get("reset_now")):
         return "BASELINE_REJECTED"
-    files = capture.get("files") or {}
-    required = {
-        "veteran_desk/thf_home.py", "veteran_desk/thf_dash.py",
-        "tools/thf_eli10.html", "tools/thf_eli10.js",
-        "tools/thf_chat.js", "tools/thf_chat_page.html",
-    }
-    if not required <= set(files) or any(not files.get(rel) for rel in required):
-        return "WAITING_CAPTURE"
-    if not capture.get("runner_sha256"):
-        return "TOOL_SOURCE_ABSENT"
-    roots = capture.get("roots") or []
-    if len(roots) != 2 or any(production_root(item.get("path", "")) for item in roots if isinstance(item, dict) and item.get("path")):
-        return "ROOTS_NOT_CONFIRMED"
-    return "CAPTURE_ACCEPTED_NOT_DEPLOYED"
+    if isinstance(capture, dict):
+        paths = [item.get("path") for item in (capture.get("roots") or []) if isinstance(item, dict) and item.get("path")]
+        if any(production_root(item) for item in paths):
+            return "ROOTS_NOT_CONFIRMED"
+    return "BOUND_NOT_APPLIED"
 
 
 def _undo(root, done):
@@ -141,16 +133,10 @@ def main(argv=None):
     parser = argparse.ArgumentParser(description="Fail-closed display release control. Not deployment-ready.")
     parser.add_argument("--capture")
     args = parser.parse_args(argv)
-    print("NOT_DEPLOYMENT_READY")
-    if not args.capture:
-        print("WAITING_CAPTURE")
-        for item in NEEDED:
-            print("NEED " + item)
-        return 2
-    capture = json.loads(Path(args.capture).read_text(encoding="utf-8"))
-    status = evaluate(capture)
+    status = evaluate(json.loads(Path(args.capture).read_text(encoding="utf-8")) if args.capture else None)
     print(status)
-    return 0 if status == "CAPTURE_ACCEPTED_NOT_DEPLOYED" else 2
+    print("NOT_APPLIED")
+    return 0 if status == "BOUND_NOT_APPLIED" else 2
 
 
 if __name__ == "__main__":

@@ -31,7 +31,7 @@ Book source: `pnl_since_inception_aud` is equity minus seed. Prize credits add t
 
 Since reset is a second line. It is current equity-minus-seed minus a mark saved later. The difference is 0 only when those two book figures still match. The UI does not hardcode 0. No baseline file is shipped. The earlier 12:12:34 reading was withdrawn and is not a reset. A fresh mark is taken only after the read model is on the dash. `thf_home.py` in this repo is not the live file and is not in either payload.
 
-`deploy/display_release_20261107/control.py` is fail-closed source. Without a sanitized capture it prints `WAITING_CAPTURE` and `NOT_DEPLOYMENT_READY`. It is not a production apply and it does not replace the installers' `REFUSED_ROOT` checks. The reviewed 19:17 runner is not in this checkout.
+Capture `94c0f2dd4133dac72c506e383f733bb761d15a725364d9484344eab24f8265ec` is bound. `deploy/display_release_20261107/release_control.py` applies one new archive to the two roots named in that capture, only when both match these bases, and it refuses the 19:17 archives and this capture archive itself. `thf_home.py` stays the captured file. The retail and display-epoch installers still return `REFUSED_ROOT`. This checkout does not run the controller against a host. No display mark is included; a fresh mark is taken after the read model is active.
 
 Header and full-page chat header use the cream page color, not navy. The price-chart canvas stays dark so the plotted lines remain visible. Figures use the system font already on the phone, with tabular numbers. No font file is downloaded. The five tabs stay: Home, Trades, Chat, Seats, Health.
 
