@@ -1,0 +1,3 @@
+# Test dependency for the customer web app template.
+# The app itself uses the Python standard library plus veteran_desk.tenant_foundation.
+pytest>=8

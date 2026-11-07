@@ -1,0 +1,8 @@
+{
+  "id": "evt_test_charge_refunded",
+  "type": "charge.refunded",
+  "test_only": true,
+  "livemode": false,
+  "tenant_id": "replace-me",
+  "notice": "TEST ONLY. This fixture does not move money."
+}
