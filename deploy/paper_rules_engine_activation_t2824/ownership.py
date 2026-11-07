@@ -103,7 +103,8 @@ def attest_modules(proc, files, service):
     if start <= float(book.get("mtime_epoch") or 0) or start <= float(gate.get("mtime_epoch") or 0):
         return dict(base, evidence_level="started_before_file")
     level = "start_after_mtime"
-    pythonpath = str((proc.get("environ_allowlisted") or {}).get("PYTHONPATH", ""))
+    raw_path = (proc.get("environ_allowlisted") or {}).get("PYTHONPATH", "")
+    pythonpath = "" if raw_path is None else str(raw_path)
     cmd_ok = role(proc) == "vd_engine"
     if proc.get("cwd") == LIVE and pythonpath in ("", LIVE) and cmd_ok:
         level = "path_attested"

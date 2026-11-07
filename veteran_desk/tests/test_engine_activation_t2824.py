@@ -1,4 +1,5 @@
 """Single-ownership check for the paper-policy engine. No signal is emitted."""
+import hashlib
 import json
 from pathlib import Path
 
@@ -188,7 +189,80 @@ def test_plan_has_no_retire_command():
     plan = json.loads((PKG / "PLAN.json").read_text())
     assert plan["retire_command"] is None
     assert plan["authorization_verbatim"] == "Finish it up"
-    assert "os.kill" not in (PKG / "attest.py").read_text()
-    assert "os.kill" not in (PKG / "capture.py").read_text()
-    assert "systemctl" not in (PKG / "attest.py").read_text()
-    assert "systemctl" not in (PKG / "capture.py").read_text()
+    for name in ("attest.py", "capture.py", "handover.py", "ownership.py"):
+        text = (PKG / name).read_text()
+        assert "os.kill" not in text
+        assert "subprocess" not in text
+
+
+def test_captured_supervisor_will_not_spawn_while_any_daemon_exists(tmp_path):
+    import importlib.util
+    from veteran_desk import healing_guard
+    path = PKG / "captured" / "engine_supervisor.py"
+    spec = importlib.util.spec_from_file_location("captured_engine_supervisor", path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    assert hashlib.sha256(path.read_bytes()).hexdigest() == "0d0b7f640a7c9644a56f0bbe8c91b640976c1db7ecf968c328112e542de96e0e"
+
+    class Child:
+        def __init__(self):
+            self.pid = 1941386
+            self.signals = []
+            self.dead = False
+        def poll(self):
+            return 0 if self.dead else None
+        def terminate(self):
+            self.signals.append("TERM")
+            self.dead = True
+        def wait(self, timeout=None):
+            return 0
+        def kill(self):
+            self.signals.append("KILL")
+
+    class Guard:
+        def __init__(self):
+            self.calls = []
+        def observe(self, *args, **kwargs):
+            self.calls.append("observe")
+            return {"accepted": False, "action": "observing"}
+        def guarded_attempt(self, *args, **kwargs):
+            self.calls.append("spawn")
+            raise AssertionError("spawned")
+
+    guard = Guard()
+    supervisor = module.Supervisor(base=tmp_path, guard=guard, scanner=lambda base, now: {
+        "lease_valid": True, "engine_kill": False, "engine_child_alive": True, "engine_pids": [1941386],
+        "busy": False, "maintenance": False,
+    }, starter=lambda *args, **kwargs: (_ for _ in ()).throw(AssertionError("starter")))
+    status = supervisor.step()
+    assert status["action"] == "observing"
+    assert guard.calls == ["observe"]
+    child = Child()
+    supervisor.child = child
+    assert supervisor.stop_owned() is True
+    assert child.signals == ["TERM"]
+    blocked = {"lease_valid": True, "engine_kill": False, "engine_child_alive": True, "busy": False, "maintenance": False, "active_state": "active"}
+    assert "existing-child" in healing_guard._eligibility("tfo-thf-engine.service", "spawn", "engine_supervisor", blocked)
+    blocked["engine_child_alive"] = False
+    blocked["busy"] = True
+    assert "idle" in healing_guard._eligibility("tfo-thf-engine.service", "spawn", "engine_supervisor", blocked)
+
+
+def test_census_handover_is_one_term_and_not_module_proof():
+    from deploy.paper_rules_engine_activation_t2824.handover import ARCHIVE_SHA, build_handover, sha256, CAPTURED
+    snapshot = json.loads((PKG / "captured" / "PROCESS_SNAPSHOT.json").read_text())
+    body = build_handover(snapshot, sha256(CAPTURED))
+    recorded = json.loads((PKG / "HANDOVER.json").read_text())
+    assert body == recorded
+    assert body["archive_sha256"] == ARCHIVE_SHA
+    assert body["fully_clean"] is False
+    assert body["loaded_modules_proven"] is False
+    assert body["handover"]["command"] == "kill -s TERM 833092"
+    assert 1941386 in body["handover"]["does_not_signal"]
+    assert 1940860 in body["handover"]["does_not_signal"]
+    assert "systemctl restart tfo-thf-engine.service" in body["handover"]["does_not_run"]
+    assert "833089" in " ".join(body["handover"]["preconditions"])
+    facts = body["lazy_imports"]["path_facts_for_1941386"]
+    assert facts["exe"] == "/usr/bin/python3.12"
+    assert facts["cwd"] == "/opt/tfo/live/thf"
+    assert facts["PYTHONPATH"] == "unset"

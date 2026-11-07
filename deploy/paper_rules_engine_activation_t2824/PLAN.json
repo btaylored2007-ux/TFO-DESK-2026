@@ -23,14 +23,18 @@
     "firm_risk": 337359
   },
   "do_not": [
-    "kill 833092, 1940860, 1941386, 372060, or 337359",
+    "kill -s KILL any of these pids",
+    "kill -s TERM 1941386, 1940860, or 337359",
     "systemctl restart or stop tfo-thf-engine.service",
     "stop or restart the tick timer",
     "spawn a second vd_engine",
     "rerun release.py"
   ],
-  "why_restart_is_unsafe": "The leftover supervisor is outside the unit cgroup, so the 20:12 restart left it alive. It is the parent of the only reported daemon. A second restart can kill nothing in that session and can also spawn another daemon from the new official supervisor.",
+  "why_restart_is_unsafe": "KillMode=control-group does not include the user session. Another unit restart replaces 1940860 and still leaves 833092 holding 1941386. The new official supervisor sees that daemon and does not spawn.",
   "stops": "The tick owns stops. Leave tfo-thf-tick.timer running. Firm-risk PID 337359 is exec_speed risk-serve and stays up.",
   "retire_command": null,
-  "next": "Run capture.py on tfo-sgp1. Persist TAKEOVER under state/thf/build_handover/paper_rules_engine_activation_t2824_20261107T201225/TAKEOVER. Send that file back. No retire step is in this package."
+  "capture_archive_sha256": "f056ac1c236646c0fac148c8161467471ac0450bdb37c20a5d2486af64bad33e",
+  "supervisor_sha256": "0d0b7f640a7c9644a56f0bbe8c91b640976c1db7ecf968c328112e542de96e0e",
+  "handover": "HANDOVER.json is the census at 20:24:20 WITA. The only later signal is kill -s TERM 833092, and only after the live recheck in that file. No SIGKILL, no unit restart, no manual daemon.",
+  "next": "Ops rechecks the preconditions on tfo-sgp1, then sends that one signal. Persist the result under state/thf/build_handover/paper_rules_engine_activation_t2824_20261107T201225/TAKEOVER."
 }

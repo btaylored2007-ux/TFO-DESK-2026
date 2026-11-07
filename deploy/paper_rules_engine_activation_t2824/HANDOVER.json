@@ -1,0 +1,127 @@
+{
+  "export": "TAKEOVER",
+  "authorization_verbatim": "Finish it up",
+  "authorization_id": "t2824u",
+  "authorization_wita": "2026-11-07 20:08 WITA",
+  "status": "one_term_when_recheck_passes",
+  "verdict": "SPLIT_OWNERSHIP",
+  "retire_command": null,
+  "forbidden": [
+    "kill",
+    "systemctl restart tfo-thf-engine.service",
+    "systemctl stop tfo-thf-engine.service",
+    "systemctl restart tfo-thf-tick.service",
+    "systemctl stop tfo-thf-tick.timer",
+    "second vd_engine spawn",
+    "release.py rerun"
+  ],
+  "loaded_modules_proven": false,
+  "official_supervisor_pids": [
+    1940860
+  ],
+  "leftover_supervisor_pids": [
+    833092
+  ],
+  "vd_engine_pids": [
+    1941386
+  ],
+  "firm_risk_pids": [
+    337359
+  ],
+  "firm_risk_untouched": true,
+  "daemon_evidence": [
+    {
+      "pid": 1941386,
+      "ppid": 833092,
+      "loaded_modules_proven": false,
+      "official_cgroup_load": false,
+      "pid_is_not_proof": true,
+      "evidence_level": "path_attested",
+      "daemon_in_official_cgroup": false
+    }
+  ],
+  "pid_372060_alive": false,
+  "capture_gap": [],
+  "stops_owner": "tfo-thf-tick.timer",
+  "paper_only": true,
+  "fully_clean": false,
+  "archive_sha256": "f056ac1c236646c0fac148c8161467471ac0450bdb37c20a5d2486af64bad33e",
+  "supervisor_sha256": "0d0b7f640a7c9644a56f0bbe8c91b640976c1db7ecf968c328112e542de96e0e",
+  "census_wita": "2026-11-07 20:24:20 WITA",
+  "lazy_imports": {
+    "loaded_modules_proven": false,
+    "why": "A new pid, a later start time, and the official cgroup do not show which module object a process imported.",
+    "supervisor": "engine_supervisor.py does not import book.py or gate_v2.py.",
+    "vd_engine_daemon": "gate_v2 is imported inside history_check, which the first scoring cycle calls. book.py is imported there only when a non-FX ADV is missing. Neither import runs at process start.",
+    "desk_round": "python -m veteran_desk.desk run is a new interpreter. risk_gate imports gate_v2 and book. The 20:20:59 child 1950524 had an unreadable cwd and is not that proof.",
+    "tick": "Each tick is a new python -m veteran_desk.book tick. Stops stay on tfo-thf-tick.timer.",
+    "path_facts_for_1941386": {
+      "cwd": "/opt/tfo/live/thf",
+      "exe": "/usr/bin/python3.12",
+      "argv0": "/opt/tfo/venv/bin/python",
+      "PYTHONPATH": "unset",
+      "PYTHONDONTWRITEBYTECODE": "1",
+      "start_wita": "2026-11-07 20:12:52 WITA",
+      "book_and_gate_mtime_wita": "2026-11-07 20:00:58 WITA",
+      "book_sha256": "a739477001c33b23ad87ebdf8ca5fc40c76b441eb13100daf1bc67136eb12c7b",
+      "gate_sha256": "1d1e8c82685e2df775d4543456f19104947fe6b24f567929707848c906f7f2a9"
+    }
+  },
+  "handover": {
+    "status": "one_term_when_recheck_passes",
+    "fully_clean": false,
+    "signal": "TERM",
+    "pid": 833092,
+    "command": "kill -s TERM 833092",
+    "does_not_signal": [
+      1941386,
+      1940860,
+      337359,
+      833089,
+      372060,
+      366917
+    ],
+    "does_not_run": [
+      "kill -s KILL",
+      "systemctl restart tfo-thf-engine.service",
+      "systemctl stop tfo-thf-engine.service",
+      "systemctl stop tfo-thf-tick.timer",
+      "python -m veteran_desk.vd_engine daemon",
+      "release.py"
+    ],
+    "source": {
+      "sha256": "0d0b7f640a7c9644a56f0bbe8c91b640976c1db7ecf968c328112e542de96e0e",
+      "live_equals_dash": true,
+      "stop_owned": "SIGTERM calls stop_owned, which terminate()s only self.child and waits 10s. It does not SIGKILL.",
+      "probe": "ps matches every veteran_desk.vd_engine daemon. engine_child_alive is true while any such pid exists, so the official supervisor does not spawn.",
+      "spawn_guard": "healing_guard refuses spawn when engine_child_alive is not false, when a desk round makes busy true, or when maintenance is unknown.",
+      "unit": "KillMode=control-group and Restart=always. A unit restart kills only the official cgroup and leaves 833092 in the user session."
+    },
+    "preconditions": [
+      "Host is tfo-sgp1 and this command is the only signal in the step.",
+      "Re-read ps. Exactly one vd_engine daemon, ppid 833092, cgroup user.slice session-56389.",
+      "1940860 is MainPID, ppid 1, cgroup /system.slice/tfo-thf-engine.service, and has no vd_engine child.",
+      "833092 command is python -m veteran_desk.engine_supervisor and its ppid is 833089.",
+      "Read /proc/833089/cmdline. Abort if it is unreadable or contains while, until, or engine_supervisor. Abort if 833089 has a child other than 833092.",
+      "ps has no veteran_desk.desk run and no desk.py run.",
+      "337359 is alive in tfo-thf-firm-risk.service. Tick timer ActiveState is active. Do not stop either.",
+      "SGP_PRIMARY exists, data/pit/pit.sqlite is non-empty, and no ENGINE_KILL file exists.",
+      "tools/deploy.lock is absent or its pid is dead.",
+      "state/thf/recovery_guard.json has no pending engine attempt.",
+      "book.py is still a739477001c33b23ad87ebdf8ca5fc40c76b441eb13100daf1bc67136eb12c7b and gate_v2.py is still 1d1e8c82685e2df775d4543456f19104947fe6b24f567929707848c906f7f2a9.",
+      "engine_supervisor.py is still 0d0b7f640a7c9644a56f0bbe8c91b640976c1db7ecf968c328112e542de96e0e on both roots."
+    ],
+    "watch": "After the signal, poll every 5s for 45s. Do not send a second signal.",
+    "success": [
+      "833092 is absent and 833089 has not started another engine_supervisor.",
+      "Exactly one vd_engine daemon, and its ppid is the official MainPID.",
+      "That daemon's cgroup is /system.slice/tfo-thf-engine.service.",
+      "337359 is still alive and the tick timer is still active."
+    ],
+    "if_no_daemon_appears": "Read state/vd_engine/supervisor_health.json and state/thf/recovery_guard.json. If a desk round is still present, wait for it to exit and for one more supervisor step. Do not systemctl restart and do not start python by hand.",
+    "if_bash_restarts_a_supervisor": "Stop. One daemon under the new leftover is the same split. Do not signal again in this step.",
+    "if_child_survives": "833092 exits even when wait() times out. An orphaned daemon is still one writer. Do not SIGKILL it.",
+    "rollback": "PID 1941386 cannot be restored. The official supervisor's existing spawn is the replacement. There is no file rollback and no second manual daemon.",
+    "stops": "The tick keeps running through the step. The engine gap is the scoring daemon, not the stop path."
+  }
+}
