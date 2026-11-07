@@ -1,0 +1,48 @@
+{
+  "document": "shadow_throughput_prod_20261107_task_contract",
+  "signed": false,
+  "ready": false,
+  "example": true,
+  "production_approval": false,
+  "staging_engineering": {
+    "commit": "7470569",
+    "archive_sha256": "dcdb650f1a97d52e94a9e752276b8f72214371dc0e311082b02a178756e166eb",
+    "report_sha256": "bc0b0cfa4d7afc5606c8e866338173605dd0a941ffce823cb1f4fe2e4a207a6b",
+    "correction_note_sha256": "5203fa46f20710b15ab5d4e6e3d1780807c03acf25d11f54a6224a8f323eace4",
+    "cli_log_sha256": "03d61d79fc91691a184be0d8637f0cb22ff43202d40a905c900cc8480f98b9c5",
+    "unit_checks": "71 in-process checks with provider and clock fakes. The OS clock was not changed.",
+    "cli": "Unmodified staging installer, uid 1000, scratch root only, 2026-11-07T22:56:59+08:00. Plan, staging apply, receipt production false and deployed false, rollback to the bases, and /opt/tfo refusal. Failure injection was not part of that CLI run.",
+    "not_claimed": ["production approval", "OS clock change", "identity change", "four-way comparison complete"]
+  },
+  "preflight": {
+    "status": "captured",
+    "sha256": "7bcfc0f3ba1af32374a41acd391212563f0315c74f757dd5de5f54c65b9ea4bd",
+    "report_sha256": "bf31489291a482a64f15f90b508752ab0116a9858dd44918c9bcbb98b273d8f9",
+    "observed_at_wita": "2026-11-07 22:59:42 WITA",
+    "identity": "tfo uid 1000, not root",
+    "sampler_mode": "0664",
+    "bench_mode": "0644",
+    "shadow_window_sha256": "dc4e148f27d7af7cb9236dc9d1eb0cced9550fa07ec5b9e05ed464c43687e913",
+    "shadow_sampler_config_sha256": "b954cd38057b26c7d2b1728a9bfd8d3b0e8aaa3bb50fa444da71bc987618823c",
+    "unit": "oneshot, WorkingDirectory /opt/tfo/live/thf, python -m veteran_desk.thf_shadow_sampler once, no flock in ExecStart",
+    "timer": "OnUnitActiveSec=30min, next natural trigger was 2026-11-07 23:06:23 WITA at observation, last success 22:36:23-22:37:57",
+    "automatic_dash_restart": "tfo-dash-thf-reload.path watches /opt/tfo/dash/base/state/.thf_code_md5. Refresh about every 15s can rewrite that marker after a live or dash code change and restart tfo-dash-thf. This controller does not call systemctl. A later apply can still restart the dash through that watcher. There is no equivalent msgdesk path.",
+    "loaded_sha": "not proven. status version shadow_sampler_20261106 is not a file hash. A new sha loads only on a later natural oneshot.",
+    "bench_constant": "disk REVIEW_AT 2026-11-13T21:00:00+08:00 is not the locked due. MIN_N stays 20. The payload passes the persisted window into recommend."
+  },
+  "roots": ["/opt/tfo/live/thf", "/opt/tfo/dash/base"],
+  "files": [
+    {
+      "path": "veteran_desk/thf_shadow_sampler.py",
+      "base_sha256": "7e2eeb3e544814411f7fb2371b50b232746e2edec9a971197c46b319570de2bf",
+      "target_sha256": "d10f5cb6655a02606f249e22f0205e83e362c9fd68983c74acf79907d44c1b42"
+    },
+    {
+      "path": "veteran_desk/thf_shadow_bench.py",
+      "base_sha256": "957539fa9d52ac1d63e3fb9c7064e0d54aae6af88f687f01b477afaf3795e3fa",
+      "target_sha256": "96e084dccefe62bc29406485c259154c1981dcd211fbc60b553e886866a4b62c"
+    }
+  ],
+  "package_sha256": "efd7f25605cc64a9e7280a710c76b7fffaef6c07b542fd3ecb3f5cbfa4db212d",
+  "comparison": {"n": 4, "min_n": 20, "clock_start_utc": "2026-11-06T15:36:07+00:00", "review_due_wita": "2026-11-14 08:00 WITA", "global_winner": null}
+}
