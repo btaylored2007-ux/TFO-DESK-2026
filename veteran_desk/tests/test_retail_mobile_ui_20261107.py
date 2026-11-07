@@ -41,6 +41,13 @@ def test_retail_templates_do_not_paint_provider_status():
     assert 'href="/assets/brand/tokens.css"' in html
     assert "JPMorgan" not in html and "J.P. Morgan" not in html
     assert 'data-mode="hub"' in html
+    header = PAGE.split("<main", 1)[0]
+    assert 'href="/desk/chat"' not in header and "Previous page" not in header
+    assert "::-webkit-details-marker{display:none}" in PAGE
+    assert "prefers-reduced-motion:reduce" in PAGE
+    assert 'class="chev" aria-hidden="true"' in ELI and "›" not in ELI
+    assert "replies ▾" not in CHAT and "show more ▾" not in CHAT
+    assert "dc-clip" in CHAT and "::-webkit-details-marker" in CHAT
 
 
 def _get(path):

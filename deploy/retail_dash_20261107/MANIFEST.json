@@ -20,7 +20,7 @@
     {
       "path": "tools/thf_eli10.html",
       "base_sha256": "4c18153b536d85c669264d386b0936207bbedcfb3cc67de2d59e20bb49449607",
-      "target_sha256": "9a9891b7a0a1db65bdb4f7b598bf2dc68a8ba460d2d798f4bb49359ac01be569",
+      "target_sha256": "9da1e4ac511c8173eb02bf2c460100ccb8e7fdfbb14352708429d95cfbf453ee",
       "also_base_sha256": [
         "e00723691176f3183128e853fdd4ff7236bf03116bb21f371dbeaadf0f0e8bcd"
       ]
@@ -28,7 +28,7 @@
     {
       "path": "tools/thf_eli10.js",
       "base_sha256": "1f796ba679cc49970d1df6acb82eaf5fbd348c17e29e86c98e4abeb0fe856d8a",
-      "target_sha256": "8f8fed65ad4abd7df82ade7f68bbaff885c872c73f82f54b9a5eda9f7c6221a6",
+      "target_sha256": "c4a977ad2ca04131e22355cc62e32fa04d075dfc88243758e7eab04a03bd8718",
       "also_base_sha256": [
         "36b3f9fc88240c5bbeb59e431448709987f7967f44185752d94f559132cbb235"
       ]
@@ -36,7 +36,7 @@
     {
       "path": "tools/thf_chat.js",
       "base_sha256": "be70ff4ae236b3df78451ecfffb159dd987c3bda42475faeb0752cf0ccedad73",
-      "target_sha256": "e0a7fad1beb57f00a5c507d2c7afedc5649d9c99ea7471c3123056b95033b13b",
+      "target_sha256": "ef3e4def8fd3dcc39093895ddf433d0633f3dfc3a6faa800bb9cfb615e461c44",
       "also_base_sha256": [
         "b58b0716a5118b7f49d3b18083f7bc355c57467690f511c44c0680cdb69d1f1d"
       ]

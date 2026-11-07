@@ -8,12 +8,12 @@
 *{box-sizing:border-box;min-width:0}html,body{margin:0;background:var(--bg);color:var(--tx);font:16px/1.4 Inter,"Noto Sans","Segoe UI",sans-serif;-webkit-text-size-adjust:100%}
 body{padding-bottom:calc(var(--tb) + env(safe-area-inset-bottom) + 12px);overflow-x:hidden}
 a{color:var(--ac)}button{font:inherit;color:inherit}
-.hd{padding:12px var(--pad) 10px;padding-top:max(12px,env(safe-area-inset-top));background:#10243e;color:#f6f3ee}
-.hd h1{font-size:17px;font-weight:600;letter-spacing:-.02em;margin:0 auto;max-width:1100px;display:flex;align-items:center;gap:8px}
+.hd{padding:8px var(--pad);padding-top:max(8px,env(safe-area-inset-top));background:#10243e;color:#f6f3ee}
+.hd h1{font-size:16px;font-weight:600;letter-spacing:-.02em;margin:0 auto;max-width:1100px;display:flex;align-items:center;gap:8px;min-height:32px}
 .brand-mark{width:28px;height:28px;border-radius:7px;display:block;flex:none}
 .brand-name{line-height:1.1}
 .pill{font-size:10px;border:1px solid rgba(244,247,246,.55);border-radius:999px;padding:2px 7px;color:#f4f7f6;font-weight:650;letter-spacing:.08em}
-.hd .sub{color:#c5d0d8;margin:4px auto 0;max-width:1100px}.hd .links{margin-top:2px}.hd a{color:#f4f7f6;text-underline-offset:2px}
+.hd .sub{color:#c5d0d8;margin:1px auto 0;max-width:1100px;font-size:12px}
 .sub{color:var(--mu);font-size:13px}.mu{color:var(--mu)}
 main{max-width:1100px;margin:0 auto;padding:8px var(--pad) 0}
 .pane{display:none}.pane.on{display:block}body.all .pane{display:block}body.all .tabbar{display:none}body.all .pane::before{content:attr(data-title);display:block;font-size:15px;font-weight:650;margin:16px 0 4px;color:var(--ac);letter-spacing:.04em;text-transform:uppercase}
@@ -35,14 +35,22 @@ main{max-width:1100px;margin:0 auto;padding:8px var(--pad) 0}
 .quiet-gap{display:inline-block;margin-left:14px}
 .healthline{display:flex;align-items:center;gap:10px;background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:12px 14px;margin:8px 0;min-height:48px;cursor:pointer}
 .healthline .dot{margin-top:0}.hl-main{flex:1;font-size:15px;font-weight:650}.hl-go{color:var(--ac);font-size:13px;font-weight:650}
-.fold{background:var(--card);border:1px solid var(--bd);border-radius:12px;margin:8px 0;padding:0 14px}
-.fold>summary{cursor:pointer;font-weight:650;font-size:14px;padding:12px 0;min-height:44px;list-style-position:outside}
+.fold{background:transparent;border:0;border-top:1px solid var(--bd);border-radius:0;margin:0;padding:0}
+.fold>summary{cursor:pointer;font-weight:600;font-size:14px;padding:12px 2px;min-height:44px;display:flex;align-items:center;gap:8px;list-style:none}
 .fold-body{padding:0 0 12px;font-size:14px}.fold-body p{margin:6px 0}.fold-body .card{border:0;padding:0;margin:8px 0;background:transparent}
 .foot{margin:8px 0 0;font-size:13px}
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px}.grid2 .card{margin:0}.grid{display:grid;grid-template-columns:1fr;gap:0}
 .tap{cursor:pointer}
 .row{border-top:1px solid var(--bd);margin:0}.row summary{list-style:none;display:flex;align-items:center;gap:10px;padding:10px 2px;cursor:pointer;min-height:48px}
-.row summary::-webkit-details-marker{display:none}.row summary .chev{color:var(--mu);font-size:18px;margin-left:auto;flex:none;line-height:1}.row[open] summary .chev{transform:rotate(90deg)}
+.row summary::-webkit-details-marker,.fold>summary::-webkit-details-marker,.start-here>summary::-webkit-details-marker,.fresh-more>summary::-webkit-details-marker{display:none}
+.row summary::marker,.fold>summary::marker,.start-here>summary::marker,.fresh-more>summary::marker{content:none}
+.chev,.fold>summary::after,.start-here>summary::after,.fresh-more>summary::after,.hl-go::after{width:16px;height:16px;flex:none;background:var(--mu);pointer-events:none;-webkit-mask:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><path d='M6 3.5 10.5 8 6 12.5' fill='none' stroke='%23000' stroke-width='1.5'/></svg>") center / 16px 16px no-repeat;mask:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><path d='M6 3.5 10.5 8 6 12.5' fill='none' stroke='%23000' stroke-width='1.5'/></svg>") center / 16px 16px no-repeat;transition:transform .12s linear}
+.chev{margin-left:auto}
+.fold>summary::after,.start-here>summary::after,.fresh-more>summary::after{content:"";margin-left:auto}
+.start-here>summary::after{margin-left:6px}
+.hl-go{display:inline-flex;align-items:center;gap:2px}
+.hl-go::after{content:""}
+.row[open]>summary .chev,.fold[open]>summary::after,.start-here[open]>summary::after,.fresh-more[open]>summary::after{transform:rotate(90deg)}
 .row .mid{flex:1}.row .h{font-weight:650;font-size:15px;line-height:1.25}.row .s{color:var(--mu);font-size:13px;margin-top:2px}.row .pnl{font-size:13px;margin:2px 0 0;padding:0;border:0;background:transparent;color:var(--mu)}
 .row .dd{padding:0 2px 12px 18px;font-size:14px;color:var(--tx)}.row .dd p{margin:4px 0}
 .sec{font-size:12px;font-weight:650;color:var(--mu);text-transform:uppercase;letter-spacing:.04em;margin:16px 2px 4px}
@@ -63,13 +71,14 @@ body.tab-chat{padding-bottom:calc(var(--tb) + env(safe-area-inset-bottom))}
 @media(min-width:900px){body{padding-bottom:20px}.tabbar{position:sticky;top:0;bottom:auto;border-top:0;border-bottom:1px solid var(--bd);height:48px;justify-content:center;padding-bottom:0}.tabbar button{flex:0 0 140px;flex-direction:row;font-size:14px;gap:8px;min-height:48px}.tabbar button .b{position:static;margin-left:4px}.grid{grid-template-columns:1fr 1fr;gap:0 16px}.grid .row{border-top:1px solid var(--bd)}.big{font-size:44px}}
 :focus-visible{outline:2px solid var(--ac);outline-offset:2px}
 .skip{position:absolute;left:10px;top:-80px;z-index:100;background:var(--card);padding:12px}.skip:focus{top:8px}
-.refreshbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:0 0 8px;padding:8px 12px;border:1px solid var(--bd);border-radius:12px;font-size:13px;background:var(--card);color:var(--mu)}
-.refreshbar.warn{border-color:var(--a)}.refreshbar.offline{border-color:var(--r);color:var(--r)}
-.refreshbar #refresh-status{flex:1;min-width:8rem}
-.fresh-more{font-size:12px;color:var(--mu)}.fresh-more summary{cursor:pointer;font-weight:650;color:var(--ac)}
-.refreshbar .btn{margin:0;flex:none;min-height:36px;padding:6px 12px}
-.start-here{margin:0 0 8px;padding:0 14px}.start-here summary{cursor:pointer;font-weight:650;font-size:14px;padding:12px 0;min-height:44px;display:flex;align-items:center;gap:8px}.start-here summary::-webkit-details-marker{display:none}.start-here p{font-size:14px;margin:4px 0 8px}
-#start-dismiss{margin-left:auto;border:0;background:transparent;color:var(--ac);font-size:13px;font-weight:650;min-height:32px;padding:4px 2px}
+.refreshbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;min-height:44px;margin:0;padding:0 2px;border:0;background:transparent;font-size:13px;color:var(--mu)}
+.refreshbar.warn{color:var(--a)}.refreshbar.offline{color:var(--r)}
+.refreshbar #refresh-status{flex:1 1 8rem;min-width:0}
+.fresh-more{font-size:13px;color:var(--mu)}.fresh-more summary{cursor:pointer;font-weight:600;color:var(--ac);display:flex;align-items:center;gap:4px;min-height:44px;list-style:none;padding:0 2px}
+.refreshbar .btn{margin:0;flex:none;min-height:44px;padding:8px 10px;background:transparent}
+.start-here{margin:8px 0 0;padding:0;border:0;background:transparent}.start-here summary{cursor:pointer;font-weight:600;font-size:14px;padding:10px 2px;min-height:44px;display:flex;align-items:center;gap:8px;list-style:none}.start-here p{font-size:14px;margin:4px 2px 8px}
+#start-dismiss{margin-left:auto;border:0;background:transparent;color:var(--ac);font-size:13px;font-weight:650;min-height:44px;padding:8px}
+main:not(:has(#p-home.on)) #start-here{display:none}
 .seat-total{margin:4px 2px 2px;font-size:14px;color:var(--mu)}.seat-total b{font-size:16px;font-weight:650}
 [role=button]{cursor:pointer}button:disabled{cursor:wait;opacity:.65}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
@@ -77,16 +86,16 @@ body.tab-chat{padding-bottom:calc(var(--tb) + env(safe-area-inset-bottom))}
 <body data-seat="<!--SEAT0-->">
 <a class="skip" href="#main">Skip to the dashboard</a>
 <div id="tfo-tk"></div>
-<header class="hd"><h1><svg class="brand-mark" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="7" fill="#10243E"/><rect x="5" y="5" width="22" height="22" rx="4" fill="none" stroke="#F6F3EE" stroke-width="2"/><path d="M10 12h12M16 12V22" fill="none" stroke="#F6F3EE" stroke-width="2"/></svg><span class="brand-name">Transparent Trading</span> <span class="pill">PAPER</span></h1><div class="sub" id="hd-sub">Paper trading. Not a live broker. Times are WITA.</div><div class="sub links"><a href="/desk/chat">Chat</a> · <a href="/classic">Previous page</a></div></header>
+<header class="hd"><h1><svg class="brand-mark" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="7" fill="#10243E"/><rect x="5" y="5" width="22" height="22" rx="4" fill="none" stroke="#F6F3EE" stroke-width="2"/><path d="M10 12h12M16 12V22" fill="none" stroke="#F6F3EE" stroke-width="2"/></svg><span class="brand-name">Transparent Trading</span> <span class="pill">PAPER</span></h1><div class="sub" id="hd-sub">Paper. Not a live broker. Times are WITA.</div></header>
 <nav id="tabbar" class="tabbar" role="tablist" aria-label="Dashboard pages"></nav>
 <main id="main" tabindex="-1">
-<details class="card start-here" id="start-here"><summary>New here? Start with these three steps <button type="button" id="start-dismiss">Hide</button></summary><p><b>1. Home:</b> see how the practice fund is doing. Green means a check passed; it does not promise a profit.</p><p><b>2. Trades:</b> see what is open, what is waiting, and how much each trade can lose at its stop.</p><p><b>3. Chat:</b> ask a trader to explain an idea. Open Health for a clear list of anything that needs attention.</p><p class="mu">All money is simulated. The time under the title says when the page was checked; each trade shows when its price was checked.</p></details>
-<div id="refreshbar" class="refreshbar"><span id="refresh-status" role="status" aria-live="polite" aria-atomic="true">Loading the latest figures…</span><details id="refresh-more" class="fresh-more"><summary>Details</summary><span id="refresh-detail"></span></details><button type="button" class="btn" id="refresh-now" aria-label="Refresh this dashboard page">Refresh</button></div>
 <section id="p-home" role="tabpanel" aria-labelledby="tab-home" class="pane on" data-title="Home"><div class="card">Loading…</div></section>
+<div id="refreshbar" class="refreshbar"><span id="refresh-status" role="status" aria-live="polite" aria-atomic="true">Loading the latest figures…</span><details id="refresh-more" class="fresh-more"><summary>Details</summary><span id="refresh-detail"></span></details><button type="button" class="btn" id="refresh-now" aria-label="Refresh this dashboard page">Refresh</button></div>
 <section id="p-trades" role="tabpanel" aria-labelledby="tab-trades" class="pane" data-title="Trades"></section>
 <section id="p-chat" role="tabpanel" aria-labelledby="tab-chat" class="pane" data-title="Chat"></section>
 <section id="p-seats" role="tabpanel" aria-labelledby="tab-seats" class="pane" data-title="Seats"></section>
 <section id="p-health" role="tabpanel" aria-labelledby="tab-health" class="pane" data-title="Health"></section>
+<details class="start-here" id="start-here"><summary>New here? <button type="button" id="start-dismiss">Hide</button></summary><p><b>1. Home</b> is the practice result. A green check is not a promise of profit.</p><p><b>2. Trades</b> lists what is open, what is waiting, and the stop.</p><p><b>3. Chat</b> asks a trader to explain. Health lists anything that needs a look.</p><p class="mu">The money is simulated. The line under the figure is when this page was checked.</p></details>
 </main>
 <script id="home0" type="application/json"><!--HOME0--></script>
 <!--ELI10_JS-->
