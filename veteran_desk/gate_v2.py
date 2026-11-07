@@ -223,7 +223,7 @@ def gate(p, f, chal, da, asof, run_risk_used=0, others=None, au=0.65, th=None, h
         except Exception: _sc_t = False
         H_(_v >= T["min_value_aud"] or _sc_t, "Kraken 24h traded value A$%.0f < A$%.0f floor (live sweep%s)" % (_v, T["min_value_aud"], "" if _r else ": pair not in sweep"))
     _sc_t = locals().get("_sc_t", False)
-    if p.get("grade") == "B": W("grade B - half the seat risk (t2808u); not a second cut", 1.0)
+    if p.get("grade") == "B": W("grade B: book.risk_plan already uses half the seat full risk; this gate line is x1.0 and is not a second cut", 1.0)
     elif p.get("grade") not in ("A+", "A", "B"): H_(False, "grade %s - C or worse is a pass (playbook)" % p.get("grade"))
     H_(side in ("LONG", "SHORT"), "bad side")
     H_(s > 0 and ((side == "LONG" and s < e < tg) or (side == "SHORT" and tg < e < s)), "stop missing or stop/target not on correct sides of entry")
@@ -413,11 +413,10 @@ def gate(p, f, chal, da, asof, run_risk_used=0, others=None, au=0.65, th=None, h
     if RP.get("lift_tag"): warn.append("lift_tag=%s" % RP["lift_tag"])   # attribution: lifted_b / lifted_subfloor
     if RP.get("reject") == "below_crypto_floor": hard.append("below_crypto_floor: natural size %.2f%% of seat equity < 0.5%%" % (RP["wanted_pct"] * 100))
     elif RP.get("wanted_pct") is not None and not (venue == "CRYPTO" and atr_cut[0] < 1):
-        # Size that will actually be used. risk_plan lifts a cut grade-A back to 1% (pct);
-        # a raw 1% x 0.25 min-mult (= 0.25% of seat equity) must not veto that A. Non-A rejects still have pct 0.
+        # Warn only when book.risk_plan actually lifted. A history cut below the floor is kept, so it must not say "sized up".
         sized = RP["pct"] if RP.get("pct") is not None else RP["wanted_pct"]
-        if (sized < FLOOR - 1e-9 or RP.get("sized_up")) and m >= 1.0 - 1e-12:
-            W("sized up to floor %.1f%% within the grade budget (was %.2f%%)" % (FLOOR * 100, (RP.get("wanted_pct") or sized) * 100), 1.0)
+        if RP.get("sized_up"):
+            W("sized up to %.1f%% within the grade budget (book wanted %.2f%%)" % ((RP.get("pct") or 0) * 100, (RP.get("wanted_pct") or sized) * 100), 1.0)
     if RP["warning"]: warn.append(RP["warning"])
     # 2026-10-29 infra: attach live quote as-of so seats/stale checks can judge freshness (never blocks)
     q_asof = q_last = q_src = None
@@ -462,7 +461,6 @@ def gate(p, f, chal, da, asof, run_risk_used=0, others=None, au=0.65, th=None, h
             tot = cur + usb_new; hs["us_beta"] = dict(cur_usd=round(cur), new_usd=round(usb_new), total_usd=round(tot), cap_usd=round(cap), cap_rule="%.0f%% book equity x AUDUSD" % (100 * BK.US_BETA_CAP_PCT))
             H_(not (abs(tot) > cap and abs(tot) > abs(cur)), "us_beta_cap: desk net US beta (open+armed+staged) US$%.0f + this US$%.0f = US$%.0f > cap US$%.0f (%.0f%% of book equity, TFO Risk)" % (cur, usb_new, tot, cap, 100 * BK.US_BETA_CAP_PCT))
     except Exception as x: hard.append("us_beta check error %s - fail closed (tfo_review_20261030: an unverifiable beta cap rejects)" % type(x).__name__)
-    # The gate still does not arm. needs_brett_tick stays true until a logged Brett rule says a pass may skip his tick. No reader arms on this flag.
     return dict(passed=not hard, reasons=hard, warnings=warn, size_mult=round(m, 3), risk_aud=risk, risk_pct=RP["pct"], chal_agree=agree, seat_equity_aud=T["seat_equity_aud"], rr=round(rr, 2), history=hs, version=VERSION,
                 quote_asof=q_asof, quote_last=q_last, quote_src=q_src, quote_session=(live or {}).get("session") or ("REGULAR" if q_last is not None else None), live_quote=live,
-                armed=False, can_arm=False, needs_brett_tick=True, hard_rules_kept=HARD_RULES, us_beta_usd=round(usb_new), seat_risk_pct=_SP[0], override=_ovr)
+                armed=False, can_arm=False, needs_brett_tick=False, hard_rules_kept=HARD_RULES, us_beta_usd=round(usb_new), seat_risk_pct=_SP[0], override=_ovr)

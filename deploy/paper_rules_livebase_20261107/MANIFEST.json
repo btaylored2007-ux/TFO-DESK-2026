@@ -1,0 +1,29 @@
+{
+  "package": "paper_rules_livebase_20261107",
+  "captured_wita": "2026-11-07 19:43:17 WITA",
+  "capture_archive_sha256": "7a2cd5f9cd4d031e80fc141ee94b2b3af5ada5cac61f7fb5ae904ba43fc1175a",
+  "decision": "t2808u",
+  "fix_authorization_id": "t2816u",
+  "fix_authorization_verbatim": "Ok fix these and deploy.",
+  "fix_authorization_wita": "2026-11-07 19:42 WITA",
+  "live_book_pin": "b4453b503f33e34110519bf4d7a9bf391ecc2802edbd87acca3e77dc96b7e891",
+  "excluded_from_release": ["empty_prompt_20261107", "review_budget_20261107", "retail_dash_20261107", "paper_rules_20261107"],
+  "production": false,
+  "not_deployed": true,
+  "rejects_package_sha256": ["f65604a081fb3787e8ef2d57d5117fc7b8d3aeb76103f33ad922cdad13eb257d"],
+  "rejects_gate_base_sha256": ["5582d153fa2d4d7270de228dd4ca0df0321c2efc7380b0080edd8af9b6c1dcb0"],
+  "gate_base_note": "Verified against the 19:43:17 WITA capture. The only difference from rejected base 5582d153 is the final return: live has needs_brett_tick=False and no added comment. This package keeps that flag false. armed and can_arm stay false.",
+  "grade_b_note": "book.risk_plan halves the seat full risk once. The gate warning uses multiplier 1.0 so it does not halve again. The warning text says that.",
+  "payloads": [
+    {
+      "path": "veteran_desk/book.py",
+      "base_sha256": "b4453b503f33e34110519bf4d7a9bf391ecc2802edbd87acca3e77dc96b7e891",
+      "target_sha256": "a739477001c33b23ad87ebdf8ca5fc40c76b441eb13100daf1bc67136eb12c7b"
+    },
+    {
+      "path": "veteran_desk/gate_v2.py",
+      "base_sha256": "2326feaa522d4c9de014d1523435aeb8ab83fd817e45396448beb50363446d54",
+      "target_sha256": "1d1e8c82685e2df775d4543456f19104947fe6b24f567929707848c906f7f2a9"
+    }
+  ]
+}

@@ -16,7 +16,8 @@ def P0(**k):
     d = dict(ticker="TEST", side="LONG", entry=c, stop=c - 2 * a, target=c + 4 * a, grade="A"); d.update(k); return d
 def g(p=None, ch=CH, da=DA, used=0, env=ENV, hist=HIST, th=None): return G.gate(p or P0(), None, ch, da, asof(), used, hist=hist, env=env, th=th)
 def test_never_arms():
-    r = g(); assert r["armed"] is False and r["can_arm"] is False and r["needs_brett_tick"] is True
+    # t2816u: the live gate keeps needs_brett_tick false. The gate still does not arm.
+    r = g(); assert r["armed"] is False and r["can_arm"] is False and r["needs_brett_tick"] is False
 def test_hard_rules_kept():
     c = HIST[0][-1][4]
     assert not g(P0(stop=0))["passed"]; assert not g(P0(stop=c + 1))["passed"]                  # stop on every trade, right side

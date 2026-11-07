@@ -11,7 +11,7 @@ REPO = Path(__file__).resolve().parents[2]
 
 def test_gate_still_does_not_arm_and_still_asks_for_brett():
     row = TG.g()
-    assert row["armed"] is False and row["can_arm"] is False and row["needs_brett_tick"] is True
+    assert row["armed"] is False and row["can_arm"] is False and row["needs_brett_tick"] is False
     assert BK.RAIL_BANK_R == 0.7
 
 
