@@ -14,7 +14,7 @@ def page(title, body, *, csrf="", logged_in=False):
     if logged_in:
         nav = (
             "<nav aria-label=\"Primary\"><a href=\"/school\">School</a><a href=\"/desk\">Desk</a>"
-            "<a href=\"/teach\">Teach</a><a href=\"/ask\">Ask</a><a href=\"/board\">Board</a><a href=\"/account\">Account</a></nav>"
+            "<a href=\"/teach\">Teach</a><a href=\"/ask\">Ask</a><a href=\"/board\">Board</a><a href=\"/keys\">Keys</a></nav>"
         )
     html = """<!DOCTYPE html>
 <html lang="en">
@@ -132,7 +132,34 @@ def desk(model, csrf):
     <section class="hero" aria-live="polite">
       <p class="state">{headline}</p>
       <p>{notice}</p>
+      <p>Engine {engine}. Orders the paper engine sent: {sent}. Live prices: {source}.</p>
+      <p>Synthetic replay is a test price, not a live feed.</p>
       {action}
+      <form method="post" action="/desk/replay"><input type="hidden" name="csrf" value="{csrf}"><button class="tap" type="submit">Arm synthetic replay</button></form>
+      <form method="post" action="/desk/order">
+        <input type="hidden" name="csrf" value="{csrf}">
+        <label>Symbol <input name="symbol" value="AAPL" required></label>
+        <label>Side <select name="side"><option>buy</option><option>sell</option></select></label>
+        <label>Qty <input name="qty" value="1" required></label>
+        <label>Limit <input name="limit_price" value="100.00" required></label>
+        <button type="submit">Paper order</button>
+      </form>
+      <form method="post" action="/desk/activity">
+        <input type="hidden" name="csrf" value="{csrf}">
+        <label>Activity <select name="level"><option>1</option><option selected>2</option><option>3</option></select></label>
+        <button type="submit">Save activity</button>
+      </form>
+      <form method="post" action="/desk/allow_b">
+        <input type="hidden" name="csrf" value="{csrf}">
+        <label>Allow B grades <input type="checkbox" name="allowed" value="yes"></label>
+        <button type="submit">Save B grades</button>
+      </form>
+      <form method="post" action="/desk/trader">
+        <input type="hidden" name="csrf" value="{csrf}">
+        <label>Trader <input name="trader_id" value="desk"></label>
+        <label>Entries <select name="enabled"><option value="yes">on</option><option value="no">off</option></select></label>
+        <button type="submit">Save trader</button>
+      </form>
     </section>
     {figures}
     <section class="card">
@@ -172,6 +199,9 @@ def desk(model, csrf):
         start=esc(model["configured_starting_capital"]), cur=esc(model["currency"]),
         headline=esc(model["trading"]["headline"]),
         notice=esc(model["trading"].get("notice") or ""),
+        engine=esc(model["trading"].get("engine") or ""),
+        sent=esc(model["trading"].get("orders_sent") or 0),
+        source=esc(model["trading"].get("price_source") or ""),
         action=_trade_action(model["trading"], csrf),
         holdings=holdings, pending=pending,
         opt=esc(", ".join(model["sector_opt_out"])), csrf=esc(csrf),
@@ -346,13 +376,13 @@ def sandbox_page(session):
     return page("Test checkout", body, logged_in=True)
 
 
-def admin_page(overview=None, message=""):
+def admin_page(overview=None, message="", incidents=None):
     notice = "<p class=\"warning\">{0}</p>".format(esc(message)) if message else ""
     if overview is None:
         body = notice + """
         <section class="card">
           <h2>Operator login</h2>
-          <p>Operators see subscription status. They do not see customer secrets, research text, or provider keys.</p>
+          <p>Operators see subscription status and the incident queue. They do not see customer secrets, research text, or provider keys.</p>
           <form method="post" action="/admin/login">
             <input type="hidden" name="csrf" value="{csrf}">
             <label>Email <input name="email" autocomplete="username" required></label>
@@ -370,20 +400,47 @@ def admin_page(overview=None, message=""):
         )
         for row in overview["tenants"]
     )
+    incident_rows = ""
+    report = incidents or {}
+    for row in report.get("incidents") or []:
+        incident_rows += (
+            "<article><p>{code} · {status} · tenant {tenant}</p><p>Root cause: {cause}. Verification: {verify}. Learning: {learning}.</p>"
+            "<p>Engineer running: no. External notification sent: no.</p>"
+            "<form method=\"post\" action=\"/admin/incident\"><input type=\"hidden\" name=\"csrf\" value=\"{{csrf}}\">"
+            "<input type=\"hidden\" name=\"incident_id\" value=\"{iid}\">"
+            "<button name=\"action\" value=\"ack\" type=\"submit\">Ack</button>"
+            "<button name=\"action\" value=\"repair\" type=\"submit\">Recheck prices</button>"
+            "<button name=\"action\" value=\"verify\" type=\"submit\">Verify</button>"
+            "<button name=\"action\" value=\"propose\" type=\"submit\">Propose</button>"
+            "<input name=\"learning\" placeholder=\"lesson\">"
+            "<button name=\"action\" value=\"close\" type=\"submit\">Escalate or block</button>"
+            "<input type=\"hidden\" name=\"outcome\" value=\"escalated\"></form></article>"
+        ).format(
+            code=esc(row["code"]), status=esc(row["status"]), tenant=esc(row["tenant_id"]),
+            cause=esc(row.get("root_cause") or "UNKNOWN"), verify=esc(row.get("verification") or ""),
+            learning=esc(row.get("learning") or ""), iid=esc(row["id"]),
+        )
     body = notice + """
     <section class="card">
       <h2>Subscriptions</h2>
       <table><thead><tr><th>Tenant</th><th>Name</th><th>Sandbox state</th><th>Commercial paid</th><th>News</th><th>Providers</th><th>Lessons</th><th>Brain error</th><th>Model running</th></tr></thead>
       <tbody>{rows}</tbody></table>
     </section>
-    """.format(rows=rows or "<tr><td colspan=\"9\">No subscription yet.</td></tr>")
+    <section class="card">
+      <h2>Incident queue</h2>
+      <p>External notification is off. No engineer is running.</p>
+      {incidents}
+    </section>
+    """.format(rows=rows or "<tr><td colspan=\"9\">No subscription yet.</td></tr>", incidents=incident_rows or "<p>No incident stored.</p>")
     return body
 
 
-def admin_document(csrf, overview=None, message=""):
-    body = admin_page(overview, message)
+def admin_document(csrf, overview=None, message="", incidents=None):
+    body = admin_page(overview, message, incidents)
     if overview is None:
         body = body.format(csrf=esc(csrf))
+    else:
+        body = body.replace("{csrf}", esc(csrf))
     return page("Admin", body, logged_in=False)
 
 
@@ -419,25 +476,60 @@ def chart_svg(chart):
     """.format(width=width, height=height, points=" ".join(coords), label=esc(label), count=len(points), cur=esc(chart["currency"]))
 
 
-def teach_page(skills, csrf, notice=""):
+def teach_page(model, csrf, notice=""):
+    skills = model.get("skills") if isinstance(model, dict) else model
+    fills = model.get("fills") if isinstance(model, dict) else []
     blocks = []
     if not skills:
         blocks.append("<p>No skill saved yet.</p>")
+    evidence = "".join("<option>{0}</option>".format(esc(item)) for item in fills or [])
     for skill in skills:
         rules = "".join("<li>{0}: {1}</li>".format(esc(key), esc(value)) for key, value in skill["rules"].items())
         notes = "".join("<li>{0}</li>".format(esc(item)) for item in skill["clarifications"])
+        versions = "".join(
+            "<li>v{0} {1}</li>".format(esc(item["version"]), esc(item["status"])) for item in skill["versions"]
+        )
+        nxt = _next_skill_action(skill["status"])
+        action = ""
+        if nxt == "paper_testing" and fills:
+            action = (
+                "<form method=\"post\" action=\"/teach/status\"><input type=\"hidden\" name=\"csrf\" value=\"{csrf}\">"
+                "<input type=\"hidden\" name=\"skill_id\" value=\"{sid}\"><input type=\"hidden\" name=\"status\" value=\"paper_testing\">"
+                "<label>Paper fill <select name=\"evidence\">{evidence}</select></label>"
+                "<button type=\"submit\">Record paper test</button></form>"
+            ).format(csrf=esc(csrf), sid=esc(skill["id"]), evidence=evidence)
+        elif nxt == "paper_testing":
+            action = "<p>Paper testing needs a fill on this account. None is recorded, so this form cannot claim a test.</p>"
+        elif nxt:
+            action = (
+                "<form method=\"post\" action=\"/teach/status\"><input type=\"hidden\" name=\"csrf\" value=\"{csrf}\">"
+                "<input type=\"hidden\" name=\"skill_id\" value=\"{sid}\"><input type=\"hidden\" name=\"status\" value=\"{status}\">"
+                "<button type=\"submit\">Mark {status}</button></form>"
+            ).format(csrf=esc(csrf), sid=esc(skill["id"]), status=esc(nxt))
+        rollback = "".join(
+            "<form method=\"post\" action=\"/teach/rollback\"><input type=\"hidden\" name=\"csrf\" value=\"{csrf}\">"
+            "<input type=\"hidden\" name=\"skill_id\" value=\"{sid}\"><input type=\"hidden\" name=\"version\" value=\"{version}\">"
+            "<button type=\"submit\">Roll back to v{version}</button></form>".format(
+                csrf=esc(csrf), sid=esc(skill["id"]), version=esc(item["version"]),
+            )
+            for item in skill["versions"]
+        )
         blocks.append(
-            "<article class=\"card\"><h2>{status}</h2><p>Traders: {traders}. Source: {source}. AI: {ai}.</p><ul>{rules}</ul><ul>{notes}</ul><p>Versions: {versions}. This is not a promise of results.</p></article>".format(
+            "<article class=\"card\"><h2>{status}</h2><p>Traders: {traders}. Source: {source}. AI: {ai}. Evidence: {evidence_ids}.</p>"
+            "<ul>{rules}</ul><ul>{notes}</ul><ul>{versions}</ul>{action}{rollback}"
+            "<p>This is not a promise of results. AI interpretation is {ai}.</p></article>".format(
                 status=esc(skill["status"]), traders=esc(", ".join(skill["trader_ids"])),
                 source=esc(skill["rules_source"]), ai=esc(skill["ai"]),
-                rules=rules or "<li>No rules interpreted.</li>", notes=notes, versions=len(skill["versions"]),
+                evidence_ids=esc(", ".join(skill.get("evidence_ids") or []) or "none"),
+                rules=rules or "<li>No rules interpreted.</li>", notes=notes or "<li>No clarifications.</li>",
+                versions=versions, action=action, rollback=rollback,
             )
         )
     warning = "<p class=\"warning\">{0}</p>".format(esc(notice)) if notice else ""
     body = """
     <section class="card">
       <h2>Upload skills</h2>
-      <p>Describe a strategy in your own words, or upload a plain text file. This is separate from the School.</p>
+      <p>Describe a strategy in your own words, or upload a plain text file. This is separate from the School. A saved draft is not a completed test.</p>
       {warning}
       <form method="post" action="/teach/save">
         <input type="hidden" name="csrf" value="{csrf}">
@@ -449,14 +541,24 @@ def teach_page(skills, csrf, notice=""):
         <label>Or describe it <textarea name="text" rows="4"></textarea></label>
         <button class="tap" type="submit">Save draft</button>
       </form>
+      <form method="post" action="/teach/upload" enctype="multipart/form-data">
+        <input type="hidden" name="csrf" value="{csrf}">
+        <label>Traders <input name="traders" value="desk"></label>
+        <label>Text file <input type="file" name="upload" accept=".txt,.md"></label>
+        <button class="tap" type="submit">Upload file</button>
+      </form>
     </section>
     {blocks}
     """.format(warning=warning, csrf=esc(csrf), blocks="".join(blocks))
     return page("Teach my traders", body, logged_in=True)
 
 
+def _next_skill_action(status):
+    return {"draft": "paper_testing", "needs_clarification": "paper_testing", "paper_testing": "ready_for_review", "ready_for_review": "active", "active": "paused"}.get(status, "")
+
+
 def _trade_action(trading, csrf):
-    if trading.get("state") == "running":
+    if trading.get("state") == "replay":
         path, label, kind = "/desk/stop", "Stop", "stop"
     else:
         path, label, kind = "/desk/start", "Start", "start"
@@ -464,6 +566,40 @@ def _trade_action(trading, csrf):
         '<form method="post" action="{path}"><input type="hidden" name="csrf" value="{csrf}">'
         '<button class="tap {kind}" type="submit">{label}</button></form>'
     ).format(path=path, csrf=esc(csrf), kind=kind, label=label)
+
+
+def keys_page(model, csrf, notice=""):
+    status = model["status"]
+    rows = "".join(
+        "<li>{0} ····{1}</li>".format(esc(row["provider"]), esc(row.get("last4") or ""))
+        for row in model.get("keys") or []
+    ) or "<li>No key stored for this login.</li>"
+    warning = "<p class=\"warning\">{0}</p>".format(esc(notice or status.get("reason") or ""))
+    body = """
+    <section class="card">
+      <h2>Your provider keys</h2>
+      {warning}
+      <p>Keys belong to this login. They are not an operator subscription and they are not sent to the browser after save. Available: {available}.</p>
+      <ul>{rows}</ul>
+      <form method="post" action="/keys">
+        <input type="hidden" name="csrf" value="{csrf}">
+        <label>Provider <select name="provider"><option>openai</option><option>anthropic</option><option>grok</option><option>deepseek</option></select></label>
+        <label>Key <input name="secret" type="password" autocomplete="off"></label>
+        <button type="submit">Save key</button>
+      </form>
+      <form method="post" action="/keys/test">
+        <input type="hidden" name="csrf" value="{csrf}">
+        <label>Provider <select name="provider"><option>openai</option><option>anthropic</option><option>grok</option><option>deepseek</option></select></label>
+        <button type="submit">Test connection</button>
+      </form>
+      <form method="post" action="/keys/remove">
+        <input type="hidden" name="csrf" value="{csrf}">
+        <label>Provider <select name="provider"><option>openai</option><option>anthropic</option><option>grok</option><option>deepseek</option></select></label>
+        <button type="submit">Remove key</button>
+      </form>
+    </section>
+    """.format(warning=warning, available=esc(status.get("available")), rows=rows, csrf=esc(csrf))
+    return page("Keys", body, logged_in=True)
 
 
 def ask_page(rows, csrf):
@@ -479,14 +615,29 @@ def ask_page(rows, csrf):
                 "<p><strong>{0}</strong> {1}</p>".format(esc(item.get("sender", "")), esc(item.get("body", "")))
                 for item in row["reviews"]
             ) + "</details>"
+        history = "".join(
+            "<li>{0} {1} {2}{3}</li>".format(
+                esc(item.get("sequence")), esc(item.get("sender")), esc(item.get("kind")),
+                " late" if item.get("late") else "",
+            )
+            for item in row.get("history") or []
+        )
         cards.append(
-            "<article><p>{0} · {1}</p><p>{2}</p>{3}{4}</article>".format(
-                esc(row.get("status", "")), esc(row.get("provider", "")), esc(row.get("answer", "")), events, reviews,
+            "<article><p>{0} · {1} · {2}</p><p>{3}</p><p>{4}</p><p>Owner {5}. Provenance {6}.</p>{7}{8}"
+            "<details><summary>Raw record</summary><ul>{9}</ul></details>"
+            "<form method=\"post\" action=\"/ask/retry\"><input type=\"hidden\" name=\"csrf\" value=\"{csrf}\">"
+            "<input type=\"hidden\" name=\"request_id\" value=\"{rid}\"><button type=\"submit\">Retry</button></form>"
+            "<form method=\"post\" action=\"/ask/cancel\"><input type=\"hidden\" name=\"csrf\" value=\"{csrf}\">"
+            "<input type=\"hidden\" name=\"request_id\" value=\"{rid}\"><button type=\"submit\">Cancel</button></form>"
+            "</article>".format(
+                esc(row.get("status", "")), esc(row.get("provider", "")), esc(row.get("job") or "unconnected"),
+                esc(row.get("text", "")), esc(row.get("answer", "")), esc(row.get("owner", "")), esc(row.get("provenance") or "not_sent"),
+                events, reviews, history or "<li>No delivery yet.</li>", csrf=esc(csrf), rid=esc(row.get("id")),
             )
         )
     body = (
         "<section class=\"card\"><h2>Ask</h2>"
-        "<p>No provider is connected. A saved question is not sent out.</p>"
+        "<p>No outbound provider call is made from this page. A saved question can be retried or cancelled. Nothing is sent until this login has its own key and a connection is enabled.</p>"
         "<form method=\"post\" action=\"/ask\"><input type=\"hidden\" name=\"csrf\" value=\"{csrf}\">"
         "<label>Question <textarea name=\"text\" rows=\"4\" required></textarea></label>"
         "<button class=\"tap\" type=\"submit\">Save question</button></form>"

@@ -12,7 +12,7 @@ The synthetic worked series ships under `school_content/v1.2.0/datasets/`. It is
 
 ## Customer questions (2026-11-07)
 
-The customer app had no chat. It still does not call a model, and it does not reuse the owner THF threads. `/ask` saves a question for that customer. The provider field stays `not_connected` until a reply is delivered inside this process. One lead reply is the answer. Independent reviews stay behind an expand and are not merged into a second answer. A critical event is kept even after the request is complete, failed, cancelled, or past the reply bound. A late or stale reply is stored and is not the answer. The same delivery key is a retry: the raw record stays, and the retry is an audit line. A reply that says an order was placed does not place an order, and it cannot start another delivery. This shape is a proposed customer view, not a new trading rule. Owner-desk chat fixes stay on the owner review.
+The customer app had no chat. It still does not call a model, and it does not reuse the owner THF threads. `/ask` saves a question for that customer and shows retry, cancel, provenance, and the raw record. Without that customer's own key, the job stays unconnected and no answer is invented. A test-only synthetic reply can be injected in process; the HTTP app does not do that. One lead reply is the answer. Independent reviews stay behind an expand. A critical event is kept. A late or stale reply is stored and is not the answer. The same delivery key is a retry. Reply text does not place an order. This shape is a proposed customer view, not a new trading rule. Owner-desk chat fixes stay on the owner review.
 
 Human School progress and Teach my traders are separate pages. There is no customer health screen. The trial is not delivered.
 
@@ -90,7 +90,7 @@ Dependencies: Python 3.12 standard library, `pytest` for tests, and `veteran_des
 
 ## Tests last run
 
-- Combined command in `TEST_INVENTORY.md`: 36 passed (30 customer tests and the original 6 foundation tests). No network. That count is not a claim that the course or the app is finished.
+- Combined command in `TEST_INVENTORY.md`: 38 passed (32 customer tests and the original 6 foundation tests). No network. That count is not a claim that the course or the app is finished. The HTTP suite covers paper replay, Teach, Ask, keys, and the operator queue.
 
 Negative cases in the customer tests: wrong tenant, live venue, float/NaN/negative/extra decimals, open position, pending order, zero capital without acknowledgement, idempotency conflict, race, three crash points, rails tamper, cross-tenant idea read, prompt injection, secret redaction, unsigned webhook, live-mode webhook, sector opt-out still allowing an exit, non-loopback bind refused, `/leaderboard` returns 404.
 
@@ -105,4 +105,4 @@ Negative cases in the customer tests: wrong tenant, live venue, float/NaN/negati
 
 The earlier foundation archive `customer-platform-foundation-source.tar.gz` stays in place. Its sha256 is `cad96a532314b6321c35dffa03d14a9620b8f1d4f4a779fbb80486ac087cf873`. Do not overwrite it.
 
-The current self-contained export is `customer-platform-final-20261107.tar.gz`. It contains this package, school versions 1.0.0 through 1.2.1, the synthetic dataset files, the real `veteran_desk/thf_dash.py` and `tenant_foundation.py`, and the original 6 foundation tests. The sha256 is the sidecar file next to that archive. It has no demo password and no provider key. Neither archive is a trial deployment.
+The current self-contained export is `customer-platform-final-20261107.tar.gz`. It contains this package, the rendered screenshots under `customer_platform/design_evidence/`, school versions 1.0.0 through 1.2.1, the synthetic dataset files, `veteran_desk/tenant_foundation.py`, and `thf_dash.py` with `thf_http.py` so that module imports. It does not contain `book.py` or `gate_v2.py`. The sha256 is the sidecar file next to that archive. It has no demo password and no provider key. Neither archive is a trial deployment.

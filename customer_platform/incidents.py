@@ -75,6 +75,9 @@ class Incidents:
                 "severity": row["severity"],
                 "status": row["status"],
                 "tenant_id": row["tenant_id"],
+                "verification": row.get("verification") or "",
+                "learning": row.get("learning") or "",
+                "external_sent": False,
             })
         return {
             "engineer_running": False,

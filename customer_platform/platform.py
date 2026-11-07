@@ -64,6 +64,7 @@ class Platform:
         self.logs = []
         self.worker_enabled = False
         self._probes = {}
+        self._ask_fixture = {}
         self.pass_mark = os.environ.get("CUSTOMER_PLATFORM_PASS_MARK", "0.80")
         self.school_draft = load_author_draft()
         self.incidents = None
@@ -343,9 +344,114 @@ class Platform:
 
     def ask(self, token, text, idempotency_key, claimed_tenant=None):
         ctx = self._require(token, "trade_open", claimed_tenant)
-        return self._requests(ctx["tenant_id"]).submit(
+        row = self._requests(ctx["tenant_id"]).submit(
             user_id=ctx["user_id"], text=text, idempotency_key=idempotency_key,
         )
+        return self._route_ask(ctx["tenant_id"], row)
+
+    def ask_retry(self, token, request_id, claimed_tenant=None):
+        ctx = self._require(token, "trade_open", claimed_tenant)
+        box = self._requests(ctx["tenant_id"])
+        current = box.customer_view(request_id)
+        fixture = self._ask_fixture.get(ctx["tenant_id"])
+        if current["status"] != "pending" or not fixture:
+            box.note_unconnected_retry(request_id)
+            view = box.customer_view(request_id)
+            view["calls"] = 0
+            view["job"] = "unconnected"
+            return view
+        return box.deliver(
+            request_id, sender="synthetic_fixture", body_text=fixture,
+            kind="lead", delivery_key="fixture-" + request_id,
+        )
+
+    def ask_cancel(self, token, request_id, claimed_tenant=None):
+        ctx = self._require(token, "trade_open", claimed_tenant)
+        return self._requests(ctx["tenant_id"]).cancel(request_id)
+
+    def _route_ask(self, tenant_id, row):
+        fixture = self._ask_fixture.get(tenant_id)
+        if fixture and row["status"] == "pending":
+            delivered = self._requests(tenant_id).deliver(
+                row["id"], sender="synthetic_fixture", body_text=fixture,
+                kind="lead", delivery_key="fixture-" + row["id"],
+            )
+            delivered["calls"] = 0
+            delivered["job"] = "synthetic_fixture"
+            delivered["provenance"] = "synthetic fixture, not a provider"
+            return delivered
+        view = dict(row)
+        view["calls"] = 0
+        view["job"] = "unconnected"
+        view["provenance"] = self._ask_provenance(tenant_id)
+        return view
+
+    def _ask_provenance(self, tenant_id):
+        from customer_platform.ai_vault import public_keys, vault_status
+        status = vault_status()
+        if not status["available"]:
+            return "not_sent"
+        if not public_keys(self._key_path(tenant_id)):
+            return "not_sent"
+        return "key stored; outbound call is off"
+
+    def use_synthetic_reply(self, token, body, claimed_tenant=None):
+        ctx = self._require(token, "admin", claimed_tenant)
+        self._ask_fixture[ctx["tenant_id"]] = str(body)
+        return {"calls": 0, "fixture": True, "provider_call": False}
+
+    def key_status(self, token, claimed_tenant=None):
+        from customer_platform.ai_vault import public_keys, vault_status
+        ctx = self._require(token, "read", claimed_tenant)
+        status = vault_status()
+        rows = public_keys(self._key_path(ctx["tenant_id"])) if status["available"] else []
+        return {"keys": rows, "status": status}
+
+    def key_save(self, token, provider, secret, claimed_tenant=None):
+        from customer_platform.ai_vault import save_key
+        ctx = self._require(token, "admin", claimed_tenant)
+        saved = save_key(self._key_path(ctx["tenant_id"]), provider, secret)
+        self._audit(ctx["tenant_id"], ctx["user_id"], "key_save", True)
+        return saved
+
+    def key_remove(self, token, provider, claimed_tenant=None):
+        from customer_platform.ai_vault import remove_key
+        ctx = self._require(token, "admin", claimed_tenant)
+        return remove_key(self._key_path(ctx["tenant_id"]), provider)
+
+    def key_test(self, token, provider, claimed_tenant=None):
+        from customer_platform.ai_vault import connection_test
+        ctx = self._require(token, "admin", claimed_tenant)
+        return connection_test(self._key_path(ctx["tenant_id"]), provider, transport=None)
+
+    def _key_path(self, tenant_id):
+        return os.path.join(self._tenant_dir(tenant_id), "vault", "keys.json")
+
+    def teach_model(self, token, claimed_tenant=None):
+        ctx = self._require(token, "read", claimed_tenant)
+        fills = []
+        for line in self._book(ctx["tenant_id"]).ledger():
+            if line.get("kind") == "fill":
+                fills.append(line.get("id") or line.get("fill_id") or "")
+        return {"fills": [item for item in fills if item][-12:], "skills": self._skills(ctx["tenant_id"]).list_skills()}
+
+    def operator_incident_action(self, operator_token, incident_id, action, *, learning="", outcome="blocked"):
+        operator = self._operator(operator_token)
+        owner = operator.get("email") or "operator"
+        if action == "ack":
+            return self.incidents.assign(incident_id, owner)
+        if action == "repair":
+            return self.incidents.repair(incident_id, "recheck_prices", owner, lambda: [])
+        if action == "verify":
+            return self.incidents.verify(incident_id, owner, lambda: [])
+        if action == "close":
+            return self.incidents.close(incident_id, owner, outcome, learning=learning)
+        if action == "propose":
+            return self.incidents.propose(
+                incident_id, owner, priority="medium", test="operator reviewed the prices gate",
+                text=learning or "proposed from the operator queue",
+            )
+        raise Denied("incident action is not valid")
 
     def ask_view(self, token, request_id, claimed_tenant=None):
         ctx = self._require(token, "read", claimed_tenant)
@@ -374,7 +480,7 @@ class Platform:
         ctx = self._require(token, "read", claimed_tenant)
         return self._journal(ctx["tenant_id"]).entries()
 
-    def fill_order(self, token, order_id, *, price, fx=None, fixture=False, claimed_tenant=None):
+    def private_board(self, token, claimed_tenant=None):
         ctx = self._require(token, "read", claimed_tenant)
         book = self._book(ctx["tenant_id"])
         state = book.load()
@@ -838,9 +944,27 @@ class Platform:
     def _control(self, tenant_id):
         book = self._book(tenant_id)
         control = Control(self._tenant_dir(tenant_id), self.clock, book.cancel_pending_buys)
-        if self._probes.get(tenant_id) == "test":
+        if self._probes.get(tenant_id) == "test" or control.load().get("replay_armed"):
             control.use_test_probe()
+            self._probes[tenant_id] = "test"
         return control
+
+    def arm_synthetic_replay(self, token, claimed_tenant=None):
+        ctx = self._require(token, "admin", claimed_tenant)
+        self._probes[ctx["tenant_id"]] = "test"
+        result = self._control(ctx["tenant_id"]).arm_replay()
+        self._audit(ctx["tenant_id"], ctx["user_id"], "arm_replay", True)
+        return result
+
+    def paper_tick_tenant(self, tenant_id):
+        from customer_platform.paper_engine import tick_tenant
+        return tick_tenant(self, tenant_id)
+
+    def paper_tick_all(self):
+        base = os.path.join(self.store.root, "tenants")
+        if not os.path.isdir(base):
+            return []
+        return [self.paper_tick_tenant(tenant_id) for tenant_id in os.listdir(base) if not tenant_id.startswith(".")]
 
     def _journal(self, tenant_id):
         return Journal(self._tenant_dir(tenant_id), self.clock)

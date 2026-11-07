@@ -39,6 +39,7 @@ class Requests:
                 "id": new_id("rq_"),
                 "idempotency_key": idempotency_key,
                 "provider": "not_connected",
+                "provenance": "not_sent",
                 "reviews": [],
                 "status": "pending",
                 "text": str(text)[:2000],
@@ -142,9 +143,28 @@ class Requests:
             if row["customer_id"] != user_id:
                 continue
             shown = _customer(row)
-            shown["reviews"] = list(row["reviews"])
+            shown["history"] = [
+                {
+                    "id": item.get("id") or "",
+                    "kind": item.get("kind") or "",
+                    "late": bool(item.get("late")),
+                    "sender": item.get("sender") or "",
+                    "sequence": item.get("sequence") or 0,
+                }
+                for item in row["deliveries"]
+            ]
+            shown["provenance"] = row.get("provenance") or "not_sent"
             rows.append(shown)
         return rows
+
+    def note_unconnected_retry(self, request_id):
+        with self._lock:
+            stored = self._load()
+            row = self._row(stored, request_id)
+            row.setdefault("audit", []).append({"kind": "retry_unconnected", "utc": self.clock()})
+            row["provenance"] = row.get("provenance") or "not_sent"
+            write_json(self.path, stored)
+            return _customer(row)
 
     def consider_text(self, text):
         """A reply is text. It does not open a request or place an order."""
@@ -180,6 +200,8 @@ def _customer(row):
         "owner": row["customer_id"],
         "provider": row.get("provider") or "not_connected",
         "reviews_available": len(row.get("reviews") or []),
+        "provenance": row.get("provenance") or "not_sent",
         "status": row["status"],
+        "text": row.get("text") or "",
         "synthesis": False,
     }

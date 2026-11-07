@@ -33,6 +33,7 @@ from customer_platform.pages import (
     esc,
     exercise_page,
     home,
+    keys_page,
     lesson_page,
     membership_document,
     page,
@@ -66,17 +67,71 @@ def worker_loop(platform, stop, interval=30):
 def serve(platform, host, port):
     if host not in LOOPBACK:
         raise RuntimeError("customer web app refuses a non-loopback host")
+    stop = threading.Event()
+    threading.Thread(target=_paper_loop, args=(platform, stop), name="customer-paper", daemon=True).start()
     httpd = ThreadingHTTPServer((host, port), handler_for(platform))
-    httpd.serve_forever()
+    try:
+        httpd.serve_forever()
+    finally:
+        stop.set()
 
 
 def bind(platform, host="127.0.0.1", port=0):
     if host not in LOOPBACK:
         raise RuntimeError("customer web app refuses a non-loopback host")
+    stop = threading.Event()
+    threading.Thread(target=_paper_loop, args=(platform, stop), name="customer-paper", daemon=True).start()
     httpd = ThreadingHTTPServer((host, port), handler_for(platform))
     thread = threading.Thread(target=httpd.serve_forever, name="customer-web", daemon=True)
     thread.start()
+    httpd.paper_stop = stop
     return httpd
+
+
+def _paper_loop(platform, stop):
+    while not stop.is_set():
+        try:
+            platform.paper_tick_all()
+        except Exception as exc:
+            platform.log("paper worker " + type(exc).__name__)
+        if stop.wait(0.5):
+            break
+
+
+def _multipart(content_type, raw):
+    marker = ""
+    for piece in content_type.split(";"):
+        piece = piece.strip()
+        if piece.startswith("boundary="):
+            marker = piece.split("=", 1)[1].strip().strip('"')
+    if not marker:
+        raise Denied("upload was not accepted")
+    found = {}
+    for chunk in raw.split(b"--" + marker.encode("utf-8")):
+        if b"Content-Disposition" not in chunk:
+            continue
+        head, _, body = chunk.partition(b"\r\n\r\n")
+        body = body.rstrip(b"\r\n")
+        if body.endswith(b"--"):
+            body = body[:-2].rstrip(b"\r\n")
+        header = head.decode("utf-8", "replace").lstrip("\r\n")
+        disposition = header.split("\r\n", 1)[0]
+        name = ""
+        filename = ""
+        for piece in disposition.split(";"):
+            piece = piece.strip()
+            if piece.startswith("name="):
+                name = piece.split("=", 1)[1].strip().strip('"')
+            elif piece.startswith("filename="):
+                filename = piece.split("=", 1)[1].strip().strip('"')
+        if not name:
+            continue
+        if filename:
+            found["file"] = body
+            found["filename"] = filename
+        else:
+            found[name] = body.decode("utf-8", "replace")
+    return found
 
 
 def handler_for(platform):
@@ -126,12 +181,15 @@ def handler_for(platform):
             if path == "/admin":
                 token = self._cookies().get("cp_operator")
                 overview = None
+                incidents = None
                 try:
                     if token:
                         overview = self.server_platform().admin_overview(token)
+                        incidents = self.server_platform().operator_incidents(token)
                 except Denied:
                     overview = None
-                self._html(200, admin_document(self._csrf(), overview))
+                    incidents = None
+                self._html(200, admin_document(self._csrf(), overview, incidents=incidents))
                 return
             token = self._customer()
             if path == "/desk":
@@ -152,8 +210,10 @@ def handler_for(platform):
                     self._html(200, lesson_page(self.server_platform().school_lesson(token, parts[1], parts[2])))
             elif path == "/ask":
                 self._html(200, ask_page(self.server_platform().ask_list(token), self._csrf()))
+            elif path == "/keys":
+                self._html(200, keys_page(self.server_platform().key_status(token), self._csrf()))
             elif path == "/teach":
-                self._html(200, teach_page(self.server_platform().teach_list(token), self._csrf()))
+                self._html(200, teach_page(self.server_platform().teach_model(token), self._csrf()))
             elif path == "/journal":
                 rows = self.server_platform().journal_list(token)
                 body = "<section class=\"card\"><h2>Practice journal</h2><p>Saved notes are not scored.</p>{items}</section>".format(
@@ -234,20 +294,77 @@ def handler_for(platform):
                 )
                 self._html(200, result_page(result))
             elif path == "/desk/start":
-                result = platform.start_trading(token)
-                self._html(200, desk(platform.desk(token), self._csrf()) if False else page(
-                    "Practice desk",
-                    "<p class=\"state\">{0}</p><p>{1}</p><p><a href=\"/desk\">Back</a></p>".format(
-                        esc(result["headline"]), esc("; ".join(result.get("reasons") or [])),
-                    ),
-                    logged_in=True,
-                ))
+                platform.start_trading(token)
+                self._html(200, desk(platform.desk(token), self._csrf()))
+            elif path == "/desk/replay":
+                platform.arm_synthetic_replay(token)
+                self._html(200, desk(platform.desk(token), self._csrf()))
             elif path == "/desk/stop":
-                result = platform.stop_trading(token)
-                self._html(200, page("Practice desk", "<p class=\"state\">{0}</p><p><a href=\"/desk\">Back</a></p>".format(esc(result["headline"])), logged_in=True))
+                platform.stop_trading(token)
+                self._html(200, desk(platform.desk(token), self._csrf()))
+            elif path == "/desk/order":
+                platform.place_order(
+                    token, symbol=form.get("symbol", ""), side=form.get("side", "buy"),
+                    qty=form.get("qty", "1"), limit_price=form.get("limit_price", ""),
+                    idempotency_key=form.get("idempotency_key") or ("web-" + secrets.token_hex(8)),
+                )
+                platform.paper_tick_tenant(platform.store.context(token)["tenant_id"])
+                self._html(200, desk(platform.desk(token), self._csrf()))
+            elif path == "/desk/activity":
+                platform.set_activity(token, form.get("level") or "2")
+                self._html(200, desk(platform.desk(token), self._csrf()))
+            elif path == "/desk/allow_b":
+                platform.set_allow_b(token, form.get("allowed") == "yes")
+                self._html(200, desk(platform.desk(token), self._csrf()))
+            elif path == "/desk/trader":
+                platform.set_trader_entries(token, form.get("trader_id") or "desk", form.get("enabled") == "yes")
+                self._html(200, desk(platform.desk(token), self._csrf()))
             elif path == "/ask":
                 platform.ask(token, form.get("text", ""), form.get("idempotency_key") or ("web-" + secrets.token_hex(8)))
                 self._redirect("/ask")
+            elif path == "/ask/retry":
+                platform.ask_retry(token, form.get("request_id", ""))
+                self._redirect("/ask")
+            elif path == "/ask/cancel":
+                platform.ask_cancel(token, form.get("request_id", ""))
+                self._redirect("/ask")
+            elif path == "/keys":
+                try:
+                    platform.key_save(token, form.get("provider", ""), form.get("secret", ""))
+                    self._redirect("/keys")
+                except Denied as exc:
+                    self._html(400, keys_page(platform.key_status(token), self._csrf(), notice=str(exc)))
+            elif path == "/keys/remove":
+                platform.key_remove(token, form.get("provider", ""))
+                self._redirect("/keys")
+            elif path == "/keys/test":
+                result = platform.key_test(token, form.get("provider", ""))
+                notice = "Connection test was not sent." if not result.get("called") else "Connection test returned."
+                self._html(200, keys_page(platform.key_status(token), self._csrf(), notice=notice))
+            elif path == "/teach/upload":
+                platform.teach_upload(
+                    token,
+                    trader_ids=[part.strip() for part in form.get("traders", "desk").split(",") if part.strip()],
+                    filename=form.get("filename") or "notes.txt",
+                    data=form.get("file") or b"",
+                )
+                self._redirect("/teach")
+            elif path == "/teach/status":
+                platform.teach_status(
+                    token, form.get("skill_id", ""), form.get("status", ""),
+                    evidence_ids=[form.get("evidence")] if form.get("evidence") else None,
+                )
+                self._redirect("/teach")
+            elif path == "/teach/rollback":
+                platform.teach_rollback(token, form.get("skill_id", ""), form.get("version", ""))
+                self._redirect("/teach")
+            elif path == "/admin/incident":
+                operator = self._cookies().get("cp_operator")
+                platform.operator_incident_action(
+                    operator, form.get("incident_id", ""), form.get("action", ""),
+                    learning=form.get("learning", ""), outcome=form.get("outcome") or "escalated",
+                )
+                self._redirect("/admin")
             elif path == "/teach/save":
                 platform.teach_save(
                     token,
@@ -340,6 +457,9 @@ def handler_for(platform):
 
         def _form(self):
             raw = self._raw()
+            ctype = self.headers.get("Content-Type") or ""
+            if ctype.startswith("multipart/form-data"):
+                return _multipart(ctype, raw)
             parsed = parse_qs(raw.decode("utf-8", "replace"), keep_blank_values=True)
             return {key: values[-1] for key, values in parsed.items()}
 

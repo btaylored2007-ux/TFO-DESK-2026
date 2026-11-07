@@ -1,8 +1,7 @@
-"""Paper session start and stop. No trading engine is connected.
+"""Paper session gate. The paper engine fills only a labelled synthetic replay.
 
-Start arms new entries only after a required feed is ready, fresh, and
-authorized. Stop blocks new entries and drops unsubmitted intents.
-It does not close positions.
+A live price licence is not configured. Start without a replay stays stopped.
+The word Running is not used: a replay is not a live engine.
 """
 
 import os
@@ -60,23 +59,28 @@ class Control:
         with self._hold():
             state = self.load()
             feeds = self._current_feeds()
-            running = state["state"] == "running" and not blocked(feeds)
-            if state["state"] == "running" and blocked(feeds):
+            running = state["state"] == "replay" and not blocked(feeds)
+            if state["state"] == "replay" and blocked(feeds):
                 headline = "New entries are off. Prices are not available."
             elif running:
-                headline = "Running · new entries allowed"
+                headline = "Paper replay · synthetic prices. Not a live feed."
             else:
-                headline = "Stopped · positions protected"
+                headline = "Stopped · positions protected."
+            engine = state.get("engine") or "unconnected"
+            if engine == "not_implemented":
+                engine = "unconnected"
             return {
                 "activity": state["activity"],
                 "allow_b_grades": state["allow_b_grades"],
-                "engine": "not_implemented",
-                "engine_note": "No automatic orders.",
+                "engine": engine,
+                "engine_note": "Paper replay fills pending orders at a synthetic mark." if engine == "paper_replay" else "No live price source is connected.",
                 "feeds": feeds,
                 "headline": headline,
                 "notice": _customer_notice(state, feeds),
+                "orders_sent": int(state.get("orders_sent") or 0),
+                "price_source": "synthetic replay, not a live feed" if engine == "paper_replay" else "not connected",
                 "queued": len(state.get("queue") or []),
-                "state": "running" if running else "stopped",
+                "state": "replay" if running else "stopped",
                 "traders": state["traders"],
             }
 
@@ -101,14 +105,16 @@ class Control:
             state["feeds"] = feeds
             reasons = blocked(feeds)
             if reasons:
+                state["engine"] = "unconnected"
                 self._write(state, "start_blocked", {"reasons": reasons})
-                return {"engine": "not_implemented", "headline": "Stopped · positions protected",
-                        "orders_sent": 0, "reasons": reasons, "started": False, "state": "stopped"}
-            state["state"] = "running"
-            state["engine"] = "not_implemented"
-            self._write(state, "start", {"orders_sent": 0})
-            return {"engine": "not_implemented", "headline": "Running · new entries allowed",
-                    "orders_sent": 0, "reasons": [], "started": True, "state": "running"}
+                return {"engine": "unconnected", "headline": "Stopped · positions protected.",
+                        "orders_sent": int(state.get("orders_sent") or 0), "reasons": reasons, "started": False, "state": "stopped"}
+            state["state"] = "replay"
+            state["engine"] = "paper_replay"
+            state["replay_armed"] = True
+            self._write(state, "start", {"orders_sent": int(state.get("orders_sent") or 0)})
+            return {"engine": "paper_replay", "headline": "Paper replay · synthetic prices. Not a live feed.",
+                    "orders_sent": int(state.get("orders_sent") or 0), "reasons": [], "started": True, "state": "replay"}
 
     def stop(self):
         with self._hold():
@@ -116,7 +122,7 @@ class Control:
             dropped = list(state.get("queue") or [])
             state["queue"] = []
             state["state"] = "stopped"
-            state["engine"] = "not_implemented"
+            state["engine"] = "unconnected"
             self._write(state, "stop", {"dropped": len(dropped), "flattened": False})
             canceled = self.cancel_pending_buys()
             return {"canceled_entry_orders": canceled, "dropped_queued": len(dropped), "flattened": False,
@@ -143,7 +149,7 @@ class Control:
     def commit_queue(self, callback):
         with self._hold():
             state = self.load()
-            if state["state"] != "running" or blocked(state.get("feeds") or default_feeds()):
+            if state["state"] not in {"replay", "running"} or blocked(state.get("feeds") or default_feeds()):
                 dropped = list(state.get("queue") or [])
                 state["queue"] = []
                 self._write(state, "queue_dropped", {"count": len(dropped)})
@@ -190,8 +196,22 @@ class Control:
             self._write(state, "trader_entries", {"enabled": bool(enabled), "trader_id": trader_id, "version": state["settings_version"]})
             return {"entries_enabled": bool(enabled), "trader_id": trader_id}
 
+    def note_engine_order(self):
+        with self._hold():
+            state = self.load()
+            state["orders_sent"] = int(state.get("orders_sent") or 0) + 1
+            self._write(state, "engine_fill", {"orders_sent": state["orders_sent"]})
+            return state["orders_sent"]
+
+    def arm_replay(self):
+        with self._hold():
+            state = self.load()
+            state["replay_armed"] = True
+            self._write(state, "arm_replay", {"live_feed": False})
+            return {"live_feed": False, "source": "synthetic replay, not a live feed"}
+
     def _check(self, state, grade, trader_id):
-        if state["state"] != "running":
+        if state["state"] not in {"replay", "running"}:
             raise ResetBlocked("stopped", "Stopped. New entries are blocked. Positions stay protected.")
         feeds = self._current_feeds()
         state["feeds"] = feeds
@@ -239,9 +259,11 @@ def _blank():
     return {
         "activity": 2,
         "allow_b_grades": False,
-        "engine": "not_implemented",
+        "engine": "unconnected",
         "feeds": default_feeds(),
+        "orders_sent": 0,
         "queue": [],
+        "replay_armed": False,
         "seq": 0,
         "settings_version": 1,
         "state": "stopped",
@@ -260,8 +282,8 @@ def blocked(feeds):
 
 
 def _customer_notice(state, feeds):
-    if state.get("state") == "running":
-        return ""
+    if state.get("state") == "replay" and not blocked(feeds):
+        return "Synthetic prices only. A live price licence is not configured."
     if blocked(feeds):
-        return "Prices are not ready. Start stays off until they are."
+        return "Prices are not ready. Start stays off until a synthetic replay is armed. This is not a live feed."
     return ""
