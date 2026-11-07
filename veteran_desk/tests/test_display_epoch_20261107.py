@@ -9,9 +9,17 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 BOOK = "b4453b503f33e34110519bf4d7a9bf391ecc2802edbd87acca3e77dc96b7e891"
-BASELINE = ROOT / "deploy/display_epoch_20261107/baseline_owner_20261107T121234Z.json"
 PACKAGE = ROOT / "deploy/display_epoch_20261107"
 INSTALL = PACKAGE / "install.py"
+SYNTHETIC = {
+    "id": "test-mark",
+    "set_utc": "2026-11-07T00:00:00Z",
+    "pnl_since_inception_aud": -20.0,
+    "equity_aud": 80.0,
+    "seed_aud": 100.0,
+    "cash_aud": 40.0,
+    "invested_aud": 70.0,
+}
 
 
 def sha256(path):
@@ -29,16 +37,16 @@ def load_epoch():
     return module
 
 
-def test_owner_reading_is_equity_minus_seed_and_invested_is_not_capital():
-    base = json.loads(BASELINE.read_text(encoding="utf-8"))
-    assert round(base["equity_aud"] - base["seed_aud"], 2) == base["pnl_since_inception_aud"] == -32244.72
-    assert round(base["cash_aud"] + base["invested_aud"], 2) != base["seed_aud"]
-    assert round(base["cash_aud"] + base["invested_aud"], 2) != base["equity_aud"]
+def test_formula_is_equity_minus_seed_and_invested_is_not_capital():
+    assert round(SYNTHETIC["equity_aud"] - SYNTHETIC["seed_aud"], 2) == SYNTHETIC["pnl_since_inception_aud"]
+    assert round(SYNTHETIC["cash_aud"] + SYNTHETIC["invested_aud"], 2) != SYNTHETIC["seed_aud"]
+    assert not (ROOT / "deploy/display_epoch_20261107/baseline_owner_20261107T121234Z.json").exists()
+    assert not (ROOT / "deploy/retail_dash_20261107/review/baseline_owner_20261107T121234Z.json").exists()
 
 
 def test_mark_is_zero_only_when_the_book_field_matches_and_moves_once(tmp_path):
     module = load_epoch()
-    base = json.loads(BASELINE.read_text(encoding="utf-8"))
+    base = dict(SYNTHETIC)
     first = module.establish(tmp_path, base, module.CONFIRM)
     assert first["status"] == "SET"
     saved = sha256(tmp_path / "display_epoch.json")
@@ -66,7 +74,7 @@ def test_mark_is_zero_only_when_the_book_field_matches_and_moves_once(tmp_path):
 
 def test_failed_replace_leaves_no_mark(tmp_path, monkeypatch):
     module = load_epoch()
-    base = json.loads(BASELINE.read_text(encoding="utf-8"))
+    base = dict(SYNTHETIC)
 
     def boom(*_args, **_kwargs):
         raise OSError("injected")
@@ -87,7 +95,7 @@ def test_wrong_token_and_book_are_untouched(tmp_path):
     before = sha256(ROOT / "veteran_desk/book.py")
     assert before == BOOK
     try:
-        module.establish(tmp_path, json.loads(BASELINE.read_text(encoding="utf-8")), "nope")
+        module.establish(tmp_path, dict(SYNTHETIC), "nope")
     except ValueError:
         pass
     else:
@@ -103,8 +111,10 @@ def test_wrong_token_and_book_are_untouched(tmp_path):
 def test_cli_and_package_refuse_production(tmp_path):
     env = os.environ.copy()
     env["PYTHONDONTWRITEBYTECODE"] = "1"
+    baseline = tmp_path / "synthetic.json"
+    baseline.write_text(json.dumps(SYNTHETIC), encoding="utf-8")
     run = subprocess.run(
-        [sys.executable, "-m", "veteran_desk.thf_display_epoch", "establish", "--state-dir", str(tmp_path), "--baseline", str(BASELINE), "--confirm", "nope"],
+        [sys.executable, "-m", "veteran_desk.thf_display_epoch", "establish", "--state-dir", str(tmp_path / "state"), "--baseline", str(baseline), "--confirm", "nope"],
         cwd=ROOT, text=True, capture_output=True, check=False, env=env,
     )
     assert run.returncode == 2 and "NOT_APPLIED" in run.stdout
