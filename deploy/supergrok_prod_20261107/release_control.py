@@ -107,9 +107,40 @@ def health_status(fetcher=None):
     return {"connected": state == "ready", "state": state, "note": note}
 
 
-def lifecycle(action, confirm=None, runner=None):
+def operator_apply_allowed():
+    """False flags and a missing accepted approval are a refusal. Editing them is not an approval."""
+    return (
+        MANIFEST.get("deployment_ready") is True
+        and MANIFEST.get("ops_review_ready") is True
+        and bool(MANIFEST.get("accepted_approval_sha256"))
+    )
+
+
+def _under_opt_tfo(path):
+    text = str(path)
+    return text == "/opt/tfo" or text.startswith("/opt/tfo/")
+
+
+def _exec_fixed(argv):
+    """Start one allowlisted unit. No shell and no other command."""
+    allowed = (
+        ["systemctl", "start", "tfo-grok-xvfb.service"],
+        ["systemctl", "start", "tfo-grok-web.service"],
+        ["systemctl", "start", "tfo-grok-signin.service"],
+    )
+    command = list(argv)
+    if command not in allowed:
+        raise ReleaseError("REFUSED_LIFECYCLE")
+    import subprocess
+    subprocess.run(command, check=True)
+    return command
+
+
+def lifecycle(action, confirm=None):
     if action == "status":
         return health_status()
+    if not operator_apply_allowed():
+        raise ReleaseError("REFUSED_NOT_READY")
     if action not in ("start-page-worker", "signin-window"):
         raise ReleaseError("REFUSED_LIFECYCLE")
     if confirm != "OWNER-PAGE-WORKER":
@@ -117,15 +148,44 @@ def lifecycle(action, confirm=None, runner=None):
     units = PAGE_UNITS if action == "start-page-worker" else (SIGNIN_UNIT,)
     if any(unit in FORBIDDEN_UNITS for unit in units):
         raise ReleaseError("REFUSED_LIFECYCLE")
-    if runner is None:
-        raise ReleaseError("REFUSED_LIFECYCLE")
-    for unit in units:
-        runner(["systemctl", "start", unit])
-    return {"action": action, "units": list(units), "connected": False}
+    started = [_exec_fixed(["systemctl", "start", unit]) for unit in units]
+    return {"action": action, "units": list(units), "commands": started, "connected": False}
 
 
-def apply_release(roots, codemerge=None):
+def review_approval(body):
+    """Check a proposed approval. This package accepts none."""
+    if not isinstance(body, dict):
+        raise ReleaseError("REFUSED_APPROVAL")
+    if body.get("example") is True:
+        raise ReleaseError("REFUSED_EXAMPLE_APPROVAL")
+    if body.get("authorization_id") in (MANIFEST.get("spent_authorization_ids") or []):
+        raise ReleaseError("REFUSED_SPENT_AUTHORIZATION")
+    if body.get("host") != "tfo-sgp1" or body.get("roots") != MANIFEST.get("roots"):
+        raise ReleaseError("REFUSED_APPROVAL")
+    if body.get("write_set") != [item["path"] for item in MANIFEST["files"]]:
+        raise ReleaseError("REFUSED_APPROVAL_SCOPE")
+    if body.get("service_scope") != list(PAGE_UNITS):
+        raise ReleaseError("REFUSED_APPROVAL_SCOPE")
+    protected = [item["path"] for item in MANIFEST["verify_only"]] + ["veteran_desk/book.py"]
+    if sorted(body.get("protected_paths") or []) != sorted(protected):
+        raise ReleaseError("REFUSED_APPROVAL_SCOPE")
+    if not operator_apply_allowed():
+        raise ReleaseError("REFUSED_NOT_READY")
+    return body
+
+
+def apply_release(roots, codemerge=None, approval=None):
+    """Operator mutation. Refuses while this package is not an accepted approval."""
+    if not operator_apply_allowed():
+        raise ReleaseError("REFUSED_NOT_READY")
+    review_approval(approval or {})
+    return _mutate(roots, codemerge)
+
+
+def _mutate(roots, codemerge=None):
     pair = _roots(roots)
+    if any(_under_opt_tfo(root) for root in pair) and not operator_apply_allowed():
+        raise ReleaseError("REFUSED_NOT_READY")
     if codemerge is not None and not os.environ.get("PYTEST_CURRENT_TEST") and str(Path(codemerge)) != CODEMERGE:
         raise ReleaseError("REFUSED_ROOT")
     trees = list(pair) + ([codemerge] if codemerge is not None else [])

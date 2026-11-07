@@ -163,7 +163,19 @@ def _blocked(roots):
     return any(row["state"] not in ("NOT_STARTED", "RESTORED") for row in reconcile(roots))
 
 
+def _under_opt_tfo(path):
+    text = str(path)
+    return text == "/opt/tfo" or text.startswith("/opt/tfo/")
+
+
 def apply_release(approval_path, archives, probe=None, host_name=None, roots=None, restart=None, restarter=None):
+    """Operator entry. Refuses while the shipped readiness flags are not true."""
+    if not operator_apply_allowed():
+        raise ReleaseError("REFUSED_NOT_READY")
+    return _apply_files(approval_path, archives, probe, host_name, roots, restart, restarter)
+
+
+def _apply_files(approval_path, archives, probe=None, host_name=None, roots=None, restart=None, restarter=None):
     if (host_name is not None or roots is not None) and not os.environ.get("PYTEST_CURRENT_TEST"):
         raise ReleaseError("REFUSED_OVERRIDE")
     approval = load_approval(approval_path)
@@ -174,6 +186,8 @@ def apply_release(approval_path, archives, probe=None, host_name=None, roots=Non
     if restart not in (None, "dash"):
         raise ReleaseError("REFUSED_RESTART")
     pair = tuple(roots) if roots is not None else (LIVE, DASH)
+    if any(_under_opt_tfo(root) for root in pair) and not operator_apply_allowed():
+        raise ReleaseError("REFUSED_NOT_READY")
     if roots is None and pair != (LIVE, DASH):
         raise ReleaseError("REFUSED_ROOT")
     if len(pair) != 2 or pair[0] == pair[1]:

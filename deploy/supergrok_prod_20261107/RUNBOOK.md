@@ -4,7 +4,11 @@ Not deployed. Not connected. This file is not the staging installer.
 
 `deploy/owner_chat_20261107/install.py` still refuses `/opt/tfo` and `--activate`. Do not point it at production and do not copy its payload by hand.
 
-Ops, after an independent review, uses this directory:
+`deployment_ready`, `ops_review_ready`, and `accepted_approval_sha256` are false or empty. `apply_release` and `--apply` both return `REFUSED_NOT_READY` before any write, including a direct call. Editing those fields in place is not an approval. `t2809u` is spent. This package does not contain an accepted approval and does not approve itself.
+
+`--lifecycle status` is read-only and reports absent health as not connected. `--lifecycle start-page-worker --confirm OWNER-PAGE-WORKER` is wired to `systemctl start` for `tfo-grok-xvfb.service` then `tfo-grok-web.service` only, with no shell. While the readiness flags stay false, that command returns `REFUSED_NOT_READY` and does not call systemctl. `signin-window` is the same gate for `tfo-grok-signin.service` alone.
+
+Ops, only after a later reviewed package that ships a real approval, would use this directory:
 
 ```
 python3 release_control.py --apply

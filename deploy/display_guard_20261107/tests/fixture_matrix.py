@@ -53,7 +53,7 @@ def approval(directory):
 
 
 def apply(tmp, live, dash, restart=None, restarter=None):
-    return release.apply_release(
+    return release._apply_files(
         approval(tmp),
         {ALLOW["archives"][0]["name"]: ARCHIVE},
         probe=lambda _unit: "inactive",
@@ -297,6 +297,32 @@ def main():
             fail("note changed book")
     if release.operator_apply_allowed():
         fail("readiness flags allow apply")
+    if ARCHIVE.stat().st_size != 49168 or release.sha256(ARCHIVE.read_bytes()) != "9d91e5fc5c5f84c4b98832389f5cba2be2a4daa1ccff4715677e01c7c1699abb":
+        fail("bound payload identity")
+    if "c7102844b6522a68d87b5ad3cbbb790e062728029ee97f8bdccc047a6c7d7e76" not in ALLOW["archives"][0]["rejected_sha256"]:
+        fail("unbound archive not rejected")
+    with tempfile.TemporaryDirectory() as raw:
+        tmp = Path(raw)
+        live, dash = tmp / "live", tmp / "dash"
+        tree(live)
+        tree(dash)
+        before = (live / "veteran_desk/thf_dash.py").read_bytes()
+        try:
+            release.apply_release(approval(tmp), {ALLOW["archives"][0]["name"]: ARCHIVE}, probe=lambda _u: "inactive", host_name="tfo-sgp1", roots=(live, dash))
+        except release.ReleaseError as error:
+            if error.code != "REFUSED_NOT_READY":
+                fail(error.code)
+        else:
+            fail("direct apply_release wrote while not ready")
+        if (live / "veteran_desk/thf_dash.py").read_bytes() != before:
+            fail("direct apply_release changed a file")
+        try:
+            release._apply_files(approval(tmp), {ALLOW["archives"][0]["name"]: ARCHIVE}, probe=lambda _u: "inactive", host_name="tfo-sgp1", roots=("/opt/tfo/live/thf", "/opt/tfo/dash/base"))
+        except release.ReleaseError as error:
+            if error.code != "REFUSED_NOT_READY":
+                fail("prod " + error.code)
+        else:
+            fail("exercise path accepted production roots")
     print("FIXTURE_OK")
     return 0
 

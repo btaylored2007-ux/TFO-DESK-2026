@@ -4,7 +4,7 @@ Not deployed. The display mark is PENDING. The archived kit sha `abfc2af4bdeae09
 
 The book is not a historical pin. Both roots must have the same book bytes at the start. If those bytes change during the copy, the command is `REFUSED_BOOK_CHANGED`, the display files already copied are restored, and the book is left as the runtime wrote it. There is no stale-book rollback and no root override.
 
-Operator apply is refused while `deployment_ready` or `ops_review_ready` is not true. Both remain false. The independent preflight can show equal book bytes and matching bases and still is not an approval. Do not edit those booleans in place.
+Operator apply is refused while `deployment_ready` or `ops_review_ready` is not true. Both remain false. `apply_release` itself raises `REFUSED_NOT_READY` before any write, including a direct call and including when a test environment is set. The independent preflight can show equal book bytes and matching bases and still is not an approval. Do not edit those booleans in place. `t2809u` stays spent. See `LINEAGE.md` for the bound archive `9d91e5fc…` and the unbound file `c7102844…`.
 
 ```
 python3 release_control.py --approval approval.json --archive fixture/display-epoch-ui-20261107.tar.gz
