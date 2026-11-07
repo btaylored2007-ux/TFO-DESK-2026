@@ -2,6 +2,24 @@
 
 Another session can continue from this branch without the owner desk. Do not SSH, deploy, or edit production. The coordinator copies the source archive onto Singapore outside the production tree.
 
+## Approval and course draft (2026-11-07)
+
+Owner t2845u approved practical exercises, a private journal, mistake reviews, and Upload Skills. Those are in this package. The journal is stored and is not scored. Upload Skills saves the customer's words; AI interpretation stays unavailable until a provider is connected. Neither path is a promise of results.
+
+Course file now loaded is v1.1.0, which supersedes v1.0.0. v1.0.0 is kept so an old attempt can still be graded. Independent counts: 21 modules, 126 lessons, 251 questions. The original 215 answer keys are unchanged. Pool B adds 36 questions in six modules. The course is an unpublished draft: lessons are not opened in the customer UI, answer keys are not sent to the browser, and there is no expert or legal approval. Author defaults (80 percent, 30 paper trades, capstone average 2.0) are product settings, not a law. A course completion record is not an accreditation. The author's 100-question formula check is not acceptance of this app. The 71-file course workspace was not in this attachment; the files saved here are the course JSON, QA, sources, and handover.
+
+Human School progress and Teach my traders are separate pages. There is no customer health screen. The trial is not delivered.
+
+Human School progress and Teach my traders are separate pages. There is no customer health screen. The trial is not delivered.
+
+Research claims from five vendors are archived under `customer_platform/research/`. They are vendor documents, not an independent benchmark. QuantConnect already documents bring-your-own-key on a paid Agent Node, with the tier boundary unclear, and documents stopping without liquidating. This app does not claim those ideas are unique, and it does not claim to outperform those products.
+
+## What the next session should do
+
+1. Do not publish the school until fact review, a larger question pool for the 15 single-pool modules, and a named reviewer exist.
+2. Keep external incident alerts off until a channel and credential exist.
+3. Do not open a public port or restart the owner desk.
+
 ## Product sequencing
 
 The first product is a hosted customer web app: secure signup, login, customer sessions, an isolated dashboard, private durable learning, and practice-capital reset.

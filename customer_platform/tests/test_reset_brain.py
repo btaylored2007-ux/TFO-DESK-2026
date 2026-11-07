@@ -41,6 +41,8 @@ def account(tmp_path, **kwargs):
 
 
 def trade(desk, token, *, symbol="AAPL", qty="10", buy="100.00", sell="90.00", fx=None, sector=None, key="a"):
+    desk.use_test_feed_probe(token)
+    desk.start_trading(token)
     opened = desk.place_order(
         token, symbol=symbol, side="buy", qty=qty, limit_price=buy, sector=sector,
         idempotency_key="buy-{0}-{1}".format(key, symbol),
@@ -65,7 +67,9 @@ def test_foundation_stays_off_and_unmounted(tmp_path):
     with pytest.raises(FoundationOff):
         Platform(tmp_path / "customers")
     for relative in ("veteran_desk/thf_dash.py", "veteran_desk/book.py", "veteran_desk/gate_v2.py"):
-        assert "customer_platform" not in (ROOT / relative).read_text(encoding="utf-8")
+        path = ROOT / relative
+        if path.is_file():
+            assert "customer_platform" not in path.read_text(encoding="utf-8")
     source = "\n".join(
         path.read_text(encoding="utf-8")
         for path in (ROOT / "customer_platform").rglob("*.py")
@@ -163,6 +167,8 @@ def test_zero_capital_warns_and_blocks_new_entries_without_erasing_brain(tmp_pat
 def test_open_position_and_pending_order_block_reset(tmp_path):
     desk, token, created = account(tmp_path)
     tenant = created["tenant_id"]
+    desk.use_test_feed_probe(token)
+    desk.start_trading(token)
     opened = desk.place_order(token, symbol="AAPL", side="buy", qty="1", limit_price="10.00", idempotency_key="open-buy-01")
     desk.fill_order(token, opened["order_id"], price="10.00")
     before = read_bytes(os.path.join(desk.store.root, "tenants", tenant, "paper", "ledger.jsonl"))

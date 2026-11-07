@@ -8,6 +8,8 @@ import os
 import time
 from datetime import datetime, timezone
 
+from decimal import Decimal
+
 from veteran_desk.tenant_foundation import (
     RANK,
     Denied as FoundationDenied,
@@ -20,11 +22,15 @@ from veteran_desk.tenant_foundation import (
 )
 
 from customer_platform.brain import Brain
+from customer_platform.control import Control
 from customer_platform.education import catalog, lesson
 from customer_platform.errors import Denied, InvalidAmount, LiveDisabled, NewsBlocked, PaymentRejected, ResetBlocked
 from customer_platform.files import ensure_dir, read_json, write_json
-from customer_platform.money import parse_money, money_text
-from customer_platform.paperbook import PaperBook
+from customer_platform.journal import Journal
+from customer_platform.money import money_text, parse_money, parse_signed_money
+from customer_platform.paperbook import PaperBook, format_signed
+from customer_platform.school import School, load_author_draft, load_package
+from customer_platform.skills import Skills
 from customer_platform.payments import Payments
 from customer_platform.redact import redact
 from customer_platform.reset import RESET_PHRASE, ResetService
@@ -50,6 +56,10 @@ class Platform:
         self.allow_fixtures = bool(allow_fixtures)
         self.logs = []
         self.worker_enabled = False
+        self._probes = {}
+        self.pass_mark = os.environ.get("CUSTOMER_PLATFORM_PASS_MARK", "0.80")
+        self.school_draft = load_author_draft()
+        self.school_package = load_package(os.environ.get("CUSTOMER_PLATFORM_SCHOOL_PACKAGE"))
         ensure_dir(self.root)
         self._blank("operators.json", {})
         self._blank("operator_sessions.json", {})
@@ -93,11 +103,18 @@ class Platform:
         )
 
     def login(self, email, password):
+        email = str(email or "").strip().lower()
+        if self._rate_blocked(email):
+            self.log("login refused")
+            raise Denied("login refused")
         try:
-            return self.store.login(email, password)
+            token = self.store.login(email, password)
         except FoundationDenied as exc:
+            self._rate_fail(email)
             self.log("login refused")
             raise Denied("login refused") from exc
+        self._rate_clear(email)
+        return token
 
     def add_member(self, token, email, password, role):
         return self.store.add_member(token, email, password, role)
@@ -162,6 +179,7 @@ class Platform:
             "session_pnl": epoch["session_realized_pnl"],
             "session_pnl_label": performance["current_epoch_session_pnl_label"],
             "tenant_id": ctx["tenant_id"],
+            "trading": self._control(ctx["tenant_id"]).view(),
             "venue": state["venue"],
         }
 
@@ -185,12 +203,148 @@ class Platform:
 
     def place_order(self, token, **kwargs):
         claimed = kwargs.pop("claimed_tenant", None)
+        grade = kwargs.pop("grade", "A")
+        trader_id = kwargs.pop("trader_id", None) or "desk"
         side = kwargs.get("side")
         action = "trade_close" if side == "sell" else "trade_open"
         ctx = self._require(token, action, claimed)
-        order = self._book(ctx["tenant_id"]).place_order(**kwargs)
+        kwargs["trader_id"] = trader_id
+        if side == "sell":
+            order = self._book(ctx["tenant_id"]).place_order(**kwargs)
+        else:
+            def _place():
+                return self._book(ctx["tenant_id"]).place_order(**kwargs)
+            order, _seq = self._control(ctx["tenant_id"]).enter(_place, grade=grade, trader_id=trader_id)
         self._audit(ctx["tenant_id"], ctx["user_id"], "place_order", True)
         return order
+
+    def use_test_feed_probe(self, token, claimed_tenant=None):
+        ctx = self._require(token, "admin", claimed_tenant)
+        self._probes[ctx["tenant_id"]] = "test"
+        return {"live_feed": False, "probe": "test"}
+
+    def start_trading(self, token, claimed_tenant=None):
+        ctx = self._require(token, "admin", claimed_tenant)
+        result = self._control(ctx["tenant_id"]).start()
+        self._audit(ctx["tenant_id"], ctx["user_id"], "start_trading", result["started"])
+        return result
+
+    def stop_trading(self, token, claimed_tenant=None):
+        ctx = self._require(token, "admin", claimed_tenant)
+        result = self._control(ctx["tenant_id"]).stop()
+        self._audit(ctx["tenant_id"], ctx["user_id"], "stop_trading", True)
+        return result
+
+    def enqueue_entry(self, token, payload, *, grade="A", trader_id="desk", claimed_tenant=None):
+        ctx = self._require(token, "trade_open", claimed_tenant)
+        return self._control(ctx["tenant_id"]).enqueue(payload, grade=grade, trader_id=trader_id)
+
+    def commit_queued(self, token, claimed_tenant=None):
+        ctx = self._require(token, "trade_open", claimed_tenant)
+        control = self._control(ctx["tenant_id"])
+
+        def _place(item):
+            body = dict(item["payload"])
+            body["trader_id"] = item["trader_id"]
+            return self._book(ctx["tenant_id"]).place_order(**body)
+
+        return control.commit_queue(_place)
+
+    def set_activity(self, token, level, claimed_tenant=None):
+        ctx = self._require(token, "admin", claimed_tenant)
+        return self._control(ctx["tenant_id"]).set_activity(level)
+
+    def set_allow_b(self, token, allowed, claimed_tenant=None):
+        ctx = self._require(token, "admin", claimed_tenant)
+        return self._control(ctx["tenant_id"]).set_allow_b(allowed)
+
+    def set_trader_entries(self, token, trader_id, enabled, claimed_tenant=None):
+        ctx = self._require(token, "admin", claimed_tenant)
+        return self._control(ctx["tenant_id"]).set_entries(trader_id, enabled)
+
+    def school_catalog(self, token, claimed_tenant=None):
+        ctx = self._require(token, "read", claimed_tenant)
+        return self._school(ctx["tenant_id"]).catalog()
+
+    def school_progress(self, token, claimed_tenant=None):
+        ctx = self._require(token, "read", claimed_tenant)
+        return self._school(ctx["tenant_id"]).progress()
+
+    def school_begin(self, token, module_id, *, review_ack=False, claimed_tenant=None):
+        ctx = self._require(token, "trade_open", claimed_tenant)
+        return self._school(ctx["tenant_id"]).begin_attempt(module_id, review_ack=review_ack)
+
+    def school_submit(self, token, attempt_id, answers, claimed_tenant=None):
+        ctx = self._require(token, "trade_open", claimed_tenant)
+        if not isinstance(answers, dict):
+            raise ResetBlocked("answers", "Answers are required")
+        return self._school(ctx["tenant_id"]).submit(attempt_id, answers)
+
+    def teach_list(self, token, claimed_tenant=None):
+        ctx = self._require(token, "read", claimed_tenant)
+        return self._skills(ctx["tenant_id"]).list_skills()
+
+    def teach_save(self, token, *, trader_ids, text="", rules=None, claimed_tenant=None):
+        ctx = self._require(token, "trade_open", claimed_tenant)
+        return self._skills(ctx["tenant_id"]).save_description(
+            user_id=ctx["user_id"], trader_ids=trader_ids, text=text, rules=rules,
+        )
+
+    def teach_upload(self, token, *, trader_ids, filename, data, claimed_tenant=None):
+        ctx = self._require(token, "trade_open", claimed_tenant)
+        return self._skills(ctx["tenant_id"]).save_upload(
+            user_id=ctx["user_id"], trader_ids=trader_ids, filename=filename, data=data,
+        )
+
+    def teach_status(self, token, skill_id, status, evidence_ids=None, claimed_tenant=None):
+        ctx = self._require(token, "admin", claimed_tenant)
+        known = {row["id"] for row in self._book(ctx["tenant_id"]).ledger()}
+        before = self._rails_bytes(ctx["tenant_id"])
+        result = self._skills(ctx["tenant_id"]).set_status(
+            skill_id, status, evidence_ids=evidence_ids, known_evidence=known,
+        )
+        if self._rails_bytes(ctx["tenant_id"]) != before:
+            raise ResetBlocked("rails", "a skill cannot change hard rails")
+        return result
+
+    def teach_rollback(self, token, skill_id, version, claimed_tenant=None):
+        ctx = self._require(token, "admin", claimed_tenant)
+        return self._skills(ctx["tenant_id"]).rollback(skill_id, version)
+
+    def journal_add(self, token, *, kind, text, module_id="", claimed_tenant=None):
+        ctx = self._require(token, "trade_open", claimed_tenant)
+        return self._journal(ctx["tenant_id"]).add(user_id=ctx["user_id"], kind=kind, text=text, module_id=module_id)
+
+    def journal_list(self, token, claimed_tenant=None):
+        ctx = self._require(token, "read", claimed_tenant)
+        return self._journal(ctx["tenant_id"]).entries()
+
+    def fill_order(self, token, order_id, *, price, fx=None, fixture=False, claimed_tenant=None):
+        ctx = self._require(token, "read", claimed_tenant)
+        book = self._book(ctx["tenant_id"])
+        state = book.load()
+        currency = state["currency"]
+        rows = {}
+        for line in book.ledger():
+            if line.get("kind") != "fill" or line.get("side") != "sell":
+                continue
+            trader = line.get("trader_id") or "desk"
+            bucket = rows.setdefault(trader, {"net": Decimal("0"), "samples": 0})
+            bucket["net"] += parse_signed_money(line["realized_pnl"], currency)
+            bucket["samples"] += 1
+        samples = sum(item["samples"] for item in rows.values())
+        return {
+            "costs": "Net is sale proceeds minus cost basis. No separate fee was recorded.",
+            "empty": samples == 0,
+            "fixture": bool(state.get("fixture")),
+            "private": True,
+            "results": [
+                {"net": format_signed(item["net"], currency), "samples": item["samples"], "trader_id": trader}
+                for trader, item in rows.items()
+            ],
+            "samples": samples,
+            "window": "all closed paper fills on this login",
+        }
 
     def fill_order(self, token, order_id, *, price, fx=None, fixture=False, claimed_tenant=None):
         ctx = self._require(token, "read", claimed_tenant)
@@ -202,7 +356,12 @@ class Platform:
         ctx = self._require(token, action, claimed_tenant)
         if fixture and not state.get("fixture"):
             raise Denied("fixture fills are only available on a fixture account")
-        row = self._book(ctx["tenant_id"]).fill_order(order_id, price=price, fx=fx, fixture=fixture)
+        if pending[0]["side"] == "buy":
+            def _fill():
+                return self._book(ctx["tenant_id"]).fill_order(order_id, price=price, fx=fx, fixture=fixture)
+            row, _seq = self._control(ctx["tenant_id"]).enter(_fill, trader_id=pending[0].get("trader_id") or "desk")
+        else:
+            row = self._book(ctx["tenant_id"]).fill_order(order_id, price=price, fx=fx, fixture=fixture)
         self._brain(ctx["tenant_id"]).mark_pending()
         self._audit(ctx["tenant_id"], ctx["user_id"], "fill_order", True)
         return row
@@ -215,7 +374,24 @@ class Platform:
 
     def mark_position(self, token, symbol, mark, claimed_tenant=None):
         ctx = self._require(token, "trade_close", claimed_tenant)
-        return self._book(ctx["tenant_id"]).mark_position(symbol, mark)
+        book = self._book(ctx["tenant_id"])
+        state = book.mark_position(symbol, mark)
+        for position in list(state["positions"]):
+            if position["status"] != "open" or not position.get("stop"):
+                continue
+            if parse_money(position["mark"], state["currency"]) > parse_money(position["stop"], state["currency"]):
+                continue
+            order = book.place_order(
+                symbol=position["symbol"], side="sell", qty=position["qty"],
+                limit_price=position["mark"], sector=position["sector"],
+                idempotency_key="stop-" + position["position_id"], trader_id=position.get("trader_id") or "desk",
+            )
+            book.fill_order(order["order_id"], price=position["mark"])
+        return book.load()
+
+    def set_stop(self, token, symbol, stop, claimed_tenant=None):
+        ctx = self._require(token, "trade_close", claimed_tenant)
+        return self._book(ctx["tenant_id"]).set_stop(symbol, stop)
 
     def settle_flat(self, token, *, confirmation, claimed_tenant=None):
         ctx = self._require(token, "admin", claimed_tenant)
@@ -599,6 +775,79 @@ class Platform:
 
     def _book(self, tenant_id):
         return PaperBook(self._tenant_dir(tenant_id), self.clock)
+
+    def _control(self, tenant_id):
+        book = self._book(tenant_id)
+        control = Control(self._tenant_dir(tenant_id), self.clock, book.cancel_pending_buys)
+        if self._probes.get(tenant_id) == "test":
+            control.use_test_probe()
+        return control
+
+    def _journal(self, tenant_id):
+        return Journal(self._tenant_dir(tenant_id), self.clock)
+
+    def _skills(self, tenant_id):
+        return Skills(self._tenant_dir(tenant_id), self.clock, ai_connected=False)
+
+    def _school(self, tenant_id):
+        return School(
+            self._tenant_dir(tenant_id), self.clock,
+            pass_mark=self.pass_mark, draft=self.school_draft, published=False,
+        )
+
+    def _rate_blocked(self, email):
+        row = read_json(self._path("rate.json"), {}).get(email) or {}
+        return int(row.get("fails") or 0) >= 8 and float(row.get("until") or 0) > time.time()
+
+    def _rate_fail(self, email):
+        body = read_json(self._path("rate.json"), {})
+        row = body.get(email) or {"fails": 0}
+        row["fails"] = int(row.get("fails") or 0) + 1
+        row["until"] = time.time() + 60
+        body[email] = row
+        write_json(self._path("rate.json"), body)
+
+    def _rate_clear(self, email):
+        body = read_json(self._path("rate.json"), {})
+        if email in body:
+            del body[email]
+            write_json(self._path("rate.json"), body)
+
+    def backup_store(self, dest):
+        import hashlib
+        import shutil
+        os.makedirs(dest, mode=0o700, exist_ok=True)
+        manifest = []
+        for dirpath, _dirs, names in os.walk(self.store.root):
+            for name in sorted(names):
+                if name.endswith(".tmp") or name == "lock":
+                    continue
+                full = os.path.join(dirpath, name)
+                rel = os.path.relpath(full, self.store.root)
+                target = os.path.join(dest, rel)
+                os.makedirs(os.path.dirname(target), mode=0o700, exist_ok=True)
+                shutil.copy2(full, target)
+                digest = hashlib.sha256(open(full, "rb").read()).hexdigest()
+                manifest.append({"path": rel, "sha256": digest})
+        write_json(os.path.join(dest, "BACKUP_MANIFEST.json"), {"files": manifest})
+        return {"files": len(manifest), "dest": dest}
+
+    def restore_store(self, dest):
+        import hashlib
+        import shutil
+        manifest = read_json(os.path.join(dest, "BACKUP_MANIFEST.json"), None)
+        if not manifest:
+            raise ResetBlocked("backup", "backup manifest is missing")
+        for row in manifest["files"]:
+            full = os.path.join(dest, row["path"])
+            digest = hashlib.sha256(open(full, "rb").read()).hexdigest()
+            if digest != row["sha256"]:
+                raise ResetBlocked("backup", "backup hash does not match")
+        for row in manifest["files"]:
+            target = os.path.join(self.store.root, row["path"])
+            os.makedirs(os.path.dirname(target), mode=0o700, exist_ok=True)
+            shutil.copy2(os.path.join(dest, row["path"]), target)
+        return {"restored": len(manifest["files"])}
 
     def _brain(self, tenant_id):
         return Brain(

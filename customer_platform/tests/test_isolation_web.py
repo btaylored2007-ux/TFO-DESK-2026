@@ -39,6 +39,8 @@ def account(tmp_path, **kwargs):
 
 
 def trade(desk, token, *, symbol="AAPL", qty="10", buy="100.00", sell="90.00", fx=None, sector=None, key="a"):
+    desk.use_test_feed_probe(token)
+    desk.start_trading(token)
     opened = desk.place_order(
         token, symbol=symbol, side="buy", qty=qty, limit_price=buy, sector=sector,
         idempotency_key="buy-{0}-{1}".format(key, symbol),
@@ -286,6 +288,8 @@ def test_provider_payments_sector_and_education(tmp_path, monkeypatch):
     with pytest.raises(NewsBlocked):
         desk.fetch_news(token)
     assert desk.note_license(token, "example-feed")["redistribution"] is False
+    desk.use_test_feed_probe(token)
+    desk.start_trading(token)
     opened = desk.place_order(token, symbol="XOM", side="buy", qty="2", limit_price="50.00", sector="energy", idempotency_key="energy-buy-01")
     desk.fill_order(token, opened["order_id"], price="50.00")
     desk.set_sector_opt_out(token, ["energy"])

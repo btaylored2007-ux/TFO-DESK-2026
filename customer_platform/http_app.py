@@ -36,7 +36,9 @@ from customer_platform.pages import (
     preview_page,
     result_page,
     sandbox_page,
+    school_page,
     setup_page,
+    teach_page,
 )
 from customer_platform.platform import FUNDS_PHRASE
 
@@ -131,6 +133,16 @@ def handler_for(platform):
             token = self._customer()
             if path == "/desk":
                 self._html(200, desk(self.server_platform().desk(token), self._csrf()))
+            elif path == "/school":
+                self._html(200, school_page(self.server_platform().school_catalog(token)))
+            elif path == "/teach":
+                self._html(200, teach_page(self.server_platform().teach_list(token), self._csrf()))
+            elif path == "/journal":
+                rows = self.server_platform().journal_list(token)
+                body = "<section class=\"card\"><h2>Practice journal</h2><p>Saved notes are not scored.</p>{items}</section>".format(
+                    items="".join("<p>{0}</p>".format(esc(row["text"])) for row in rows) or "<p>No notes yet.</p>"
+                )
+                self._html(200, page("Practice journal", body, logged_in=True))
             elif path == "/brain":
                 platform = self.server_platform()
                 self._html(200, brain_page(
@@ -195,6 +207,34 @@ def handler_for(platform):
                     acknowledge_zero=form.get("acknowledge_zero") == "yes",
                 )
                 self._html(200, result_page(result))
+            elif path == "/desk/start":
+                result = platform.start_trading(token)
+                self._html(200, desk(platform.desk(token), self._csrf()) if False else page(
+                    "Practice desk",
+                    "<p class=\"state\">{0}</p><p>{1}</p><p><a href=\"/desk\">Back</a></p>".format(
+                        esc(result["headline"]), esc("; ".join(result.get("reasons") or [])),
+                    ),
+                    logged_in=True,
+                ))
+            elif path == "/desk/stop":
+                result = platform.stop_trading(token)
+                self._html(200, page("Practice desk", "<p class=\"state\">{0}</p><p><a href=\"/desk\">Back</a></p>".format(esc(result["headline"])), logged_in=True))
+            elif path == "/teach/save":
+                platform.teach_save(
+                    token,
+                    trader_ids=[part.strip() for part in form.get("traders", "desk").split(",") if part.strip()],
+                    text=form.get("text", ""),
+                    rules={
+                        "entry": form.get("entry", ""),
+                        "exit": form.get("exit", ""),
+                        "risk": form.get("risk", ""),
+                        "market": form.get("market", ""),
+                    },
+                )
+                self._redirect("/teach")
+            elif path == "/journal/save":
+                platform.journal_add(token, kind=form.get("kind") or "mistake_review", text=form.get("text", ""))
+                self._redirect("/journal")
             elif path == "/desk/optout":
                 sectors = [part.strip() for part in form.get("sectors", "").split(",") if part.strip()]
                 platform.set_sector_opt_out(token, sectors)

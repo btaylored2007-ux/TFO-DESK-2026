@@ -161,7 +161,7 @@ class PaperBook:
         self.save(state)
         return state
 
-    def place_order(self, *, symbol, side, qty, limit_price, sector=None, idempotency_key, fixture=False):
+    def place_order(self, *, symbol, side, qty, limit_price, sector=None, idempotency_key, fixture=False, trader_id="desk"):
         state = self.load()
         self.assert_paper(state)
         existing = self._order_idem(state, idempotency_key)
@@ -194,11 +194,37 @@ class PaperBook:
             "side": side,
             "status": "pending",
             "symbol": symbol,
+            "trader_id": trader_id or "desk",
             "utc": self.now(),
         }
         state["orders"].append(order)
         self.save(state)
         return order
+
+    def cancel_pending_buys(self):
+        """Drop unfilled entry orders. Leave exits and open positions alone."""
+        state = self.load()
+        canceled = []
+        for order in state["orders"]:
+            if order["status"] == "pending" and order["side"] == "buy":
+                order["status"] = "canceled"
+                order["canceled_utc"] = self.now()
+                order["cancel_reason"] = "stopped"
+                canceled.append(order["order_id"])
+        if canceled:
+            self.save(state)
+            for order_id in canceled:
+                self._append({
+                    "currency": state["currency"],
+                    "epoch_id": state["current_epoch_id"],
+                    "id": new_id("lg_"),
+                    "kind": "order_cancel",
+                    "not_pnl": True,
+                    "order_id": order_id,
+                    "reason": "stopped",
+                    "utc": self.now(),
+                })
+        return canceled
 
     def cancel_order(self, order_id):
         state = self.load()
@@ -266,6 +292,7 @@ class PaperBook:
             "sector": order["sector"],
             "side": order["side"],
             "symbol": order["symbol"],
+            "trader_id": order.get("trader_id") or "desk",
             "utc": self.now(),
         }
         if order["side"] == "sell":
@@ -276,6 +303,19 @@ class PaperBook:
         self.save(state)
         self._append(row)
         return row
+
+    def set_stop(self, symbol, stop):
+        state = self.load()
+        self.assert_paper(state)
+        found = False
+        for position in state["positions"]:
+            if position["status"] == "open" and position["symbol"] == _symbol(symbol):
+                position["stop"] = money_text(parse_money(stop, state["currency"]), state["currency"])
+                found = True
+        if not found:
+            raise ResetBlocked("position", "open position was not found")
+        self.save(state)
+        return state
 
     def mark_position(self, symbol, mark):
         state = self.load()

@@ -82,8 +82,12 @@ th, td { text-align: left; padding: 8px 6px; border-bottom: 1px solid var(--line
 footer { color: var(--muted); padding: 24px 0 40px; font-size: 14px; }
 pre.prose { white-space: pre-wrap; font: inherit; }
 svg.chart { width: 100%; height: auto; background: var(--card); border-radius: 16px; }
+button.tap, a.tap { min-height: 48px; min-width: 48px; padding: 12px 18px; font-size: 18px; }
+.hero .state { font-size: 28px; margin: 0 0 8px; }
+.hero form { margin-top: 12px; }
 @media (max-width: 720px) {
   .figures { grid-template-columns: 1fr; }
   header { align-items: flex-start; flex-direction: column; }
   h1 { font-size: 26px; }
+  button.tap { width: 100%; }
 }

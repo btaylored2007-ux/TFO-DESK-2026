@@ -13,9 +13,8 @@ def page(title, body, *, csrf="", logged_in=False):
     nav = ""
     if logged_in:
         nav = (
-            "<nav><a href=\"/desk\">Desk</a><a href=\"/brain\">Brain</a>"
-            "<a href=\"/education\">Education</a><a href=\"/membership\">Membership</a>"
-            "<a href=\"/setup-status\">Setup</a></nav>"
+            "<nav aria-label=\"Primary\"><a href=\"/school\">School</a><a href=\"/desk\">Desk</a>"
+            "<a href=\"/teach\">Teach</a><a href=\"/board\">Board</a><a href=\"/account\">Account</a></nav>"
         )
     html = """<!DOCTYPE html>
 <html lang="en">
@@ -34,7 +33,7 @@ def page(title, body, *, csrf="", logged_in=False):
       <rect x="11" y="3" width="22" height="26" rx="3" fill="#f3eee4" stroke="#6e2430" stroke-width="2"/>
     </svg>
     <div>
-      <p class="eyebrow">Customer web app template</p>
+      <p class="eyebrow">The Transparent Trading School</p>
       <h1>[[TITLE]]</h1>
     </div>
   </a>
@@ -115,8 +114,7 @@ def desk(model, csrf):
     )
     banner = ""
     if model["chart"].get("fixture") or model.get("fixture"):
-        banner = "<p class=\"warning\">Test paper ledger fixture. Prices are caller-supplied, not a market print and not live performance.</p>"
-    brain = model["brain"]
+        banner = "<p class=\"warning\">Fixture prices. Not a market print.</p>"
     holdings = "".join(
         "<tr><td>{symbol}</td><td>{qty}</td><td>{sector}</td><td>{mark}</td><td>Shown even if this sector is opted out. Exit stays available.</td></tr>".format(
             symbol=esc(row["symbol"]), qty=esc(row["qty"]), sector=esc(row["sector"]), mark=esc(row.get("mark") or "unmarked"),
@@ -131,6 +129,11 @@ def desk(model, csrf):
     ) or "<tr><td colspan=\"4\">No pending order.</td></tr>"
     body = """
     {banner}
+    <section class="hero" aria-live="polite">
+      <p class="state">{headline}</p>
+      <p>{notice}</p>
+      {action}
+    </section>
     {figures}
     <section class="card">
       <h2>Paper ledger</h2>
@@ -139,9 +142,7 @@ def desk(model, csrf):
     </section>
     <section class="card">
       <h2>Learning brain</h2>
-      <p>{statement}</p>
-      <p>Model running: no. Persisted lessons with evidence: {count}. Worker enabled: {worker}.</p>
-      <p><a href="/brain">Open the brain</a></p>
+      <p>Model notes stay off this page. <a href="/brain">Notes</a></p>
     </section>
     <section class="card">
       <h2>Open holdings</h2>
@@ -169,8 +170,10 @@ def desk(model, csrf):
     """.format(
         banner=banner, figures=figures, chart=chart_svg(model["chart"]),
         start=esc(model["configured_starting_capital"]), cur=esc(model["currency"]),
-        statement=esc(brain["statement"]), count=esc(brain["lessons_with_evidence"]),
-        worker=esc(brain["worker_enabled"]), holdings=holdings, pending=pending,
+        headline=esc(model["trading"]["headline"]),
+        notice=esc(model["trading"].get("notice") or ""),
+        action=_trade_action(model["trading"], csrf),
+        holdings=holdings, pending=pending,
         opt=esc(", ".join(model["sector_opt_out"])), csrf=esc(csrf),
     )
     return page("Practice desk", body, logged_in=True)
@@ -257,9 +260,8 @@ def brain_page(status, lessons, pack, csrf, message=""):
     {notice}
     <section class="card">
       <h2>This subscription's brain</h2>
-      <p>{statement}</p>
-      <p>Last success: {success}. Last error: {error}. Pending event: {pending}. Next due: {due}.</p>
-      <p>Candidates {candidates}. Validated {validated}. Model calls {calls}. Model running: no. Provider: {provider}. Spend cap {cap}. Spent {spent}.</p>
+      <p>Notes from this desk. They do not place trades.</p>
+      <p>{count} saved.</p>
       <form method="post" action="/brain/run">
         <input type="hidden" name="csrf" value="{csrf}">
         <button type="submit">Run one brain update</button>
@@ -284,11 +286,8 @@ def brain_page(status, lessons, pack, csrf, message=""):
       <ul>{rules}</ul>
     </section>
     """.format(
-        notice=notice, statement=esc(status["statement"]), success=esc(status["last_success_utc"]),
-        error=esc(status["last_error_code"]), pending=esc(status["pending_event"]), due=esc(status["next_due_utc"]),
-        candidates=esc(status["candidate_count"]), validated=esc(status["validated_count"]),
-        calls=esc(status["model_calls"]), provider=esc(status["provider_state"]), cap=esc(status["spend_cap"]),
-        spent=esc(status["spent"]), csrf=esc(csrf), rows=rows, version=esc(pack["version"]), rules=rules,
+        notice=notice, statement=esc(status["statement"]), csrf=esc(csrf), rows=rows,
+        count=len(lessons), version=esc(pack["version"]), rules=rules,
     )
     return page("Learning brain", body, logged_in=True)
 
@@ -418,6 +417,74 @@ def chart_svg(chart):
     </svg>
     <p>{label}. {count} ledger points. Currency {cur}.</p>
     """.format(width=width, height=height, points=" ".join(coords), label=esc(label), count=len(points), cur=esc(chart["currency"]))
+
+
+def teach_page(skills, csrf, notice=""):
+    blocks = []
+    if not skills:
+        blocks.append("<p>No skill saved yet.</p>")
+    for skill in skills:
+        rules = "".join("<li>{0}: {1}</li>".format(esc(key), esc(value)) for key, value in skill["rules"].items())
+        notes = "".join("<li>{0}</li>".format(esc(item)) for item in skill["clarifications"])
+        blocks.append(
+            "<article class=\"card\"><h2>{status}</h2><p>Traders: {traders}. Source: {source}. AI: {ai}.</p><ul>{rules}</ul><ul>{notes}</ul><p>Versions: {versions}. This is not a promise of results.</p></article>".format(
+                status=esc(skill["status"]), traders=esc(", ".join(skill["trader_ids"])),
+                source=esc(skill["rules_source"]), ai=esc(skill["ai"]),
+                rules=rules or "<li>No rules interpreted.</li>", notes=notes, versions=len(skill["versions"]),
+            )
+        )
+    warning = "<p class=\"warning\">{0}</p>".format(esc(notice)) if notice else ""
+    body = """
+    <section class="card">
+      <h2>Upload skills</h2>
+      <p>Describe a strategy in your own words, or upload a plain text file. This is separate from the School.</p>
+      {warning}
+      <form method="post" action="/teach/save">
+        <input type="hidden" name="csrf" value="{csrf}">
+        <label>Traders <input name="traders" value="desk"></label>
+        <label>Entry <input name="entry"></label>
+        <label>Exit <input name="exit"></label>
+        <label>Risk <input name="risk"></label>
+        <label>Market <input name="market"></label>
+        <label>Or describe it <textarea name="text" rows="4"></textarea></label>
+        <button class="tap" type="submit">Save draft</button>
+      </form>
+    </section>
+    {blocks}
+    """.format(warning=warning, csrf=esc(csrf), blocks="".join(blocks))
+    return page("Teach my traders", body, logged_in=True)
+
+
+def _trade_action(trading, csrf):
+    if trading.get("state") == "running":
+        path, label, kind = "/desk/stop", "Stop", "stop"
+    else:
+        path, label, kind = "/desk/start", "Start", "start"
+    return (
+        '<form method="post" action="{path}"><input type="hidden" name="csrf" value="{csrf}">'
+        '<button class="tap {kind}" type="submit">{label}</button></form>'
+    ).format(path=path, csrf=esc(csrf), kind=kind, label=label)
+
+
+def school_page(catalog):
+    items = []
+    for module in catalog["modules"]:
+        items.append("<li><span>{order}. {label}</span> <small>Unpublished draft</small></li>".format(
+            order=module["order"], label=esc(module["label"]),
+        ))
+    body = """
+    <section class="card">
+      <p class="warning">Unpublished draft. Not an accepted course. Fact review is unfinished.</p>
+      <p>Pass mark {mark}. {credential}</p>
+      <p>{note}</p>
+      <p>Your progress stays on this login.</p>
+      <ol class="school">{items}</ol>
+    </section>
+    """.format(
+        mark=esc(catalog["pass_mark"]), credential=esc(catalog["credential"]),
+        note=esc(catalog["coverage_note"]), items="".join(items),
+    )
+    return page("The Transparent Trading School", body, logged_in=True)
 
 
 FUNDS_ACK = FUNDS_PHRASE
