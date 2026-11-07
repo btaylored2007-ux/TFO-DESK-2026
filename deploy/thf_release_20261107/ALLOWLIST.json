@@ -1,0 +1,96 @@
+{
+  "release": "thf_release_20261107",
+  "host": "tfo-sgp1",
+  "roots": ["/opt/tfo/live/thf", "/opt/tfo/dash/base"],
+  "authorization_verbatim": "Explicitly authorisation to deploy and clear the blocks.",
+  "authorization_id": "t2809u",
+  "authorization_wita": "2026-11-07 18:52 WITA",
+  "book_pin": "b4453b503f33e34110519bf4d7a9bf391ecc2802edbd87acca3e77dc96b7e891",
+  "excluded": ["veteran_desk/book.py"],
+  "do_not_restart": ["tfo-thf-tick.service", "tfo-thf-tick.timer", "tfo-thf-shadow.service", "tfo-thf-shadow.timer", "nginx.service", "tfo-chatgpt-web.service"],
+  "dash_restart_unit": "tfo-dash-thf.service",
+  "locks": ["tools/.code_release.lock", "tools/deploy.lock"],
+  "idle_units": ["tfo-thf-shadow.service", "tfo-thf-tick.service"],
+  "verify_only": [
+    {"path": "veteran_desk/book.py", "sha256": "b4453b503f33e34110519bf4d7a9bf391ecc2802edbd87acca3e77dc96b7e891"},
+    {"path": "veteran_desk/chatgpt_bridge.py", "sha256": "26446b5b61218bfc370fff62988db47efecb7b8afafd15e694ceaecf35deac0c"},
+    {"path": "veteran_desk/thf_home.py", "sha256": "50d8b3dcab66bf154f2ce21433a84f7147ed446193e6c12f74731e15ed26c1ed"},
+    {"path": "veteran_desk/thf_http.py", "sha256": "f42e153507e89ec11bc1de9aa500318b5389503ef0fec2fe24ca3572db777bbd"},
+    {"path": "veteran_desk/thf_hub.py", "sha256": "4959eb8b58aa7db5aa3ede86877eb4cf643e6ce87a25aa43b5e4649641ddae80"},
+    {"path": "tools/thf_chat.html", "sha256": "4a42f9eecddcb7c080a60fa4c114bb544e684938f9f23897d19e85effb4705f1"}
+  ],
+  "archives": [
+    {
+      "name": "empty_prompt_20261107",
+      "sha256": "fd2c2b96eb069c7e6b78fe7ff04dc91e6355361ff5b3002f65eb618110fc85b8",
+      "order": 1,
+      "files": [
+        {
+          "path": "veteran_desk/thf_shadow_sampler.py",
+          "bases": ["a779a30626e765e5d6351ab851399240154802a54cdb955c309e8f97d4ad28ef"],
+          "target": "935c73460dcce8789b9eec9e8664b0ffcd44985ef9adc3da6bb053808b4e6673"
+        },
+        {
+          "path": "veteran_desk/claude_brain.py",
+          "bases": ["10658378cf66908f5dd1ee3aaac5b878910a9093707bba72115a56bf44339318"],
+          "target": "b896da9e49d6690bbda57c805952530aa9d9c2eb034f296f2cc31535255fa49d"
+        },
+        {
+          "path": "veteran_desk/thf_grok.py",
+          "bases": ["2a6a975735fce2f3ed214b5eb35af84ce90629d7403204c8691bab9757568561"],
+          "target": "cce75bfa91b94b4c938fe53853a8fbbbe40e1b39e12a080576cfdf8d103c85a6"
+        }
+      ]
+    },
+    {
+      "name": "review_budget_20261107",
+      "sha256": "affc61134490634edfc98dd1819147db8584350a81c6489e94796edd18c72534",
+      "order": 2,
+      "files": [
+        {
+          "path": "veteran_desk/thf_shadow_sampler.py",
+          "bases": ["935c73460dcce8789b9eec9e8664b0ffcd44985ef9adc3da6bb053808b4e6673"],
+          "target": "7e2eeb3e544814411f7fb2371b50b232746e2edec9a971197c46b319570de2bf"
+        }
+      ]
+    },
+    {
+      "name": "retail_dash_20261107",
+      "sha256": "9d58be9e311b7e279bbb6549a7039c4ecd90abeefd4ca0cdc59d1e22d8f14b96",
+      "order": 3,
+      "rejected_sha256": ["6395175b18d09e10bcafbcacffb85bbb6b66a8e1be7967bef387b186d453a98e"],
+      "files": [
+        {
+          "path": "tools/thf_eli10.html",
+          "bases": ["4c18153b536d85c669264d386b0936207bbedcfb3cc67de2d59e20bb49449607", "e00723691176f3183128e853fdd4ff7236bf03116bb21f371dbeaadf0f0e8bcd"],
+          "target": "9da1e4ac511c8173eb02bf2c460100ccb8e7fdfbb14352708429d95cfbf453ee"
+        },
+        {
+          "path": "tools/thf_eli10.js",
+          "bases": ["1f796ba679cc49970d1df6acb82eaf5fbd348c17e29e86c98e4abeb0fe856d8a", "36b3f9fc88240c5bbeb59e431448709987f7967f44185752d94f559132cbb235"],
+          "target": "c4a977ad2ca04131e22355cc62e32fa04d075dfc88243758e7eab04a03bd8718"
+        },
+        {
+          "path": "tools/thf_chat.js",
+          "bases": ["be70ff4ae236b3df78451ecfffb159dd987c3bda42475faeb0752cf0ccedad73", "b58b0716a5118b7f49d3b18083f7bc355c57467690f511c44c0680cdb69d1f1d"],
+          "target": "ef3e4def8fd3dcc39093895ddf433d0633f3dfc3a6faa800bb9cfb615e461c44"
+        },
+        {
+          "path": "tools/thf_chat_page.html",
+          "bases": ["644acf8e3df755809d16cfc1a1475ba508a313cdec227533aeb1917d5112ece3", "3a9b0727c420c0b815faa5aaabb8e4285660865363202fc1b04e4762ed13a2f3"],
+          "target": "92d98ecd72b0dbc6231f725a953ff33927c37708f1c2267051ac949f8b6646e3"
+        },
+        {
+          "path": "veteran_desk/thf_dash.py",
+          "bases": ["bbaf57edd303350ec7fd0749ce068d4aa89fa6c223cccaeae26cee0f641cd58e", "4414a765d4a19491cff739fdc7cee5dbfeb77403902ad7f62ad3a5895eabe8ba"],
+          "target": "4414a765d4a19491cff739fdc7cee5dbfeb77403902ad7f62ad3a5895eabe8ba"
+        },
+        {
+          "path": "veteran_desk/thf_chat_home.py",
+          "bases": ["788b979aaedbb681383500db7695a256f91d72700833cb160a7b3e16d31959c6", "0fce7e10ba42a025d55a26a2e94fe8470dab0dfd49cd829ee6b41b69346e9469"],
+          "target": "0fce7e10ba42a025d55a26a2e94fe8470dab0dfd49cd829ee6b41b69346e9469"
+        }
+      ]
+    }
+  ]
+}
