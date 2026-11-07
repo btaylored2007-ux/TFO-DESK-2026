@@ -63,7 +63,7 @@ def test_apply_updates_both_roots_and_leaves_home_and_book(tmp_path):
     home = release.file_sha(live / "veteran_desk/thf_home.py")
     called = []
     receipt = _apply(tmp_path)
-    assert receipt["deployed"] is True and receipt["dash_restarted"] is False
+    assert receipt["deployed"] is True and receipt["restart_outcome"] == "NOT_ATTEMPTED" and receipt["dash_restarted"] is None
     assert receipt["tick_restarted"] is False and receipt["ledger_rewritten"] is False
     assert receipt["baseline_written"] is False
     assert not (live / "state/thf/display_epoch.json").exists()

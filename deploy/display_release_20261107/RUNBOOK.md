@@ -33,7 +33,26 @@ REFUSED_RERUN
 NOT_DEPLOYED
 ```
 
-`--restart-dash` restarts only `tfo-dash-thf.service`. Tick, shadow, and nginx are refused. Leave the flag off until the file hashes have been checked. The receipt field `dash_restarted` stays false unless that restart's follow-up receipt write succeeds. If that write fails, the files stay in place, the first receipt still says `dash_restarted` false, and the command prints `RECEIPT_AFTER_RESTART_FAILED`.
+`--restart-dash` restarts only `tfo-dash-thf.service`. Tick, shadow, and nginx are refused. The journal `state/thf/display_release_20261107_journal.jsonl` is appended and fsynced before the restart. The controller does not call apply or restart a second time when a receipt write fails.
+
+`dash_restarted` is true only when `restart_outcome` is `RECORDED`. It is null otherwise. A failed receipt write does not store false.
+
+Crash outcomes:
+
+- A refusal before any file write leaves the trees and the journal untouched.
+- An exception while copying restores the files already written in that attempt. No journal line is kept. Protected pins are not in the write set.
+- A receipt OSError before the restart restores those files, appends `restored_before_restart`, and does not restart. Reconcile reports `RESTORED`. A later explicit apply is possible only because the restart never started.
+- A crash after `files_committed` and before the receipt leaves the new files. Reconcile reports `FILES_COMMITTED_RESTART_NOT_ATTEMPTED`. Apply returns `REFUSED_RERUN`. Rollback from the backup is still allowed.
+- `restart_begin` without `restart_ok` reconciles as `RESTART_UNKNOWN`. A restart command that raises reconciles as `RESTART_FAILED` and the receipt is `UNKNOWN`, not false. Apply returns `REFUSED_RERUN`. Rollback is refused.
+- After `restart_ok`, the receipt is written as `UNKNOWN` and only then as `RECORDED`. If that final write fails, the command prints `RECEIPT_AFTER_RESTART_FAILED` and `UNKNOWN`. The journal still has `restart_ok`. Reconcile reports `RESTART_JOURNAL_OK_RECEIPT_STALE` when the stored outcome is not `RECORDED`. Apply returns `REFUSED_RERUN` and does not restart again.
+
+Read-only reconcile, from this directory. It does not apply, restore, or restart:
+
+```
+python3 release_control.py --reconcile
+```
+
+Expected first line is a JSON list. The second line is `READ_ONLY`. `RESTART_JOURNAL_OK_RECEIPT_STALE` means the journal recorded `restart_ok` and the receipt is not `RECORDED`. Do not run apply again.
 
 The retail installer and `deploy/display_epoch_20261107/install.py` still return `REFUSED_ROOT` for `/opt/tfo`. This kit does not hand-copy.
 

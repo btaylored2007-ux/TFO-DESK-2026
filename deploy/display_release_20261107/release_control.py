@@ -17,6 +17,7 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 ALLOW = json.loads((HERE / "ALLOWLIST.json").read_text(encoding="utf-8"))
 RECEIPT = "state/thf/display_release_20261107_receipt.json"
+JOURNAL = "state/thf/display_release_20261107_journal.jsonl"
 HOST = ALLOW["host"]
 LIVE, DASH = ALLOW["roots"]
 
@@ -104,6 +105,59 @@ def _put(root, rel, data):
     os.replace(tmp, dest)
 
 
+def _journal(root, event):
+    path = Path(root) / JOURNAL
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("a", encoding="utf-8") as stream:
+        stream.write(json.dumps({"event": event}) + "\n")
+        stream.flush()
+        os.fsync(stream.fileno())
+
+
+def _events(root):
+    path = Path(root) / JOURNAL
+    if not path.is_file():
+        return []
+    found = []
+    for line in path.read_text(encoding="utf-8").splitlines():
+        if line.strip():
+            found.append(json.loads(line)["event"])
+    return found
+
+
+def reconcile(roots):
+    """Read-only. Does not apply, restore, or restart."""
+    report = []
+    interesting = (
+        "files_committed", "restored_before_restart", "rolled_back",
+        "restart_begin", "restart_ok", "restart_failed",
+    )
+    for root in roots:
+        events = [item for item in _events(root) if item in interesting]
+        latest = events[-1] if events else None
+        receipt_path = Path(root) / RECEIPT
+        receipt = json.loads(receipt_path.read_text(encoding="utf-8")) if receipt_path.is_file() else None
+        outcome = None if not receipt else receipt.get("restart_outcome")
+        if latest == "restart_ok":
+            state = "RESTART_RECORDED" if outcome == "RECORDED" else "RESTART_JOURNAL_OK_RECEIPT_STALE"
+        elif latest in ("restart_begin", "restart_failed"):
+            state = "RESTART_UNKNOWN" if latest == "restart_begin" else "RESTART_FAILED"
+        elif latest in ("restored_before_restart", "rolled_back"):
+            state = "RESTORED"
+        elif latest == "files_committed":
+            state = "FILES_COMMITTED_RESTART_NOT_ATTEMPTED"
+        elif latest is None and receipt is None:
+            state = "NOT_STARTED"
+        else:
+            state = "PARTIAL"
+        report.append({"root": str(root), "state": state, "restart_outcome": outcome})
+    return report
+
+
+def _blocked(roots):
+    return any(row["state"] not in ("NOT_STARTED", "RESTORED") for row in reconcile(roots))
+
+
 def apply_release(approval_path, archives, probe=None, host_name=None, roots=None, restart=None, restarter=None):
     if (host_name is not None or roots is not None) and not os.environ.get("PYTEST_CURRENT_TEST"):
         raise ReleaseError("REFUSED_OVERRIDE")
@@ -127,13 +181,11 @@ def apply_release(approval_path, archives, probe=None, host_name=None, roots=Non
     for unit in ALLOW["idle_units"]:
         if probe(unit) not in ("inactive", "failed"):
             raise ReleaseError("REFUSED_BUSY")
+    if _blocked(pair):
+        raise ReleaseError("REFUSED_RERUN")
     originals = {}
     written = []
     try:
-        for root in pair:
-            receipt = Path(root) / RECEIPT
-            if receipt.is_file() and json.loads(receipt.read_text(encoding="utf-8")).get("deployed") is True:
-                raise ReleaseError("REFUSED_RERUN")
         spec = ALLOW["archives"][0]
         blob = blobs[spec["name"]]
         for item in spec["files"]:
@@ -197,29 +249,88 @@ def apply_release(approval_path, archives, probe=None, host_name=None, roots=Non
             else:
                 dest.write_bytes(prior)
         raise
+    for root in pair:
+        _journal(root, "files_committed")
     receipt = {
         "release": ALLOW["release"], "deployed": True, "production": True, "restored": False,
         "capture_sha256": ALLOW["capture_sha256"], "archive_sha256": spec["sha256"],
         "tick_restarted": False, "engine_restarted": False, "nginx_changed": False,
-        "dash_restarted": False, "ledger_rewritten": False, "baseline_written": False,
+        "restart_outcome": "NOT_ATTEMPTED", "dash_restarted": None,
+        "ledger_rewritten": False, "baseline_written": False,
         "mark": "PENDING", "host": host,
     }
-    _write_receipt(pair, receipt)
-    if restart == "dash":
-        unit = ALLOW["dash_restart_unit"]
-        if unit in ALLOW["do_not_restart"]:
-            raise ReleaseError("REFUSED_RESTART")
+    try:
+        _write_receipt(pair, receipt)
+    except OSError as error:
+        _restore(pair, written, originals)
+        for root in pair:
+            _journal(root, "restored_before_restart")
+        raise ReleaseError("RECEIPT_FAILED") from error
+    if restart != "dash":
+        return receipt
+    unit = ALLOW["dash_restart_unit"]
+    if unit in ALLOW["do_not_restart"]:
+        raise ReleaseError("REFUSED_RESTART")
+    for root in pair:
+        _journal(root, "restart_begin")
+    try:
         if restarter is None:
             import subprocess
             subprocess.run(["systemctl", "restart", unit], check=True)
         else:
             restarter(unit)
-        receipt["dash_restarted"] = True
+    except Exception as error:
+        for root in pair:
+            _journal(root, "restart_failed")
+        receipt["restart_outcome"] = "UNKNOWN"
+        receipt["dash_restarted"] = None
         try:
             _write_receipt(pair, receipt)
-        except OSError as error:
-            raise ReleaseError("RECEIPT_AFTER_RESTART_FAILED") from error
+        except OSError:
+            pass
+        raise ReleaseError("RESTART_FAILED") from error
+    try:
+        for root in pair:
+            _journal(root, "restart_ok")
+    except OSError as error:
+        _mark_unknown(pair, receipt)
+        raise ReleaseError("RECEIPT_AFTER_RESTART_FAILED") from error
+    receipt["restart_outcome"] = "UNKNOWN"
+    receipt["dash_restarted"] = None
+    try:
+        _write_receipt(pair, receipt)
+    except OSError as error:
+        _mark_unknown(pair, receipt)
+        raise ReleaseError("RECEIPT_AFTER_RESTART_FAILED") from error
+    receipt["restart_outcome"] = "RECORDED"
+    receipt["dash_restarted"] = True
+    try:
+        _write_receipt(pair, receipt)
+    except OSError as error:
+        _mark_unknown(pair, receipt)
+        raise ReleaseError("RECEIPT_AFTER_RESTART_FAILED") from error
     return receipt
+
+
+def _restore(pair, written, originals):
+    for root, rel in reversed(written):
+        dest = Path(root) / rel
+        prior = originals.get((root, rel))
+        if prior is None:
+            if dest.is_file():
+                dest.unlink()
+        else:
+            dest.write_bytes(prior)
+
+
+def _mark_unknown(pair, receipt):
+    """Do not record a successful restart as false. Leave UNKNOWN if the final receipt cannot be written."""
+    receipt["restart_outcome"] = "UNKNOWN"
+    receipt["dash_restarted"] = None
+    try:
+        _write_receipt(pair, receipt)
+    except OSError:
+        pass
 
 
 def _write_receipt(pair, receipt):
@@ -237,14 +348,18 @@ def rollback_release(roots):
     pair = tuple(roots)
     if len(pair) != 2 or pair[0] == pair[1]:
         raise ReleaseError("REFUSED_ROOT")
+    restart_events = ("restart_begin", "restart_ok", "restart_failed")
+    for root in pair:
+        if any(item in restart_events for item in _events(root)):
+            raise ReleaseError("REFUSED_ROLLBACK_AFTER_RESTART")
     receipts = []
     for root in pair:
         receipt_path = Path(root) / RECEIPT
-        if not receipt_path.is_file():
-            raise ReleaseError("ROLLBACK_REFUSED")
-        receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
-        if receipt.get("restored") is True:
+        receipt = json.loads(receipt_path.read_text(encoding="utf-8")) if receipt_path.is_file() else None
+        if receipt and receipt.get("restored") is True:
             raise ReleaseError("REFUSED_RERUN")
+        if receipt is None and "files_committed" not in _events(root):
+            raise ReleaseError("ROLLBACK_REFUSED")
         receipts.append(receipt)
         for item in ALLOW["archives"][0]["files"]:
             rel = item["path"]
@@ -259,10 +374,18 @@ def rollback_release(roots):
                 dest.write_bytes(backup.read_bytes())
                 if file_sha(dest) not in item["bases"]:
                     raise ReleaseError("REFUSED_VERIFY")
-    receipt = receipts[0]
+    for root in pair:
+        _journal(root, "rolled_back")
+    receipt = next((item for item in receipts if item), None) or {
+        "release": ALLOW["release"], "production": True, "host": HOST,
+        "capture_sha256": ALLOW["capture_sha256"], "mark": "PENDING",
+        "tick_restarted": False, "engine_restarted": False, "nginx_changed": False,
+        "ledger_rewritten": False, "baseline_written": False,
+    }
     receipt["deployed"] = False
     receipt["restored"] = True
-    receipt["dash_restarted"] = False
+    receipt["restart_outcome"] = "NOT_ATTEMPTED"
+    receipt["dash_restarted"] = None
     _write_receipt(pair, receipt)
     return True
 
@@ -274,10 +397,19 @@ def socket_host():
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description="Apply the display-epoch UI archive on tfo-sgp1 only.")
-    parser.add_argument("--approval", required=True)
-    parser.add_argument("--archive", required=True)
+    parser.add_argument("--approval")
+    parser.add_argument("--archive")
     parser.add_argument("--restart-dash", action="store_true")
+    parser.add_argument("--reconcile", action="store_true")
     args = parser.parse_args(argv)
+    if args.reconcile:
+        print(json.dumps(reconcile((LIVE, DASH))))
+        print("READ_ONLY")
+        return 0
+    if not args.approval or not args.archive:
+        print("REFUSED_APPROVAL")
+        print("NOT_DEPLOYED")
+        return 2
     try:
         receipt = apply_release(
             args.approval,
@@ -286,7 +418,12 @@ def main(argv=None):
         )
     except ReleaseError as error:
         print(error.code)
-        print("NOT_DEPLOYED")
+        if error.code == "RECEIPT_AFTER_RESTART_FAILED":
+            print("UNKNOWN")
+        elif error.code == "RESTART_FAILED":
+            print("PARTIAL")
+        else:
+            print("NOT_DEPLOYED")
         return 2
     print("BOUND_APPLIED" if receipt.get("deployed") else "NOT_DEPLOYED")
     print(receipt["archive_sha256"])
