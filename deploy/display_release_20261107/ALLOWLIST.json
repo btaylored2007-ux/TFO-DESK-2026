@@ -3,7 +3,7 @@
   "bound": true,
   "applied": false,
   "deployment_ready": false,
-  "ops_review_ready": true,
+  "ops_review_ready": false,
   "capture_sha256": "94c0f2dd4133dac72c506e383f733bb761d15a725364d9484344eab24f8265ec",
   "host": "tfo-sgp1",
   "roots": [
@@ -61,7 +61,7 @@
   "archives": [
     {
       "name": "display_epoch_ui_20261107",
-      "sha256": "c7102844b6522a68d87b5ad3cbbb790e062728029ee97f8bdccc047a6c7d7e76",
+      "sha256": "9d91e5fc5c5f84c4b98832389f5cba2be2a4daa1ccff4715677e01c7c1699abb",
       "rejected_sha256": [
         "94c0f2dd4133dac72c506e383f733bb761d15a725364d9484344eab24f8265ec",
         "9d58be9e311b7e279bbb6549a7039c4ecd90abeefd4ca0cdc59d1e22d8f14b96",
@@ -78,7 +78,7 @@
         },
         {
           "path": "veteran_desk/thf_display_epoch.py",
-          "target": "b06e38c075297d0b89ac46737af60a9b2701388d75660cfa6934f4d2a24ec59f",
+          "target": "92a42c42ed62d2430b95cf29dc7e24d446af86d308c9a124e57424b22b151e5a",
           "new": true
         },
         {
@@ -111,5 +111,7 @@
         }
       ]
     }
-  ]
+  ],
+  "mark": "PENDING",
+  "kit_required": true
 }

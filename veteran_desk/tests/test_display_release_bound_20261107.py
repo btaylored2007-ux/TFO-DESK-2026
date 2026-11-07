@@ -1,7 +1,10 @@
 """Bound display-epoch release against the captured bases. Does not touch a host."""
 import importlib.util
 import json
+import os
 import shutil
+import subprocess
+import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -107,6 +110,18 @@ def test_failed_write_restores_and_old_archives_are_refused(tmp_path, monkeypatc
             assert error.code == "REFUSED_OLD_ARCHIVE"
         else:
             raise AssertionError("the capture archive must not be applied")
+
+
+def test_unpacked_kit_runs_without_the_checkout(tmp_path):
+    archive = ROOT / "deploy/display-epoch-ui-kit-20261107.tar.gz"
+    subprocess.check_call(["tar", "-xzf", str(archive), "-C", str(tmp_path)])
+    kit = tmp_path / "display_release_20261107"
+    assert (kit / "release_control.py").is_file()
+    assert (kit / "display-epoch-ui-20261107.tar.gz").is_file()
+    env = {"PATH": os.environ["PATH"], "HOME": str(tmp_path), "PYTEST_CURRENT_TEST": "unpacked-kit"}
+    run = subprocess.run([sys.executable, "tests/fixture_matrix.py"], cwd=kit, env=env, text=True, capture_output=True, check=False)
+    assert run.returncode == 0, run.stdout + run.stderr
+    assert "FIXTURE_OK" in run.stdout
 
 
 def test_example_approval_and_spent_authorization_are_refused(tmp_path):

@@ -112,6 +112,8 @@ def apply_release(approval_path, archives, probe=None, host_name=None, roots=Non
     host = socket_host() if host_name is None else host_name
     if host != HOST:
         raise ReleaseError("REFUSED_HOST")
+    if restart not in (None, "dash"):
+        raise ReleaseError("REFUSED_RESTART")
     pair = tuple(roots) if roots is not None else (LIVE, DASH)
     if roots is None and pair != (LIVE, DASH):
         raise ReleaseError("REFUSED_ROOT")
@@ -166,7 +168,11 @@ def apply_release(approval_path, archives, probe=None, host_name=None, roots=Non
             for root in pair:
                 dest = Path(root) / rel
                 if dest.is_file():
-                    originals[(root, rel)] = dest.read_bytes()
+                    prior = dest.read_bytes()
+                    originals[(root, rel)] = prior
+                    backup = Path(root) / "state/thf/display_release_20261107_backup" / rel
+                    backup.parent.mkdir(parents=True, exist_ok=True)
+                    backup.write_bytes(prior)
                 _put(root, rel, raw)
                 written.append((root, rel))
                 if file_sha(dest) != item["target"]:
@@ -181,26 +187,6 @@ def apply_release(approval_path, archives, probe=None, host_name=None, roots=Non
                 raise ReleaseError("REFUSED_BOOK")
             if (Path(root) / "state/thf/display_epoch.json").exists():
                 raise ReleaseError("BASELINE_REJECTED")
-        receipt = {
-            "release": ALLOW["release"], "deployed": True, "production": True, "restored": False,
-            "capture_sha256": ALLOW["capture_sha256"], "archive_sha256": spec["sha256"],
-            "tick_restarted": False, "engine_restarted": False, "nginx_changed": False,
-            "dash_restarted": False, "ledger_rewritten": False, "baseline_written": False,
-            "host": host,
-        }
-        _write_receipt(pair, receipt)
-        if restart == "dash":
-            unit = ALLOW["dash_restart_unit"]
-            if unit in ALLOW["do_not_restart"]:
-                raise ReleaseError("REFUSED_RESTART")
-            if restarter is None:
-                import subprocess
-                subprocess.run(["systemctl", "restart", unit], check=True)
-            else:
-                restarter(unit)
-            receipt["dash_restarted"] = True
-            _write_receipt(pair, receipt)
-        return receipt
     except Exception:
         for root, rel in reversed(written):
             dest = Path(root) / rel
@@ -211,6 +197,29 @@ def apply_release(approval_path, archives, probe=None, host_name=None, roots=Non
             else:
                 dest.write_bytes(prior)
         raise
+    receipt = {
+        "release": ALLOW["release"], "deployed": True, "production": True, "restored": False,
+        "capture_sha256": ALLOW["capture_sha256"], "archive_sha256": spec["sha256"],
+        "tick_restarted": False, "engine_restarted": False, "nginx_changed": False,
+        "dash_restarted": False, "ledger_rewritten": False, "baseline_written": False,
+        "mark": "PENDING", "host": host,
+    }
+    _write_receipt(pair, receipt)
+    if restart == "dash":
+        unit = ALLOW["dash_restart_unit"]
+        if unit in ALLOW["do_not_restart"]:
+            raise ReleaseError("REFUSED_RESTART")
+        if restarter is None:
+            import subprocess
+            subprocess.run(["systemctl", "restart", unit], check=True)
+        else:
+            restarter(unit)
+        receipt["dash_restarted"] = True
+        try:
+            _write_receipt(pair, receipt)
+        except OSError as error:
+            raise ReleaseError("RECEIPT_AFTER_RESTART_FAILED") from error
+    return receipt
 
 
 def _write_receipt(pair, receipt):
@@ -219,6 +228,43 @@ def _write_receipt(pair, receipt):
         path = Path(root) / RECEIPT
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(encoded, encoding="utf-8")
+
+
+def rollback_release(roots):
+    """Restore the on-disk backups. Refuses a host override outside tests. Does not restart anything."""
+    if not os.environ.get("PYTEST_CURRENT_TEST"):
+        raise ReleaseError("REFUSED_OVERRIDE")
+    pair = tuple(roots)
+    if len(pair) != 2 or pair[0] == pair[1]:
+        raise ReleaseError("REFUSED_ROOT")
+    receipts = []
+    for root in pair:
+        receipt_path = Path(root) / RECEIPT
+        if not receipt_path.is_file():
+            raise ReleaseError("ROLLBACK_REFUSED")
+        receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+        if receipt.get("restored") is True:
+            raise ReleaseError("REFUSED_RERUN")
+        receipts.append(receipt)
+        for item in ALLOW["archives"][0]["files"]:
+            rel = item["path"]
+            dest = Path(root) / rel
+            backup = Path(root) / "state/thf/display_release_20261107_backup" / rel
+            if item.get("new"):
+                if dest.is_file():
+                    dest.unlink()
+            else:
+                if not backup.is_file():
+                    raise ReleaseError("ROLLBACK_REFUSED")
+                dest.write_bytes(backup.read_bytes())
+                if file_sha(dest) not in item["bases"]:
+                    raise ReleaseError("REFUSED_VERIFY")
+    receipt = receipts[0]
+    receipt["deployed"] = False
+    receipt["restored"] = True
+    receipt["dash_restarted"] = False
+    _write_receipt(pair, receipt)
+    return True
 
 
 def socket_host():

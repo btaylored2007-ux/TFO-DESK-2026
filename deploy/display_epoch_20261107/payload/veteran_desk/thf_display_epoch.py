@@ -50,8 +50,19 @@ def since_reset_aud(current_pnl, epoch):
 
 
 def _aud(value):
-    from veteran_desk.thf_home import aud
-    return aud(value, sign=True)
+    """Same A$ rounding the home page uses. Does not import the home module."""
+    import math
+    try:
+        number = float(value)
+    except (TypeError, ValueError):
+        return "—"
+    if not math.isfinite(number):
+        return "—"
+    shown = int(math.floor(abs(number) + 0.5))
+    if number < 0:
+        shown = -shown
+    sign = "-" if shown < 0 else ("+" if shown > 0 else "")
+    return "%sA$%s" % (sign, "{:,}".format(abs(shown)))
 
 
 def attach(payload, today=None, path=None):
