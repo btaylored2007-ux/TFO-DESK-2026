@@ -58,14 +58,14 @@ def test_http_paper_replay_teach_ask_keys_and_incidents(tmp_path, monkeypatch):
         })
         assert status == 303
         status, started = request("POST", "/desk/start", {"csrf": cookies["cp_csrf"]})
-        assert status == 200 and "Stopped" in started and "Running" not in started
+        assert status == 200 and "disabled" in started and "Arm synthetic replay" in started
         assert "not connected" in started
         status, armed = request("POST", "/desk/replay", {"csrf": cookies["cp_csrf"]})
         assert status == 200 and "not a live feed" in armed and "Running" not in armed
         status, replay = request("POST", "/desk/start", {"csrf": cookies["cp_csrf"]})
         assert status == 200 and "Paper replay" in replay and "Running" not in replay
         status, ordered = request("POST", "/desk/order", {
-            "csrf": cookies["cp_csrf"], "symbol": "AAPL", "side": "buy", "qty": "1", "limit_price": "100.00",
+            "csrf": cookies["cp_csrf"], "symbol": "AAPL", "side": "buy", "qty": "1", "limit_price": "100.00", "stop": "90.00",
         })
         assert status == 200 and "Orders the paper engine sent: 0" not in ordered
         assert "Running" not in ordered
@@ -86,7 +86,7 @@ def test_http_paper_replay_teach_ask_keys_and_incidents(tmp_path, monkeypatch):
         })
         assert status == 303
         status, listed = request("GET", "/teach")
-        assert status == 200 and "draft" in listed and "type=\"file\"" in listed and "Record paper test" in listed
+        assert status == 200 and "draft" in listed and "type=\"file\"" in listed and "Run synthetic paper test" in listed
         boundary = "----cp"
         raw = (
             "--{b}\r\nContent-Disposition: form-data; name=\"csrf\"\r\n\r\n{csrf}\r\n"

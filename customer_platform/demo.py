@@ -23,7 +23,7 @@ def seed(root, password=None):
     platform.use_test_feed_probe(token)
     platform.start_trading(token)
     buy = platform.place_order(
-        token, symbol="AAPL", side="buy", qty="10", limit_price="100.00",
+        token, symbol="AAPL", side="buy", qty="10", limit_price="100.00", stop="90.00",
         idempotency_key="demo-buy-aapl-10",
     )
     platform.fill_order(token, buy["order_id"], price="100.00", fixture=True)

@@ -33,7 +33,7 @@ def page(title, body, *, csrf="", logged_in=False):
       <rect x="11" y="3" width="22" height="26" rx="3" fill="#f3eee4" stroke="#6e2430" stroke-width="2"/>
     </svg>
     <div>
-      <p class="eyebrow">The Transparent Trading School</p>
+      <p class="eyebrow">Transparent Trading</p>
       <h1>[[TITLE]]</h1>
     </div>
   </a>
@@ -97,117 +97,91 @@ def home(status, csrf, message=""):
 
 
 def desk(model, csrf):
+    trading = model["trading"]
     figures = """
     <section class="figures">
-      <article><span>{cap_label}</span><strong>{cap} {cur}</strong></article>
-      <article><span>{pnl_label}</span><strong>{pnl} {cur}</strong></article>
-      <article><span>{hist_label}</span><strong>{hist} {cur}</strong></article>
+      <article><span>Practice capital</span><strong>{cap} {cur}</strong></article>
+      <article><span>This epoch's result</span><strong>{pnl} {cur}</strong></article>
+      <article><span>Ledger result</span><strong>{hist} {cur}</strong></article>
     </section>
     """.format(
-        cap_label=esc(model["practice_capital_label"]),
-        cap=esc(model["practice_capital"]),
-        pnl_label=esc(model["session_pnl_label"]),
-        pnl=esc(model["session_pnl"]),
-        hist_label=esc(model["historical_realized_pnl_label"]),
-        hist=esc(model["historical_realized_pnl"]),
-        cur=esc(model["currency"]),
+        cap=esc(model["practice_capital"]), pnl=esc(model["session_pnl"]),
+        hist=esc(model["historical_realized_pnl"]), cur=esc(model["currency"]),
     )
-    banner = ""
-    if model["chart"].get("fixture") or model.get("fixture"):
-        banner = "<p class=\"warning\">Fixture prices. Not a market print.</p>"
     holdings = "".join(
-        "<tr><td>{symbol}</td><td>{qty}</td><td>{sector}</td><td>{mark}</td><td>Shown even if this sector is opted out. Exit stays available.</td></tr>".format(
-            symbol=esc(row["symbol"]), qty=esc(row["qty"]), sector=esc(row["sector"]), mark=esc(row.get("mark") or "unmarked"),
+        "<tr><td>{symbol}</td><td>{qty}</td><td>{stop}</td></tr>".format(
+            symbol=esc(row["symbol"]), qty=esc(row["qty"]), stop=esc(row.get("stop") or "none"),
         )
         for row in model["open_positions"]
-    ) or "<tr><td colspan=\"5\">No open position.</td></tr>"
-    pending = "".join(
-        "<tr><td>{symbol}</td><td>{side}</td><td>{qty}</td><td>{price}</td></tr>".format(
-            symbol=esc(row["symbol"]), side=esc(row["side"]), qty=esc(row["qty"]), price=esc(row["limit_price"]),
-        )
-        for row in model["pending_orders"]
-    ) or "<tr><td colspan=\"4\">No pending order.</td></tr>"
+    ) or "<tr><td colspan=\"3\">No open position on this login.</td></tr>"
+    points = (model["chart"].get("points") or [])
+    chart = chart_svg(model["chart"]) if len(points) > 1 else "<p>No ledger history on this login yet.</p>"
+    distance = model.get("stop_distance") or ""
+    policy = "Saved stop distance {0}.".format(esc(distance)) if distance else "No saved stop distance. A new buy needs a stop."
     body = """
-    {banner}
     <section class="hero" aria-live="polite">
       <p class="state">{headline}</p>
       <p>{notice}</p>
-      <p>Engine {engine}. Orders the paper engine sent: {sent}. Live prices: {source}.</p>
-      <p>Synthetic replay is a test price, not a live feed.</p>
       {action}
-      <form method="post" action="/desk/replay"><input type="hidden" name="csrf" value="{csrf}"><button class="tap" type="submit">Arm synthetic replay</button></form>
-      <form method="post" action="/desk/order">
-        <input type="hidden" name="csrf" value="{csrf}">
-        <label>Symbol <input name="symbol" value="AAPL" required></label>
-        <label>Side <select name="side"><option>buy</option><option>sell</option></select></label>
-        <label>Qty <input name="qty" value="1" required></label>
-        <label>Limit <input name="limit_price" value="100.00" required></label>
-        <button type="submit">Paper order</button>
-      </form>
-      <form method="post" action="/desk/activity">
-        <input type="hidden" name="csrf" value="{csrf}">
-        <label>Activity <select name="level"><option>1</option><option selected>2</option><option>3</option></select></label>
-        <button type="submit">Save activity</button>
-      </form>
-      <form method="post" action="/desk/allow_b">
-        <input type="hidden" name="csrf" value="{csrf}">
-        <label>Allow B grades <input type="checkbox" name="allowed" value="yes"></label>
-        <button type="submit">Save B grades</button>
-      </form>
-      <form method="post" action="/desk/trader">
-        <input type="hidden" name="csrf" value="{csrf}">
-        <label>Trader <input name="trader_id" value="desk"></label>
-        <label>Entries <select name="enabled"><option value="yes">on</option><option value="no">off</option></select></label>
-        <button type="submit">Save trader</button>
-      </form>
     </section>
     {figures}
     <section class="card">
-      <h2>Paper ledger</h2>
+      <h2>This login</h2>
       {chart}
-      <p>Configured starting capital for the next reset default: {start} {cur}.</p>
-    </section>
-    <section class="card">
-      <h2>Learning brain</h2>
-      <p>Model notes stay off this page. <a href="/brain">Notes</a></p>
-    </section>
-    <section class="card">
-      <h2>Open holdings</h2>
-      <table><thead><tr><th>Symbol</th><th>Qty</th><th>Sector</th><th>Mark</th><th></th></tr></thead><tbody>{holdings}</tbody></table>
-      <p>Opted out of new entries: {opt}. Opt-out does not hide a holding and does not disable an exit.</p>
-      <form method="post" action="/desk/optout">
+      <p>{policy}</p>
+      <form method="post" action="/desk/stop-distance">
         <input type="hidden" name="csrf" value="{csrf}">
-        <label>Sectors to opt out, comma separated <input name="sectors" value="{opt}"></label>
-        <button type="submit">Save opt-out</button>
+        <label>Stop distance, as a fraction below the limit <input name="distance" value="{distance}" placeholder="0.05"></label>
+        <button type="submit">Save stop distance</button>
       </form>
     </section>
     <section class="card">
-      <h2>Pending orders</h2>
-      <table><thead><tr><th>Symbol</th><th>Side</th><th>Qty</th><th>Limit</th></tr></thead><tbody>{pending}</tbody></table>
-    </section>
-    <section class="card">
-      <h2>Reset practice capital</h2>
-      <p>The new epoch's performance P&amp;L starts at 0. Capital becomes the starting figure you choose. The default is this account's configured starting amount. Old fills stay on the ledger.</p>
-      <form method="post" action="/desk/reset/preview">
+      <h2>Open positions</h2>
+      <table><thead><tr><th>Symbol</th><th>Qty</th><th>Stop</th></tr></thead><tbody>{holdings}</tbody></table>
+      <form method="post" action="/desk/position-stop">
         <input type="hidden" name="csrf" value="{csrf}">
-        <label>Chosen starting capital <input name="amount" value="{start}" inputmode="decimal"></label>
-        <button type="submit">Preview reset</button>
+        <label>Symbol <input name="symbol"></label>
+        <label>New stop <input name="stop"></label>
+        <button type="submit">Update stop</button>
       </form>
     </section>
+    <section class="card">
+      <h2>Trader</h2>
+      <form method="post" action="/desk/activity">
+        <input type="hidden" name="csrf" value="{csrf}">
+        <label>Activity <select name="level"><option {a1}>1</option><option {a2}>2</option><option {a3}>3</option></select></label>
+        <button type="submit">Save activity</button>
+      </form>
+      <form method="post" action="/desk/trader">
+        <input type="hidden" name="csrf" value="{csrf}">
+        <input type="hidden" name="trader_id" value="desk">
+        <label>Desk entries <select name="enabled"><option value="yes">on</option><option value="no">off</option></select></label>
+        <button type="submit">Save trader</button>
+      </form>
+    </section>
+    <details class="card">
+      <summary>Advanced paper order</summary>
+      <form method="post" action="/desk/order">
+        <input type="hidden" name="csrf" value="{csrf}">
+        <label>Symbol <input name="symbol" required></label>
+        <label>Side <select name="side"><option>buy</option><option>sell</option></select></label>
+        <label>Qty <input name="qty" required></label>
+        <label>Limit <input name="limit_price" required></label>
+        <label>Stop <input name="stop"></label>
+        <button type="submit">Paper order</button>
+      </form>
+    </details>
     """.format(
-        banner=banner, figures=figures, chart=chart_svg(model["chart"]),
-        start=esc(model["configured_starting_capital"]), cur=esc(model["currency"]),
-        headline=esc(model["trading"]["headline"]),
-        notice=esc(model["trading"].get("notice") or ""),
-        engine=esc(model["trading"].get("engine") or ""),
-        sent=esc(model["trading"].get("orders_sent") or 0),
-        source=esc(model["trading"].get("price_source") or ""),
-        action=_trade_action(model["trading"], csrf),
-        holdings=holdings, pending=pending,
-        opt=esc(", ".join(model["sector_opt_out"])), csrf=esc(csrf),
+        headline=esc(trading["headline"]),
+        notice=esc(trading.get("notice") or ""),
+        action=_trade_action(trading, csrf),
+        figures=figures, chart=chart, holdings=holdings, policy=policy,
+        distance=esc(distance), csrf=esc(csrf),
+        a1="selected" if str(trading.get("activity")) == "1" else "",
+        a2="selected" if str(trading.get("activity")) == "2" else "",
+        a3="selected" if str(trading.get("activity")) == "3" else "",
     )
-    return page("Practice desk", body, logged_in=True)
-
+    return page("Desk", body, logged_in=True)
 
 def preview_page(preview, csrf, message=""):
     warning = "<p class=\"warning\">{0}</p>".format(esc(preview["zero_warning"])) if preview.get("zero_warning") else ""
@@ -490,18 +464,14 @@ def teach_page(model, csrf, notice=""):
             "<li>v{0} {1}</li>".format(esc(item["version"]), esc(item["status"])) for item in skill["versions"]
         )
         nxt = _next_skill_action(skill["status"])
-        action = ""
-        if nxt == "paper_testing" and fills:
-            action = (
-                "<form method=\"post\" action=\"/teach/status\"><input type=\"hidden\" name=\"csrf\" value=\"{csrf}\">"
-                "<input type=\"hidden\" name=\"skill_id\" value=\"{sid}\"><input type=\"hidden\" name=\"status\" value=\"paper_testing\">"
-                "<label>Paper fill <select name=\"evidence\">{evidence}</select></label>"
-                "<button type=\"submit\">Record paper test</button></form>"
-            ).format(csrf=esc(csrf), sid=esc(skill["id"]), evidence=evidence)
-        elif nxt == "paper_testing":
-            action = "<p>Paper testing needs a fill on this account. None is recorded, so this form cannot claim a test.</p>"
-        elif nxt:
-            action = (
+        action = (
+            "<form method=\"post\" action=\"/teach/test\"><input type=\"hidden\" name=\"csrf\" value=\"{csrf}\">"
+            "<input type=\"hidden\" name=\"skill_id\" value=\"{sid}\">"
+            "<button type=\"submit\">Run synthetic paper test</button></form>"
+            "<p>This test is for this version only. Another fill on the account is not evidence. A profit is not a pass.</p>"
+        ).format(csrf=esc(csrf), sid=esc(skill["id"]))
+        if nxt and nxt != "paper_testing":
+            action += (
                 "<form method=\"post\" action=\"/teach/status\"><input type=\"hidden\" name=\"csrf\" value=\"{csrf}\">"
                 "<input type=\"hidden\" name=\"skill_id\" value=\"{sid}\"><input type=\"hidden\" name=\"status\" value=\"{status}\">"
                 "<button type=\"submit\">Mark {status}</button></form>"
@@ -559,13 +529,21 @@ def _next_skill_action(status):
 
 def _trade_action(trading, csrf):
     if trading.get("state") == "replay":
-        path, label, kind = "/desk/stop", "Stop", "stop"
-    else:
-        path, label, kind = "/desk/start", "Start", "start"
+        return (
+            '<form method="post" action="/desk/stop"><input type="hidden" name="csrf" value="{csrf}">'
+            '<button class="tap stop" type="submit">Stop new entries</button></form>'
+        ).format(csrf=esc(csrf))
+    if trading.get("can_start"):
+        return (
+            '<form method="post" action="/desk/start"><input type="hidden" name="csrf" value="{csrf}">'
+            '<button class="tap start" type="submit">Start paper replay</button></form>'
+        ).format(csrf=esc(csrf))
     return (
-        '<form method="post" action="{path}"><input type="hidden" name="csrf" value="{csrf}">'
-        '<button class="tap {kind}" type="submit">{label}</button></form>'
-    ).format(path=path, csrf=esc(csrf), kind=kind, label=label)
+        '<form method="post" action="/desk/replay"><input type="hidden" name="csrf" value="{csrf}">'
+        '<button class="tap" type="submit">Arm synthetic replay</button></form>'
+        '<form method="post" action="/desk/start"><input type="hidden" name="csrf" value="{csrf}">'
+        '<button class="tap start" type="submit" disabled>Start</button></form>'
+    ).format(csrf=esc(csrf))
 
 
 def keys_page(model, csrf, notice=""):

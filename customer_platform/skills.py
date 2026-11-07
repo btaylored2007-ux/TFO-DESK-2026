@@ -63,6 +63,47 @@ class Skills:
         from customer_platform.files import iter_jsonl
         return iter_jsonl(self.history_path)
 
+    def run_paper_test(self, skill_id):
+        """Synthetic check of this version only. An account fill is not evidence."""
+        body = self._load()
+        skill = self._skill(body, skill_id)
+        version = skill["versions"][-1]["version"]
+        text = " ".join([skill.get("source_text") or ""] + list(skill["rules"].values()))
+        risk_ok = _RAIL.search(text) is None and all(skill["rules"].get(key) for key in ("entry", "exit", "risk"))
+        record = {
+            "human_attested": False,
+            "id": new_id("st_"),
+            "passed": False,
+            "profit_is_a_pass": False,
+            "risk_ok": risk_ok,
+            "synthetic": True,
+            "validated_skill": False,
+            "version": version,
+        }
+        skill.setdefault("tests", []).append(record)
+        if risk_ok:
+            self._version(skill, status="paper_testing", evidence_ids=[record["id"]])
+        write_json(self.path, body)
+        shown = _public(skill)
+        shown["last_test"] = {
+            "id": record["id"],
+            "passed": False,
+            "risk_ok": risk_ok,
+            "synthetic": True,
+            "validated_skill": False,
+            "version": version,
+        }
+        return shown
+
+    def attest(self, skill_id):
+        body = self._load()
+        skill = self._skill(body, skill_id)
+        skill["human_attested"] = True
+        write_json(self.path, body)
+        shown = _public(skill)
+        shown["attestation"] = "human attestation, not a passed test"
+        return shown
+
     def set_status(self, skill_id, status, *, evidence_ids=None, known_evidence=None):
         if status not in STATUSES:
             raise ResetBlocked("status", "status is not valid")
@@ -70,11 +111,12 @@ class Skills:
         skill = self._skill(body, skill_id)
         current = skill["status"]
         evidence_ids = list(evidence_ids or [])
-        known = set(known_evidence or [])
-        if evidence_ids and any(item not in known for item in evidence_ids):
+        own_tests = {item["id"] for item in skill.get("tests") or [] if item.get("version") == skill["versions"][-1]["version"] and item.get("risk_ok")}
+        if status == "paper_testing":
+            if not evidence_ids or any(item not in own_tests for item in evidence_ids):
+                raise ResetBlocked("evidence", "an account fill is not a test of this skill version")
+        elif evidence_ids and known_evidence is not None and any(item not in set(known_evidence) and item not in own_tests for item in evidence_ids):
             raise ResetBlocked("evidence", "evidence is not in this account")
-        if status == "paper_testing" and not evidence_ids:
-            raise ResetBlocked("evidence", "paper testing needs a paper fill from this account")
         if status == "ready_for_review" and current != "paper_testing":
             raise ResetBlocked("status", "review comes after paper testing")
         if status == "active":
@@ -225,6 +267,7 @@ def _public(skill):
         "ai": skill["ai"],
         "clarifications": list(skill["clarifications"]),
         "evidence_ids": list(skill.get("evidence_ids") or []),
+        "human_attested": bool(skill.get("human_attested")),
         "id": skill["id"],
         "promise": False,
         "rules": dict(skill["rules"]),

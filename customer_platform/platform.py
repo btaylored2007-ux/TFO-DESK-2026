@@ -65,6 +65,7 @@ class Platform:
         self.worker_enabled = False
         self._probes = {}
         self._ask_fixture = {}
+        self._provider_transport = {}
         self.pass_mark = os.environ.get("CUSTOMER_PLATFORM_PASS_MARK", "0.80")
         self.school_draft = load_author_draft()
         self.incidents = None
@@ -191,6 +192,7 @@ class Platform:
             "session_pnl_label": performance["current_epoch_session_pnl_label"],
             "tenant_id": ctx["tenant_id"],
             "trading": self._control(ctx["tenant_id"]).view(),
+            "stop_distance": state.get("stop_distance") or "",
             "venue": state["venue"],
         }
 
@@ -220,6 +222,8 @@ class Platform:
         action = "trade_close" if side == "sell" else "trade_open"
         ctx = self._require(token, action, claimed)
         kwargs["trader_id"] = trader_id
+        if side == "buy":
+            kwargs["stop"] = self._entry_stop(ctx["tenant_id"], kwargs.get("limit_price"), kwargs.get("stop"))
         if side == "sell":
             order = self._book(ctx["tenant_id"]).place_order(**kwargs)
         else:
@@ -229,7 +233,40 @@ class Platform:
         self._audit(ctx["tenant_id"], ctx["user_id"], "place_order", True)
         return order
 
+    def _entry_stop(self, tenant_id, limit_price, stop):
+        if stop not in (None, ""):
+            return stop
+        distance = self._book(tenant_id).load().get("stop_distance") or ""
+        if not distance:
+            raise ResetBlocked("stop", "a new entry needs a stop")
+        from decimal import Decimal
+        price = Decimal(str(limit_price))
+        width = Decimal(str(distance))
+        if width <= 0 or width >= 1:
+            raise ResetBlocked("stop", "stop distance is not valid")
+        computed = (price * (Decimal("1") - width)).quantize(Decimal("0.01"))
+        return format(computed, "f")
+
+    def set_stop_distance(self, token, distance, claimed_tenant=None):
+        ctx = self._require(token, "admin", claimed_tenant)
+        from decimal import Decimal
+        width = Decimal(str(distance))
+        if width <= 0 or width >= 1:
+            raise ResetBlocked("stop", "stop distance is not valid")
+        book = self._book(ctx["tenant_id"])
+        state = book.load()
+        state["stop_distance"] = format(width, "f")
+        book.save(state)
+        return {"stop_distance": state["stop_distance"]}
+
+    def set_position_stop(self, token, symbol, stop, claimed_tenant=None):
+        ctx = self._require(token, "trade_close", claimed_tenant)
+        return self._book(ctx["tenant_id"]).set_stop(symbol, stop)
+
     def use_test_feed_probe(self, token, claimed_tenant=None):
+        ctx = self._require(token, "admin", claimed_tenant)
+        self._probes[ctx["tenant_id"]] = "test"
+        return {"live_feed": False, "probe": "test"}
         ctx = self._require(token, "admin", claimed_tenant)
         self._probes[ctx["tenant_id"]] = "test"
         return {"live_feed": False, "probe": "test"}
@@ -329,14 +366,23 @@ class Platform:
 
     def teach_status(self, token, skill_id, status, evidence_ids=None, claimed_tenant=None):
         ctx = self._require(token, "admin", claimed_tenant)
-        known = {row["id"] for row in self._book(ctx["tenant_id"]).ledger()}
         before = self._rails_bytes(ctx["tenant_id"])
-        result = self._skills(ctx["tenant_id"]).set_status(
-            skill_id, status, evidence_ids=evidence_ids, known_evidence=known,
-        )
+        result = self._skills(ctx["tenant_id"]).set_status(skill_id, status, evidence_ids=evidence_ids, known_evidence=[])
         if self._rails_bytes(ctx["tenant_id"]) != before:
             raise ResetBlocked("rails", "a skill cannot change hard rails")
         return result
+
+    def teach_run_test(self, token, skill_id, claimed_tenant=None):
+        ctx = self._require(token, "admin", claimed_tenant)
+        before = self._rails_bytes(ctx["tenant_id"])
+        result = self._skills(ctx["tenant_id"]).run_paper_test(skill_id)
+        if self._rails_bytes(ctx["tenant_id"]) != before:
+            raise ResetBlocked("rails", "a skill cannot change hard rails")
+        return result
+
+    def teach_attest(self, token, skill_id, claimed_tenant=None):
+        ctx = self._require(token, "trade_open", claimed_tenant)
+        return self._skills(ctx["tenant_id"]).attest(skill_id)
 
     def teach_rollback(self, token, skill_id, version, claimed_tenant=None):
         ctx = self._require(token, "admin", claimed_tenant)
@@ -370,21 +416,44 @@ class Platform:
         return self._requests(ctx["tenant_id"]).cancel(request_id)
 
     def _route_ask(self, tenant_id, row):
-        fixture = self._ask_fixture.get(tenant_id)
-        if fixture and row["status"] == "pending":
-            delivered = self._requests(tenant_id).deliver(
-                row["id"], sender="synthetic_fixture", body_text=fixture,
-                kind="lead", delivery_key="fixture-" + row["id"],
-            )
-            delivered["calls"] = 0
-            delivered["job"] = "synthetic_fixture"
-            delivered["provenance"] = "synthetic fixture, not a provider"
-            return delivered
+        from customer_platform.ai_vault import public_keys, vault_status
+        from customer_platform.provider_jobs import ProviderJobs
+        status = vault_status()
+        keys = public_keys(self._key_path(tenant_id)) if status["available"] else []
+        provider = keys[0]["provider"] if keys else "openai"
+        transport = self._provider_transport.get(tenant_id)
+        jobs = ProviderJobs(
+            os.path.join(self._tenant_dir(tenant_id), "requests", "provider_jobs.json"),
+            self.clock,
+            transport=transport,
+        )
+        job = jobs.open_job(request_id=row["id"], provider=provider, has_credential=bool(keys))
+        secret = ""
+        if keys and transport is not None:
+            secret = self._customer_secret(tenant_id, provider)
+        result = jobs.run(job["id"], secret)
         view = dict(row)
         view["calls"] = 0
-        view["job"] = "unconnected"
-        view["provenance"] = self._ask_provenance(tenant_id)
+        view["job"] = result["status"]
+        view["provenance"] = result["error"] or "not_sent"
         return view
+
+    def _customer_secret(self, tenant_id, provider):
+        from cryptography.fernet import Fernet
+        from customer_platform.ai_vault import vault_status
+        if not vault_status()["available"]:
+            return ""
+        body = read_json(self._key_path(tenant_id), {})
+        row = body.get(provider) or {}
+        token = row.get("ciphertext") or ""
+        if not token:
+            return ""
+        return Fernet(os.environ["CUSTOMER_PLATFORM_DATA_KEY"].encode("utf-8")).decrypt(token.encode("utf-8")).decode("utf-8")
+
+    def use_mock_provider(self, token, transport, claimed_tenant=None):
+        ctx = self._require(token, "admin", claimed_tenant)
+        self._provider_transport[ctx["tenant_id"]] = transport
+        return {"network": False, "tenant_id": ctx["tenant_id"]}
 
     def _ask_provenance(self, tenant_id):
         from customer_platform.ai_vault import public_keys, vault_status

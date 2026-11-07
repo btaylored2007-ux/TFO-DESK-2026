@@ -66,7 +66,11 @@ input, select, textarea {
   border-radius: 10px;
   background: white;
 }
-button, .button {
+button:disabled, button.tap:disabled {
+  background: #cfc6b8;
+  color: #5c564c;
+  cursor: not-allowed;
+}
   background: var(--emerald);
   color: var(--cream);
   border: 0;

@@ -306,10 +306,20 @@ def handler_for(platform):
                 platform.place_order(
                     token, symbol=form.get("symbol", ""), side=form.get("side", "buy"),
                     qty=form.get("qty", "1"), limit_price=form.get("limit_price", ""),
+                    stop=form.get("stop") or None,
                     idempotency_key=form.get("idempotency_key") or ("web-" + secrets.token_hex(8)),
                 )
                 platform.paper_tick_tenant(platform.store.context(token)["tenant_id"])
                 self._html(200, desk(platform.desk(token), self._csrf()))
+            elif path == "/desk/position-stop":
+                platform.set_position_stop(token, form.get("symbol", ""), form.get("stop", ""))
+                self._html(200, desk(platform.desk(token), self._csrf()))
+            elif path == "/desk/stop-distance":
+                platform.set_stop_distance(token, form.get("distance") or "0")
+                self._html(200, desk(platform.desk(token), self._csrf()))
+            elif path == "/teach/test":
+                platform.teach_run_test(token, form.get("skill_id", ""))
+                self._redirect("/teach")
             elif path == "/desk/activity":
                 platform.set_activity(token, form.get("level") or "2")
                 self._html(200, desk(platform.desk(token), self._csrf()))

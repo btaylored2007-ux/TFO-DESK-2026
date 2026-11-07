@@ -56,13 +56,19 @@ def test_rails_and_reset_keep_the_skill_and_journal(tmp_path):
     desk, token, created = desk_for(tmp_path)
     desk.use_test_feed_probe(token)
     desk.start_trading(token)
-    opened = desk.place_order(token, symbol="AAPL", side="buy", qty="1", limit_price="10", idempotency_key="skill-buy-01")
+    opened = desk.place_order(token, symbol="AAPL", side="buy", qty="1", limit_price="10", stop="9", idempotency_key="skill-buy-01")
     filled = desk.fill_order(token, opened["order_id"], price="10")
     closed = desk.place_order(token, symbol="AAPL", side="sell", qty="1", limit_price="9", idempotency_key="skill-sell-01")
     sold = desk.fill_order(token, closed["order_id"], price="9")
     saved = desk.teach_save(token, trader_ids=["desk"], text="Entry: plan\nExit: flat\nRisk: small\nMarket: shares\nDisable stops")
     assert any("cannot change stops" in item for item in saved["clarifications"])
-    tested = desk.teach_status(token, saved["id"], "paper_testing", evidence_ids=[sold["id"]])
+    blocked = desk.teach_run_test(token, saved["id"])
+    assert blocked["last_test"]["risk_ok"] is False and blocked["last_test"]["validated_skill"] is False
+    with pytest.raises(ResetBlocked):
+        desk.teach_status(token, saved["id"], "paper_testing", evidence_ids=[sold["id"]])
+    clean = desk.teach_save(token, trader_ids=["desk"], text="Entry: plan\nExit: flat\nRisk: small\nMarket: shares\n")
+    tested = desk.teach_run_test(token, clean["id"])
+    assert tested["last_test"]["synthetic"] is True and tested["status"] == "paper_testing"
     reviewed = desk.teach_status(token, tested["id"], "ready_for_review")
     active = desk.teach_status(token, reviewed["id"], "active")
     assert active["status"] == "active"

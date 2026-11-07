@@ -161,7 +161,7 @@ class PaperBook:
         self.save(state)
         return state
 
-    def place_order(self, *, symbol, side, qty, limit_price, sector=None, idempotency_key, fixture=False, trader_id="desk"):
+    def place_order(self, *, symbol, side, qty, limit_price, sector=None, idempotency_key, fixture=False, trader_id="desk", stop=None):
         state = self.load()
         self.assert_paper(state)
         existing = self._order_idem(state, idempotency_key)
@@ -178,6 +178,14 @@ class PaperBook:
         resolved_sector = _sector(symbol, sector)
         if side == "buy" and resolved_sector in state["sector_opt_out"]:
             raise ResetBlocked("sector_opt_out", "sector is opted out of new entries; open holdings and exits stay available")
+        stop_text = ""
+        if side == "buy":
+            if stop in (None, ""):
+                raise ResetBlocked("stop", "a new entry needs a stop")
+            stop_price = parse_money(stop, state["currency"])
+            if stop_price >= price:
+                raise ResetBlocked("stop", "a buy stop must be below the limit")
+            stop_text = money_text(stop_price, state["currency"])
         if side == "sell":
             held = self._open_qty(state, symbol)
             if quantity > held:
@@ -194,6 +202,7 @@ class PaperBook:
             "side": side,
             "status": "pending",
             "symbol": symbol,
+            "stop": stop_text,
             "trader_id": trader_id or "desk",
             "utc": self.now(),
         }
@@ -488,6 +497,7 @@ class PaperBook:
             "qty": format(quantity, "f"),
             "sector": order["sector"],
             "status": "open",
+            "stop": order.get("stop") or "",
             "symbol": order["symbol"],
         })
 

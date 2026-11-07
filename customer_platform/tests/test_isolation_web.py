@@ -1,8 +1,10 @@
 """Crash recovery, teaching isolation, payments, sectors, and the loopback web app."""
 
+import http.client
 import json
 import os
 import threading
+from decimal import Decimal
 from pathlib import Path
 
 import pytest
@@ -42,8 +44,8 @@ def trade(desk, token, *, symbol="AAPL", qty="10", buy="100.00", sell="90.00", f
     desk.use_test_feed_probe(token)
     desk.start_trading(token)
     opened = desk.place_order(
-        token, symbol=symbol, side="buy", qty=qty, limit_price=buy, sector=sector,
-        idempotency_key="buy-{0}-{1}".format(key, symbol),
+        token, symbol=symbol, side="buy", qty=qty, limit_price=buy, stop=str((Decimal(buy) / 2).quantize(Decimal("0.01"))),
+        sector=sector, idempotency_key="buy-{0}-{1}".format(key, symbol),
     )
     desk.fill_order(token, opened["order_id"], price=buy, fx=fx)
     closed = desk.place_order(
@@ -290,12 +292,12 @@ def test_provider_payments_sector_and_education(tmp_path, monkeypatch):
     assert desk.note_license(token, "example-feed")["redistribution"] is False
     desk.use_test_feed_probe(token)
     desk.start_trading(token)
-    opened = desk.place_order(token, symbol="XOM", side="buy", qty="2", limit_price="50.00", sector="energy", idempotency_key="energy-buy-01")
+    opened = desk.place_order(token, symbol="XOM", side="buy", qty="2", limit_price="50.00", stop="45.00", sector="energy", idempotency_key="energy-buy-01")
     desk.fill_order(token, opened["order_id"], price="50.00")
     desk.set_sector_opt_out(token, ["energy"])
     assert desk.desk(token)["open_positions"][0]["symbol"] == "XOM"
     with pytest.raises(ResetBlocked):
-        desk.place_order(token, symbol="XOM", side="buy", qty="1", limit_price="50.00", sector="energy", idempotency_key="energy-buy-02")
+        desk.place_order(token, symbol="XOM", side="buy", qty="1", limit_price="50.00", stop="45.00", sector="energy", idempotency_key="energy-buy-02")
     closed = desk.place_order(token, symbol="XOM", side="sell", qty="2", limit_price="40.00", sector="energy", idempotency_key="energy-sell-01")
     assert desk.fill_order(token, closed["order_id"], price="40.00")["realized_pnl"] == "-20.00"
     chart = desk._book(created["tenant_id"]).chart()

@@ -44,8 +44,8 @@ def trade(desk, token, *, symbol="AAPL", qty="10", buy="100.00", sell="90.00", f
     desk.use_test_feed_probe(token)
     desk.start_trading(token)
     opened = desk.place_order(
-        token, symbol=symbol, side="buy", qty=qty, limit_price=buy, sector=sector,
-        idempotency_key="buy-{0}-{1}".format(key, symbol),
+        token, symbol=symbol, side="buy", qty=qty, limit_price=buy, stop=str((Decimal(buy) / 2).quantize(Decimal("0.01"))),
+        sector=sector, idempotency_key="buy-{0}-{1}".format(key, symbol),
     )
     desk.fill_order(token, opened["order_id"], price=buy, fx=fx)
     closed = desk.place_order(
@@ -154,12 +154,12 @@ def test_zero_capital_warns_and_blocks_new_entries_without_erasing_brain(tmp_pat
     assert result["new_epoch_capital"] == "0.00"
     assert result["new_epoch_session_pnl"] == "0.00"
     with pytest.raises(ResetBlocked) as risk:
-        desk.place_order(token, symbol="AAPL", side="buy", qty="1", limit_price="10.00", idempotency_key="blocked-buy-01")
+        desk.place_order(token, symbol="AAPL", side="buy", qty="1", limit_price="10.00", stop="9.00", idempotency_key="blocked-buy-01")
     assert risk.value.code == "zero_equity"
     assert "ratio" in str(risk.value)
     assert hash_tree(os.path.join(desk.store.root, "tenants", tenant, "brain")) == brain
     desk.add_paper_funds(token, "100.00", "PAPER FUNDS NOT REAL MONEY")
-    opened = desk.place_order(token, symbol="AAPL", side="buy", qty="1", limit_price="10.00", idempotency_key="funded-buy-01")
+    opened = desk.place_order(token, symbol="AAPL", side="buy", qty="1", limit_price="10.00", stop="9.00", idempotency_key="funded-buy-01")
     assert opened["status"] == "pending"
     assert desk.desk(token)["session_pnl"] == "0.00"
 
@@ -169,7 +169,7 @@ def test_open_position_and_pending_order_block_reset(tmp_path):
     tenant = created["tenant_id"]
     desk.use_test_feed_probe(token)
     desk.start_trading(token)
-    opened = desk.place_order(token, symbol="AAPL", side="buy", qty="1", limit_price="10.00", idempotency_key="open-buy-01")
+    opened = desk.place_order(token, symbol="AAPL", side="buy", qty="1", limit_price="10.00", stop="9.00", idempotency_key="open-buy-01")
     desk.fill_order(token, opened["order_id"], price="10.00")
     before = read_bytes(os.path.join(desk.store.root, "tenants", tenant, "paper", "ledger.jsonl"))
     brain = hash_tree(os.path.join(desk.store.root, "tenants", tenant, "brain"))
@@ -180,7 +180,7 @@ def test_open_position_and_pending_order_block_reset(tmp_path):
     desk.mark_position(token, "AAPL", "8.00")
     desk.settle_flat(token, confirmation="SETTLE PAPER POSITIONS AT MARKS")
     assert desk.performance(token)["historical_realized_pnl"] == "-2.00"
-    pending = desk.place_order(token, symbol="AAPL", side="buy", qty="1", limit_price="10.00", idempotency_key="pending-buy-01")
+    pending = desk.place_order(token, symbol="AAPL", side="buy", qty="1", limit_price="10.00", stop="9.00", idempotency_key="pending-buy-01")
     with pytest.raises(ResetBlocked):
         reset(desk, token, key="reset-pending-01")
     desk.cancel_order(token, pending["order_id"], confirmation="CANCEL PENDING PAPER ORDERS")
