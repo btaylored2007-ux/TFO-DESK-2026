@@ -1,0 +1,56 @@
+{
+  "release": "paper_rules_release_20261107",
+  "ondisk_is_not_loaded": true,
+  "zero_downtime_reload": "unsupported",
+  "do_not_build_a_reloader": true,
+  "quote": {
+    "id": "t2809u",
+    "wita": "2026-11-07 18:52 WITA",
+    "text": "Explicitly authorisation to deploy and clear the blocks."
+  },
+  "decision": {
+    "id": "t2808u",
+    "wita": "2026-11-07 18:51 WITA",
+    "record": "Delegated the paper-rule decisions. Not a historical quote and not a file-hash list."
+  },
+  "already_deployed_elsewhere": {
+    "wita": "2026-11-07 19:17:06 WITA",
+    "tool": "c6fab99",
+    "packages": ["empty_prompt_20261107", "review_budget_20261107", "retail_dash_20261107"],
+    "do_not_rerun": true
+  },
+  "writers": [
+    {
+      "unit": "tfo-thf-tick.service",
+      "how": "oneshot, about every 2 minutes, new interpreter: python -m veteran_desk.book tick",
+      "root": "/opt/tfo/live/thf",
+      "loads_new_bytes": "on the next natural start after the file replace, if the timer is still enabled",
+      "this_prompt_authorizes_stop": false
+    },
+    {
+      "unit": "tfo-dash-thf.service",
+      "pid_after_ui_restart": 1889022,
+      "started_wita": "2026-11-07 19:17:56 WITA",
+      "root": "/opt/tfo/dash/base",
+      "loads_new_bytes": "no; that process imported the pin book at start",
+      "this_prompt_authorizes_restart": false
+    },
+    {
+      "name": "veteran_desk.vd_engine daemon",
+      "since": "2026-11-06",
+      "root": "/opt/tfo/live/thf",
+      "loads_new_bytes": "no; vd_engine records that the daemon loads its module once and has no daily restart",
+      "this_prompt_authorizes_restart": false
+    },
+    {
+      "name": "veteran_desk.engine_supervisor and veteran_desk.exec_speed risk-serve",
+      "since": "2026-11-06",
+      "root": "/opt/tfo/live/thf",
+      "loads_new_bytes": "no",
+      "this_prompt_authorizes_restart": false
+    }
+  ],
+  "loaded_code_evidence": "Compare each process start time with the mtime of veteran_desk/book.py and gate_v2.py on its root. A process that started earlier cannot hold the new bytes. There is no in-process hash to query, and this package does not add one.",
+  "tick_skip_not_used": "The tick script skips when .tick.flock is held. This release does not take that lock, because a skipped tick would delay stops.",
+  "rollback": "Restore both roots from the sealed original bytes. That does not rewrite the ledger or unload a process that already imported the new file. The long-running engine never imports the new file until a later explicit recycle."
+}
