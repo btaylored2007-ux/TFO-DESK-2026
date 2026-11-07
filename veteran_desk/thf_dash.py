@@ -486,7 +486,9 @@ class H(BaseHTTPRequestHandler):
             elif not VDM and (self.path.split('?')[0] in ('/', '/index.html', '/desk', '/desk/', '/desk/phone', '/desk/phone/', '/desk/m', '/desk/m/') or (self.path.startswith('/desk/') and self.path.split('?')[0].split('/')[2] not in ('chat',))):
                 try:
                     from veteran_desk import thf_home as EH
-                    _b = EH.page_html(state(), self.path)
+                    from veteran_desk import thf_display_epoch as DE
+                    _S = state()
+                    _b = DE.stamp_page(EH.page_html(_S, self.path), _S.get('today') or {}, os.path.join(BASE, 'state', 'thf', 'display_epoch.json'))
                 except Exception as _x:
                     _b = ''
                 if len(_b) > 2000:
@@ -497,7 +499,11 @@ class H(BaseHTTPRequestHandler):
                 self._send(200, HTML.replace('<body>', '<body><div id="tfo-tk"></div><script src="/ticker.js" defer></script>', 1).replace('</body>', _fm_panel() + '</body>', 1).replace('<!--tfo_funmsg_20261102_html-->', ''), 'text/html; charset=utf-8')
             elif self.path.split('?')[0] == '/api/home':
                 from veteran_desk import thf_home as EH
-                self._send(200, json.dumps(EH.home(state()), default=str), 'application/json')
+                from veteran_desk import thf_display_epoch as DE
+                _S = state()
+                _payload = EH.home(_S)
+                DE.attach(_payload, _S.get('today') or {}, os.path.join(BASE, 'state', 'thf', 'display_epoch.json'))
+                self._send(200, json.dumps(_payload, default=str), 'application/json')
             elif self.path.split('?')[0] == '/api/eli10':
                 from urllib.parse import urlparse, parse_qs
                 from veteran_desk import thf_home as EH

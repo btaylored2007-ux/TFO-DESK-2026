@@ -1,0 +1,71 @@
+{
+  "release": "owner_chat_20261107",
+  "applied": false,
+  "deployment_ready": false,
+  "connected": false,
+  "activation": "forbidden",
+  "do_not_write": [
+    "veteran_desk/book.py",
+    "veteran_desk/thf_msgdesk.py",
+    "veteran_desk/seat_brain.py",
+    "veteran_desk/thf_round.py",
+    "veteran_desk/chatgpt_bridge.py",
+    "tools/chatgpt_web.py"
+  ],
+  "files": [
+    {
+      "path": "veteran_desk/thf_chat_clarity.py",
+      "target": "79c6aa3314b3a506169254ad05536f07a48754ae8508a9048032862c63e3f0cb",
+      "bases": [],
+      "new": true
+    },
+    {
+      "path": "veteran_desk/supergrok_bridge.py",
+      "target": "7c6ed10810c2041b2026ec25df5896e53eaeb1bfa4f641e6debd32bb0c7976b2",
+      "bases": [
+        "adbd30076046f5c589baec601dfbdc071eeda129eb4b2c5bd8be925735d04f54"
+      ],
+      "new": true
+    },
+    {
+      "path": "tools/grok_web.py",
+      "target": "b2bc291525a08e370fbf39071f2352afecf5ea77c5405d8dc38666a4ec369e82",
+      "bases": [
+        "b7b2fac73e03c600fdb7078b8e55352dc0a5dd52f3a63896fe8e196a7abdae4b"
+      ],
+      "new": true
+    },
+    {
+      "path": "veteran_desk/thf_chat_home.py",
+      "target": "2d5ecfad55537d591b2027a3e676c44308fc2b9868c2aff20349a70d2cee92b6",
+      "bases": [
+        "0fce7e10ba42a025d55a26a2e94fe8470dab0dfd49cd829ee6b41b69346e9469"
+      ],
+      "new": false
+    },
+    {
+      "path": "veteran_desk/ai_router.py",
+      "target": "4e18964b65af1c6a8ba0e8916d5007b1a80e760a9509c3abd14765e059dcd61e",
+      "bases": [
+        "e3766714c7c9495403d1bd3f5ad52723d3d0e55e081efad832506323027f4bb5"
+      ],
+      "new": false
+    },
+    {
+      "path": "veteran_desk/ai_readiness.py",
+      "target": "b062070c5101f29a5f6f8eee75c2e492533eabaa776ae0d05350e5427cfc25bd",
+      "bases": [
+        "37ba8d3a3fbaa762c16e5625fbef9dac189ec7db39b9d4f5db62addf1f71b97e"
+      ],
+      "new": false
+    },
+    {
+      "path": "veteran_desk/thf_funder.py",
+      "target": "0f4109c21ee99cd5fabe5f232eac47fae410b77d121764157daf26c6fe679c44",
+      "bases": [
+        "6a5bd148bb5ffdb81b94ef242a53f565a21388dbe5e08b949e9959c9809cca2c"
+      ],
+      "new": false
+    }
+  ]
+}

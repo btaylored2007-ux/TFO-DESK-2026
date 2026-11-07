@@ -14,7 +14,20 @@ INSTALL = PACKAGE / "install.py"
 MANIFEST = json.loads((PACKAGE / "MANIFEST.json").read_text(encoding="utf-8"))
 STATUS = json.loads((PACKAGE / "STATUS.json").read_text(encoding="utf-8"))
 BASE = "2c45d1a28a894578ca015f06ea7065c2d22f9c6a"
+DEPLOYED = "39dcb48"
+LIVE_1917 = {
+    "tools/thf_eli10.html": "9da1e4ac511c8173eb02bf2c460100ccb8e7fdfbb14352708429d95cfbf453ee",
+    "tools/thf_eli10.js": "c4a977ad2ca04131e22355cc62e32fa04d075dfc88243758e7eab04a03bd8718",
+    "tools/thf_chat.js": "ef3e4def8fd3dcc39093895ddf433d0633f3dfc3a6faa800bb9cfb615e461c44",
+    "tools/thf_chat_page.html": "92d98ecd72b0dbc6231f725a953ff33927c37708f1c2267051ac949f8b6646e3",
+}
 BOOK = "b4453b503f33e34110519bf4d7a9bf391ecc2802edbd87acca3e77dc96b7e891"
+UI_DELTA = (
+    "tools/thf_eli10.html",
+    "tools/thf_eli10.js",
+    "tools/thf_chat.js",
+    "tools/thf_chat_page.html",
+)
 
 
 def sha256(path):
@@ -73,12 +86,56 @@ def test_package_is_waiting_and_does_not_claim_live_acceptance():
     assert "veteran_desk/book.py" not in names
     assert "veteran_desk/desk.py" not in names
     for item in MANIFEST["replace"]:
-        assert sha256(ROOT / item["path"]) == item["target_sha256"]
+        if item["path"] != "veteran_desk/thf_dash.py":
+            assert sha256(ROOT / item["path"]) == item["target_sha256"]
         assert sha256(PACKAGE / "payload" / item["path"]) == item["target_sha256"]
+        if item["path"] == "veteran_desk/thf_dash.py":
+            assert item["target_sha256"] == "4414a765d4a19491cff739fdc7cee5dbfeb77403902ad7f62ad3a5895eabe8ba"
+            assert sha256(ROOT / item["path"]) in set(item.get("leave_sha256") or [])
         assert hashlib.sha256(git_bytes(item["path"])).hexdigest() == item["base_sha256"]
     for item in MANIFEST["unchanged"]:
         specimen = PACKAGE / "captured_unchanged" / item["path"]
         assert sha256(specimen) == item["sha256"]
+    nginx = ROOT / "nginx_safe/tfo-dash.conf.excerpt"
+    nginx_text = nginx.read_text(encoding="utf-8")
+    assert sha256(nginx) == "845f963f0bc23044ec617ddb5cf3cdd223c00a88b3f216b96e9ddfe5feb45c34"
+    assert "limit_except GET HEAD { deny all; }" in nginx_text
+    assert "location = /api/chat_img" in nginx_text
+    assert "/api/chat|" not in nginx_text and "desk/chat" not in nginx_text
+    deployed = MANIFEST["deployed_0832"]
+    assert deployed["commit"] == DEPLOYED
+    assert deployed["replace_when_tree_matches_deployed"] == list(UI_DELTA)
+    for rel in UI_DELTA:
+        item = next(row for row in MANIFEST["replace"] if row["path"] == rel)
+        blob = subprocess.check_output(["git", "show", "%s:%s" % (DEPLOYED, rel)], cwd=ROOT)
+        assert hashlib.sha256(blob).hexdigest() == item["also_base_sha256"][0]
+        assert item["target_sha256"] != item["also_base_sha256"][0]
+        assert LIVE_1917[rel] in item["also_base_sha256"]
+        assert item["target_sha256"] != LIVE_1917[rel]
+    for rel in deployed["already_current"]:
+        item = next(row for row in MANIFEST["replace"] if row["path"] == rel)
+        blob = subprocess.check_output(["git", "show", "%s:%s" % (DEPLOYED, rel)], cwd=ROOT)
+        assert hashlib.sha256(blob).hexdigest() == item["target_sha256"]
+
+
+def test_checksum_file_matches_the_package_bytes():
+    listing = (PACKAGE / "CHECKSUMS.sha256").read_text(encoding="utf-8").splitlines()
+    assert len(listing) >= 10
+    seen = set()
+    for line in listing:
+        digest, rel = line.split("  ", 1)
+        seen.add(rel)
+        assert sha256(PACKAGE / rel) == digest
+    assert {"install.py", "MANIFEST.json", "ROLLBACK.txt", "STATUS.json", "payload/tools/thf_eli10.html"} <= seen
+    assert "CHECKSUMS.sha256" not in seen
+    archive = ROOT / "deploy/retail-dash-20261107.tar.gz"
+    recorded = (archive.parent / (archive.name + ".sha256")).read_text(encoding="utf-8").split()[0]
+    assert sha256(archive) == recorded
+    with tarfile.open(archive, "r:gz") as bundle:
+        names = set(bundle.getnames())
+    assert "deploy/retail_dash_20261107/CHECKSUMS.sha256" in names
+    assert "deploy/retail_dash_20261107/install.py" in names
+    assert not any(name.endswith(".pyc") for name in names)
 
 
 def test_source_checks_are_not_a_live_pass():
@@ -141,6 +198,71 @@ def test_known_base_can_be_pinned_applied_and_rolled_back(tmp_path):
     assert sha256(live / "tools/thf_chat.js") == MANIFEST["replace"][2]["base_sha256"]
     assert sha256(live / "veteran_desk/book.py") == BOOK
     assert not (live / "assets/brand/apple-touch-icon.png").exists()
+
+
+def test_0832_baseline_replaces_only_the_four_ui_files(tmp_path):
+    live = stage(tmp_path)
+    for item in MANIFEST["replace"] + MANIFEST["identical_or_absent"] + MANIFEST["new_files"]:
+        dest = live / item["path"]
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        dest.write_bytes(subprocess.check_output(["git", "show", "%s:%s" % (DEPLOYED, item["path"])], cwd=ROOT))
+    pin = tmp_path / "pin0832.json"
+    recorded = run("--root", str(live), "--staging", "--record-capture", "--out", str(pin))
+    assert recorded.returncode == 0, recorded.stdout
+    assert "PINNED" in recorded.stdout and "NOT_DEPLOYED" in recorded.stdout
+    dry = run("--root", str(live), "--pin", str(pin))
+    assert dry.returncode == 0, dry.stdout
+    for rel in UI_DELTA:
+        assert "REPLACE %s" % rel in dry.stdout
+    for rel in MANIFEST["deployed_0832"]["already_current"]:
+        assert "CURRENT %s" % rel in dry.stdout
+        assert "REPLACE %s" % rel not in dry.stdout
+    assert "INSTALL_NEW assets/brand/apple-touch-icon.png" not in dry.stdout
+    applied = run("--root", str(live), "--pin", str(pin), "--staging", "--apply")
+    assert applied.returncode == 0, applied.stdout
+    assert "STAGED" in applied.stdout and "NOT_DEPLOYED" in applied.stdout
+    receipt = json.loads((live / "state/thf/retail_dash_20261107_receipt.json").read_text(encoding="utf-8"))
+    assert receipt["status"] == "APPLIED_NOT_DEPLOYED"
+    assert receipt["replaced"] == list(UI_DELTA)
+    assert receipt["installed_new"] == []
+    for rel in UI_DELTA:
+        item = next(row for row in MANIFEST["replace"] if row["path"] == rel)
+        assert receipt["before"][rel] == item["also_base_sha256"][0]
+        assert receipt["after"][rel] == item["target_sha256"]
+        assert sha256(live / rel) == item["target_sha256"]
+    for rel in MANIFEST["deployed_0832"]["already_current"]:
+        item = next(row for row in MANIFEST["replace"] if row["path"] == rel)
+        assert sha256(live / rel) == item["target_sha256"]
+    assert sha256(live / "veteran_desk/book.py") == BOOK
+    assert sha256(live / "veteran_desk/thf_home.py") == MANIFEST["unchanged"][0]["sha256"]
+    rolled = run("--root", str(live), "--staging", "--rollback")
+    assert rolled.returncode == 0, rolled.stdout
+    note = json.loads((live / "state/thf/retail_dash_20261107_rollback.json").read_text(encoding="utf-8"))
+    assert note["status"] == "ROLLED_BACK_NOT_DEPLOYED" and note["verified_live"] is False
+    for rel in UI_DELTA:
+        item = next(row for row in MANIFEST["replace"] if row["path"] == rel)
+        assert note["after"][rel] == item["also_base_sha256"][0]
+        assert sha256(live / rel) == item["also_base_sha256"][0]
+    assert sha256(live / "veteran_desk/book.py") == BOOK
+
+
+def test_1917_deployed_bytes_are_an_allowed_base(tmp_path):
+    live = stage(tmp_path)
+    for item in MANIFEST["replace"] + MANIFEST["identical_or_absent"] + MANIFEST["new_files"]:
+        dest = live / item["path"]
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        commit = "0c4b378" if item["path"] in LIVE_1917 else DEPLOYED
+        dest.write_bytes(subprocess.check_output(["git", "show", "%s:%s" % (commit, item["path"])], cwd=ROOT))
+    pin = tmp_path / "pin1917.json"
+    recorded = run("--root", str(live), "--staging", "--record-capture", "--out", str(pin))
+    assert recorded.returncode == 0, recorded.stdout
+    assert "PINNED" in recorded.stdout
+    dry = run("--root", str(live), "--pin", str(pin))
+    assert dry.returncode == 0, dry.stdout
+    for rel in UI_DELTA:
+        assert "REPLACE %s" % rel in dry.stdout
+    for rel in MANIFEST["deployed_0832"]["already_current"]:
+        assert "CURRENT %s" % rel in dry.stdout
 
 
 def test_unknown_base_and_broken_anchor_stop(tmp_path):

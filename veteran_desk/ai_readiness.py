@@ -17,6 +17,9 @@ def reason(name,check_busy=True):
         health=CG.health()
         if health.get("state")!="logged_in":return "not logged in or bridge unavailable"
         if check_busy and (health.get("busy") or int(health.get("queue") or 0)>0):return "busy; use another provider or the code engine"
+    elif name == "supergrok":
+        from veteran_desk import supergrok_bridge as SG
+        return SG.block_reason()
     elif name in ("grok","seat"):
         from veteran_desk import thf_grok as G
         unavailable=G.reason()

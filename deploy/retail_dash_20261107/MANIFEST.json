@@ -16,31 +16,71 @@
     "note": "The six existing PR19 paths in this capture are byte-identical on dash/base and live/thf, and those bytes are the base_sha256 values below. thf_home.py on the capture is not the repo copy and is not written."
   },
   "book_must_remain": "b4453b503f33e34110519bf4d7a9bf391ecc2802edbd87acca3e77dc96b7e891",
+  "deployed_0832": {
+    "commit": "39dcb48",
+    "wita": "2026-11-07 08:32 WITA",
+    "note": "08:32 is git 39dcb48. 19:17 WITA served these four UI hashes (package 9d58be9e). Both are allowed bases. thf_dash.py and thf_chat_home.py stay CURRENT when the tree is already at the target.",
+    "replace_when_tree_matches_deployed": [
+      "tools/thf_eli10.html",
+      "tools/thf_eli10.js",
+      "tools/thf_chat.js",
+      "tools/thf_chat_page.html"
+    ],
+    "already_current": [
+      "veteran_desk/thf_dash.py",
+      "veteran_desk/thf_chat_home.py"
+    ],
+    "also_live_1917": {
+      "tools/thf_eli10.html": "9da1e4ac511c8173eb02bf2c460100ccb8e7fdfbb14352708429d95cfbf453ee",
+      "tools/thf_eli10.js": "c4a977ad2ca04131e22355cc62e32fa04d075dfc88243758e7eab04a03bd8718",
+      "tools/thf_chat.js": "ef3e4def8fd3dcc39093895ddf433d0633f3dfc3a6faa800bb9cfb615e461c44",
+      "tools/thf_chat_page.html": "92d98ecd72b0dbc6231f725a953ff33927c37708f1c2267051ac949f8b6646e3"
+    }
+  },
   "replace": [
     {
       "path": "tools/thf_eli10.html",
       "base_sha256": "4c18153b536d85c669264d386b0936207bbedcfb3cc67de2d59e20bb49449607",
-      "target_sha256": "e00723691176f3183128e853fdd4ff7236bf03116bb21f371dbeaadf0f0e8bcd"
+      "target_sha256": "65ebb5bcd048d5593d85514e3e62015afd421e23a75f82cc4d9c5a2a540e958d",
+      "also_base_sha256": [
+        "e00723691176f3183128e853fdd4ff7236bf03116bb21f371dbeaadf0f0e8bcd",
+        "9da1e4ac511c8173eb02bf2c460100ccb8e7fdfbb14352708429d95cfbf453ee"
+      ]
     },
     {
       "path": "tools/thf_eli10.js",
       "base_sha256": "1f796ba679cc49970d1df6acb82eaf5fbd348c17e29e86c98e4abeb0fe856d8a",
-      "target_sha256": "36b3f9fc88240c5bbeb59e431448709987f7967f44185752d94f559132cbb235"
+      "target_sha256": "9f0a868bb51e330f88fef127aa0423f41f54f156415ca8d1b8b191a439a1b50d",
+      "also_base_sha256": [
+        "36b3f9fc88240c5bbeb59e431448709987f7967f44185752d94f559132cbb235",
+        "c4a977ad2ca04131e22355cc62e32fa04d075dfc88243758e7eab04a03bd8718"
+      ]
     },
     {
       "path": "tools/thf_chat.js",
       "base_sha256": "be70ff4ae236b3df78451ecfffb159dd987c3bda42475faeb0752cf0ccedad73",
-      "target_sha256": "b58b0716a5118b7f49d3b18083f7bc355c57467690f511c44c0680cdb69d1f1d"
+      "target_sha256": "10f8bc16418854ed4c5d05285c60e0c916f80c18a83491f1dde6bfda284d9b55",
+      "also_base_sha256": [
+        "b58b0716a5118b7f49d3b18083f7bc355c57467690f511c44c0680cdb69d1f1d",
+        "ef3e4def8fd3dcc39093895ddf433d0633f3dfc3a6faa800bb9cfb615e461c44"
+      ]
     },
     {
       "path": "tools/thf_chat_page.html",
       "base_sha256": "644acf8e3df755809d16cfc1a1475ba508a313cdec227533aeb1917d5112ece3",
-      "target_sha256": "3a9b0727c420c0b815faa5aaabb8e4285660865363202fc1b04e4762ed13a2f3"
+      "target_sha256": "5f40815610f91900ed69359b851799b876675bb7ca0ce5739e55aa1479450ad2",
+      "also_base_sha256": [
+        "3a9b0727c420c0b815faa5aaabb8e4285660865363202fc1b04e4762ed13a2f3",
+        "92d98ecd72b0dbc6231f725a953ff33927c37708f1c2267051ac949f8b6646e3"
+      ]
     },
     {
       "path": "veteran_desk/thf_dash.py",
       "base_sha256": "bbaf57edd303350ec7fd0749ce068d4aa89fa6c223cccaeae26cee0f641cd58e",
-      "target_sha256": "4414a765d4a19491cff739fdc7cee5dbfeb77403902ad7f62ad3a5895eabe8ba"
+      "target_sha256": "4414a765d4a19491cff739fdc7cee5dbfeb77403902ad7f62ad3a5895eabe8ba",
+      "leave_sha256": [
+        "a27c5ba61f0f83f07ce2d6beed1bed9d98026d5405c8f5c6140b86ba2633d35b"
+      ]
     },
     {
       "path": "veteran_desk/thf_chat_home.py",
@@ -49,24 +89,70 @@
     }
   ],
   "identical_or_absent": [
-    {"path": "assets/brand/favicon.svg", "sha256": "5301387bedb29b6ae93332f1177203f500a8e58d629d33adbc46b6a1777a2513"},
-    {"path": "assets/brand/mark.svg", "sha256": "b3dece78623cfca158093da6980c35e1d8cc539c26bd7d1167a4b6462a7c098e"},
-    {"path": "assets/brand/wordmark.svg", "sha256": "bf4b5fec58d0ab756e5e7746108ae767d935618d35f3b0acc69b266b795ebfb8"},
-    {"path": "assets/brand/tokens.css", "sha256": "60939ab65627ae012fb4075a867280ee172dbbd7dd6f0a4746d4e22d44794144"}
+    {
+      "path": "assets/brand/favicon.svg",
+      "sha256": "5301387bedb29b6ae93332f1177203f500a8e58d629d33adbc46b6a1777a2513"
+    },
+    {
+      "path": "assets/brand/mark.svg",
+      "sha256": "b3dece78623cfca158093da6980c35e1d8cc539c26bd7d1167a4b6462a7c098e"
+    },
+    {
+      "path": "assets/brand/wordmark.svg",
+      "sha256": "bf4b5fec58d0ab756e5e7746108ae767d935618d35f3b0acc69b266b795ebfb8"
+    },
+    {
+      "path": "assets/brand/tokens.css",
+      "sha256": "60939ab65627ae012fb4075a867280ee172dbbd7dd6f0a4746d4e22d44794144"
+    }
   ],
   "new_files": [
-    {"path": "assets/brand/apple-touch-icon.png", "target_sha256": "ed665f8c8c40c4e2013cf8b6b69e33235f38d9e00a716656e2644284c2b9bc6f"}
+    {
+      "path": "assets/brand/apple-touch-icon.png",
+      "target_sha256": "ed665f8c8c40c4e2013cf8b6b69e33235f38d9e00a716656e2644284c2b9bc6f"
+    }
   ],
   "unchanged": [
-    {"path": "veteran_desk/thf_home.py", "sha256": "50d8b3dcab66bf154f2ce21433a84f7147ed446193e6c12f74731e15ed26c1ed"},
-    {"path": "veteran_desk/thf_http.py", "sha256": "f42e153507e89ec11bc1de9aa500318b5389503ef0fec2fe24ca3572db777bbd"},
-    {"path": "veteran_desk/thf_hub.py", "sha256": "4959eb8b58aa7db5aa3ede86877eb4cf643e6ce87a25aa43b5e4649641ddae80"},
-    {"path": "tools/thf_chat.html", "sha256": "4a42f9eecddcb7c080a60fa4c114bb544e684938f9f23897d19e85effb4705f1"}
+    {
+      "path": "veteran_desk/thf_home.py",
+      "sha256": "50d8b3dcab66bf154f2ce21433a84f7147ed446193e6c12f74731e15ed26c1ed"
+    },
+    {
+      "path": "veteran_desk/thf_http.py",
+      "sha256": "f42e153507e89ec11bc1de9aa500318b5389503ef0fec2fe24ca3572db777bbd"
+    },
+    {
+      "path": "veteran_desk/thf_hub.py",
+      "sha256": "4959eb8b58aa7db5aa3ede86877eb4cf643e6ce87a25aa43b5e4649641ddae80"
+    },
+    {
+      "path": "tools/thf_chat.html",
+      "sha256": "4a42f9eecddcb7c080a60fa4c114bb544e684938f9f23897d19e85effb4705f1"
+    }
   ],
   "anchors": [
-    {"path": "veteran_desk/thf_home.py", "needles": ["thf_eli10.html", "thf_eli10.js"]},
-    {"path": "veteran_desk/thf_chat_home.py", "needles": ["thf_chat.js", "thf_chat_page.html"]},
-    {"path": "veteran_desk/thf_dash.py", "needles": ["def listen_host", "127.0.0.1", "/chat.js"]}
+    {
+      "path": "veteran_desk/thf_home.py",
+      "needles": [
+        "thf_eli10.html",
+        "thf_eli10.js"
+      ]
+    },
+    {
+      "path": "veteran_desk/thf_chat_home.py",
+      "needles": [
+        "thf_chat.js",
+        "thf_chat_page.html"
+      ]
+    },
+    {
+      "path": "veteran_desk/thf_dash.py",
+      "needles": [
+        "def listen_host",
+        "127.0.0.1",
+        "/chat.js"
+      ]
+    }
   ],
   "forbidden_payloads": [
     "veteran_desk/book.py",

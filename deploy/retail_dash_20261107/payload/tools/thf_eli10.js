@@ -41,9 +41,9 @@ function esc(s){return String(s==null?"":s).replace(/[&<>"\']/g,function(c){retu
 function cls(v){return v>0.5?"pos":v<-0.5?"neg":""}
 function dot(c){return '<span class="dot '+esc(c||"grey")+'"></span>'}
 function f(v){return v==null||isNaN(v)?"—":Number(v).toLocaleString("en-AU",{maximumSignificantDigits:6})}
-function row(color,head,sub,pnl,dd,open,id){return '<details class="row"'+(open?" open":"")+(id?' data-id="'+esc(id)+'"':"")+'><summary>'+dot(color)+'<div class="mid"><div class="h">'+head+'</div>'+(sub?'<div class="s">'+sub+'</div>':"")+(pnl?'<div class="pnl">'+pnl+'</div>':"")+'</div><span class="chev">›</span></summary><div class="dd">'+dd+'</div></details>'}
-function glossary(g){if(!g)return"";var ks=Object.keys(g);return '<details class="row glo"><summary>'+dot("grey")+'<div class="mid"><div class="h">What do these words mean?</div><div class="s">plain-English meaning of every code word on this page</div></div><span class="chev">›</span></summary><div class="dd"><dl>'+ks.map(function(k){return "<dt>"+esc(k)+"</dt><dd>"+esc(g[k])+"</dd>"}).join("")+"</dl></div></details>"}
-function raw(d){try{return '<details class="row"><summary>'+dot("grey")+'<div class="mid"><div class="h">Raw numbers</div></div><span class="chev">›</span></summary><div class="dd"><pre style="white-space:pre-wrap;font-size:12px;margin:0">'+esc(JSON.stringify(d,null,1).slice(0,4000))+"</pre></div></details>"}catch(e){return""}}
+function row(color,head,sub,pnl,dd,open,id){return '<details class="row"'+(open?" open":"")+(id?' data-id="'+esc(id)+'"':"")+'><summary>'+dot(color)+'<div class="mid"><div class="h">'+head+'</div>'+(sub?'<div class="s">'+sub+'</div>':"")+(pnl?'<div class="pnl">'+pnl+'</div>':"")+'</div><span class="chev" aria-hidden="true"></span></summary><div class="dd">'+dd+'</div></details>'}
+function glossary(g){if(!g)return"";var ks=Object.keys(g);return '<details class="row glo"><summary>'+dot("grey")+'<div class="mid"><div class="h">What do these words mean?</div><div class="s">plain-English meaning of every code word on this page</div></div><span class="chev" aria-hidden="true"></span></summary><div class="dd"><dl>'+ks.map(function(k){return "<dt>"+esc(k)+"</dt><dd>"+esc(g[k])+"</dd>"}).join("")+"</dl></div></details>"}
+function raw(d){try{return '<details class="row"><summary>'+dot("grey")+'<div class="mid"><div class="h">Raw numbers</div></div><span class="chev" aria-hidden="true"></span></summary><div class="dd"><pre style="white-space:pre-wrap;font-size:12px;margin:0">'+esc(JSON.stringify(d,null,1).slice(0,4000))+"</pre></div></details>"}catch(e){return""}}
 /* pushhealth_20261103: generic escaped table + lines for Health rows (AI cost per seat, Singapore server, scheduled pushes) */
 function tbl(d){if(!d||!d.cols)return"";return '<div class="tw"><table><tr>'+d.cols.map(function(c){return "<th>"+esc(c)+"</th>"}).join("")+"</tr>"+(d.rows||[]).map(function(r){return "<tr>"+r.map(function(c,i){return "<td"+(i&&String(c).length<=12?' style="white-space:nowrap"':"")+">"+esc(c)+"</td>"}).join("")+"</tr>"}).join("")+"</table></div>"}
 function needsBrett(d){return (d.items||[]).map(function(x){return '<div class="card '+(x.open?"amber":"green")+'" style="margin:6px 0"><h3>'+(x.open?"🙋 ":"✅ ")+esc(x.title)+"</h3>"+(x.status?"<p><b>"+esc(x.status)+"</b></p>":"")+"<p>"+esc(x.why)+"</p>"+(x.link?'<p><a class="btn" href="'+esc(x.link.url)+'" target="_blank" rel="noopener">'+esc(x.link.label)+'</a><br><span class="mu">'+esc(x.link.url)+"</span></p>":"")+(x.steps||[]).map(function(t){return "<p>"+esc(t)+"</p>"}).join("")+(x.cmd?'<pre style="white-space:pre-wrap;word-break:break-all;font-size:12px;background:#0d1117;padding:8px;border-radius:6px;margin:4px 0">'+esc(x.cmd)+"</pre>":"")+(x.keep?'<p class="mu">'+esc(x.keep)+"</p>":"")+(x.cooldown?'<p class="mu">AI cooldown file says: '+esc(x.cooldown)+"</p>":"")+"</div>"}).join("")}   /* pushhealth_20261103 Needs Brett box */
@@ -76,7 +76,7 @@ function badges(){var h=S.data.home||{};var hb=$("#b-health");if(hb){hb.style.di
 function show(t){if(TABS.indexOf(t)<0)t="home";S.tab=t;TABS.forEach(function(x){var p=$("#p-"+x);if(p){p.classList.toggle("on",x===t||S.all);p.setAttribute("aria-hidden",x===t||S.all?"false":"true")}});
  $("#tabbar").querySelectorAll("button").forEach(function(b){var selected=b.dataset.tab===t;b.classList.toggle("on",selected);b.setAttribute("aria-selected",selected?"true":"false");b.tabIndex=selected?0:-1});
  if(!S.all){try{history.replaceState(null,"",location.pathname+location.search+(t==="home"&&!S.seat?"":"#"+t))}catch(e){}}
- if(t==="chat")mountChat();else load(t);updateStatus();if(!S.all)window.scrollTo(0,0)}
+ if(t==="chat")mountChat();else load(t);updateStatus();placeFresh();if(!S.all)window.scrollTo(0,0)}
 /* ---- data ---- */
 function load(t,force){
  if(t==="chat"||S.busy[t]||(t==="seats"&&S.editing))return;
@@ -93,8 +93,15 @@ function load(t,force){
   if(p&&!S.data[t])p.innerHTML='<div class="card red"><h3>This page could not load</h3><p>Your connection or the server may be busy. The Refresh button above tries again.</p><p class="sub">'+esc(S.errors[t])+'</p></div>';
  }).then(function(){S.busy[t]=0;if(p)p.setAttribute("aria-busy","false");updateStatus()});
 }
+function placeFresh(){
+ var bar=$("#refreshbar");if(!bar)return;
+ var slot=$("#home-fresh"),anchor=$("#p-trades");
+ if((S.tab==="home"||S.all)&&slot){if(bar.parentNode!==slot)slot.appendChild(bar);return}
+ if(anchor&&anchor.parentNode)anchor.parentNode.insertBefore(bar,anchor);
+}
 function render(t){
  var p=$("#p-"+t);if(!p||!R[t])return;if(t==="seats"&&S.editing)return;
+ if(t==="home"){var bar=$("#refreshbar"),anchor=$("#p-trades");if(bar&&p.contains(bar)&&anchor&&anchor.parentNode)anchor.parentNode.insertBefore(bar,anchor)}
  var keep=[].slice.call(p.querySelectorAll("details[open][data-id]")).map(function(d){
   return {id:d.dataset.id,extras:["chartbox","deskbox"].map(function(name){var box=d.querySelector("."+name),b=d.querySelector(name==="chartbox"?"[data-chart]":"[data-desk]");return box&&box.firstChild?{name:name,nodes:[].slice.call(box.childNodes),text:b&&b.textContent}:null}).filter(Boolean)};
  });
@@ -102,6 +109,7 @@ function render(t){
  keep.forEach(function(k){var d=detailById(p,k.id);if(!d)return;d.open=true;k.extras.forEach(function(x){var box=d.querySelector("."+x.name),b=d.querySelector(x.name==="chartbox"?"[data-chart]":"[data-desk]");if(box)x.nodes.forEach(function(n){box.appendChild(n)});if(b&&x.text)b.textContent=x.text})});
  p.querySelectorAll("[data-go]").forEach(function(el){el.setAttribute("role","button");el.tabIndex=0});
  if(t==="seats"&&S.seat){var d=detailById(p,S.seat);if(d){d.open=true;d.scrollIntoView({block:"start"});S.seat=""}}
+ placeFresh();
 }
 function autonomyCard(value){
  var a=value&&typeof value==="object"?value:{},m=a.metrics||{},s=a.summary||{};
@@ -114,7 +122,7 @@ function autonomyCard(value){
  Object.keys(labels).forEach(function(key){out+='<p><b>'+labels[key]+':</b> '+esc(a.fresh===true?s[key]||"Waiting for a current report.":"Waiting for a current report.")+'</p>'});
  out+='<p class="sub">Finished trades can also break even. These checks track what happened; they do not promise future profits.</p>';
  var extra={updated_utc:a.updated_utc||null,fresh:a.fresh===true,metrics:m,details:a.details||{}};
- out+='<details class="row" data-id="autonomy-details"><summary>'+dot("grey")+'<div class="mid"><div class="h">Extra check details</div><div class="s">Optional: counts and the check report</div></div><span class="chev">›</span></summary><div class="dd"><pre style="white-space:pre-wrap;font-size:12px">'+esc(JSON.stringify(extra,null,1).slice(0,6000))+'</pre></div></details></section>';
+ out+='<details class="row" data-id="autonomy-details"><summary>'+dot("grey")+'<div class="mid"><div class="h">Extra check details</div><div class="s">Optional: counts and the check report</div></div><span class="chev" aria-hidden="true"></span></summary><div class="dd"><pre style="white-space:pre-wrap;font-size:12px">'+esc(JSON.stringify(extra,null,1).slice(0,6000))+'</pre></div></details></section>';
  return out;
 }
 /* ---- Home ----
@@ -132,7 +140,9 @@ function healthLine(color,label){return '<div class="healthline" data-go="health
 function clockLabel(h){var c=String((h&&h.today_clock)||"");if(c==="since 06:00 WITA")return "since 06:00 WITA";if(c.indexOf("midnight")>=0)return "since midnight WITA";return "paper"}
 R.home=function(h){if(!h)return '<div class="card">Loading…</div>';if(h.error)return '<div class="card red"><h3>Home could not load</h3><p>'+esc(h.error)+'</p></div>';
  var today=h.today_shown_aud!=null?h.today_shown_aud:h.today_aud,hc=h.health||{},nb=h.numbers||{},label=clockLabel(h),missing=!h.today_txt||h.today_txt==="—";
- var o='<section class="pnl" aria-label="Today"><div class="kicker">Today · '+esc(label==="paper"?"paper":label+" · paper")+'</div><div class="big '+(missing?"missing":cls(today))+'">'+esc(h.today_txt)+'</div><div class="metrics"><div class="metric" data-go="trades"><b>'+esc(h.open)+'</b><span>Open</span></div><div class="metric" data-go="trades"><b>'+esc(h.armed)+'</b><span>Waiting</span></div></div></section>';
+ var dir=missing?"No figure yet":today>0.5?"Up":today<-0.5?"Down":"Flat";
+ var facts='<div class="facts"><div class="fact"><span>Capital</span><b>'+esc(h.seed_txt||"—")+'</b></div><div class="fact"><span>Equity</span><b>'+esc(h.equity_txt||"—")+'</b></div><div class="fact"><span>Since inception</span><b class="'+cls(h.since_aud)+'">'+esc(h.since_txt||"—")+'</b></div>'+(h.since_reset_txt?'<div class="fact"><span>Since reset</span><b class="'+cls(h.since_reset_aud)+'">'+esc(h.since_reset_txt)+'</b></div><p class="mu">'+esc(h.since_reset_note||"Display mark. Not since inception.")+'</p>':"")+'<p class="mu">Since inception is equity minus capital. It stays the lifetime figure when a display reset is shown.</p></div>';
+ var o='<section class="pnl" aria-label="Today"><div class="big '+(missing?"missing":cls(today))+'">'+esc(h.today_txt)+'</div><div class="delta '+(missing?"":cls(today))+'">'+esc(dir)+(label==="paper"?"":" · "+esc(label))+' · paper</div>'+facts+'<div class="metrics"><div class="metric" data-go="trades"><b>'+esc(h.open)+'</b><span>Open</span></div><div class="metric" data-go="trades"><b>'+esc(h.armed)+'</b><span>Waiting</span></div></div></section><div id="home-fresh"></div>';
  o+=healthLine(hc.color,healthLabel(hc));
  if((h.urgent||[]).length)o+='<div class="card red"><h3>Urgent</h3>'+h.urgent.map(function(u){return "<p>"+esc(u)+"</p>"}).join("")+"</div>";
  if(nb.txt&&nb.ok===false)o+=healthLine("red","Figures do not agree");
@@ -161,15 +171,16 @@ function seatDd(r){var o="";if(r.state)o+="<p>"+dot(r.state_color)+" "+esc(r.sta
   if(r.plan)o+='<p>Recovery plan ('+esc(r.plan.when)+", "+esc(r.plan.status)+"): "+esc(r.plan.what)+(r.plan.fix?" → "+esc(r.plan.fix):"")+"</p>";
   if(r.stats)o+="<p>Closed trades: "+esc(r.stats.trades)+" · win rate "+esc(Math.round((r.stats.win_rate||0)*100))+"% · average "+esc(r.stats.avg_R)+"R · net "+esc(r.stats.net_aud)+"</p>";
   if((r.mark_missing||[]).length)o+='<p class="err">No live price for: '+esc(r.mark_missing.join(", "))+"</p>";
-  if((r.top10||[]).length)o+='<details class="row"><summary>'+dot("grey")+'<div class="mid"><div class="h">Top 10 ideas on the list</div><div class="s">score = how good the setup looks (100 best) · exp R = expected win in R · size = natural size % of the book</div></div><span class="chev">›</span></summary><div class="dd"><div class="tw"><table><tr><th>#</th><th>what</th><th>side</th><th>grade</th><th>score</th><th>exp R</th><th>size</th><th>market open</th><th>wake-up</th></tr>'+r.top10.map(function(x){return "<tr><td>"+esc(x.rank)+"</td><td>"+esc(x.sym)+"</td><td>"+esc(x.side)+"</td><td>"+esc(x.grade)+"</td><td>"+esc(x.score)+"</td><td>"+esc(x.exp_R==null?"—":x.exp_R)+"</td><td>"+esc(x.size_pct==null?"—":x.size_pct+"%")+"</td><td>"+esc(x.open)+"</td><td>"+esc(x.wake)+"</td></tr>"}).join("")+"</table></div></div></details>";
+  if((r.top10||[]).length)o+='<details class="row"><summary>'+dot("grey")+'<div class="mid"><div class="h">Top 10 ideas on the list</div><div class="s">score = how good the setup looks (100 best) · exp R = expected win in R · size = natural size % of the book</div></div><span class="chev" aria-hidden="true"></span></summary><div class="dd"><div class="tw"><table><tr><th>#</th><th>what</th><th>side</th><th>grade</th><th>score</th><th>exp R</th><th>size</th><th>market open</th><th>wake-up</th></tr>'+r.top10.map(function(x){return "<tr><td>"+esc(x.rank)+"</td><td>"+esc(x.sym)+"</td><td>"+esc(x.side)+"</td><td>"+esc(x.grade)+"</td><td>"+esc(x.score)+"</td><td>"+esc(x.exp_R==null?"—":x.exp_R)+"</td><td>"+esc(x.size_pct==null?"—":x.size_pct+"%")+"</td><td>"+esc(x.open)+"</td><td>"+esc(x.wake)+"</td></tr>"}).join("")+"</table></div></div></details>";
   if(r.last_wake)o+="<p class='mu'>Last wake-up: "+esc(r.last_wake.id)+" "+esc(r.last_wake.status)+" "+esc(r.last_wake.when)+"</p>";
   (r.looks||[]).forEach(function(l){o+="<p class='mu'>"+esc(l.label)+": "+esc(l.status||"")+" "+esc(l.when||"")+" — "+esc(l.text||"")+"</p>"});
   o+='<button type="button" class="btn" data-desk="'+esc(r.seat)+'">📊 More about this seat (hit rate, lessons)</button><a class="btn" href="/classic?desk='+esc(r.seat)+'">Old desk page with charts</a><div class="deskbox"></div>'}
  return o}
 R.seats=function(t){if(!t)return '<div class="card">Loading…</div>';var rows=t.rows||[];
- var tt=t.total||{},tone=String(tt.today_txt||"").charAt(0)==="-"?"neg":"pos";
+ var tt=t.total||{},raw=String(tt.today_txt||""),tone=raw.charAt(0)==="-"?"neg":"pos";
+ var seatDir=raw===""||raw==="—"?"No figure":raw.charAt(0)==="-"?"Down":raw.charAt(0)==="+"?"Up":"Flat";
  var tr=rows.filter(function(r){return !r.admin}),ad=rows.filter(function(r){return r.admin});
- var o='<p class="seat-total"><b class="'+tone+'">'+esc(tt.today_txt||"—")+'</b> since 06:00 WITA · '+esc(tt.open)+' open · '+esc(tt.armed)+' waiting</p>';
+ var o='<p class="seat-total">'+esc(seatDir)+' <b class="'+tone+'">'+esc(tt.today_txt||"—")+'</b> since 06:00 WITA · '+esc(tt.open)+' open · '+esc(tt.armed)+' waiting</p>';
  o+='<div class="sec">Traders ('+tr.length+')</div>'+(tr.length?'<div class="card grid" style="padding:4px 12px">'+tr.map(function(r){return row(r.light,esc((r.rank?"#"+r.rank+" ":"")+r.name)+' <span class="mu">'+esc(r.desk)+'</span>','<span class="'+cls(r.today_aud)+'"><b>'+esc(r.today_txt)+'</b></span> today · '+esc(r.since_txt)+' since start',esc(r.open)+' open · '+esc(r.armed)+' waiting',seatDd(r),false,r.seat)}).join("")+"</div>":'<p class="mu">No trader rows in this book.</p>');
  if(ad.length)o+='<div class="sec">Desk ('+ad.length+')</div><div class="card grid" style="padding:4px 12px">'+ad.map(function(r){return row("grey",esc(r.name)+' <span class="mu">'+esc(r.desk)+'</span>',esc(r.money),esc(r.last_action||""),seatDd(r),false,r.seat)}).join("")+"</div>";
  var pw=t.push;if(pw)o+='<div class="card '+(pw.live?"green":"grey")+'">'+row(pw.live?"green":"grey",esc(pw.head),"Tap for the times","","<p class='mu'>"+esc(pw.how||"")+"</p>"+tbl({cols:["push","when (WITA)","who","today"],rows:pw.rows})+(pw.error?'<p class="err">'+esc(pw.error)+'</p>':"")+'<p class="mu">Last check '+esc(pw.last_run||"-")+'.</p>')+'</div>';
@@ -180,7 +191,7 @@ R.seats=function(t){if(!t)return '<div class="card">Loading…</div>';var rows=t
  o+='<details class="fold"><summary>House rules</summary><div class="fold-body">'+notes+'</div></details>';
  return o};
 /* ---- Health ---- */
-var GRP={checks:["Engine and checks","is the machine running and are the numbers right?"],ai:["Model checks","Open for provider status. This list is the existing Health record."],feeds:["Data feeds","prices, news and the borrow list"],sgp:["Singapore server","the machine the whole desk runs on - checked every 5 min; safe things are fixed automatically, the rest goes to Sam (engineer)"],broken:["Broken right now","needs fixing"],info:["Known limits (not broken)","things we know and accept"]};
+var GRP={checks:["Engine and checks","is the machine running and are the numbers right?"],ai:["Service checks","Open only if you need the service names. A red or amber dot above already means something needs a look."],feeds:["Data feeds","prices, news and the borrow list"],sgp:["Singapore server","the machine the whole desk runs on - checked every 5 min; safe things are fixed automatically, the rest goes to Sam (engineer)"],broken:["Broken right now","needs fixing"],info:["Known limits (not broken)","things we know and accept"]};
 R.health=function(t){if(!t)return '<div class="card">Loading…</div>';var rows=t.rows||[];
  var title=t.color==="green"?"All clear":t.color==="amber"?((t.n_amber||0)+" to review"):((t.n_red||0)+" need attention");
  var o='<section class="pnl" aria-label="Health"><div class="kicker">Health</div><div class="healthline" style="border:0;padding:8px 0 0;margin:0"><span class="dot '+esc(t.color)+'"></span><span class="hl-main">'+esc(title)+'</span></div><p class="quiet">'+esc(t.reason||"")+'</p></section>';

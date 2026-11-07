@@ -128,7 +128,8 @@ def post(kind, text, seat=None, images=None, ai=None, command=None, dedupe_key=N
     if imgs: r["images"] = imgs
     _ai = str(ai or "").strip().lower()
     if _ai=="deepseek": _ai="deepseek_api"
-    if _ai in ("supergrok", "sg"): raise ValueError("SuperGrok was removed from THF")
+    if _ai == "sg": raise ValueError("sg is not a provider")
+    if _ai == "supergrok": raise ValueError("SuperGrok is not connected")
     if _ai=='deepseek_api':
         from veteran_desk import deepseek_bridge as DS
         if not set(targets(r)).issubset(DS.allowed_seats()):raise ValueError('DeepSeek API restricted by authorised seat policy')
@@ -298,6 +299,7 @@ def adv_add(trade, advisor, text, role="brett", reply_to=None, ctx=None, route=N
         if role!="brett" or not isinstance(command,dict) or command.get("mode") not in ("ask","push","learn"):raise ValueError("unknown advisor command mode")
         if len(json.dumps(command))>6000:raise ValueError("command too large")
     imgs = img_validate(images) if role == "brett" else []
+    if str(advisor) == "supergrok": raise ValueError("SuperGrok is not connected")
     if not trade or advisor not in ("grok", "claude", "chatgpt") or (not text and not imgs): raise ValueError("need trade, advisor grok|claude|chatgpt, text or images")
     n = dt.datetime.now(dt.timezone.utc)
     r = dict(id="an-" + n.strftime("%Y%m%d%H%M%S") + "-" + secrets.token_hex(2), ts_utc=n.isoformat(timespec="seconds"),

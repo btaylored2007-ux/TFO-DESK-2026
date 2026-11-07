@@ -1,24 +1,33 @@
-Retail dashboard package — stage and roll back
-This file does not deploy. Do not run it against /opt/tfo from the cloud.
+Retail dashboard package — stage, roll back, and the human step this installer will not take
+This file does not deploy. Do not run the installer against /opt/tfo from the cloud or from the Singapore host.
 
-The installer refuses /opt/tfo/live, /opt/tfo/dash, and any git checkout.
-Copy the captured tree to a staging directory first. The real dash stays untouched until an operator, on that machine, decides to apply and then restarts only tfo-dash-thf.service.
+The installer returns REFUSED_ROOT and writes nothing when --root is /opt/tfo/live, /opt/tfo/dash, anything under those directories, or any directory that contains .git. There is no second copier in this package. Do not delete that guard and do not wrap the installer to reach the live root.
 
-Pin, against a staging copy of the 2026-11-07 07:48:37 WITA capture:
+08:32 WITA baseline is git 39dcb48, the PR19 bytes already on the dash. From a staging copy of that tree the dry run must print REPLACE for only these four files:
+
+  tools/thf_eli10.html
+  tools/thf_eli10.js
+  tools/thf_chat.js
+  tools/thf_chat_page.html
+
+veteran_desk/thf_dash.py and veteran_desk/thf_chat_home.py print CURRENT. The apple-touch icon prints CURRENT when the 08:32 file is already present. A 07:48 capture still pins: those two Python files then print REPLACE, because they were not on the dash yet at 07:48.
+
+Permitted staging, on a directory that is not under /opt/tfo and is not a git checkout:
 
   python3 deploy/retail_dash_20261107/install.py --root <staging> --staging --record-capture --out <pin.json>
 
-Apply only if the pin says PINNED. A BASE_OR_DEPTEST_MISMATCH pin must not be applied.
+Stop unless the output says PINNED and NOT_DEPLOYED. BASE_OR_DEPTEST_MISMATCH must not be applied.
 
+  python3 deploy/retail_dash_20261107/install.py --root <staging> --pin <pin.json>
   python3 deploy/retail_dash_20261107/install.py --root <staging> --pin <pin.json> --staging --apply
 
-The apply writes, inside that staging root only:
+Apply writes, inside that staging root only:
 
   state/thf/retail_dash_20261107_receipt.json
   state/thf/retail_dash_20261107_backups/
 
 The receipt status is APPLIED_NOT_DEPLOYED. restart is "not performed". verified_live is false.
-Before and after sha256 values are in the receipt. The book file is checked and not written.
+The receipt lists before and after sha256 values. The book file is checked and not written.
 veteran_desk/thf_home.py, thf_http.py, thf_hub.py, and tools/thf_chat.html must stay on the captured hashes. A different hash blocks the run.
 
 Roll back that same staging root:
@@ -26,11 +35,10 @@ Roll back that same staging root:
   python3 deploy/retail_dash_20261107/install.py --root <staging> --staging --rollback
 
 Rollback refuses if a replaced file is no longer the recorded target, if a backup is missing, or if an unchanged captured file has drifted.
-It writes state/thf/retail_dash_20261107_rollback.json with the hashes before and after the restore.
+It writes state/thf/retail_dash_20261107_rollback.json. A copy that fails part-way is undone before a receipt is written.
 
-A copy that fails part-way is undone before a receipt is written. The staging tree returns to the captured bytes.
+This installer does not copy files onto /opt/tfo and does not restart a service. Do not hand-copy the staging tree onto the dash root. A production apply, if one is reviewed later, has to be a separate supported release that still refuses to be this installer with the guard removed. Do not restart tick, engine, or book. Do not edit nginx.
 
 Nginx is not in this package. POST /api/chat and POST /desk/chat stay 403 on 100.120.8.11:18870. Do not add those paths to the POST allow-list.
-Loopback remains 127.0.0.1:28870. Do not restart tick, engine, or book services. A dashboard restart, if an operator chooses one later, is tfo-dash-thf.service only, and only after the staged bytes have been reviewed.
-
-GET success and an empty POST that returns 400 prove the route exists. They do not prove a chat send or an image upload.
+Loopback remains 127.0.0.1:28870. GET success and an empty POST that returns 400 or 413 prove the route exists. They do not, by themselves, prove a chat send or an image upload.
+A physical phone was not used. real_device_gui stays "not verified".

@@ -6,7 +6,14 @@
   "real_device_gui": "not verified",
   "restart": "not performed",
   "package": "deploy/retail_dash_20261107",
-  "ui_pr": "https://github.com/btaylored2007-ux/TFO-DESK-2026/pull/19",
+  "ui_pr": "https://github.com/btaylored2007-ux/TFO-DESK-2026/pull/21",
+  "deployed_baseline_pr": "https://github.com/btaylored2007-ux/TFO-DESK-2026/pull/19",
+  "deployed_baseline_commit": "39dcb48",
+  "deployed_baseline_wita": "2026-11-07 08:32 WITA",
+  "production_apply": "BOUND_NOT_APPLIED. Capture 94c0f2dd is bound in deploy/display_release_20261107. REFUSED_ROOT remains on the staging installers. This checkout did not apply the controller.",
+  "bound": true,
+  "applied": false,
+  "ops_review_ready": true,
   "capture_archive_sha256": "08501bb2c227db294a9a1e87696426f662593e14e194daeb10afabb0ed09de93",
   "captured_wita": "2026-11-07 07:48:37 WITA",
   "dash_root": "/opt/tfo/dash/base",
@@ -43,12 +50,15 @@
     "live_pnl_clock": "capture showed /api/home 200 with a WITA timestamp; the new layout was not served",
     "navigation": "source-checked only",
     "composer_advanced_controls": "source-checked only; not exercised on device",
-    "upload_routing_and_sender_labels": "capture probes show empty POST reaches the app with 400; no image or message was sent",
+    "upload_routing_and_sender_labels": "local handler proof writes a temp ledger and a temp image, then checks the bytes; Singapore was not sent a message or an image",
+    "minimal_delta_from_0832": "tools/thf_eli10.html tools/thf_eli10.js tools/thf_chat.js tools/thf_chat_page.html",
     "brand_assets_serve": "unit-checked against the new route; live capture still 404",
     "ai_plumbing_hidden": "source-checked only; live /api/ai_status was still 200 at capture",
     "stale_missing_urgent_honest": "source-checked only",
     "post_api_chat_and_desk_chat": "403 on Tailnet nginx by design; not broadened",
     "singapore_forward_test": "not run",
-    "real_device_gui": "not verified"
+    "real_device_gui": "not verified",
+    "owner_phone_20261107_2011": "Screenshot shows the 19:17 navy page, +A$311 since 06:00 WITA, 7 open, 1 waiting. It is evidence of the live screen, not acceptance of this review bundle.",
+    "since_reset": "Home payload has no since-reset field. The review UI prints Since reset only when the server sends since_reset_txt. It does not treat a zero as since inception. The reset read model was not edited."
   }
 }

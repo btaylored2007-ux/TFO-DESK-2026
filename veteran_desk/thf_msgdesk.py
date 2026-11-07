@@ -609,7 +609,7 @@ def prompt(seat, msg, ctx):
     text = _shared_learning_evidence(seat) + CP.status_prompt(S, msg) + TASKS.learning_prompt(seat, msg) + _request_context(msg) + ("You are %s, seat '%s' on the Taylor Hedge Fund PAPER desk (paper only, no live orders). Persona: %s\n"
             "Your memory (json): %s\nYour notes: %s\nCode facts now: %s\nPER-SEAT MONEY (A$ net, read-only book): %s\n%s%s\n"
             "Live market context (read-only droplet top-10 + pit bars): %s\nRecent thread turns: %s\n"
-            "Brett (funder) says: \"%s\"\n%s%s"
+            + _speaker_line(_txt) + ": \"%s\"\n%s%s"
             "DESK CHANNEL (msgdesk): \"to_marcus\" = a message for Marcus (head_of_desk), delivered to his thread; messages starting FROM SEAT come from a desk colleague - answer them directly (your answer returns to their inbox).\n"   # msgfix_20261102
             "SEND_TO (seatagents_20261103): \"to_seats\": {\"<seat id>|all|marcus|head_trader\": \"msg\"} or @seat in your reply messages any colleague (ids: %s; all = mailbox broadcast to every seat). Limits: %s. Your unread inbox: %s\n"
             "%s"
@@ -634,6 +634,24 @@ def _inbox(seat):   # seatmail_20261102
         LASTM.mail_ids = [row.get("id") for row in rows]
         return rows
     except Exception as x: log("inbox %s: %s" % (seat, x)); return []
+def _same_card(a, b):
+    """True when two chat bodies are the same card. Does not compare partial numbers."""
+    left = re.sub(r"\s+", " ", str(a or "")).strip().lower()
+    right = re.sub(r"\s+", " ", str(b or "")).strip().lower()
+    return bool(left) and left == right
+
+
+def _speaker_line(text):
+    if str(text or "").startswith("FROM SEAT "):
+        return "A desk colleague says (answer that colleague, not Brett, unless the message asks you to):"
+    return "Brett (funder) says:"
+
+
+def _independent_note(names, got):
+    parts = ["%s: %s" % (name, str(got[name].get("reply") or "")[:220]) for name in names]
+    return "\nIndependent answers, not a peer review: " + " | ".join(parts)
+
+
 def _seat_mail(seat, text, d, t, root=None, mid=None, command_mode=None):   # seatmail_20261102 + seatagents_20261103: answers back to the asker (HT too); new to_seats/@seat (incl. all) with hop+rate limits; formal reports UP the chain
     from veteran_desk import seat_mail as SMl
     m = SMl.FROM_RX.match(text or ""); hop = int(m.group(3) or 1) if m else 0; d = d if isinstance(d, dict) else {}
@@ -642,7 +660,10 @@ def _seat_mail(seat, text, d, t, root=None, mid=None, command_mode=None):   # se
     rep = str(d.get("report_to_marcus") or "").strip()
     if rep:   # seatagents_20261103 17:02: Marcus's own formal report goes UP to the Head Trader (his inbox -> HT digest -> Brett); HT's goes to Brett (row only)
         tgt = SMl.report_target(seat); SMl.deliver(seat, tgt, rep[:SMl.MAXC], hop=1, kind="report", re=mid or root)
-        tadd(root=root or "report-%s" % seat, **{"from": seat, "to": tgt}, text=rep[:2000], mode="chat", kind="report", via="seat_mail"); log("seatmail report %s -> %s" % (seat, tgt))
+        if _same_card(rep, t) or _same_card(rep, d.get("reply")):
+            log("seatmail report %s -> %s kept in the mailbox; the chat card already has this text" % (seat, tgt))
+        else:
+            tadd(root=root or "report-%s" % seat, **{"from": seat, "to": tgt}, text=rep[:2000], mode="chat", kind="report", via="seat_mail", independent=False); log("seatmail report %s -> %s" % (seat, tgt))
     if hop >= SMl.MAX_HOP: return
     fwd = SMl.reply_forwards(seat, text) if m else None; nf = 0   # seatagents_20261103 16:35: answering a colleague = reply + at most N forwards (0 after a roll-call / HT ask), never 'all'
     for to, body in SMl.targets(seat, d).items():
@@ -653,6 +674,8 @@ def _seat_mail(seat, text, d, t, root=None, mid=None, command_mode=None):   # se
         nf += 1
         ok, why = SMl.send(seat, to, body, hop=hop + 1)
         if ok and to == "all": tadd(root=root or "bcast-%s" % seat, **{"from": seat, "to": "all"}, text=body[:2000], mode="chat", kind="broadcast", hop=hop + 1, via="seat_mail")
+        elif ok and (_same_card(body, t) or _same_card(body, d.get("reply"))):
+            log("seatmail %s -> %s hop=%d skipped (same text as the reply already posted)" % (seat, to, hop + 1))
         elif ok: TF.post("seat", "FROM SEAT %s to %s [hop %d]: %s" % (seat, to, hop + 1, body[:900]), to, **({"command":dict(mode=command_mode)} if command_mode in ("ask","push","learn") else {}))
         log("seatmail %s -> %s hop=%d %s" % (seat, to, hop + 1, why))
 def parse(out):
@@ -990,7 +1013,10 @@ def ht_review(msg, ctx):
     lead_order = (("deepseek_api",) if DS.fast_preferred() else ()) + ("claude", "chatgpt", "grok", "seat", "deepseek_api")
     lead = next(n for n in lead_order if n in got); d = dict(got[lead]); d["_model"] = d.pop("_model_tag", None) or _model_label(lead)   # fablefirst_20261103; modellabel_20261103
     others = [n for n in got if n != lead]
-    if others: d["reply"] = (d.get("reply") or "") + "\nOther AIs: " + " | ".join("%s: %s" % (n, str(got[n].get("reply") or "")[:220]) for n in others)
+    if others:
+        d["reply"] = (d.get("reply") or "") + _independent_note(others, got)
+        d["independent"] = True
+        d["consensus"] = False
     res = []
     for action in (d.get("actions") or [])[:HT_MAX_ACTS]:
         if task_state() in ("paused", "cancelled", "blocked"): break
@@ -1012,7 +1038,7 @@ def ht_digest(force=False):
         if not force and time.time() - newest < HT_DIGEST_QUIET: return None
         _HTD["busy"] = True; _HTD["last"] = time.time()
         body = "\n".join("- %s (%s) [%s %s]: %s" % (SMl.name(r.get("frm")), r.get("frm"), r.get("kind"), r.get("ts_wita"), r.get("text")) for r in rows)
-        q = dict(id="htd-%d" % int(time.time()), seat=HT, text="HT INBOX DIGEST (seatagents_20261103): the seats below answered your messages / reported to you. Summarise for Brett in plain ELI10 words (<=150 words): what you asked, what each seat said (keep tickers, levels, numbers), what you decided or need from Brett. Never invent. Use to_seats only for a needed follow-up.\n" + body)
+        q = dict(id="htd-%d" % int(time.time()), seat=HT, text="HT INBOX DIGEST (seatagents_20261103): the seats below answered your messages / reported to you. Summarise in plain words (<=150 words). One bullet per source row, and the count must equal %d. Do not add a person who is not listed. This is a mailbox summary, not a peer review and not a consensus. Keep each row's own words. Never invent. Use to_seats only for a needed follow-up.\n" % len(rows) + body)
         d = ask(HT, q, []); t = _brain_back(HT, d, fmt(d))
         res = [dict(a, result=_ht_act(a)) for a in (d.get("actions") or [])[:HT_MAX_ACTS] if isinstance(a, dict)]
         if res: t += "\nHT actions: " + "; ".join("%s %s %s -> %s" % (r.get("op"), r.get("seat"), r.get("id"), "ok" if r["result"].get("ok") else "refused (%s)" % str(r["result"].get("error"))[:80]) for r in res)
