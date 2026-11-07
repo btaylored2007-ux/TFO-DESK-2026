@@ -182,19 +182,27 @@ def _template_contract():
         fail("template roots")
     body = _approval_body()
     for key, value in body.items():
-        if key in ("example", "authorization_id", "approval_nonce"):
+        if key in ("example", "authorization_id", "approval_nonce", "owner_quotes"):
             continue
         if template.get(key) != value:
             fail("template field %s" % key)
+    synthetic = template.get("owner_quotes")
+    if [row.get("id") for row in synthetic] != ["synthetic-quote-1", "synthetic-quote-2", "synthetic-quote-3"]:
+        fail("synthetic quote ids")
+    if any(row.get("provenance") != "synthetic-not-a-transcript" for row in synthetic):
+        fail("synthetic quote provenance")
+    if any(row.get("text") == bound.get("text") or row.get("id") == bound.get("id") for row in synthetic for bound in release.MANIFEST["owner_quotes"]):
+        fail("template repeats a bound quote")
     digest = hashlib.sha256((PKG / "APPROVAL_TEMPLATE.json").read_bytes()).hexdigest()
     if digest not in (PKG / "RUNBOOK.md").read_text(encoding="utf-8"):
         fail("runbook omits template sha")
     _refuse("template", lambda: release.review_approval(template, digest), "REFUSED_EXAMPLE_APPROVAL")
     if release.MANIFEST.get("preflight_sha256") != PREFLIGHT:
         fail("preflight binding")
-    quote = release.MANIFEST["owner_quotes"][0]["text"]
-    if "\u2019" not in quote or "seperate" not in quote or release.MANIFEST.get("scope_verbatim_is_owner_quote") is not False:
+    if release.MANIFEST.get("scope_verbatim_is_owner_quote") is not False:
         fail("quote provenance")
+    if [row.get("id") for row in release.MANIFEST["owner_quotes"]] != ["t2853", "t2854", "t2857"]:
+        fail("bound quote ids")
 
 
 def _runner(calls, fail_at=None, active=()):

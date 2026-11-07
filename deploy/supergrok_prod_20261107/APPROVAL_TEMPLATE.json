@@ -6,19 +6,19 @@
   "scope_verbatim_is_owner_quote": false,
   "owner_quotes": [
     {
-      "id": "t2853",
-      "provenance": "owner_transcript",
-      "text": "Can you link Supergrok to the chat as another Ai that’s seperate to Grok Supergrok is the chat function of grok"
+      "id": "synthetic-quote-1",
+      "provenance": "synthetic-not-a-transcript",
+      "text": "synthetic owner quote one, not a transcript"
     },
     {
-      "id": "t2854",
-      "provenance": "owner_transcript",
-      "text": "Same way we connected Chat GPT"
+      "id": "synthetic-quote-2",
+      "provenance": "synthetic-not-a-transcript",
+      "text": "synthetic owner quote two, not a transcript"
     },
     {
-      "id": "t2857",
-      "provenance": "owner_transcript",
-      "text": "and make sure that Supergrok is connected"
+      "id": "synthetic-quote-3",
+      "provenance": "synthetic-not-a-transcript",
+      "text": "synthetic owner quote three, not a transcript"
     }
   ],
   "host": "tfo-sgp1",

@@ -6,19 +6,11 @@ Not deployed. Not connected. This file is not the staging installer and it is no
 
 `deployment_ready` and `ops_review_ready` stay false. `accepted_approval_sha256` stays null. `t2809u` stays spent. Nothing in this tree starts a unit or restarts a chat service.
 
-The unsigned template is `APPROVAL_TEMPLATE.json`, sha256 `91d0142a28b624f382bb43bc1cb58822760e4964960b86938738d25153d60f31`. It is `example: true`, the nonce is empty, and it is refused. It is not an accepted approval. It does not contain the outer archive hash. A parent who accepts the scope copies it, sets a new authorization id and a nonempty nonce, and sets `example` to false. The sha256 of that new file is a later build input. Do not reuse `t2809u`.
+The unsigned template is `APPROVAL_TEMPLATE.json`, sha256 `f8b6cd08e0614045db773fd0c745cb8cdb6baf64b1eb8f737de5b8cbc7e4e787`. It is `example: true`, the nonce is empty, and it is refused. It is not an accepted approval. It does not contain the outer archive hash. Its `owner_quotes` are synthetic ids `synthetic-quote-1`, `synthetic-quote-2`, and `synthetic-quote-3`. They are not a transcript and not an operator record. A parent who accepts the scope uses a private record, not this file. Do not reuse `t2809u`.
 
 ## What the words are
 
-`scope_verbatim` is an operator interpretation of the connection ask. It is not a literal owner quote. `scope_provenance` is `operator_interpretation_not_an_owner_quote`.
-
-The owner transcript lines, copied separately, are:
-
-- t2853: `Can you link Supergrok to the chat as another Ai that’s seperate to Grok Supergrok is the chat function of grok`
-- t2854: `Same way we connected Chat GPT`
-- t2857: `and make sure that Supergrok is connected`
-
-Those lines are the existing connection instruction. They are not a new click, and they do not make this host connected.
+`scope_verbatim` is an operator interpretation of the connection ask. It is not a literal owner quote. `scope_provenance` is `operator_interpretation_not_an_owner_quote`. The bound transcript text is not copied into this tracked example. The tracked template quotes are synthetic. They are not a new click, and they do not make this host connected.
 
 ## Preflight this contract binds
 
