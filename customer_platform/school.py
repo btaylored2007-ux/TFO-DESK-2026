@@ -66,9 +66,12 @@ class School:
         self.versions = {}
         if draft is not None:
             self.versions[draft.get("version")] = draft
-        prior = load_course_version("1.0.0") if draft is not None else None
-        if prior is not None:
-            self.versions.setdefault(prior.get("version"), prior)
+        prior = None
+        base = os.path.join(os.path.dirname(__file__), "school_content")
+        for version, folder in (("1.0.0", "v1.0.0"), ("1.1.0", "v1.1.0"), ("1.1.1", "v1.1.1"), ("1.2.0", "v1.2.0"), ("1.2.1", "v1.2.1")):
+            path = os.path.join(base, folder, "course.json")
+            if os.path.isfile(path):
+                self.versions.setdefault(version, load_author_draft(path))
         self.package = None if draft is not None or package is None else validate_package(package)
         self._lock = __import__("threading").Lock()
 
@@ -76,16 +79,31 @@ class School:
         passed = set(self._progress().get("passed") or [])
         if self.draft is not None:
             rows = []
-            cleared = set(self._progress().get("cleared") or [])
+            progress = self._progress()
+            cleared = set(progress.get("cleared") or [])
+            read = set(progress.get("lessons_read") or [])
             previous = True
             for module in self.draft["modules"]:
-                unlocked = self.published and previous
+                study = previous
+                unlocked = self.published and study
+                lessons = []
+                if study:
+                    lessons = [
+                        {
+                            "lesson_id": lesson["id"],
+                            "read": lesson["id"] in read,
+                            "title": lesson["title"],
+                        }
+                        for lesson in module["lessons"]
+                    ]
                 rows.append({
                     "content": "published" if self.published else "unpublished_draft",
                     "label": module["title"],
+                    "lessons": lessons,
                     "module_id": module["id"],
                     "order": module["number"],
                     "passed": module["id"] in cleared,
+                    "study": study,
                     "unlocked": unlocked,
                 })
                 previous = module["id"] in cleared
@@ -94,6 +112,7 @@ class School:
                 "content_finished": False,
                 "coverage_note": "Draft coverage is representative, not every metric. Fact review is pending.",
                 "credential": "A course completion record is not an accreditation.",
+                "lessons_read": len(read),
                 "modules": rows,
                 "name": self.draft.get("brand") or SCHOOL_NAME,
                 "pass_mark": format(self.pass_mark, "f"),
@@ -140,13 +159,17 @@ class School:
                 "pass_mark": row["pass_mark"],
                 "passed": row["passed"],
                 "questions": row["questions"],
+                "rubric_version": row.get("rubric_version") or row["package_version"],
                 "utc": row["utc"],
             })
         return {
             "attempts": public_attempts,
-            "content_finished": self.package is not None,
+            "cleared": list(body.get("cleared") or []),
+            "content_finished": False if self.draft is not None else self.package is not None,
+            "lessons_read": list(body.get("lessons_read") or []),
             "passed": list(body.get("passed") or []),
             "pass_mark": format(self.pass_mark, "f"),
+            "quiz_passed": list(body.get("quiz_passed") or []),
         }
 
     def begin_attempt(self, module_id, *, review_ack=False):
@@ -192,6 +215,7 @@ class School:
                 "package_version": source.get("version"),
                 "pool": pool,
                 "question_ids": question_ids,
+                "rubric_version": source.get("version"),
                 "utc": self.clock(),
             }
             self._store_open(record)
@@ -243,6 +267,7 @@ class School:
                 "passed": passed,
                 "pool": open_row.get("pool"),
                 "questions": total,
+                "rubric_version": open_row.get("rubric_version") or source.get("version"),
                 "utc": self.clock(),
             }
             body = self._progress()
@@ -268,6 +293,92 @@ class School:
                 "questions": total,
             }
 
+    def read_lesson(self, module_id, lesson_id):
+        """Return one lesson body. The response has no questions and no answer key."""
+        if not self._study_open(module_id):
+            raise ResetBlocked("locked", "This module is still locked")
+        module = self._module(module_id)
+        lesson = None
+        for item in module["lessons"]:
+            if item["id"] == lesson_id:
+                lesson = item
+                break
+        if lesson is None:
+            raise ResetBlocked("lesson", "Lesson was not found")
+        body = self._progress()
+        read = body.setdefault("lessons_read", [])
+        if lesson_id not in read:
+            read.append(lesson_id)
+            write_json(self.progress_path, body)
+        return {
+            "body": lesson["body"],
+            "credential": "A course completion record is not an accreditation.",
+            "layer": lesson.get("layer") or "",
+            "lesson_id": lesson["id"],
+            "module_id": module_id,
+            "published": False,
+            "title": lesson["title"],
+            "warning": "Unpublished draft. Not an accepted course.",
+        }
+
+    def save_rubric(self, module_id, marks, *, profit_claimed=False):
+        """Store manual rubric marks. Profit does not pass the module."""
+        module = self._module(module_id)
+        rubric = module.get("practical_rubric") or {}
+        criteria = list(rubric.get("criteria") or [])
+        if not criteria:
+            raise ResetBlocked("rubric", "this module has no rubric")
+        clean = {}
+        snapshot = []
+        for item in criteria:
+            key = item["id"]
+            if key not in marks:
+                raise ResetBlocked("rubric", "every criterion needs a mark")
+            mark = int(marks[key])
+            if mark not in (0, 1, 2, 3):
+                raise ResetBlocked("rubric", "marks are 0, 1, 2, or 3")
+            clean[key] = mark
+            snapshot.append({
+                "description": item.get("description") or "",
+                "id": key,
+                "objective_evidence": item.get("objective_evidence") or "",
+            })
+        version = (self.draft or {}).get("version") or ""
+        body = self._progress()
+        record = {
+            "criteria": snapshot,
+            "label": "stored rubric, not a pass and not an accreditation",
+            "marks": clean,
+            "module_id": module_id,
+            "package_version": version,
+            "passed": False,
+            "profit_claimed": bool(profit_claimed),
+            "rubric_version": version,
+            "scored": False,
+            "utc": self.clock(),
+        }
+        body.setdefault("rubrics", []).append(record)
+        write_json(self.progress_path, body)
+        return {
+            "label": record["label"],
+            "module_id": module_id,
+            "passed": False,
+            "rubric_version": version,
+            "scored": False,
+        }
+
+    def stored_rubric(self, module_id):
+        """Return the saved rubric snapshot. Later course text does not replace it."""
+        rows = [row for row in self._progress().get("rubrics") or [] if row.get("module_id") == module_id]
+        if not rows:
+            raise ResetBlocked("rubric", "no rubric is stored")
+        row = rows[-1]
+        return {
+            "criteria": list(row.get("criteria") or []),
+            "passed": False,
+            "rubric_version": row.get("rubric_version") or "",
+        }
+
     def save_practical(self, module_id, text, *, critical_mistake=False):
         """Store a paper exercise. It is not auto-graded."""
         if not str(text or "").strip():
@@ -276,6 +387,7 @@ class School:
         entry = {
             "critical_mistake": bool(critical_mistake),
             "module_id": module_id,
+            "package_version": (self.draft or {}).get("version") or "",
             "scored": False,
             "text": str(text)[:2000],
             "utc": self.clock(),
@@ -309,6 +421,21 @@ class School:
         }
         write_json(self.progress_path, body)
         return body["capstone"]
+
+    def _study_open(self, module_id):
+        source = self.draft if self.draft is not None else self.package
+        if source is None:
+            return False
+        ids = [module.get("id") or module.get("module_id") for module in source["modules"]]
+        if module_id not in ids:
+            raise ResetBlocked("module", "Module was not found")
+        if not self.published and not self.draft:
+            return False
+        cleared = set(self._progress().get("cleared") or [])
+        for previous, current in zip([None, *ids], ids):
+            if current == module_id:
+                return previous is None or previous in cleared
+        return False
 
     def _practical_met(self, module):
         if not module.get("practical_required"):
@@ -438,29 +565,74 @@ def load_author_draft(path=None):
         data = json.load(handle)
     if data.get("schema") != "tts-course":
         raise ResetBlocked("package", "draft package is not a school course")
-    if data.get("version") not in {"1.0.0", "1.1.0"}:
+    if data.get("version") not in {"1.0.0", "1.1.0", "1.1.1", "1.2.0", "1.2.1"}:
         raise ResetBlocked("package", "draft package version is not recognised")
     return data
 
 
 def load_course_version(version):
-    base = os.path.join(os.path.dirname(__file__), "school_content")
-    path = os.path.join(base, "v1.0.0" if version == "1.0.0" else "draft", "course.json")
+    folder = {"1.0.0": "v1.0.0", "1.1.0": "v1.1.0", "1.1.1": "v1.1.1", "1.2.0": "v1.2.0", "1.2.1": "v1.2.1"}.get(version)
+    if folder is None:
+        raise ResetBlocked("version", "course version is not stored")
+    path = os.path.join(os.path.dirname(__file__), "school_content", folder, "course.json")
     return load_author_draft(path)
 
 
 def quality_gate(draft):
+    review = (draft or {}).get("content_review") or {}
     return {
+        "compliance_review": bool(review.get("compliance_review")),
+        "expert_certified": bool(review.get("expert_certified")),
         "fact_review": "pending",
         "financial_expert_approval": False,
+        "legal_review": bool(review.get("legal_review")),
         "published": False,
-        "question_pool": "one pool per module; a larger pool is pending",
+        "word_count_is_completion": False,
         "reasons": [
-            "author fact review of regulatory, tax, and settlement claims is pending",
-            "lesson length was not accepted as the 120 to 180 word target",
-            "no financial expert approval",
+            "external expert, legal, and compliance review is open",
+            "a human reread of inherited conceptual items is open",
+            "some explanations are still terse",
+            "11 modules have no alternate question pool",
+            "APRA minima and ISM methodology are not primary-verified here",
+            "no auction-imbalance dataset and no deflated Sharpe",
+            "lesson word count is not a completion criterion",
         ],
     }
+
+
+DATASET_DIR = os.path.join(os.path.dirname(__file__), "school_content", "v1.2.0", "datasets")
+EXERCISE_FILES = ("synthetic_mini_backtest.csv", "synthetic_corporate_actions.csv")
+
+
+def synthetic_exercise():
+    """Stored teaching totals for the invented series. This does not rerun a model."""
+    import json
+    with open(os.path.join(DATASET_DIR, "results.json"), encoding="utf-8") as handle:
+        results = json.load(handle)
+    chosen = results["chosen_lookback_by_in_sample_honest_net"]
+    in_sample = next(row for row in results["in_sample_by_lookback"] if row["lookback"] == chosen)
+    return {
+        "adjusted_split_return": results["split"]["split_adjusted_return_on_split_day"],
+        "disclaimer": results["disclaimer"],
+        "edge_claim": False,
+        "files": list(EXERCISE_FILES),
+        "in_sample_net": in_sample["honest_with_cost"]["total_return"],
+        "label": "SYNTHETIC",
+        "look_ahead_in_sample": in_sample["lookahead_with_cost"]["total_return"],
+        "lookback": chosen,
+        "out_of_sample_net": results["out_of_sample_for_chosen_lookback"]["honest_with_cost"]["total_return"],
+        "published": False,
+        "raw_split_return": results["split"]["raw_close_return_on_split_day"],
+        "seed": results["seed"],
+        "series": "synthetic csv",
+    }
+
+
+def synthetic_exercise_file(name):
+    if name not in EXERCISE_FILES:
+        raise Denied("that file is not the synthetic exercise")
+    with open(os.path.join(DATASET_DIR, name), "rb") as handle:
+        return handle.read()
 
 
 def load_package(path):

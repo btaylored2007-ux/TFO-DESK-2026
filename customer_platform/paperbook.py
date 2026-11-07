@@ -417,7 +417,7 @@ class PaperBook:
             ],
             "currency": currency,
             "current_epoch_session_pnl": epoch["session_realized_pnl"],
-            "current_epoch_session_pnl_label": "This epoch's performance P&L. A new epoch starts at 0 because it has no fills yet.",
+            "current_epoch_session_pnl_label": "This epoch's performance P&L from fills in the open epoch. Not the capital balance.",
             "excludes": ["opening_capital", "paper_fund", "balance_adjustment", "epoch_close"],
             "historical_realized_pnl": format_signed(lifetime, currency),
             "historical_realized_pnl_label": "Sum of fill P&L on the append-only ledger. Resets do not rewrite it.",

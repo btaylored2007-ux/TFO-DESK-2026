@@ -26,11 +26,14 @@ from customer_platform.errors import (
 )
 from customer_platform.pages import (
     admin_document,
+    ask_page,
     brain_page,
     desk,
     education_page,
     esc,
+    exercise_page,
     home,
+    lesson_page,
     membership_document,
     page,
     preview_page,
@@ -114,8 +117,8 @@ def handler_for(platform):
                     body = handle.read()
                 self._bytes(200, body, "text/css; charset=utf-8")
                 return
-            if path == "/setup-status":
-                self._html(200, setup_page(self.server_platform().setup_status()))
+            if path in {"/health", "/setup-status", "/diagnostics"}:
+                self._html(404, page("Not found", "<p>That page is not part of the customer web app.</p>"))
                 return
             if path in {"/", "/login"}:
                 self._html(200, home(self.server_platform().setup_status(), self._csrf()))
@@ -135,6 +138,20 @@ def handler_for(platform):
                 self._html(200, desk(self.server_platform().desk(token), self._csrf()))
             elif path == "/school":
                 self._html(200, school_page(self.server_platform().school_catalog(token)))
+            elif path == "/school/exercise":
+                self._html(200, exercise_page(self.server_platform().school_exercise(token)))
+            elif path.startswith("/school/exercise/"):
+                name = path.rsplit("/", 1)[-1]
+                payload = self.server_platform().school_exercise_file(token, name)
+                self._bytes(200, payload, "text/csv; charset=utf-8")
+            elif path.startswith("/school/tts.m"):
+                parts = [part for part in path.split("/") if part]
+                if len(parts) != 3 or not parts[2].startswith(parts[1] + "."):
+                    self._html(404, page("Not found", "<p>That lesson is not in this draft.</p>", logged_in=True))
+                else:
+                    self._html(200, lesson_page(self.server_platform().school_lesson(token, parts[1], parts[2])))
+            elif path == "/ask":
+                self._html(200, ask_page(self.server_platform().ask_list(token), self._csrf()))
             elif path == "/teach":
                 self._html(200, teach_page(self.server_platform().teach_list(token), self._csrf()))
             elif path == "/journal":
@@ -143,6 +160,15 @@ def handler_for(platform):
                     items="".join("<p>{0}</p>".format(esc(row["text"])) for row in rows) or "<p>No notes yet.</p>"
                 )
                 self._html(200, page("Practice journal", body, logged_in=True))
+            elif path == "/board":
+                board = self.server_platform().private_board(token)
+                lines = "".join(
+                    "<li>{0}: {1} from {2} closes</li>".format(esc(row["trader_id"]), esc(row["net"]), esc(row["samples"]))
+                    for row in board["results"]
+                ) or "<li>No closed paper results in this window.</li>"
+                body = "<section class=\"card\"><h2>This login only</h2><p>{0}</p><ul>{1}</ul><p>Not a public leaderboard.</p></section>".format(
+                    esc(board["costs"]), lines)
+                self._html(200, page("Results", body, logged_in=True))
             elif path == "/brain":
                 platform = self.server_platform()
                 self._html(200, brain_page(
@@ -219,6 +245,9 @@ def handler_for(platform):
             elif path == "/desk/stop":
                 result = platform.stop_trading(token)
                 self._html(200, page("Practice desk", "<p class=\"state\">{0}</p><p><a href=\"/desk\">Back</a></p>".format(esc(result["headline"])), logged_in=True))
+            elif path == "/ask":
+                platform.ask(token, form.get("text", ""), form.get("idempotency_key") or ("web-" + secrets.token_hex(8)))
+                self._redirect("/ask")
             elif path == "/teach/save":
                 platform.teach_save(
                     token,

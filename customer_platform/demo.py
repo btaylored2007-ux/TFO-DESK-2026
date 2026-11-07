@@ -20,6 +20,8 @@ def seed(root, password=None):
         "ada@example.com", password, "Ada", starting_capital="10000.00", currency="USD", fixture=True,
     )
     token = platform.login("ada@example.com", password)
+    platform.use_test_feed_probe(token)
+    platform.start_trading(token)
     buy = platform.place_order(
         token, symbol="AAPL", side="buy", qty="10", limit_price="100.00",
         idempotency_key="demo-buy-aapl-10",
@@ -30,6 +32,7 @@ def seed(root, password=None):
         idempotency_key="demo-sell-aapl-10",
     )
     platform.fill_order(token, sell["order_id"], price="90.00", fixture=True)
+    platform.stop_trading(token)
     platform.run_brain(token, trigger="manual", idempotency_key="demo-brain-once")
     path = os.path.join(platform.store.root, "local_demo_password.txt")
     with open(path, "w", encoding="utf-8") as handle:

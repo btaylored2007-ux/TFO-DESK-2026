@@ -14,7 +14,7 @@ def page(title, body, *, csrf="", logged_in=False):
     if logged_in:
         nav = (
             "<nav aria-label=\"Primary\"><a href=\"/school\">School</a><a href=\"/desk\">Desk</a>"
-            "<a href=\"/teach\">Teach</a><a href=\"/board\">Board</a><a href=\"/account\">Account</a></nav>"
+            "<a href=\"/teach\">Teach</a><a href=\"/ask\">Ask</a><a href=\"/board\">Board</a><a href=\"/account\">Account</a></nav>"
         )
     html = """<!DOCTYPE html>
 <html lang="en">
@@ -466,25 +466,104 @@ def _trade_action(trading, csrf):
     ).format(path=path, csrf=esc(csrf), kind=kind, label=label)
 
 
+def ask_page(rows, csrf):
+    cards = []
+    for row in rows:
+        events = "".join(
+            "<p><strong>{0}</strong> {1}</p>".format(esc(item.get("sender", "")), esc(item.get("body", "")))
+            for item in row.get("events") or []
+        )
+        reviews = ""
+        if row.get("reviews"):
+            reviews = "<details><summary>Independent reviews. Not a combined answer.</summary>" + "".join(
+                "<p><strong>{0}</strong> {1}</p>".format(esc(item.get("sender", "")), esc(item.get("body", "")))
+                for item in row["reviews"]
+            ) + "</details>"
+        cards.append(
+            "<article><p>{0} · {1}</p><p>{2}</p>{3}{4}</article>".format(
+                esc(row.get("status", "")), esc(row.get("provider", "")), esc(row.get("answer", "")), events, reviews,
+            )
+        )
+    body = (
+        "<section class=\"card\"><h2>Ask</h2>"
+        "<p>No provider is connected. A saved question is not sent out.</p>"
+        "<form method=\"post\" action=\"/ask\"><input type=\"hidden\" name=\"csrf\" value=\"{csrf}\">"
+        "<label>Question <textarea name=\"text\" rows=\"4\" required></textarea></label>"
+        "<button class=\"tap\" type=\"submit\">Save question</button></form>"
+        "{cards}</section>"
+    ).format(csrf=esc(csrf), cards="".join(cards) or "<p>No question saved yet.</p>")
+    return page("Ask", body, logged_in=True)
+
+
 def school_page(catalog):
     items = []
     for module in catalog["modules"]:
-        items.append("<li><span>{order}. {label}</span> <small>Unpublished draft</small></li>".format(
-            order=module["order"], label=esc(module["label"]),
+        lessons = ""
+        if module.get("study") and module.get("lessons"):
+            lessons = "<ul class=\"school\">" + "".join(
+                "<li><a href=\"/school/{module}/{lesson}\">{title}</a></li>".format(
+                    module=esc(module["module_id"]), lesson=esc(row["lesson_id"]), title=esc(row["title"]),
+                )
+                for row in module["lessons"]
+            ) + "</ul>"
+        else:
+            lessons = "<p>Locked until the previous module is cleared on the server.</p>"
+        items.append("<li><span>{order}. {label}</span> <small>Unpublished draft</small>{lessons}</li>".format(
+            order=module["order"], label=esc(module["label"]), lessons=lessons,
         ))
     body = """
     <section class="card">
       <p class="warning">Unpublished draft. Not an accepted course. Fact review is unfinished.</p>
       <p>Pass mark {mark}. {credential}</p>
       <p>{note}</p>
-      <p>Your progress stays on this login.</p>
+      <p>Lessons opened on this login: {read}. Quiz keys stay on the server.</p>
+      <p><a href="/school/exercise">Synthetic worked exercise</a>. It is not a market result.</p>
       <ol class="school">{items}</ol>
     </section>
     """.format(
         mark=esc(catalog["pass_mark"]), credential=esc(catalog["credential"]),
-        note=esc(catalog["coverage_note"]), items="".join(items),
+        note=esc(catalog["coverage_note"]), read=esc(catalog.get("lessons_read", 0)),
+        items="".join(items),
     )
     return page("The Transparent Trading School", body, logged_in=True)
+
+
+def exercise_page(item):
+    body = """
+    <section class="card">
+      <p class="warning">Synthetic exercise. Not market data, not an order book, and not a performance claim.</p>
+      <p>{disclaimer}</p>
+      <p>Seed {seed}. Chosen in-sample lookback {lookback}. In-sample net {insample}. Out of sample {oos}. Look-ahead in sample {ahead}.</p>
+      <p>Split-day raw return {raw}. Split-adjusted return {adjusted}.</p>
+      <p>These figures are the synthetic CSV for the lookback chosen in sample. They are not a walk-forward Sharpe example from a lesson, and they are not the best out-of-sample row.</p>
+      <p><a href="/school/exercise/synthetic_mini_backtest.csv">Synthetic price file</a></p>
+      <p><a href="/school/exercise/synthetic_corporate_actions.csv">Synthetic split file</a></p>
+      <p><a href="/school">Back to modules</a></p>
+    </section>
+    """.format(
+        disclaimer=esc(item["disclaimer"]), seed=esc(item["seed"]), lookback=esc(item["lookback"]),
+        insample=esc(item["in_sample_net"]), oos=esc(item["out_of_sample_net"]),
+        ahead=esc(item["look_ahead_in_sample"]), raw=esc(item["raw_split_return"]),
+        adjusted=esc(item["adjusted_split_return"]),
+    )
+    return page("Synthetic exercise", body, logged_in=True)
+
+
+def lesson_page(lesson):
+    text = "".join("<p>{0}</p>".format(esc(part.strip())) for part in lesson["body"].split("\n") if part.strip())
+    body = """
+    <section class="card">
+      <p class="warning">{warning}</p>
+      <p><a href="/school">Back to modules</a></p>
+      <h2>{title}</h2>
+      {text}
+      <p>{credential} The quiz is not open on this draft.</p>
+    </section>
+    """.format(
+        warning=esc(lesson["warning"]), title=esc(lesson["title"]), text=text,
+        credential=esc(lesson["credential"]),
+    )
+    return page(lesson["title"], body, logged_in=True)
 
 
 FUNDS_ACK = FUNDS_PHRASE

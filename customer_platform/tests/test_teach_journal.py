@@ -86,6 +86,24 @@ def test_rails_and_reset_keep_the_skill_and_journal(tmp_path):
     assert filled["id"]
 
 
+def test_start_blocked_notifies_operator_only_inside_the_app(tmp_path):
+    desk, token, _created = desk_for(tmp_path)
+    result = desk.start_trading(token)
+    assert result["started"] is False and result["orders_sent"] == 0
+    with pytest.raises(Denied):
+        desk.operator_incidents(token)
+    desk.create_operator("op@example.com", "correct-horse-9", "Op")
+    report = desk.operator_incidents(desk.operator_login("op@example.com", "correct-horse-9"))
+    assert report["external_notification"] == "off"
+    assert report["engineer_running"] is False
+    assert report["incidents"][0]["code"] == "prices_unavailable"
+    again = desk.start_trading(token)
+    assert again["started"] is False
+    report = desk.operator_incidents(desk.operator_login("op@example.com", "correct-horse-9"))
+    assert len(report["incidents"]) == 1
+    assert report["incidents"][0]["recurrence"] >= 2
+
+
 def test_school_draft_is_not_a_published_course(tmp_path):
     desk, token, _created = desk_for(tmp_path)
     catalog = desk.school_catalog(token)

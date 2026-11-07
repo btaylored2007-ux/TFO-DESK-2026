@@ -29,9 +29,16 @@ from customer_platform.files import ensure_dir, read_json, write_json
 from customer_platform.journal import Journal
 from customer_platform.money import money_text, parse_money, parse_signed_money
 from customer_platform.paperbook import PaperBook, format_signed
-from customer_platform.school import School, load_author_draft, load_package
+from customer_platform.school import (
+    School,
+    load_author_draft,
+    load_package,
+    synthetic_exercise,
+    synthetic_exercise_file,
+)
 from customer_platform.skills import Skills
 from customer_platform.payments import Payments
+from customer_platform.requests import Requests
 from customer_platform.redact import redact
 from customer_platform.reset import RESET_PHRASE, ResetService
 from customer_platform.starter import starter_pack
@@ -59,11 +66,14 @@ class Platform:
         self._probes = {}
         self.pass_mark = os.environ.get("CUSTOMER_PLATFORM_PASS_MARK", "0.80")
         self.school_draft = load_author_draft()
+        self.incidents = None
         self.school_package = load_package(os.environ.get("CUSTOMER_PLATFORM_SCHOOL_PACKAGE"))
         ensure_dir(self.root)
         self._blank("operators.json", {})
         self._blank("operator_sessions.json", {})
         self.recover()
+        from customer_platform.incidents import Incidents
+        self.incidents = Incidents(self.store.root, self.clock)
 
     def clock(self):
         if self.clock_fn is None:
@@ -226,6 +236,8 @@ class Platform:
     def start_trading(self, token, claimed_tenant=None):
         ctx = self._require(token, "admin", claimed_tenant)
         result = self._control(ctx["tenant_id"]).start()
+        if not result["started"]:
+            self.incidents.detect("prices_unavailable", ctx["tenant_id"], evidence=["prices not available"])
         self._audit(ctx["tenant_id"], ctx["user_id"], "start_trading", result["started"])
         return result
 
@@ -280,6 +292,24 @@ class Platform:
             raise ResetBlocked("answers", "Answers are required")
         return self._school(ctx["tenant_id"]).submit(attempt_id, answers)
 
+    def school_lesson(self, token, module_id, lesson_id, claimed_tenant=None):
+        ctx = self._require(token, "read", claimed_tenant)
+        return self._school(ctx["tenant_id"]).read_lesson(module_id, lesson_id)
+
+    def school_rubric(self, token, module_id, marks, *, profit_claimed=False, claimed_tenant=None):
+        ctx = self._require(token, "trade_open", claimed_tenant)
+        return self._school(ctx["tenant_id"]).save_rubric(module_id, marks, profit_claimed=profit_claimed)
+
+    def school_exercise(self, token, claimed_tenant=None):
+        ctx = self._require(token, "read", claimed_tenant)
+        self._school(ctx["tenant_id"])
+        return synthetic_exercise()
+
+    def school_exercise_file(self, token, name, claimed_tenant=None):
+        ctx = self._require(token, "read", claimed_tenant)
+        self._school(ctx["tenant_id"])
+        return synthetic_exercise_file(name)
+
     def teach_list(self, token, claimed_tenant=None):
         ctx = self._require(token, "read", claimed_tenant)
         return self._skills(ctx["tenant_id"]).list_skills()
@@ -310,6 +340,31 @@ class Platform:
     def teach_rollback(self, token, skill_id, version, claimed_tenant=None):
         ctx = self._require(token, "admin", claimed_tenant)
         return self._skills(ctx["tenant_id"]).rollback(skill_id, version)
+
+    def ask(self, token, text, idempotency_key, claimed_tenant=None):
+        ctx = self._require(token, "trade_open", claimed_tenant)
+        return self._requests(ctx["tenant_id"]).submit(
+            user_id=ctx["user_id"], text=text, idempotency_key=idempotency_key,
+        )
+
+    def ask_view(self, token, request_id, claimed_tenant=None):
+        ctx = self._require(token, "read", claimed_tenant)
+        return self._requests(ctx["tenant_id"]).customer_view(request_id)
+
+    def ask_reviews(self, token, request_id, claimed_tenant=None):
+        ctx = self._require(token, "read", claimed_tenant)
+        return self._requests(ctx["tenant_id"]).reviews(request_id)
+
+    def ask_list(self, token, claimed_tenant=None):
+        ctx = self._require(token, "read", claimed_tenant)
+        return self._requests(ctx["tenant_id"]).list_for(ctx["user_id"])
+
+    def ask_consider(self, token, text, claimed_tenant=None):
+        ctx = self._require(token, "read", claimed_tenant)
+        return self._requests(ctx["tenant_id"]).consider_text(text)
+
+    def _requests(self, tenant_id):
+        return Requests(self._tenant_dir(tenant_id), self.clock)
 
     def journal_add(self, token, *, kind, text, module_id="", claimed_tenant=None):
         ctx = self._require(token, "trade_open", claimed_tenant)
@@ -765,6 +820,10 @@ class Platform:
         if self._entitlements(ctx["tenant_id"])["blocked"] and action in {"checkout", "promote", "submit", "trade_open"}:
             raise Denied("membership is blocked")
         return ctx
+
+    def operator_incidents(self, operator_token):
+        self._operator(operator_token)
+        return self.incidents.list_for_operator()
 
     def _operator(self, token):
         sessions = read_json(self._path("operator_sessions.json"), {})

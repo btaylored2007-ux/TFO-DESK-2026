@@ -1,0 +1,2 @@
+date,timezone,action,factor,series_label,note
+2024-04-23,Australia/Sydney,split,2-for-1,SYNTHETIC,Raw prices from this date inclusive are post-split. Use split_adjustment_factor to build a continuous return series. Invented event.

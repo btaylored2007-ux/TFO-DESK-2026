@@ -371,8 +371,23 @@ def test_loopback_web_signup_and_reset_preview(tmp_path):
         status, preview = request("POST", "/desk/reset/preview", {"csrf": cookies["cp_csrf"], "amount": "10000.00"})
         assert status == 200 and "RESET PAPER CAPITAL" in preview
         assert "starts at 0" in preview
+        status, health = request("GET", "/health")
+        assert status == 404 and "Traceback" not in health
         status, setup = request("GET", "/setup-status")
-        assert "hosted customer web app" in setup and "public leaderboard statistics" in setup
+        assert status == 404
+        status, school = request("GET", "/school")
+        assert status == 200 and "Unpublished draft" in school and "correct_option" not in school
+        assert "Who is in the market" in school
+        status, lesson = request("GET", "/school/tts.m01/tts.m01.l1")
+        assert status == 200 and "A trade passes through several parties" in lesson and "correct_option" not in lesson
+        status, locked = request("GET", "/school/tts.m02/tts.m02.l1")
+        assert status == 400 and "correct_option" not in locked
+        status, exercise = request("GET", "/school/exercise")
+        assert status == 200 and "Synthetic exercise" in exercise and "not a performance claim" in exercise
+        status, sheet = request("GET", "/school/exercise/synthetic_mini_backtest.csv")
+        assert status == 200 and b"SYNTHETIC" in sheet.encode() or "SYNTHETIC" in sheet
+        status, hidden = request("GET", "/school/exercise/results.json")
+        assert status == 403
     finally:
         httpd.shutdown()
         httpd.server_close()

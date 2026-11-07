@@ -6,9 +6,13 @@ Another session can continue from this branch without the owner desk. Do not SSH
 
 Owner t2845u approved practical exercises, a private journal, mistake reviews, and Upload Skills. Those are in this package. The journal is stored and is not scored. Upload Skills saves the customer's words; AI interpretation stays unavailable until a provider is connected. Neither path is a promise of results.
 
-Course file now loaded is v1.1.0, which supersedes v1.0.0. v1.0.0 is kept so an old attempt can still be graded. Independent counts: 21 modules, 126 lessons, 251 questions. The original 215 answer keys are unchanged. Pool B adds 36 questions in six modules. The course is an unpublished draft: lessons are not opened in the customer UI, answer keys are not sent to the browser, and there is no expert or legal approval. Author defaults (80 percent, 30 paper trades, capstone average 2.0) are product settings, not a law. A course completion record is not an accreditation. The author's 100-question formula check is not acceptance of this app. The 71-file course workspace was not in this attachment; the files saved here are the course JSON, QA, sources, and handover.
+Course file now loaded is v1.2.1, which supersedes v1.2.0. v1.0.0, v1.1.0, v1.1.1 and v1.2.0 stay byte-for-byte so an old attempt still grades on that course and that rubric snapshot. The draft has 21 modules, 126 lessons and 287 questions. Question ids and correct options are unchanged. Lesson prose is 22,275 words, and that count is not a completion rule. The Module 8 CFD close-out in v1.2.1 is 5% of the A$20,000 notional, not a 10% wipeout. A stored v1.2.0 rubric keeps the earlier wording. Expert, legal and compliance review are open. The conceptual review read all 287 questions and all 21 rubrics, fully read 23 lesson bodies, and claim-scanned the other 105. 112 numeric checks passed. That is not certification. APRA minima are unverified. Missing alternate pools are a limitation, not an acceptance rule. A nine-loss figure of 0.3053 is the Markov result for 120 independent trials with loss probability 0.58, not a market forecast.
 
-Human School progress and Teach my traders are separate pages. There is no customer health screen. The trial is not delivered.
+The synthetic worked series ships under `school_content/v1.2.0/datasets/`. It is labelled SYNTHETIC, seed 20261107. The customer page can open that exercise and the two CSV files. It is not a market result and not an edge. The content archive hash is `7be8320c4297397dabb6dde7d79fc67e317b2b16d715b512b042abf04a9d7a06`.
+
+## Customer questions (2026-11-07)
+
+The customer app had no chat. It still does not call a model, and it does not reuse the owner THF threads. `/ask` saves a question for that customer. The provider field stays `not_connected` until a reply is delivered inside this process. One lead reply is the answer. Independent reviews stay behind an expand and are not merged into a second answer. A critical event is kept even after the request is complete, failed, cancelled, or past the reply bound. A late or stale reply is stored and is not the answer. The same delivery key is a retry: the raw record stays, and the retry is an audit line. A reply that says an order was placed does not place an order, and it cannot start another delivery. This shape is a proposed customer view, not a new trading rule. Owner-desk chat fixes stay on the owner review.
 
 Human School progress and Teach my traders are separate pages. There is no customer health screen. The trial is not delivered.
 
@@ -16,7 +20,7 @@ Research claims from five vendors are archived under `customer_platform/research
 
 ## What the next session should do
 
-1. Do not publish the school until fact review, a larger question pool for the 15 single-pool modules, and a named reviewer exist.
+1. Do not publish the school. Expert, legal and compliance review are open, 11 modules have no pool B, and a human reread of inherited conceptual items is still open.
 2. Keep external incident alerts off until a channel and credential exist.
 3. Do not open a public port or restart the owner desk.
 
@@ -86,8 +90,7 @@ Dependencies: Python 3.12 standard library, `pytest` for tests, and `veteran_des
 
 ## Tests last run
 
-- `customer_platform/tests`: 14 passed.
-- `veteran_desk/tests/test_tenant_foundation_20261106.py`: 6 passed.
+- Combined command in `TEST_INVENTORY.md`: 36 passed (30 customer tests and the original 6 foundation tests). No network. That count is not a claim that the course or the app is finished.
 
 Negative cases in the customer tests: wrong tenant, live venue, float/NaN/negative/extra decimals, open position, pending order, zero capital without acknowledgement, idempotency conflict, race, three crash points, rails tamper, cross-tenant idea read, prompt injection, secret redaction, unsigned webhook, live-mode webhook, sector opt-out still allowing an exit, non-loopback bind refused, `/leaderboard` returns 404.
 
@@ -100,9 +103,6 @@ Negative cases in the customer tests: wrong tenant, live venue, float/NaN/negati
 
 ## Archive
 
-Runnable source archive, for the coordinator to copy onto Singapore outside production:
+The earlier foundation archive `customer-platform-foundation-source.tar.gz` stays in place. Its sha256 is `cad96a532314b6321c35dffa03d14a9620b8f1d4f4a779fbb80486ac087cf873`. Do not overwrite it.
 
-- `/opt/cursor/artifacts/customer-platform-foundation-source.tar.gz`
-- `/opt/cursor/artifacts/customer-platform-foundation-source.sha256`
-
-The archive contains this package, its tests, `config.example`, the foundation doc, and a copy of `veteran_desk/tenant_foundation.py` under `dependency/`. It does not contain runtime customer state, demo passwords, or provider keys. An earlier intermediate snapshot, taken before the web pages and tests were finished, is `customer-platform-intermediate-20261107T120718Z.tar.gz` in the same directory. Use the foundation archive, not the intermediate one.
+The current self-contained export is `customer-platform-final-20261107.tar.gz`. It contains this package, school versions 1.0.0 through 1.2.1, the synthetic dataset files, the real `veteran_desk/thf_dash.py` and `tenant_foundation.py`, and the original 6 foundation tests. The sha256 is the sidecar file next to that archive. It has no demo password and no provider key. Neither archive is a trial deployment.

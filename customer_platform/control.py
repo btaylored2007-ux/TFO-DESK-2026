@@ -260,8 +260,8 @@ def blocked(feeds):
 
 
 def _customer_notice(state, feeds):
-    if blocked(feeds):
-        return "New entries are off. Prices are not available."
-    if state.get("state") != "running":
+    if state.get("state") == "running":
         return ""
+    if blocked(feeds):
+        return "Prices are not ready. Start stays off until they are."
     return ""
