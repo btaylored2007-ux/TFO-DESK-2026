@@ -16,6 +16,21 @@
     "note": "The six existing PR19 paths in this capture are byte-identical on dash/base and live/thf, and those bytes are the base_sha256 values below. thf_home.py on the capture is not the repo copy and is not written."
   },
   "book_must_remain": "b4453b503f33e34110519bf4d7a9bf391ecc2802edbd87acca3e77dc96b7e891",
+  "deployed_0832": {
+    "commit": "39dcb48",
+    "wita": "2026-11-07 08:32 WITA",
+    "note": "PR19 bytes that were already on the dash. From a tree at these hashes the installer replaces only the four UI files below. thf_dash.py and thf_chat_home.py are already the target and are not written.",
+    "replace_when_tree_matches_deployed": [
+      "tools/thf_eli10.html",
+      "tools/thf_eli10.js",
+      "tools/thf_chat.js",
+      "tools/thf_chat_page.html"
+    ],
+    "already_current": [
+      "veteran_desk/thf_dash.py",
+      "veteran_desk/thf_chat_home.py"
+    ]
+  },
   "replace": [
     {
       "path": "tools/thf_eli10.html",
