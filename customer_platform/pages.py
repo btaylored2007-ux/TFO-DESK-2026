@@ -118,6 +118,7 @@ def desk(model, csrf):
     <section class="hero" aria-live="polite">
       <p class="state">{headline}</p>
       <p>{notice}</p>
+      {strategy}
       {action}
     </section>
     {figures}
@@ -171,6 +172,7 @@ def desk(model, csrf):
         headline=esc(trading["headline"]),
         notice=esc(trading.get("notice") or ""),
         action=_trade_action(trading, csrf),
+        strategy="<p>An active written rule can place one paper order from the synthetic print. This is not AI trading.</p>" if model.get("active_strategies") else "",
         figures=figures, chart=chart, holdings=holdings, policy=policy,
         distance=esc(distance), csrf=esc(csrf),
         a1="selected" if str(trading.get("activity")) == "1" else "",
@@ -609,6 +611,30 @@ def ask_page(rows, csrf):
         "{cards}</section>"
     ).format(csrf=esc(csrf), cards="".join(cards) or "<p>No question saved yet.</p>")
     return page("Ask", body, logged_in=True)
+
+
+def quiz_page(attempt, csrf):
+    rows = []
+    for question in attempt.get("questions") or []:
+        options = "".join(
+            "<label><input type=\"radio\" name=\"answer-{0}\" value=\"{1}\"> {2}</label>".format(
+                esc(question["question_id"]), esc(option["id"]), esc(option["text"]),
+            )
+            for option in question["options"]
+        )
+        rows.append("<fieldset><legend>{0}</legend>{1}</fieldset>".format(esc(question["stem"]), options))
+    body = """
+    <section class="card">
+      <p class="warning">Synthetic fixture course. Not the unpublished school.</p>
+      <form method="post" action="/school/grade">
+        <input type="hidden" name="csrf" value="{csrf}">
+        <input type="hidden" name="attempt_id" value="{attempt}">
+        {rows}
+        <button type="submit">Submit</button>
+      </form>
+    </section>
+    """.format(csrf=esc(csrf), attempt=esc(attempt["attempt_id"]), rows="".join(rows))
+    return page("Practice question", body, logged_in=True)
 
 
 def school_page(catalog):

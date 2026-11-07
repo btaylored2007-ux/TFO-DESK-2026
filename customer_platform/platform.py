@@ -65,6 +65,7 @@ class Platform:
         self.worker_enabled = False
         self._probes = {}
         self._ask_fixture = {}
+        self._school_override = {}
         self._provider_transport = {}
         self.pass_mark = os.environ.get("CUSTOMER_PLATFORM_PASS_MARK", "0.80")
         self.school_draft = load_author_draft()
@@ -193,6 +194,7 @@ class Platform:
             "tenant_id": ctx["tenant_id"],
             "trading": self._control(ctx["tenant_id"]).view(),
             "stop_distance": state.get("stop_distance") or "",
+            "active_strategies": len(self._skills(ctx["tenant_id"]).executable_rules()),
             "venue": state["venue"],
         }
 
@@ -341,6 +343,14 @@ class Platform:
         if not isinstance(answers, dict):
             raise ResetBlocked("answers", "Answers are required")
         return self._school(ctx["tenant_id"]).submit(attempt_id, answers)
+
+    def school_practical(self, token, module_id, text, claimed_tenant=None):
+        ctx = self._require(token, "trade_open", claimed_tenant)
+        return self._school(ctx["tenant_id"]).save_practical(module_id, text)
+
+    def school_capstone(self, token, scores, claimed_tenant=None):
+        ctx = self._require(token, "trade_open", claimed_tenant)
+        return self._school(ctx["tenant_id"]).save_capstone(scores)
 
     def school_lesson(self, token, module_id, lesson_id, claimed_tenant=None):
         ctx = self._require(token, "read", claimed_tenant)
@@ -522,6 +532,11 @@ class Platform:
     def operator_incident_action(self, operator_token, incident_id, action, *, learning="", outcome="blocked"):
         operator = self._operator(operator_token)
         owner = operator.get("email") or "operator"
+        if action == "recheck":
+            action = "repair"
+        if action == "escalate":
+            action = "close"
+            outcome = "escalated"
         if action == "ack":
             return self.incidents.assign(incident_id, owner)
         if action == "repair":
@@ -1062,7 +1077,20 @@ class Platform:
     def _skills(self, tenant_id):
         return Skills(self._tenant_dir(tenant_id), self.clock, ai_connected=False)
 
+    def authorize_synthetic_school(self, token, course, claimed_tenant=None):
+        ctx = self._require(token, "admin", claimed_tenant)
+        if not isinstance(course, dict) or course.get("label") != "SYNTHETIC FIXTURE":
+            raise Denied("only a labelled synthetic fixture course can be opened")
+        self._school_override[ctx["tenant_id"]] = course
+        return {"published_real_course": False, "synthetic": True}
+
     def _school(self, tenant_id):
+        override = self._school_override.get(tenant_id)
+        if override is not None:
+            return School(
+                self._tenant_dir(tenant_id), self.clock,
+                pass_mark=self.pass_mark, draft=override, published=True,
+            )
         return School(
             self._tenant_dir(tenant_id), self.clock,
             pass_mark=self.pass_mark, draft=self.school_draft, published=False,

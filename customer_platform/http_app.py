@@ -38,6 +38,7 @@ from customer_platform.pages import (
     membership_document,
     page,
     preview_page,
+    quiz_page,
     result_page,
     sandbox_page,
     school_page,
@@ -342,6 +343,20 @@ def handler_for(platform):
             elif path == "/desk/stop-distance":
                 platform.set_stop_distance(token, form.get("distance") or "0")
                 self._html(200, desk(platform.desk(token), self._csrf()))
+            elif path == "/school/begin":
+                attempt = platform.school_begin(token, form.get("module_id") or "tts.m01")
+                self._html(200, quiz_page(attempt, self._csrf()))
+            elif path == "/school/grade":
+                answers = {key[7:]: value for key, value in form.items() if key.startswith("answer-")}
+                result = platform.school_submit(token, form.get("attempt_id", ""), answers)
+                self._html(200, page("Result", "<p>{0}. Passed {1}.</p>".format(esc(result.get("credential")), esc(result.get("passed"))), logged_in=True))
+            elif path == "/school/practical":
+                result = platform.school_practical(token, form.get("module_id") or "", form.get("text") or "")
+                self._html(200, page("Practical", "<p>Saved. Scored {0}.</p>".format(esc(result.get("scored"))), logged_in=True))
+            elif path == "/school/capstone":
+                scores = {key: form.get(key) for key in form if key.startswith("c")}
+                result = platform.school_capstone(token, scores)
+                self._html(200, page("Capstone", "<p>{0}</p>".format(esc(result.get("label"))), logged_in=True))
             elif path == "/teach/test":
                 platform.teach_run_test(token, form.get("skill_id", ""))
                 self._redirect("/teach")

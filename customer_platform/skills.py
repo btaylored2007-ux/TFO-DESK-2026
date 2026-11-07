@@ -59,6 +59,29 @@ class Skills:
         os.chmod(path, 0o600)
         return self._save(user_id, trader_ids, parsed, source_text=text[:4000], upload_id=upload_id)
 
+    def executable_rules(self):
+        """Active versions whose own test accepted the written risk rule. Not a model reading."""
+        rows = []
+        for skill in self._load()["skills"]:
+            if skill.get("status") != "active" or not skill.get("versions"):
+                continue
+            version = skill["versions"][-1]["version"]
+            tests = [item for item in skill.get("tests") or [] if item.get("risk_ok")]
+            if not tests:
+                continue
+            entry = skill["rules"].get("entry") or ""
+            symbol = _symbol_in(entry)
+            percent = _stop_percent(skill["rules"].get("risk") or "")
+            if not symbol or percent is None:
+                continue
+            rows.append({
+                "percent": percent,
+                "skill_id": skill["id"],
+                "symbol": symbol,
+                "version": version,
+            })
+        return rows
+
     def list_skills(self):
         return [_public(skill) for skill in self._load()["skills"]]
 
@@ -203,6 +226,20 @@ class Skills:
             if skill["id"] == skill_id:
                 return skill
         raise ResetBlocked("skill", "skill was not found on this account")
+
+
+def _symbol_in(entry):
+    match = re.search(r"\bbuy\s+([A-Za-z]{1,8})\b", entry or "")
+    if not match:
+        return ""
+    return match.group(1).upper()
+
+
+def _stop_percent(risk):
+    match = re.search(r"\bstop\s+(\d+(?:\.\d+)?)\s+percent\s+below\b", risk or "", re.I)
+    if not match:
+        return None
+    return match.group(1)
 
 
 def _review_teaching(text, rules):

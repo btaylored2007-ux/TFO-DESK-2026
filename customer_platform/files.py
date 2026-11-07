@@ -132,6 +132,28 @@ def hash_tree(root):
     return digest.hexdigest()
 
 
+def try_file_lock(path):
+    """Exclusive lock or None when another process already holds it."""
+    ensure_dir(os.path.dirname(path))
+    handle = open(path, "a+")
+    if fcntl is None:
+        return handle
+    try:
+        fcntl.flock(handle.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except BlockingIOError:
+        handle.close()
+        return None
+    return handle
+
+
+def release_file_lock(handle):
+    if handle is None:
+        return
+    if fcntl is not None:
+        fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
+    handle.close()
+
+
 @contextmanager
 def file_lock(path):
     ensure_dir(os.path.dirname(path))

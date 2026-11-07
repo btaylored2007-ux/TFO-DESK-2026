@@ -513,6 +513,8 @@ class PaperBook:
             "strategy_id": order.get("strategy_id") or "unknown",
             "strategy_version": order.get("strategy_version") or "unknown",
             "feed": order.get("feed") or "unknown",
+            "decision": order.get("decision") or "unknown",
+            "decision_order_id": order.get("order_id") or "unknown",
             "symbol": order["symbol"],
         })
 
