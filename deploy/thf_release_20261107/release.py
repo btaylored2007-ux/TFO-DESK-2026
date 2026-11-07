@@ -16,6 +16,7 @@ import hashlib
 import io
 import json
 import os
+import secrets
 import socket
 import tarfile
 import time
@@ -202,25 +203,101 @@ def _release(fd, pid_path):
             os.close(fd)
 
 
-def _backup(root, rel):
-    src = Path(root) / rel
-    if not src.is_file():
-        return None
-    dest = Path(root) / BACKUP / rel
-    dest.parent.mkdir(parents=True, exist_ok=True)
-    dest.write_bytes(src.read_bytes())
-    return dest
+def _txn_id():
+    return "%s-%s-%s" % (time.strftime("%Y%m%dT%H%M%SZ", time.gmtime()), os.getpid(), secrets.token_hex(4))
 
 
-def _restore(done):
-    for root, rel, backup in reversed(done):
-        dest = Path(root) / rel
-        if backup is None:
-            if dest.is_file():
-                dest.unlink()
-        else:
+class Transaction:
+    """One apply. Original bytes are sealed once per root and never overwritten."""
+
+    def __init__(self, roots):
+        self.id = _txn_id()
+        self.roots = [str(root) for root in roots]
+        self.originals = {}
+        self.stages = []
+        self.writes = 0
+        self.integrity_ok = True
+
+    def _role(self, root):
+        return "live" if str(root) == self.roots[0] else "dash"
+
+    def _dir(self, root):
+        return Path(root) / BACKUP / self.id
+
+    def seal(self, root, rel):
+        key = (str(root), rel)
+        if key in self.originals:
+            return self.originals[key]
+        src = Path(root) / rel
+        if src.is_symlink() or not src.is_file():
+            raise ReleaseError("REFUSED_BACKUP")
+        data = src.read_bytes()
+        digest = sha256(data)
+        dest = self._dir(root) / "original" / rel
+        if dest.exists():
+            raise ReleaseError("REFUSED_BACKUP")
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        dest.write_bytes(data)
+        os.chmod(dest, 0o444)
+        if not dest.is_file() or dest.read_bytes() != data or file_sha(dest) != digest:
+            raise ReleaseError("REFUSED_BACKUP")
+        record = dict(root=str(root), rel=rel, role=self._role(root), sha=digest, bytes=data, path=dest)
+        self.originals[key] = record
+        return record
+
+    def stage(self, root, rel, archive, order):
+        src = Path(root) / rel
+        if src.is_symlink() or not src.is_file():
+            raise ReleaseError("REFUSED_BACKUP")
+        data = src.read_bytes()
+        digest = sha256(data)
+        dest = self._dir(root) / "stages" / ("%02d-%s" % (order, archive)) / rel
+        if dest.exists():
+            raise ReleaseError("REFUSED_BACKUP")
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        dest.write_bytes(data)
+        os.chmod(dest, 0o444)
+        if dest.read_bytes() != data:
+            raise ReleaseError("REFUSED_BACKUP")
+        self.stages.append(dict(archive=archive, order=order, role=self._role(root), path=rel, before_sha256=digest, file=str(dest)))
+        return digest
+
+    def write_manifest(self, root):
+        body = dict(
+            txn=self.id,
+            originals={rec["rel"]: rec["sha"] for (stored, _rel), rec in self.originals.items() if stored == str(root)},
+            stages=[row for row in self.stages if row["role"] == self._role(root)])
+        dest = self._dir(root) / "MANIFEST.json"
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        dest.write_text(json.dumps(body, indent=2) + "\n")
+
+    def restore_all(self):
+        plan = []
+        for rec in self.originals.values():
+            sealed = rec["bytes"]
+            if sealed is None or sha256(sealed) != rec["sha"]:
+                raise ReleaseError("REFUSED_BACKUP")
+            try:
+                disk = rec["path"].read_bytes() if rec["path"].is_file() else None
+            except OSError:
+                disk = None
+            if disk != sealed:
+                self.integrity_ok = False
+                if rec["path"].exists():
+                    os.chmod(rec["path"], 0o644)
+                    rec["path"].replace(rec["path"].with_name(rec["path"].name + ".integrity_failed"))
+                rec["path"].write_bytes(sealed)
+                os.chmod(rec["path"], 0o444)
+            plan.append((rec, sealed))
+        for rec, sealed in plan:
+            dest = Path(rec["root"]) / rec["rel"]
+            if dest.is_symlink():
+                raise ReleaseError("REFUSED_SYMLINK")
             dest.parent.mkdir(parents=True, exist_ok=True)
-            dest.write_bytes(Path(backup).read_bytes())
+            dest.write_bytes(sealed)
+            if file_sha(dest) != rec["sha"]:
+                raise ReleaseError("REFUSED_BACKUP")
+        return self.integrity_ok
 
 
 def _put(root, rel, data):
@@ -265,8 +342,7 @@ def apply_release(approval_path, archives, probe=None, host_name=None, roots=Non
     services_idle(probe)
     live, dash = pair
     fd, pid_path = _hold(live)
-    done = []
-    verified = False
+    txn = Transaction(pair)
     try:
         services_idle(probe)
         for spec in sorted(ALLOW["archives"], key=lambda row: row["order"]):
@@ -293,15 +369,13 @@ def apply_release(approval_path, archives, probe=None, host_name=None, roots=Non
                 if sha256(raw) != item["target"]:
                     raise ReleaseError("REFUSED_PAYLOAD")
                 for root in pair:
-                    backup = _backup(root, rel)
-                    try:
-                        _put(root, rel, raw)
-                        if file_sha(Path(root) / rel) != item["target"]:
-                            raise ReleaseError("REFUSED_VERIFY")
-                    except Exception:
-                        _restore([(root, rel, backup)])
-                        raise
-                    done.append((root, rel, backup))
+                    txn.seal(root, rel)
+                    txn.stage(root, rel, spec["name"], spec["order"])
+                    txn.write_manifest(root)
+                    _put(root, rel, raw)
+                    txn.writes += 1
+                    if file_sha(Path(root) / rel) != item["target"]:
+                        raise ReleaseError("REFUSED_VERIFY")
         for pin in ALLOW["verify_only"]:
             for root in pair:
                 dest = Path(root) / pin["path"]
@@ -322,36 +396,54 @@ def apply_release(approval_path, archives, probe=None, host_name=None, roots=Non
                     raise ReleaseError("REFUSED_VERIFY")
             if file_sha(Path(root) / "veteran_desk/book.py") != ALLOW["book_pin"]:
                 raise ReleaseError("REFUSED_BOOK")
-        receipt = dict(
-            release="thf_release_20261107", deployed=True, production=True,
-            authorization_id=approval["authorization_id"],
-            authorization_verbatim=approval["authorization_verbatim"],
-            archives=[{"name": row["name"], "sha256": row["sha256"]} for row in ALLOW["archives"]],
-            book_pin=ALLOW["book_pin"], tick_restarted=False, engine_restarted=False,
-            nginx_changed=False, dash_restarted=False, host=host)
-        encoded = json.dumps(receipt, indent=2) + "\n"
-        for root in pair:
-            path = Path(root) / RECEIPT
-            path.parent.mkdir(parents=True, exist_ok=True)
-            path.write_text(encoded)
-        verified = True
+            txn.write_manifest(root)
+        receipt = _receipt(approval, host, txn, deployed=True, restored=False)
+        _write_receipt(pair, receipt)
         if restart == "dash":
             restart_dash(ALLOW["dash_restart_unit"], restarter)
             receipt["dash_restarted"] = True
-            for root in pair:
-                (Path(root) / RECEIPT).write_text(json.dumps(receipt, indent=2) + "\n")
+            _write_receipt(pair, receipt)
         return receipt
-    except Exception:
-        if verified:
-            raise
-        _restore(done)
-        for root in pair:
-            path = Path(root) / RECEIPT
-            if path.exists():
-                path.unlink()
+    except Exception as exc:
+        restored = False
+        if txn.originals:
+            try:
+                txn.restore_all()
+                restored = True
+            except ReleaseError:
+                restored = False
+            failed = _receipt(approval, host, txn, deployed=False, restored=restored, error="%s: %s" % (type(exc).__name__, exc))
+            try:
+                _write_receipt(pair, failed)
+            except OSError:
+                pass
         raise
     finally:
         _release(fd, pid_path)
+
+
+def _receipt(approval, host, txn, deployed, restored, error=None):
+    body = dict(
+        release="thf_release_20261107", deployed=bool(deployed), production=bool(deployed),
+        restored=bool(restored), backup_integrity=bool(txn.integrity_ok), txn=txn.id,
+        authorization_id=approval["authorization_id"],
+        authorization_verbatim=approval["authorization_verbatim"],
+        archives=[{"name": row["name"], "sha256": row["sha256"]} for row in ALLOW["archives"]],
+        originals=[{"role": rec["role"], "path": rec["rel"], "sha256": rec["sha"]} for rec in txn.originals.values()],
+        stages=[{k: row[k] for k in ("archive", "order", "role", "path", "before_sha256")} for row in txn.stages],
+        book_pin=ALLOW["book_pin"], tick_restarted=False, engine_restarted=False,
+        nginx_changed=False, dash_restarted=False, host=host)
+    if error:
+        body["error"] = error
+    return body
+
+
+def _write_receipt(pair, receipt):
+    encoded = json.dumps(receipt, indent=2) + "\n"
+    for root in pair:
+        path = Path(root) / RECEIPT
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(encoded)
 
 
 def main(argv=None):

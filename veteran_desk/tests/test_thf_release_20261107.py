@@ -213,7 +213,14 @@ def test_apply_writes_both_trees_and_holds_the_refresh_gate(tmp_path, monkeypatc
         for path, digest in AFTER.items():
             assert _sha(root / path) == digest
         assert _sha(root / "veteran_desk" / "book.py") == BOOK
-        assert (root / "state" / "thf" / "thf_release_20261107_receipt.json").is_file()
+        receipt_path = root / "state" / "thf" / "thf_release_20261107_receipt.json"
+        assert receipt_path.is_file()
+        saved = json.loads(receipt_path.read_text())
+        original = root / "state" / "thf" / "thf_release_20261107_backups" / saved["txn"] / "original" / "veteran_desk" / "thf_shadow_sampler.py"
+        intermediate = root / "state" / "thf" / "thf_release_20261107_backups" / saved["txn"] / "stages" / "02-review_budget_20261107" / "veteran_desk" / "thf_shadow_sampler.py"
+        assert _sha(original) == PREFLIGHT_CORE["veteran_desk/thf_shadow_sampler.py"]
+        assert _sha(intermediate) == "935c73460dcce8789b9eec9e8664b0ffcd44985ef9adc3da6bb053808b4e6673"
+        assert original.read_bytes() != intermediate.read_bytes()
     assert _mirror(live, dash) == "copied"
     assert not (dash / "tools" / "dash_only.txt").exists()
     for path, digest in AFTER.items():
@@ -271,8 +278,10 @@ def test_partial_write_restores_both_trees(tmp_path, monkeypatch):
         release.apply_release(approval, archives, probe=lambda unit: "inactive", host_name="tfo-sgp1", roots=(str(live), str(dash)))
     for root, digest in before.items():
         assert _sha(root / "veteran_desk" / "claude_brain.py") == digest
+        assert _sha(root / "veteran_desk" / "thf_shadow_sampler.py") == PREFLIGHT_CORE["veteran_desk/thf_shadow_sampler.py"]
         assert _sha(root / "veteran_desk" / "book.py") == BOOK
-    assert not (live / "state" / "thf" / "thf_release_20261107_receipt.json").exists()
+    failed = json.loads((live / "state" / "thf" / "thf_release_20261107_receipt.json").read_text())
+    assert failed["deployed"] is False and failed["restored"] is True
 
 
 def test_symlink_book_and_wrong_host_are_refused(tmp_path, monkeypatch):
@@ -341,6 +350,120 @@ def test_packaged_installers_still_refuse_production(capsys):
         code = module.main(["--root", "/opt/tfo/live/thf", "--staging", "--apply"])
         assert code == 2
         assert "REFUSED_ROOT" in capsys.readouterr().out
+
+
+def _prepared(tmp_path, monkeypatch):
+    empty, budget = _pack(EMPTY / "payload", "empty_prompt_20261107"), _pack(BUDGET / "payload", "review_budget_20261107")
+    spec = _allow(empty, budget)
+    monkeypatch.setattr(release, "ALLOW", spec)
+    live, dash = _trees(tmp_path)
+    approval = _approval(spec, tmp_path / "approval.json")
+    archives = {"empty_prompt_20261107": tmp_path / "e.gz", "review_budget_20261107": tmp_path / "r.gz"}
+    archives["empty_prompt_20261107"].write_bytes(empty)
+    archives["review_budget_20261107"].write_bytes(budget)
+    return live, dash, approval, archives
+
+
+def _assert_pre_release(live, dash):
+    for root in (live, dash):
+        for path, digest in PREFLIGHT_CORE.items():
+            assert _sha(root / path) == digest
+        assert _sha(root / "veteran_desk" / "book.py") == BOOK
+    assert _sha(live / "veteran_desk" / "thf_shadow_sampler.py") == _sha(dash / "veteran_desk" / "thf_shadow_sampler.py")
+
+
+def test_every_put_failure_restores_both_roots_to_the_original(tmp_path, monkeypatch):
+    """The 7th put is the review-budget live sampler write that used to leave live at 935c7346 and dash at a779a306."""
+    real = release._put
+    for stop in range(1, 9):
+        live, dash, approval, archives = _prepared(tmp_path / str(stop), monkeypatch)
+        seen = {"n": 0}
+
+        def boom(root, rel, data, stop=stop):
+            seen["n"] += 1
+            if seen["n"] == stop:
+                raise RuntimeError("injected put %s %s" % (stop, rel))
+            return real(root, rel, data)
+
+        monkeypatch.setattr(release, "_put", boom)
+        with pytest.raises(RuntimeError):
+            release.apply_release(approval, archives, probe=lambda unit: "inactive", host_name="tfo-sgp1", roots=(str(live), str(dash)))
+        _assert_pre_release(live, dash)
+        failed = json.loads((live / "state" / "thf" / "thf_release_20261107_receipt.json").read_text())
+        assert failed["deployed"] is False and failed["restored"] is True
+        assert failed["dash_restarted"] is False and failed["tick_restarted"] is False
+        original = live / "state" / "thf" / "thf_release_20261107_backups" / failed["txn"] / "original" / "veteran_desk" / "thf_shadow_sampler.py"
+        assert _sha(original) == PREFLIGHT_CORE["veteran_desk/thf_shadow_sampler.py"]
+        if stop == 7:
+            stage = live / "state" / "thf" / "thf_release_20261107_backups" / failed["txn"] / "stages" / "02-review_budget_20261107" / "veteran_desk" / "thf_shadow_sampler.py"
+            assert _sha(stage) == "935c73460dcce8789b9eec9e8664b0ffcd44985ef9adc3da6bb053808b4e6673"
+            assert _sha(live / "veteran_desk" / "thf_shadow_sampler.py") == "a779a30626e765e5d6351ab851399240154802a54cdb955c309e8f97d4ad28ef"
+            assert _sha(dash / "veteran_desk" / "thf_shadow_sampler.py") == "a779a30626e765e5d6351ab851399240154802a54cdb955c309e8f97d4ad28ef"
+
+
+def test_receipt_and_restart_failures_roll_both_roots_back(tmp_path, monkeypatch):
+    live, dash, approval, archives = _prepared(tmp_path, monkeypatch)
+    real_write = Path.write_text
+
+    def fail_success(self, data, *args, **kwargs):
+        if self.name == "thf_release_20261107_receipt.json" and '"deployed": true' in data:
+            raise OSError("receipt failed")
+        return real_write(self, data, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "write_text", fail_success)
+    with pytest.raises(OSError):
+        release.apply_release(approval, archives, probe=lambda unit: "inactive", host_name="tfo-sgp1", roots=(str(live), str(dash)))
+    _assert_pre_release(live, dash)
+    failed = json.loads((live / "state" / "thf" / "thf_release_20261107_receipt.json").read_text())
+    assert failed["deployed"] is False and failed["restored"] is True
+    monkeypatch.undo()
+    live2, dash2, approval2, archives2 = _prepared(tmp_path / "restart", monkeypatch)
+    monkeypatch.setattr(release, "ALLOW", _allow(archives2["empty_prompt_20261107"].read_bytes(), archives2["review_budget_20261107"].read_bytes()))
+
+    def restarter(unit):
+        raise OSError("dash restart failed")
+
+    with pytest.raises(OSError):
+        release.apply_release(approval2, archives2, probe=lambda unit: "inactive", host_name="tfo-sgp1", roots=(str(live2), str(dash2)), restart="dash", restarter=restarter)
+    _assert_pre_release(live2, dash2)
+    failed = json.loads((dash2 / "state" / "thf" / "thf_release_20261107_receipt.json").read_text())
+    assert failed["deployed"] is False and failed["dash_restarted"] is False and failed["restored"] is True
+
+
+def test_corrupt_or_missing_backup_does_not_become_the_restored_file(tmp_path):
+    live = tmp_path / "live"
+    dest = live / "veteran_desk" / "thf_shadow_sampler.py"
+    dest.parent.mkdir(parents=True)
+    original = b"original-sampler"
+    dest.write_bytes(original)
+    txn = release.Transaction([str(live), str(tmp_path / "dash")])
+    txn.seal(live, "veteran_desk/thf_shadow_sampler.py")
+    rec = txn.originals[(str(live), "veteran_desk/thf_shadow_sampler.py")]
+    os.chmod(rec["path"], 0o644)
+    rec["path"].write_bytes(b"corrupt-backup")
+    dest.write_bytes(b"partial-new-bytes")
+    assert txn.restore_all() is False
+    assert dest.read_bytes() == original
+    assert txn.integrity_ok is False
+    assert rec["path"].read_bytes() == original
+    assert rec["path"].with_name(rec["path"].name + ".integrity_failed").read_bytes() == b"corrupt-backup"
+    rec["bytes"] = None
+    dest.write_bytes(b"leave-this-alone")
+    with pytest.raises(release.ReleaseError, match="REFUSED_BACKUP"):
+        txn.restore_all()
+    assert dest.read_bytes() == b"leave-this-alone"
+
+
+def test_repeated_transactions_keep_distinct_originals(tmp_path, monkeypatch):
+    first_live, first_dash, approval, archives = _prepared(tmp_path / "one", monkeypatch)
+    one = release.apply_release(approval, archives, probe=lambda unit: "inactive", host_name="tfo-sgp1", roots=(str(first_live), str(first_dash)))
+    second_live, second_dash, approval2, archives2 = _prepared(tmp_path / "two", monkeypatch)
+    monkeypatch.setattr(release, "ALLOW", _allow(archives2["empty_prompt_20261107"].read_bytes(), archives2["review_budget_20261107"].read_bytes()))
+    two = release.apply_release(approval2, archives2, probe=lambda unit: "inactive", host_name="tfo-sgp1", roots=(str(second_live), str(second_dash)))
+    assert one["txn"] != two["txn"]
+    for root, saved in ((first_live, one), (second_live, two)):
+        original = root / "state" / "thf" / "thf_release_20261107_backups" / saved["txn"] / "original" / "veteran_desk" / "thf_shadow_sampler.py"
+        assert _sha(original) == PREFLIGHT_CORE["veteran_desk/thf_shadow_sampler.py"]
 
 
 def test_unknown_archive_bytes_are_refused(tmp_path):
