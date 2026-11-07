@@ -462,6 +462,7 @@ def gate(p, f, chal, da, asof, run_risk_used=0, others=None, au=0.65, th=None, h
             tot = cur + usb_new; hs["us_beta"] = dict(cur_usd=round(cur), new_usd=round(usb_new), total_usd=round(tot), cap_usd=round(cap), cap_rule="%.0f%% book equity x AUDUSD" % (100 * BK.US_BETA_CAP_PCT))
             H_(not (abs(tot) > cap and abs(tot) > abs(cur)), "us_beta_cap: desk net US beta (open+armed+staged) US$%.0f + this US$%.0f = US$%.0f > cap US$%.0f (%.0f%% of book equity, TFO Risk)" % (cur, usb_new, tot, cap, 100 * BK.US_BETA_CAP_PCT))
     except Exception as x: hard.append("us_beta check error %s - fail closed (tfo_review_20261030: an unverifiable beta cap rejects)" % type(x).__name__)
+    # The gate still does not arm. needs_brett_tick stays true until a logged Brett rule says a pass may skip his tick. No reader arms on this flag.
     return dict(passed=not hard, reasons=hard, warnings=warn, size_mult=round(m, 3), risk_aud=risk, risk_pct=RP["pct"], chal_agree=agree, seat_equity_aud=T["seat_equity_aud"], rr=round(rr, 2), history=hs, version=VERSION,
                 quote_asof=q_asof, quote_last=q_last, quote_src=q_src, quote_session=(live or {}).get("session") or ("REGULAR" if q_last is not None else None), live_quote=live,
-                armed=False, can_arm=False, needs_brett_tick=False, hard_rules_kept=HARD_RULES, us_beta_usd=round(usb_new), seat_risk_pct=_SP[0], override=_ovr)
+                armed=False, can_arm=False, needs_brett_tick=True, hard_rules_kept=HARD_RULES, us_beta_usd=round(usb_new), seat_risk_pct=_SP[0], override=_ovr)
