@@ -41,7 +41,7 @@ from customer_platform.pages import (
 from customer_platform.platform import FUNDS_PHRASE
 
 LOOPBACK = {"127.0.0.1", "::1"}
-BRAND = os.path.join(os.path.dirname(__file__), "brand", "tokens.css")
+BRAND = os.path.join(os.path.dirname(__file__), "brand", "brand.css")
 
 
 def worker_loop(platform, stop, interval=30):
@@ -107,7 +107,7 @@ def handler_for(platform):
                 self._html(500, page("Error", "<p class=\"warning\">The template hit an unexpected error.</p>"))
 
         def _get(self, path):
-            if path == "/assets/tokens.css":
+            if path == "/assets/brand.css":
                 with open(BRAND, "rb") as handle:
                     body = handle.read()
                 self._bytes(200, body, "text/css; charset=utf-8")

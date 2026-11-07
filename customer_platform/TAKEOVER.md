@@ -23,9 +23,8 @@ Do not publish private performance and do not treat silence as consent to publis
 
 - Branch: `cursor/customer-platform-foundation-99ec`
 - Base: `145af9cf0389fc0f21769e1f2e614e24d0ccd80e` (`145af9c`, PR 18 head). That commit already contains the off, unmounted tenant foundation `05c4644`.
+- Template commit: `e4f88dc3968717598e4b58cadda0593b27e8a649`
 - This work does not edit `book.py`, `gate_v2.py`, release packages, model bridges, engine core, or the owner UI.
-
-The commit hash for this template is filled in after the commit is created. Search the latest commit on this branch whose subject mentions the customer web app.
 
 ## Progress
 
@@ -63,7 +62,7 @@ CUSTOMER_PLATFORM_ENABLE=1 CUSTOMER_PLATFORM_SIGNUP=1 \
   python -m customer_platform --host 127.0.0.1 --port 8765
 ```
 
-Config names, with empty values: `customer_platform/config.example.env`.
+Config names, with empty values: `customer_platform/config.example`. The repo ignore rule skips `*.env`, so the example does not use that suffix.
 
 Dependencies: Python 3.12 standard library, `pytest` for tests, and `veteran_desk/tenant_foundation.py` from this repo. A copy of that module is included under `dependency/` in the source archive so the tree can be read without the rest of the desk. The running import is still `veteran_desk.tenant_foundation`.
 
@@ -83,4 +82,9 @@ Negative cases in the customer tests: wrong tenant, live venue, float/NaN/negati
 
 ## Archive
 
-The runnable source archive and its SHA256 file are written under `/opt/cursor/artifacts/` when this session packs them. The archive contains customer source, tests, the example config, docs, and the tenant-foundation dependency. It does not contain runtime customer state, demo passwords, or provider keys.
+Runnable source archive, for the coordinator to copy onto Singapore outside production:
+
+- `/opt/cursor/artifacts/customer-platform-foundation-source.tar.gz`
+- `/opt/cursor/artifacts/customer-platform-foundation-source.sha256`
+
+The archive contains this package, its tests, `config.example`, the foundation doc, and a copy of `veteran_desk/tenant_foundation.py` under `dependency/`. It does not contain runtime customer state, demo passwords, or provider keys. An earlier intermediate snapshot, taken before the web pages and tests were finished, is `customer-platform-intermediate-20261107T120718Z.tar.gz` in the same directory. Use the foundation archive, not the intermediate one.

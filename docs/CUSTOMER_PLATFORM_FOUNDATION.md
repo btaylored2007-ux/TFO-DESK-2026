@@ -42,7 +42,7 @@ CUSTOMER_PLATFORM_ENABLE=1 CUSTOMER_PLATFORM_SIGNUP=1 \
   python -m customer_platform --host 127.0.0.1 --port 8765
 ```
 
-The demo writes a password only into that data directory. It does not reset the owner desk and it does not charge a card. Copy `customer_platform/config.example.env` for the variable names. Leave the values empty in the repo.
+The demo writes a password only into that data directory. It does not reset the owner desk and it does not charge a card. Copy `customer_platform/config.example` for the variable names. Leave the values empty in the repo.
 
 ## Tests recorded with this template
 

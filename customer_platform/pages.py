@@ -24,7 +24,7 @@ def page(title, body, *, csrf="", logged_in=False):
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex">
 <title>[[TITLE]]</title>
-<link rel="stylesheet" href="/assets/tokens.css">
+<link rel="stylesheet" href="/assets/brand.css">
 </head>
 <body>
 <header>
