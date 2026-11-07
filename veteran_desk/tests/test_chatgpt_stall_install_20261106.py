@@ -18,7 +18,7 @@ def run(root, apply=False):
 def test_matching_book_and_live_web_hash_are_protected(tmp_path):
     book = tmp_path / "veteran_desk/book.py"
     book.parent.mkdir(parents=True)
-    book.write_bytes((ROOT / "veteran_desk/book.py").read_bytes())
+    book.write_bytes((ROOT / "docs/live_bank07/book.py").read_bytes())
     web = tmp_path / "tools/chatgpt_web.py"
     web.parent.mkdir(parents=True)
     web.write_text("live web\n")

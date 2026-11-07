@@ -27,15 +27,21 @@ def test_round_trip_cash_via_tick():
         S["positions"]["f"] = dict(id="f", seat="macro", ticker="EURUSD=X", side="SHORT", entry=1.1174, stop=1.1245, target=1.0960, shares=1000000, risk_aud=1, status="armed", scale_t1=False, order_type="limit", armed_utc=BK.now().isoformat(), venue="FX")
         json.dump(D, open(BK.BOOK, "w")); q = os.path.join(tmp, "q.json"); json.dump(dict(entries={}), open(q, "w"))
         D = BK.tick(price_fn=lambda s: dict(last=1.1174, hi=1.1180, lo=1.1170, asof="x"), au=0.70, queue_path=q); S = D["seats"]["macro"]; p = S["positions"]["f"]
-        c = BK.COST_RT["FX"] / 2; n = 1.1174 * 1e6 / 0.70
-        assert p["status"] == "open" and abs(S["cash_aud"] - (500000 - n * c)) < 0.01   # only the cost left cash
+        # t2808u: the 40% cap stands. Cash uses the accepted 125290 units and cost_aud once, not the 1,000,000-unit figure.
+        assert p["status"] == "open" and p["shares"] == 125290 and p["cost_aud"] == 14.0
+        assert abs(S["cash_aud"] - (500000 - p["cost_aud"])) < 0.01
+        shares, fill, entry_cost = p["shares"], p["fill"], p["cost_aud"]
         D = BK.tick(price_fn=lambda s: dict(last=1.0965, hi=1.0970, lo=1.0955, asof="x"), au=0.70, queue_path=q); S = D["seats"]["macro"]
-        g = (1.1174 - 1.0960) * 1e6 / 0.70; n2 = 1.0960 * 1e6 / 0.70
-        assert not S["positions"] and abs(S["cash_aud"] + S.get("commission_expense_aud", 0) - S.get("commission_forfeit_credit_aud", 0) - (500000 - n * c + g - n2 * c)) < 0.01 and abs(S["closed"][-1]["gross_aud"] - g) < 0.01
+        closed = S["closed"][-1]
+        g = (fill - closed["exit"]) * shares / 0.70
+        assert not S["positions"] and closed["shares"] == shares and abs(closed["gross_aud"] - g) < 0.02
+        exit_cost = round(closed["gross_aud"] - entry_cost - closed["net_aud"], 2)
+        booked = S["cash_aud"] + S.get("commission_expense_aud", 0) - S.get("commission_forfeit_credit_aud", 0)
+        assert abs(booked - (500000 - entry_cost + closed["gross_aud"] - exit_cost)) < 0.05
     finally: BK.BOOK, BK.firm_ok, BK.session_open, BK.in_open_window, BK.posture = old
 
 def test_fx_fill_cash_matches_the_capped_notional_not_the_original_size():
-    """Observed fill math. This does not accept the 40% cap as a settled rule."""
+    """t2808u keeps the 40% futures/FX entry cap. cost_aud is the debit on the accepted units, FX applied once."""
     import tempfile, json
     tmp = tempfile.mkdtemp(); old = (BK.BOOK, BK.firm_ok, BK.session_open, BK.in_open_window, BK.posture)
     try:

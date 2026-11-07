@@ -81,7 +81,7 @@ def test_transport_installer_replaces_only_the_live_bridge(tmp_path):
     install = root / "deploy/deepseek_transport_20261106/install.py"
     book = tmp_path / "veteran_desk/book.py"
     book.parent.mkdir(parents=True)
-    book.write_bytes((root / "veteran_desk/book.py").read_bytes())
+    book.write_bytes((root / "docs/live_bank07/book.py").read_bytes())
     dest = tmp_path / "veteran_desk/deepseek_bridge.py"
     dest.write_bytes((LIVE / "live/veteran_desk/deepseek_bridge.py").read_bytes())
     base = hashlib.sha256(dest.read_bytes()).hexdigest()

@@ -223,7 +223,7 @@ def gate(p, f, chal, da, asof, run_risk_used=0, others=None, au=0.65, th=None, h
         except Exception: _sc_t = False
         H_(_v >= T["min_value_aud"] or _sc_t, "Kraken 24h traded value A$%.0f < A$%.0f floor (live sweep%s)" % (_v, T["min_value_aud"], "" if _r else ": pair not in sweep"))
     _sc_t = locals().get("_sc_t", False)
-    if p.get("grade") == "B": W("grade B - half size (Brett 31 Oct size-and-let-in)", .5)
+    if p.get("grade") == "B": W("grade B - half the seat risk (t2808u); not a second cut", 1.0)
     elif p.get("grade") not in ("A+", "A", "B"): H_(False, "grade %s - C or worse is a pass (playbook)" % p.get("grade"))
     H_(side in ("LONG", "SHORT"), "bad side")
     H_(s > 0 and ((side == "LONG" and s < e < tg) or (side == "SHORT" and tg < e < s)), "stop missing or stop/target not on correct sides of entry")
@@ -416,8 +416,8 @@ def gate(p, f, chal, da, asof, run_risk_used=0, others=None, au=0.65, th=None, h
         # Size that will actually be used. risk_plan lifts a cut grade-A back to 1% (pct);
         # a raw 1% x 0.25 min-mult (= 0.25% of seat equity) must not veto that A. Non-A rejects still have pct 0.
         sized = RP["pct"] if RP.get("pct") is not None else RP["wanted_pct"]
-        if sized < FLOOR - 1e-9 or RP.get("sized_up"):
-            W("sized up to floor %.1f%% (Brett 31 Oct size-and-let-in; was %.2f%% after cuts)" % (FLOOR * 100, (RP.get("wanted_pct") or sized) * 100), 1.0)
+        if (sized < FLOOR - 1e-9 or RP.get("sized_up")) and m >= 1.0 - 1e-12:
+            W("sized up to floor %.1f%% within the grade budget (was %.2f%%)" % (FLOOR * 100, (RP.get("wanted_pct") or sized) * 100), 1.0)
     if RP["warning"]: warn.append(RP["warning"])
     # 2026-10-29 infra: attach live quote as-of so seats/stale checks can judge freshness (never blocks)
     q_asof = q_last = q_src = None

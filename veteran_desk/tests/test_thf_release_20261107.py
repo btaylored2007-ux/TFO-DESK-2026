@@ -8,7 +8,6 @@ import hashlib
 import io
 import json
 import os
-import subprocess
 import tarfile
 from pathlib import Path
 
@@ -74,7 +73,7 @@ def _trees(tmp_path):
                 dest = root / src.relative_to(EMPTY / "base")
                 dest.parent.mkdir(parents=True, exist_ok=True)
                 dest.write_bytes(src.read_bytes())
-        book = subprocess.check_output(["git", "show", "HEAD:veteran_desk/book.py"], cwd=REPO)
+        book = (REPO / "docs" / "live_bank07" / "book.py").read_bytes()
         dest = root / "veteran_desk" / "book.py"
         dest.parent.mkdir(parents=True, exist_ok=True)
         dest.write_bytes(book)

@@ -7,8 +7,9 @@ def test_rounding_shortfall_accepted():
     assert p is not None and p.get("floor_note") is None   # tfo_review_20261030: fractional Kraken units hit the 0.5% floor exactly; 0.98 tolerance removed
     assert abs(p["risk_aud"] - .005 * 500000) <= 1
 def test_genuine_0p4pct_rejected():
-    p, ev = KS._arm("crypto", mult=0.4)   # 1% x0.4 = 0.4% -> genuinely below the floor
-    assert p is None and ev[2] == "below_crypto_floor"
+    # t2808u: mult 0.4 is a history/size cut, not a categorical floor veto. The arm keeps about 0.4%.
+    p, ev = KS._arm("crypto", mult=0.4)
+    assert p is not None and p["status"] in ("armed", "open") and abs(p["risk_pct"] - .004) < 1e-3
 def test_normal_arm_has_no_floor_note():
     p, ev = KS._arm("crypto")
     assert p is not None and p.get("floor_note") is None and abs(p["risk_pct"] - .01) < 1e-9

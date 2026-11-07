@@ -36,7 +36,7 @@ def test_sequence_apply_rollback_and_reapply_keeps_book_and_samples(tmp_path):
     stage = tmp_path / "live"
     book = stage / "veteran_desk/book.py"
     book.parent.mkdir(parents=True)
-    book.write_bytes((ROOT / "veteran_desk/book.py").read_bytes())
+    book.write_bytes((ROOT / "docs/live_bank07/book.py").read_bytes())
     sample = stage / "state/thf/shadow_samples.jsonl"
     sample.parent.mkdir(parents=True)
     sample.write_text('{"kept":true,"kind":"shadow_evaluation"}\n')

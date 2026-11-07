@@ -29,7 +29,7 @@ def test_usdkrw_theo_case_risk():
     per = BK.aud_per_unit("USDKRW=X", au, px_fn=px) * 13.2
     assert 536 * per == pytest.approx(7075.2 / (0.65 * 1400), rel=1e-3)   # ~A$7.8, not A$10,064
     q = int(BK.risk_plan(500000.0, "B")["risk_aud"] / per)
-    assert q * per == pytest.approx(10000, rel=1e-3)   # sized to the 2% rail in AUD (non-A; tfo_review_fix_20261031)
+    assert q * per == pytest.approx(5000, rel=1e-3)   # t2808u: B is half of the 2% rail, A$5,000 not A$10,000
 def test_usd_quoted_fx_unchanged():
     assert BK.aud_per_unit("EURUSD=X", 0.65) == pytest.approx(1 / 0.65)
 def test_fx_no_rate_fails_closed():

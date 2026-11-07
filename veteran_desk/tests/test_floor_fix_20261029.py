@@ -12,5 +12,7 @@ def test_min_bars_all_venues():   # 20 bars (TW Lotes) hard reject
     r = g(hist=(HIST[0][-20:], "t")); assert not r["passed"] and any("insufficient PIT history" in x for x in r["reasons"])
 def test_crypto_floor_half_pct():
     assert BK.risk_plan(500000, "A", False, .6, floor=BK.RISK_CRYPTO_MIN)["pct"] == .006   # kairails 14:28 WITA: crypto base now 1% (was 2%)
-    assert BK.risk_plan(500000, "A", False, .1, floor=BK.RISK_CRYPTO_MIN)["reject"] == "below_crypto_floor"   # railfix 2026-10-29: rejected, not lifted
-    assert BK.risk_plan(500000, "B", False, .3)["reject"] == "below_2pct_nonA_floor" and BK.risk_plan(500000, "A", False, .3)["pct"] == .01   # tfo_review_fix_20261031
+    # t2808u: the 0.1 cut stays at 0.1%. It is not below_crypto_floor and not lifted.
+    cut = BK.risk_plan(500000, "A", False, .1, floor=BK.RISK_CRYPTO_MIN); assert cut["reject"] is None and abs(cut["pct"] - .001) < 1e-9 and not cut["sized_up"]
+    b = BK.risk_plan(500000, "B", False, .3); assert b["reject"] is None and abs(b["pct"] - .003) < 1e-9 and not b["sized_up"]
+    a = BK.risk_plan(500000, "A", False, .3); assert a["reject"] is None and abs(a["pct"] - .003) < 1e-9 and not a["sized_up"]

@@ -83,7 +83,7 @@ def _stage(tmp_path):
             dest = root / path.relative_to(PKG / "base")
             dest.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy(path, dest)
-    shutil.copy(REPO / "veteran_desk" / "book.py", root / "veteran_desk" / "book.py")
+    shutil.copy(REPO / "docs" / "live_bank07" / "book.py", root / "veteran_desk" / "book.py")
     assert _sha(root / "veteran_desk" / "book.py") == BOOK
     assert not (root / "veteran_desk" / "feed_status_facts.py").exists()
     return root

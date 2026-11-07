@@ -140,7 +140,7 @@ def test_installer_replaces_the_recorded_bases_and_rolls_back(tmp_path):
     install = root / "deploy/clock_status_20261106/install.py"
     book = tmp_path / "veteran_desk/book.py"
     book.parent.mkdir(parents=True)
-    book.write_bytes((root / "veteran_desk/book.py").read_bytes())
+    book.write_bytes((root / "docs/live_bank07/book.py").read_bytes())
     rels = ("veteran_desk/lesson_trace.py", "veteran_desk/seat_brain.py", "veteran_desk/thf_shadow_sampler.py")
     for rel in rels:
         dest = tmp_path / rel

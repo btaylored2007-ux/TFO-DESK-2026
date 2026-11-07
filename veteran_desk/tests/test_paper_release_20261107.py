@@ -49,7 +49,7 @@ def _stage(tmp_path):
                 dest.parent.mkdir(parents=True, exist_ok=True)
                 if not dest.exists():
                     shutil.copy(path, dest)
-    shutil.copy(REPO / "veteran_desk" / "book.py", root / "veteran_desk" / "book.py")
+    shutil.copy(REPO / "docs" / "live_bank07" / "book.py", root / "veteran_desk" / "book.py")
     return root
 
 
@@ -64,7 +64,8 @@ def test_quoted_owner_words_do_not_cover_the_nineteen():
     bank = next(row for row in BK.RULE_LOG if row.get("id") == "bank07_20261106")
     assert "words" not in bank and "0.7" in bank["rule"]
     assert BK.RAIL_BANK_R == 0.7
-    assert _sha(REPO / "veteran_desk" / "book.py") == BOOK
+    assert _sha(REPO / "docs" / "live_bank07" / "book.py") == BOOK
+    assert _sha(REPO / "veteran_desk" / "book.py") != BOOK
 
 
 def test_staging_sequence_writes_both_receipts_and_refuses_production(tmp_path):

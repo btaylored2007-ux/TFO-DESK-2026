@@ -17,7 +17,7 @@ def run(root, apply=False):
 def test_matching_book_is_already_protected_and_not_rewritten(tmp_path):
     dest = tmp_path / "veteran_desk" / "book.py"
     dest.parent.mkdir(parents=True)
-    payload = (ROOT / "veteran_desk" / "book.py").read_bytes()
+    payload = (ROOT / "docs" / "live_bank07" / "book.py").read_bytes()
     dest.write_bytes(payload)
     assert hashlib.sha256(payload).hexdigest() == BOOK
     result = run(tmp_path)

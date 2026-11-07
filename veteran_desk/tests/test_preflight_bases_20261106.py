@@ -35,7 +35,7 @@ def stage(tmp_path):
         shutil.copy2(src, dest)
     book = tmp_path / "veteran_desk/book.py"
     book.parent.mkdir(parents=True)
-    shutil.copy2(ROOT / "veteran_desk/book.py", book)
+    shutil.copy2(ROOT / "docs/live_bank07/book.py", book)
     home = tmp_path / "veteran_desk/thf_chat_home.py"
     shutil.copy2(Path("/tmp/run2closure/thf-upgrade-run2-closure-20261106/veteran_desk/thf_chat_home.py"), home)
     web = tmp_path / "tools/chatgpt_web.py"

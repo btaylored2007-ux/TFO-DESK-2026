@@ -137,7 +137,7 @@ def _show(rel):
 def test_runtime_installer_replaces_recorded_bases_and_rolls_back(tmp_path):
     book = tmp_path / "veteran_desk/book.py"
     book.parent.mkdir(parents=True)
-    book.write_bytes((ROOT / "veteran_desk/book.py").read_bytes())
+    book.write_bytes((ROOT / "docs/live_bank07/book.py").read_bytes())
     for rel in (
         "veteran_desk/thf_shadow_sampler.py",
         "veteran_desk/thf_grok.py",

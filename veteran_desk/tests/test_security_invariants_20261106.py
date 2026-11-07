@@ -83,7 +83,7 @@ def test_bind_installer_accepts_the_captured_live_dash_and_rolls_back(tmp_path):
     dest.parent.mkdir(parents=True)
     dest.write_bytes(live.read_bytes())
     book = tmp_path / "veteran_desk/book.py"
-    book.write_bytes((ROOT / "veteran_desk/book.py").read_bytes())
+    book.write_bytes((ROOT / "docs/live_bank07/book.py").read_bytes())
     install = ROOT / "deploy/dash_bind_20261106/install.py"
     result = subprocess.run([sys.executable, str(install), "--root", str(tmp_path), "--apply"],
                             cwd=ROOT, text=True, capture_output=True, check=False)

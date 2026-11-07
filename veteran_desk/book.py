@@ -106,8 +106,7 @@ def _theme_clash(D, e):
             if _p.get("id") != e.get("id") and _p.get("status") in ("open", "armed") and _p.get("side") == e.get("side") and theme_of(_p.get("ticker")) == th: return (th, "%s held by %s" % (_p.get("ticker"), _s))
     return None
 def risk_plan(equity_aud, grade=None, chal_agree=False, mult=1.0, floor=None, seat_pct=None, seat=None):
-    """ONE sizing source. tfo_a1pct_20261031 (Brett 00:07 WITA): A may pass at 1% (lift to 2% once proven - NEVER force a 1% seat choice up); A+ 4%; non-A floor 2%; hard cap 5%.
-    Cuts move risk toward the floor, never below it, never above 5%. Returns dict(pct, risk_aud, wanted_pct, warning)."""
+    """ONE sizing source. t2808u is effective for paper now and is not a historical quote: grade B is half the seat's full risk, and a history cut is kept rather than lifted or vetoed. A stays at its seat choice (1% when none is set). A+ is 4%. Hard cap 5%."""
     if seat_pct in (None, "") and seat:   # seatrisk 2026-10-31: per-seat A risk config (veteran_desk/seat_risk.py)
         try:
             from veteran_desk.seat_risk import seat_a_risk; seat_pct = seat_a_risk(seat)
@@ -116,20 +115,28 @@ def risk_plan(equity_aud, grade=None, chal_agree=False, mult=1.0, floor=None, se
     fl = RISK_MIN if floor is None else float(floor)
     crypto = abs(fl - RISK_CRYPTO_MIN) < 1e-12   # kairails 14:28 WITA: crypto seat band 0.5-2%, default 1%, A+ 2%
     if crypto: base = RISK_CRYPTO_MAX if grade == "A+" else RISK_CRYPTO_DEFAULT   # floor=RISK_CRYPTO_MIN for the crypto seat (Brett 2026-10-29 13:08 WITA)
-    if not crypto and grade == "B": base = RISK_NON_A_MIN * 0.5   # Brett 31 Oct: grade B at HALF SIZE (1%); size-up floor stays RISK_MIN
+    cut = float(mult if mult is not None else 1.0) < 1.0 - 1e-12
+    if grade == "B":
+        # t2808u, effective for paper now: half the seat's full risk. Not a historical quote and not a second cut.
+        if crypto:
+            full = RISK_CRYPTO_DEFAULT
+        else:
+            full = float(seat_pct) if seat_pct not in (None, "") else RISK_NON_A_MIN
+        base = full * 0.5
+        fl = min(fl, base)
     want = base * float(mult if mult is not None else 1.0)
-    _alift = bool(not crypto and grade in ("A", "A+") and want < RISK_A_DEFAULT - 1e-12)   # liftcap: tag cut-A lift as lifted_subfloor
-    if not crypto and seat_pct not in (None, "") and grade in ("A", "A+") and want > float(seat_pct) + 1e-12: want = float(seat_pct)   # tfo_seatcap_aplus_20261031 (Brett 19:12 WITA): A+ base (4%) ignored the seat map - Victor banks A+ armed at 3%; seat map caps every grade
-    if not crypto and grade in ("A", "A+") and want < RISK_A_DEFAULT: want = RISK_A_DEFAULT   # tfo_review_fix_20261031: a cut A sizes to max(cut, 1%) (thf_review rule) - never rejected below_1pct_floor
-    if not crypto and grade not in ("A", "A+", "B"): fl = max(fl, RISK_NON_A_MIN)   # C+ still 2% floor; B uses RISK_MIN so half-size sticks
+    _alift = bool(not crypto and grade in ("A", "A+") and not cut and want < RISK_A_DEFAULT - 1e-12)
+    if not crypto and seat_pct not in (None, "") and grade in ("A", "A+") and want > float(seat_pct) + 1e-12: want = float(seat_pct)
+    if not crypto and grade in ("A", "A+") and not cut and want < RISK_A_DEFAULT: want = RISK_A_DEFAULT
+    if not crypto and grade not in ("A", "A+", "B"): fl = max(fl, RISK_NON_A_MIN)
     lifted = False; _own = None; _rej = None
-    if want < fl - 1e-12:   # seatrisk/histsize 2026-10-31 (Brett ~15:15 WITA): SIZE UP to the floor and let the trade in (supersedes railfix reject)
+    if want < fl - 1e-12 and not cut:   # t2808u: a history/size cut is not lifted back to the floor
         # liftcap 2026-10-31 18:14 WITA (Brett): lift never above the seat's own full risk; floor above seat risk -> pass, never lift through
         _own = float(seat_pct) if seat_pct not in (None, "") else (RISK_CRYPTO_DEFAULT if crypto else RISK_A_DEFAULT)
         if fl > _own + 1e-12: _rej = "floor_above_seat_risk: floor %.2f%% > seat risk %.2f%% - pass, not lifted" % (fl * 100, _own * 100)
         else: want = fl; lifted = True
     pct = 0.0 if _rej else min(want, RISK_CRYPTO_MAX if crypto else RISK_MAX, RISK_MAX)   # per-trade hard cap 5% (A+ 4%); crypto band top 2%
-    warn = ("sized_up_to_floor: cuts wanted below %.1f%% - lifted to floor (Brett 31 Oct size-and-let-in)" % (fl * 100)) if lifted else _rej
+    warn = ("sized_up_to_floor: wanted below %.1f%% - lifted within the grade budget (t2808u)" % (fl * 100)) if lifted else _rej
     _lb = bool(lifted and grade == "B"); _ls = bool((lifted or _alift) and grade != "B" and not _rej)
     return dict(pct=round(pct, 5), risk_aud=round(float(equity_aud) * pct, 2), wanted_pct=round(want, 5), base_pct=base, warning=warn, reject=_rej, sized_up=lifted, lifted_b=_lb, lifted_subfloor=_ls, lift_tag=("lifted_b" if _lb else "lifted_subfloor" if _ls else None))
 def seat_equity(seat):
@@ -225,8 +232,8 @@ def adv_refresh(p, t, au):
     p.update(adv_day=dk, adv_try_utc=t.isoformat())
 def _session_closed_for_exit(p, t):
     """Equities/ETFs/futures queue heartbeat exits outside the venue session. Crypto and FX keep trading.
-    The hard stop and the -5% hard backstop are not deferred: they still book on this tick. bank07_20261106: neither are the net-R
-    half-bank and the giveback protection when the mark is a fresh print (_bank_acts_now)."""
+    The hard stop and the -5% hard backstop still book on this tick. The +0.7R half-bank books on a fresh print.
+    Giveback waits for an eligible session (t2808u)."""
     if _is_crypto(p) or is_fx(p): return False
     if p.get("mark_preopen"): return True   # fillfix_20261103: US session open but the newest print is pre-market -> queue like a closed session
     v = p.get("venue") or P.venue_of(p.get("ticker") or "")
@@ -238,11 +245,9 @@ def _fresh_print(p):
     try: return a is not None and float(a) <= stale_limit_min(p.get("venue") or P.venue_of(p.get("ticker") or ""))
     except Exception: return False
 def _bank_acts_now(p, rsn):
-    """bank07_20261106 (Brett 5 Nov 2026 22:47 WITA "XEL SHOULD HAVE AUTO HALF BANKED AND IT DIDNT"): a net-R half-bank or a giveback protection
-    books on a fresh print at any hour, exactly like the hard stop does (if a print can stop us out, it can bank half). T1 / +2R LEVEL exits,
-    trails and full flats still wait for the open's mark (fillfix_20261103)."""
+    """The +0.7R half-bank still books on a fresh print at any hour. Giveback does not: it books only in an eligible session (t2808u)."""
     r = str(rsn or "")
-    return bool(r) and ("aud_scale_out" in r or r.startswith("rail_giveback")) and _fresh_print(p)
+    return bool(r) and "aud_scale_out" in r and _fresh_print(p)
 def _defer_exit(p, t, k, ev, reason, px, kind="full", shares=None, post=None):
     """Remember an exit the heartbeat would have booked after the close. Filled at the next open's mark, not this print."""
     if p.get("exit_queued"): return True
@@ -1652,7 +1657,7 @@ def tick(price_fn=None, au=None, queue_path=None):
             if _u > 0 and q * _u > crypto_clip_cap(_g): q = crypto_units(crypto_clip_cap(_g) / _u)
             from veteran_desk import b_tight as _BTt
             if _BTt.is_test(e): pass   # TEST (head trader 1 Nov 16:38): 0.5% crypto floor waived; A$700 cap + 1/day applied below
-            elif per * q < eq * RISK_CRYPTO_MIN - 0.01: bad = "below_crypto_floor"   # tfo_review_20261030: fractional Kraken units - no whole-unit rounding, 0.98 floortol removed
+            elif per * q < eq * RISK_CRYPTO_MIN - 0.01 and float(e.get("gate_size_mult") or 1) >= 1 - 1e-12: bad = "below_crypto_floor"   # t2808u: a history cut is not a floor veto; a natural size below 0.5% still is
         if not bad:   # TEST orders (head trader 1 Nov 16:38 WITA): THF crypto only, risk <= A$700, max 1 per UTC day
             from veteran_desk import b_tight as _BTt
             if _BTt.is_test(e):
@@ -1709,6 +1714,7 @@ def tick(price_fn=None, au=None, queue_path=None):
             bad = f"price {px:g} >1% through stop-entry {entry:g} - not chasing"   # 2026-10-29 Marcus: pullback/rally LIMIT always allowed; chase only stop_limit already through
         elif open_risk + per * q > eq * HEAT_CAP: bad = "seat book heat cap 15% reached"
         elif n_open >= MAX_OPEN: bad = "max 8 open"
+        elif not _cx and q < 1 and per > float(risk) + 0.01: bad = "min_lot_exceeds_permitted_risk: 1 unit risks A$%.2f > permitted A$%.2f" % (per, float(risk))
         elif q <= 0 or (not _cx and q < 1): bad = "size rounds to zero"
         elif spec and aud(e["ticker"], entry, au) * q > SEAT_SEED * SPEC_SLEEVE_PCT - sum(aud(p["ticker"], p["entry"], au) * p["shares"] for p in B["positions"].values() if p.get("sleeve") == "spec"):
             q = int((SEAT_SEED * SPEC_SLEEVE_PCT - sum(aud(p["ticker"], p["entry"], au) * p["shares"] for p in B["positions"].values() if p.get("sleeve") == "spec")) / aud(e["ticker"], entry, au))
@@ -1796,11 +1802,26 @@ def tick(price_fn=None, au=None, queue_path=None):
                 eqx = B["cash_aud"] + sum(pos_value_aud(q_, (marks.get(q_["ticker"]) or {}).get("last") or q_.get("mark") or q_["fill"], au, marks) for kk, q_ in B["positions"].items() if q_["status"] == "open" and kk != k)
                 q = p["shares"]; rpct = per * q / eqx if eqx > 0 else 0; rnote = None
                 if (L and f <= p["stop"]) or (not L and f >= p["stop"]): rnote = "first print through stop - rebooked then stop applies"
-                elif rpct > RISK_MAX: q = int(eqx * RISK_MAX / per); rnote = "resized to 5% risk cap"
-                elif rpct < (RISK_CRYPTO_MIN if (p.get("seat") or seat) == "crypto" else RISK_MIN) - 1e-9 and p.get("sleeve") != "spec":   # across 2026-10-31: SIZE UP to floor on rebook (was reject below_1pct_floor)
+                elif rpct > RISK_MAX:
+                    q = int(eqx * RISK_MAX / per) if per > 0 else 0
+                    if q < 1:
+                        _why = "min_lot_exceeds_permitted_risk: 1 unit risks A$%.2f > permitted A$%.2f" % (per, eqx * RISK_MAX)
+                        p.update(status="cancelled", why=_why, rebook_pending=False, exec_note="rebook rejected: " + _why)
+                        B.setdefault("closed", []).append(dict(p, closed_utc=t.isoformat(), exit_reason=_why)); ev.append((k, "blocked", "min_lot_exceeds_permitted_risk")); continue
+                    rnote = "resized to 5% risk cap"
+                elif rpct < (RISK_CRYPTO_MIN if (p.get("seat") or seat) == "crypto" else RISK_MIN) - 1e-9 and p.get("sleeve") != "spec":
                     _fl = RISK_CRYPTO_MIN if (p.get("seat") or seat) == "crypto" else RISK_MIN
-                    q = max(q, int(eqx * _fl / per) if per > 0 else q); rnote = "sized_up_to_floor on rebook (was %.2f%%)" % (rpct * 100)
-                    p["lifted_subfloor"] = True; p["lift_tag"] = "lifted_subfloor"
+                    _cut = float(p.get("size_mult") or 1) < 1 - 1e-12 or float(p.get("gate_size_mult") or 1) < 1 - 1e-12
+                    _budget = (RISK_NON_A_MIN * 0.5) if p.get("grade") == "B" else _fl
+                    if _cut:
+                        rnote = "history cut kept on rebook (%.2f%%); not lifted (t2808u)" % (rpct * 100)
+                    elif per > eqx * _budget + 0.01 or int(eqx * _budget / per) < 1:
+                        _why = "min_lot_exceeds_permitted_risk: 1 unit risks A$%.2f > permitted A$%.2f" % (per, eqx * _budget)
+                        p.update(status="cancelled", why=_why, rebook_pending=False, exec_note="rebook rejected: " + _why)
+                        B.setdefault("closed", []).append(dict(p, closed_utc=t.isoformat(), exit_reason=_why)); ev.append((k, "blocked", "min_lot_exceeds_permitted_risk")); continue
+                    else:
+                        q = max(q, int(eqx * _budget / per)); rnote = "sized_up_to_floor on rebook (was %.2f%%)" % (rpct * 100)
+                        p["lifted_subfloor"] = True; p["lift_tag"] = "lifted_b" if p.get("grade") == "B" else "lifted_subfloor"
                 _u = aud(p["ticker"], f, au)
                 if not is_fx(p) and _u > 0 and q * _u > eqx: q = int(eqx / _u); rnote = (rnote or "") + "; capped at 1x seat equity notional"
                 n = (f * q / quote_to_aud(p["ticker"], au, marks)) if is_fx(p) else aud(p["ticker"], f, au) * q
@@ -1838,12 +1859,10 @@ def tick(price_fn=None, au=None, queue_path=None):
                     except Exception: _tmin = 0
                     if _tmin > 5 and not p.get("stuck_arm_alerted"):
                         p["stuck_arm_alerted"] = t.isoformat(); D.setdefault("stuck_arm_alerts", []); D["stuck_arm_alerts"] = (D["stuck_arm_alerts"] + [dict(utc=t.isoformat(), seat=seat, id=k, ticker=p["ticker"], entry=p["entry"], triggered_utc=p["triggered_utc"], min_unfilled=round(_tmin, 1), exec_note=p.get("exec_note"), level="ALERT", why="armed order triggered but unfilled > 5 min")])[-50:]
-                if (_age is not None and _age > _lim) or (_trig0 and _tsrc != "primary"):
-                    _prearm = False   # fixer 2026-11-02: a stale primary print older than the order cannot prove the order's trigger traded through
-                    try: _prearm = _tsrc == "primary" and bool(m.get("asof")) and bool(p.get("armed_utc")) and dt.datetime.fromisoformat(str(m["asof"]).replace("Z", "+00:00")) < dt.datetime.fromisoformat(str(p["armed_utc"]).replace("Z", "+00:00"))
-                    except Exception: _prearm = _tsrc == "primary"
-                    if p.get("grade") == "A" and _trig0 and not _prearm: _sfb = True; p.update(fill_tag="stale-fallback fill-at-entry", stale_fallback_src=_tsrc, exec_note=f"{EXEC_TRADER}: price {_age:.0f} min old (> {_lim}) but trigger traded through ({_tsrc}) - stale-fallback fill-at-entry")
-                    else: p["exec_note"] = f"{EXEC_TRADER}: price {_age:.0f} min old (> {_lim} = venue delay {venue_delay_min(p.get('venue'))} + 5) - no fill on a stale price, order still working"; continue
+                if _age is not None and _age > _lim:
+                    # t2808u: a print older than the venue delay allowance is not a fill. Stay armed.
+                    p["exec_note"] = f"{EXEC_TRADER}: price {_age:.0f} min old (> {_lim} = venue delay {venue_delay_min(p.get('venue'))} + 5) - no fill on a stale price, order still working"
+                    continue
                 if _SX.needs_preopen_recheck(p):   # tfo_sessexpiry_20261101: order armed while venue closed -> once, on the first fresh in-session bar, re-run desk.live_check (no re-grade/resize)
                     _rc = _SX.preopen_recheck(p, m); p.update(preopen_recheck_utc=t.isoformat(), preopen_recheck=_rc or "ok")
                     if _rc: p.update(status="cancelled", why="preopen recheck: " + _rc, exec_note=f"{EXEC_TRADER}: pre-open re-check on fresh bar failed - cancelled"); B.setdefault("closed", []).append(dict(p, closed_utc=t.isoformat(), exit_reason="preopen_recheck")); ev.append((k, "blocked", "preopen_recheck")); continue
@@ -1901,7 +1920,7 @@ def tick(price_fn=None, au=None, queue_path=None):
             _hold = trigger_hold(p, t)   # stale mark / market closed -> giveback, full-flat (not backstop), revguard held
             _xh, _xl, _xo = post_extremes(m, p.get("filled_utc"))   # tfo_review_20261030 (GPT HIGH): exits only on bars after the fill
             hs = (L and _xl <= p["stop"]) or (not L and _xh >= p["stop"])
-            if p.get("exit_queued") and not _session_closed_for_exit(p, t):
+            if p.get("exit_queued") and not _session_closed_for_exit(p, t) and not (str(p["exit_queued"].get("reason") or "").startswith("rail_giveback") and not _fresh_print(p)):
                 qe = p.pop("exit_queued"); x = m.get("last"); post = qe.get("post") or ("half" if qe.get("kind") == "partial" else "full")
                 if qe.get("kind") == "partial":
                     h = qe.get("shares") or _half(p)

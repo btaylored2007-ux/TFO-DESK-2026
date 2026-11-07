@@ -97,6 +97,8 @@ PAYLOADS = (
 )
 SRC_OVERRIDE = {
     "state/thf/shadow_sampler.json": "deploy/incremental_20261106/shadow_sampler.json",
+    # The working tree book is the separate t2808u paper delta. This installer still carries only the live pin.
+    "veteran_desk/book.py": "docs/live_bank07/book.py",
 }
 # Live snapshot hashes the destination may already have. Any other hash blocks the copy.
 BASE_SHA = {
@@ -173,7 +175,7 @@ def classify(src, dest, book=False, bases=()):
 def plan(live_root):
     live = Path(live_root)
     rows = []
-    src = ROOT / BOOK
+    src = payload_file(BOOK)
     dest = live / BOOK
     state, digest = classify(src, dest, book=True, bases=BASE_SHA.get(BOOK, ()))
     rows.append(dict(path=BOOK, state=state, sha256=digest, base_sha256=list(BASE_SHA.get(BOOK, ())),

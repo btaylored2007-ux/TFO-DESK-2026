@@ -1,0 +1,45 @@
+{
+  "package": "paper_rules_20261107",
+  "decision": "t2808u",
+  "decision_wita": "2026-11-07 18:51 WITA",
+  "decision_note": "Effective paper rules delegated now. Not a historical owner quote and not part of empty_prompt_20261107, review_budget_20261107, or retail_dash_20261107.",
+  "production": false,
+  "not_deployed": true,
+  "live_book_pin": "b4453b503f33e34110519bf4d7a9bf391ecc2802edbd87acca3e77dc96b7e891",
+  "payloads": [
+    {
+      "path": "veteran_desk/book.py",
+      "base_sha256": "b4453b503f33e34110519bf4d7a9bf391ecc2802edbd87acca3e77dc96b7e891",
+      "target_sha256": "a739477001c33b23ad87ebdf8ca5fc40c76b441eb13100daf1bc67136eb12c7b"
+    },
+    {
+      "path": "veteran_desk/gate_v2.py",
+      "base_sha256": "5582d153fa2d4d7270de228dd4ca0df0321c2efc7380b0080edd8af9b6c1dcb0",
+      "target_sha256": "3ca464e4d34b93b3def67820c4ce64e9032217f5ea2b71f1f8cd8a062a409335"
+    }
+  ],
+  "depends_on": [
+    {
+      "path": "veteran_desk/book.py",
+      "sha256": "b4453b503f33e34110519bf4d7a9bf391ecc2802edbd87acca3e77dc96b7e891",
+      "role": "captured live pin, also docs/live_bank07/book.py"
+    },
+    {
+      "path": "veteran_desk/gate_v2.py",
+      "sha256": "5582d153fa2d4d7270de228dd4ca0df0321c2efc7380b0080edd8af9b6c1dcb0",
+      "role": "committed gate before this delta"
+    }
+  ],
+  "protected": [
+    "RAIL_BANK_R = 0.7",
+    "firm HALT still blocks",
+    "stops still required",
+    "hunt48 shorts not enabled",
+    "no ledger or runtime state in this package"
+  ],
+  "excluded_from_release": [
+    "empty_prompt_20261107",
+    "review_budget_20261107",
+    "retail_dash_20261107"
+  ]
+}

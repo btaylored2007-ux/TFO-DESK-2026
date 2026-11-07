@@ -10,7 +10,7 @@ CH = dict(call="LONG", conviction=4); DA = dict(kill_case="x", factual_kill=Fals
 def g(p=None, f=None, ch=CH, da=DA, used=0): return D.risk_gate_v1(dict(P0, **(p or {})), dict(F, **(f or {})), ch, da, NOW, used)
 def test_clean_pass(): r = g(); assert r["passed"] and r["risk_aud"] == 1000, r
 def test_blocks():
-    assert not g({"ticker": "BBCA.JK"})["passed"]; assert not g({"grade": "B"})["passed"]; assert not g({"stop": 101})["passed"]
+    assert not g({"ticker": "BBCA.JK"})["passed"]; b = g({"grade": "B"}); assert b["passed"] and b["risk_aud"] == 250; assert not g({"stop": 101})["passed"]   # t2808u: B passes at half the non-A 500
     assert not g(f={"choppy": True, "efficiency_ratio20": .1})["passed"]; assert not g(f={"ret5": .2})["passed"]
     assert not g(ch=dict(call="SHORT"))["passed"]; assert not g(da=dict(factual_kill=True, fact="f"))["passed"]
     assert not g(ch=None)["passed"]; assert not g(f={"knowable_utc": (NOW - dt.timedelta(days=9)).isoformat()})["passed"]

@@ -98,7 +98,7 @@ def test_walk_forward_selects_on_train_and_charges_fees():
     assert report["fees"]["taker"] == 0.004
     if report["holdout"] and report["holdout"]["n"]:
         assert report["holdout"]["lookahead_ok"] is True
-    assert hashlib.sha256((REPO / "veteran_desk" / "book.py").read_bytes()).hexdigest() == BOOK
+    assert hashlib.sha256((REPO / "docs" / "live_bank07" / "book.py").read_bytes()).hexdigest() == BOOK
     assert BK.RAIL_BANK_R == 0.7
 
 
@@ -129,7 +129,7 @@ def test_package_refuses_production_and_blocks_the_live_desk_hash(tmp_path):
         dest.parent.mkdir(parents=True, exist_ok=True)
         shutil_src = pkg / "base" / "veteran_desk" / name
         dest.write_bytes(shutil_src.read_bytes())
-    (stage / "veteran_desk" / "book.py").write_bytes((REPO / "veteran_desk" / "book.py").read_bytes())
+    (stage / "veteran_desk" / "book.py").write_bytes((REPO / "docs" / "live_bank07" / "book.py").read_bytes())
     dry = subprocess.run([sys.executable, str(pkg / "install.py"), "--root", str(stage)], capture_output=True, text=True)
     assert dry.returncode == 0, dry.stdout
     assert "REPLACE veteran_desk/desk.py" in dry.stdout
@@ -142,7 +142,7 @@ def test_package_refuses_production_and_blocks_the_live_desk_hash(tmp_path):
     target = live / "veteran_desk" / "desk.py"
     target.parent.mkdir(parents=True)
     target.write_bytes(b"live-desk")
-    (live / "veteran_desk" / "book.py").write_bytes((REPO / "veteran_desk" / "book.py").read_bytes())
+    (live / "veteran_desk" / "book.py").write_bytes((REPO / "docs" / "live_bank07" / "book.py").read_bytes())
     for name in ("thf_round.py", "thf_msgdesk.py"):
         (live / "veteran_desk" / name).write_bytes((pkg / "base" / "veteran_desk" / name).read_bytes())
     blocked = subprocess.run([sys.executable, str(pkg / "install.py"), "--root", str(live), "--staging", "--apply"],

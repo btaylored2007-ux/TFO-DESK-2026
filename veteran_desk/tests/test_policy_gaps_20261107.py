@@ -1,4 +1,4 @@
-"""The 19 remaining red nodes are owner decisions. This file does not change their assertions."""
+"""t2808u paper rules now in source. These checks record the effective decision, not a historical quote."""
 import importlib.util
 from pathlib import Path
 
@@ -18,9 +18,9 @@ def test_gate_still_does_not_arm_and_still_asks_for_brett():
 def test_grade_and_floor_gaps_are_still_open():
     assert abs(BK.risk_plan(500000, "B")["pct"] - 0.01) < 1e-9
     cut = BK.risk_plan(500000, "B", mult=0.5)
-    assert cut["pct"] == 0.01 and cut["reject"] is None
+    assert abs(cut["pct"] - 0.005) < 1e-9 and cut["reject"] is None and not cut["sized_up"]
     crypto = BK.risk_plan(500000, "A", mult=0.2, floor=BK.RISK_CRYPTO_MIN)
-    assert crypto["reject"] is None
+    assert crypto["reject"] is None and not crypto["sized_up"]
     assert TG.g(TG.P0(grade="B"))["passed"] is True
     assert TG.g(th=dict(base_block_exp=5.0))["passed"] is True
 
