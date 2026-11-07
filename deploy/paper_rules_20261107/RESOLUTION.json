@@ -20,5 +20,9 @@
     {"node": "veteran_desk/tests/test_railfix_20261029.py::test_rebook_below_floor_rejected_not_lifted", "was": "cancelled below_1pct_floor", "now": "a non-cut rebook lifts inside the budget and is tagged; a history cut is not lifted", "change": "expectation"},
     {"node": "veteran_desk/tests/test_gate_v2.py::test_hard_rules_kept", "was": "grade B blocked", "now": "B passes; stop, banned asset, halt, and kill switch still block", "change": "expectation"},
     {"node": "veteran_desk/tests/test_gate_v2.py::test_base_rate_negative_blocks", "was": "negative history made passed false", "now": "negative history cuts size and does not veto", "change": "expectation"}
+  ],
+  "same_rule_outside_the_nineteen": [
+    {"node": "veteran_desk/tests/test_review_20261030.py::test_override_half_size", "now": "the override half stays at 0.5 percent"},
+    {"node": "veteran_desk/tests/test_review_20261030.py::test_missing_lessons_respected_halves", "now": "the missing-lessons half stays at 0.5 percent"}
   ]
 }
