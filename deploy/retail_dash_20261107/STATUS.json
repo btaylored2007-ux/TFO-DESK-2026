@@ -54,6 +54,8 @@
     "stale_missing_urgent_honest": "source-checked only",
     "post_api_chat_and_desk_chat": "403 on Tailnet nginx by design; not broadened",
     "singapore_forward_test": "not run",
-    "real_device_gui": "not verified"
+    "real_device_gui": "not verified",
+    "owner_phone_20261107_2011": "Screenshot shows the 19:17 navy page, +A$311 since 06:00 WITA, 7 open, 1 waiting. It is evidence of the live screen, not acceptance of this review bundle.",
+    "since_reset": "Home payload has no since-reset field. The review UI prints Since reset only when the server sends since_reset_txt. It does not treat a zero as since inception. The reset read model was not edited."
   }
 }

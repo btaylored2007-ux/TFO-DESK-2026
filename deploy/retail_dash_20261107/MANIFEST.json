@@ -19,7 +19,7 @@
   "deployed_0832": {
     "commit": "39dcb48",
     "wita": "2026-11-07 08:32 WITA",
-    "note": "PR19 bytes that were already on the dash. From a tree at these hashes the installer replaces only the four UI files below. thf_dash.py and thf_chat_home.py are already the target and are not written.",
+    "note": "08:32 is git 39dcb48. 19:17 WITA served these four UI hashes (package 9d58be9e). Both are allowed bases. thf_dash.py and thf_chat_home.py stay CURRENT when the tree is already at the target.",
     "replace_when_tree_matches_deployed": [
       "tools/thf_eli10.html",
       "tools/thf_eli10.js",
@@ -29,39 +29,49 @@
     "already_current": [
       "veteran_desk/thf_dash.py",
       "veteran_desk/thf_chat_home.py"
-    ]
+    ],
+    "also_live_1917": {
+      "tools/thf_eli10.html": "9da1e4ac511c8173eb02bf2c460100ccb8e7fdfbb14352708429d95cfbf453ee",
+      "tools/thf_eli10.js": "c4a977ad2ca04131e22355cc62e32fa04d075dfc88243758e7eab04a03bd8718",
+      "tools/thf_chat.js": "ef3e4def8fd3dcc39093895ddf433d0633f3dfc3a6faa800bb9cfb615e461c44",
+      "tools/thf_chat_page.html": "92d98ecd72b0dbc6231f725a953ff33927c37708f1c2267051ac949f8b6646e3"
+    }
   },
   "replace": [
     {
       "path": "tools/thf_eli10.html",
       "base_sha256": "4c18153b536d85c669264d386b0936207bbedcfb3cc67de2d59e20bb49449607",
-      "target_sha256": "9da1e4ac511c8173eb02bf2c460100ccb8e7fdfbb14352708429d95cfbf453ee",
+      "target_sha256": "65ebb5bcd048d5593d85514e3e62015afd421e23a75f82cc4d9c5a2a540e958d",
       "also_base_sha256": [
-        "e00723691176f3183128e853fdd4ff7236bf03116bb21f371dbeaadf0f0e8bcd"
+        "e00723691176f3183128e853fdd4ff7236bf03116bb21f371dbeaadf0f0e8bcd",
+        "9da1e4ac511c8173eb02bf2c460100ccb8e7fdfbb14352708429d95cfbf453ee"
       ]
     },
     {
       "path": "tools/thf_eli10.js",
       "base_sha256": "1f796ba679cc49970d1df6acb82eaf5fbd348c17e29e86c98e4abeb0fe856d8a",
-      "target_sha256": "c4a977ad2ca04131e22355cc62e32fa04d075dfc88243758e7eab04a03bd8718",
+      "target_sha256": "4ea11e00ace815b4adb91cebe288d07336ebc5568527b72ce9e723ae4a6a5219",
       "also_base_sha256": [
-        "36b3f9fc88240c5bbeb59e431448709987f7967f44185752d94f559132cbb235"
+        "36b3f9fc88240c5bbeb59e431448709987f7967f44185752d94f559132cbb235",
+        "c4a977ad2ca04131e22355cc62e32fa04d075dfc88243758e7eab04a03bd8718"
       ]
     },
     {
       "path": "tools/thf_chat.js",
       "base_sha256": "be70ff4ae236b3df78451ecfffb159dd987c3bda42475faeb0752cf0ccedad73",
-      "target_sha256": "ef3e4def8fd3dcc39093895ddf433d0633f3dfc3a6faa800bb9cfb615e461c44",
+      "target_sha256": "10f8bc16418854ed4c5d05285c60e0c916f80c18a83491f1dde6bfda284d9b55",
       "also_base_sha256": [
-        "b58b0716a5118b7f49d3b18083f7bc355c57467690f511c44c0680cdb69d1f1d"
+        "b58b0716a5118b7f49d3b18083f7bc355c57467690f511c44c0680cdb69d1f1d",
+        "ef3e4def8fd3dcc39093895ddf433d0633f3dfc3a6faa800bb9cfb615e461c44"
       ]
     },
     {
       "path": "tools/thf_chat_page.html",
       "base_sha256": "644acf8e3df755809d16cfc1a1475ba508a313cdec227533aeb1917d5112ece3",
-      "target_sha256": "92d98ecd72b0dbc6231f725a953ff33927c37708f1c2267051ac949f8b6646e3",
+      "target_sha256": "5f40815610f91900ed69359b851799b876675bb7ca0ce5739e55aa1479450ad2",
       "also_base_sha256": [
-        "3a9b0727c420c0b815faa5aaabb8e4285660865363202fc1b04e4762ed13a2f3"
+        "3a9b0727c420c0b815faa5aaabb8e4285660865363202fc1b04e4762ed13a2f3",
+        "92d98ecd72b0dbc6231f725a953ff33927c37708f1c2267051ac949f8b6646e3"
       ]
     },
     {
