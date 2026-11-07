@@ -1,0 +1,9 @@
+# Loopback customer web app. Leave values empty. Do not put provider keys,
+# payment secrets, or customer data in this file.
+CUSTOMER_PLATFORM_ENABLE=0
+CUSTOMER_PLATFORM_SIGNUP=0
+CUSTOMER_PLATFORM_ROOT=
+CUSTOMER_PLATFORM_WEBHOOK_SECRET=
+CUSTOMER_PLATFORM_BRAIN_WORKER=0
+# A configured provider is an environment variable named
+# CUSTOMER_PLATFORM_SECRET_<sec ref>. The value is never written here.

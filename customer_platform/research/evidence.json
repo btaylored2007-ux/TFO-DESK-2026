@@ -1,0 +1,439 @@
+{
+ "cutoff": "2026-11-07 (WITA, UTC+8)",
+ "evidence": [
+  {
+   "id": "QC-1",
+   "vendor": "QuantConnect",
+   "dimension": "Paper trading",
+   "claim": "Free QuantConnect Paper Trading brokerage simulates fills with fictional capital; no real brokerage account needed.",
+   "url": "https://www.quantconnect.com/docs/v2/cloud-platform/live-trading/brokerages/quantconnect-paper-trading",
+   "evidence_class": "official docs",
+   "confidence": "high",
+   "caveat": "Fill realism depends on reality models chosen",
+   "observed": "2026-11-07 (WITA, UTC+8)"
+  },
+  {
+   "id": "QC-2",
+   "vendor": "QuantConnect",
+   "dimension": "Brokers/assets",
+   "claim": "Pricing page lists paper and live via Interactive Brokers (equities, FX, futures, options), tastytrade, Charles Schwab, Tradier, FX brokerages; QC paper covers equities, FX, crypto.",
+   "url": "https://www.quantconnect.com/pricing/",
+   "evidence_class": "official pricing page",
+   "confidence": "high",
+   "caveat": "Eligibility by country/broker not verified",
+   "observed": "2026-11-07 (WITA, UTC+8)"
+  },
+  {
+   "id": "QC-3",
+   "vendor": "QuantConnect",
+   "dimension": "Backtest bias/cost model",
+   "claim": "Reality models cover fills, slippage, fees, brokerage, options, portfolio; default models assume highly liquid assets.",
+   "url": "https://www.quantconnect.com/docs/v2/writing-algorithms/reality-modeling/key-concepts",
+   "evidence_class": "official docs",
+   "confidence": "high",
+   "caveat": "Defaults may be optimistic for illiquid assets",
+   "observed": "2026-11-07 (WITA, UTC+8)"
+  },
+  {
+   "id": "QC-4",
+   "vendor": "QuantConnect",
+   "dimension": "BYOK AI",
+   "claim": "By default agents run on the free QuantConnect Meta Agent. Orgs with a paid Agent Node can supply their own key (Anthropic, DeepSeek, Google, Groq, OpenAI), stored as a secret.",
+   "url": "https://www.quantconnect.com/docs/v2/ai-assistance/bring-your-own-key",
+   "evidence_class": "official docs",
+   "confidence": "high",
+   "caveat": "Pricing page also lists 'Bring Your Key AI Routing' under Institution: tier boundary is UNCLEAR",
+   "observed": "2026-11-07 (WITA, UTC+8)"
+  },
+  {
+   "id": "QC-5",
+   "vendor": "QuantConnect",
+   "dimension": "AI capability",
+   "claim": "Mia agent uses a proprietary blend of commercial and open-source models. QC's own benchmark claims working code in 75% of cases vs OpenAI o3 at 25%.",
+   "url": "https://www.quantconnect.com/docs/v2/ai-assistance/predefined-agents/mia",
+   "evidence_class": "vendor self-benchmark",
+   "confidence": "medium",
+   "caveat": "Not an independent benchmark",
+   "observed": "2026-11-07 (WITA, UTC+8)"
+  },
+  {
+   "id": "QC-6",
+   "vendor": "QuantConnect",
+   "dimension": "Stop semantics",
+   "claim": "MCP tools separate 'stop live trading without liquidating. Positions stay open' from liquidate_live_algorithm. Deploy-to-paper tool compiles first.",
+   "url": "https://www.quantconnect.com/docs/v2/ai-assistance/mcp-server/key-concepts",
+   "evidence_class": "official docs",
+   "confidence": "high",
+   "caveat": "Matches TT need for explicit Stop vs Flatten",
+   "observed": "2026-11-07 (WITA, UTC+8)"
+  },
+  {
+   "id": "QC-7",
+   "vendor": "QuantConnect",
+   "dimension": "Security",
+   "claim": "Pricing lists 2FA, AES-256 code encryption (Institution), hardware 2FA 'Coming Soon'. Security page is a vulnerability-disclosure policy; licensed market data may not be exported.",
+   "url": "https://www.quantconnect.com/security/",
+   "evidence_class": "official",
+   "confidence": "high",
+   "caveat": "No SOC2 statement found in fetched pages: UNKNOWN",
+   "observed": "2026-11-07 (WITA, UTC+8)"
+  },
+  {
+   "id": "QC-8",
+   "vendor": "QuantConnect",
+   "dimension": "Live infra",
+   "claim": "Live nodes are co-located in Equinix; one live node is needed per deployed algorithm; automatic restarts and state persistence are documented.",
+   "url": "https://www.quantconnect.com/docs/v2/cloud-platform/live-trading/deployment",
+   "evidence_class": "official docs",
+   "confidence": "high",
+   "caveat": "",
+   "observed": "2026-11-07 (WITA, UTC+8)"
+  },
+  {
+   "id": "QC-9",
+   "vendor": "QuantConnect",
+   "dimension": "Pricing",
+   "claim": "Tiers: Free, Researcher, Team, Trading Firm, Institution. Free includes equity, index, FX, crypto, futures and options data, and unlimited backtesting. QCC credit packs $20\u2013$250 USD.",
+   "url": "https://www.quantconnect.com/pricing/",
+   "evidence_class": "official pricing",
+   "confidence": "medium",
+   "caveat": "Tier dollar amounts rendered by JS and not captured: UNKNOWN",
+   "observed": "2026-11-07 (WITA, UTC+8)"
+  },
+  {
+   "id": "QC-10",
+   "vendor": "QuantConnect",
+   "dimension": "Education",
+   "claim": "Learning center has interactive lessons and courses with certificates.",
+   "url": "https://www.quantconnect.com/learning/",
+   "evidence_class": "official",
+   "confidence": "medium",
+   "caveat": "Quiz/pass-gate mechanics not verified: UNKNOWN",
+   "observed": "2026-11-07 (WITA, UTC+8)"
+  },
+  {
+   "id": "QC-11",
+   "vendor": "QuantConnect",
+   "dimension": "Research pipeline",
+   "claim": "Homepage marketing says paper must land inside the backtest's statistical envelope. /research-pipeline URL returned an error page.",
+   "url": "https://www.quantconnect.com/",
+   "evidence_class": "marketing",
+   "confidence": "low",
+   "caveat": "DO NOT cite as documented behaviour",
+   "observed": "2026-11-07 (WITA, UTC+8)"
+  },
+  {
+   "id": "TS-1",
+   "vendor": "TrendSpider",
+   "dimension": "AI/models",
+   "claim": "Sidekick add-on tiers: Free 25 msgs/mo; Basic $49/mo 100; Plus $129/mo 300 (+3 frontier models); Max $349/mo 1,000. Model picker lists Claude, ChatGPT and Gemini variants.",
+   "url": "https://trendspider.com/product/sidekick-ai-trading-assistant/",
+   "evidence_class": "official pricing/product",
+   "confidence": "high",
+   "caveat": "Vendor-hosted models; no BYOK found: UNKNOWN",
+   "observed": "2026-11-07 (WITA, UTC+8)"
+  },
+  {
+   "id": "TS-2",
+   "vendor": "TrendSpider",
+   "dimension": "Backtest cost model",
+   "claim": "Strategy Tester has a trade-cost setting (commissions/slippage). Direct options and index backtesting are not currently supported. Forward testing is advised.",
+   "url": "https://trendspider.com/product/strategy-development-and-backtesting-tools/",
+   "evidence_class": "official FAQ",
+   "confidence": "high",
+   "caveat": "",
+   "observed": "2026-11-07 (WITA, UTC+8)"
+  },
+  {
+   "id": "TS-3",
+   "vendor": "TrendSpider",
+   "dimension": "Execution",
+   "claim": "Bots route via notifications or supported broker-connected order routing; SignalStack is a separate service.",
+   "url": "https://trendspider.com/product/strategy-development-and-backtesting-tools/",
+   "evidence_class": "official",
+   "confidence": "medium",
+   "caveat": "Broker list page fetch 404; supported brokers UNKNOWN",
+   "observed": "2026-11-07 (WITA, UTC+8)"
+  },
+  {
+   "id": "TS-4",
+   "vendor": "TrendSpider",
+   "dimension": "ML learning",
+   "claim": "ML Quant Lab trains models (RF, KNN); evaluation is on data separate from training.",
+   "url": "https://trendspider.com/product/strategy-development-and-backtesting-tools/",
+   "evidence_class": "official",
+   "confidence": "medium",
+   "caveat": "ML lab page returned 202 empty",
+   "observed": "2026-11-07 (WITA, UTC+8)"
+  },
+  {
+   "id": "TS-5",
+   "vendor": "TrendSpider",
+   "dimension": "Pricing",
+   "claim": "Black Friday promo (Nov 6\u20139) showed 7-day trials of $19\u2013$49 and discounted tiers; plans include e.g. 100 trading bots on Advanced. Promo sales are final.",
+   "url": "https://trendspider.com/pricing/",
+   "evidence_class": "official pricing (promo)",
+   "confidence": "medium",
+   "caveat": "Regular list prices obscured by promo: treat as UNKNOWN",
+   "observed": "2026-11-07 (WITA, UTC+8)"
+  },
+  {
+   "id": "TS-6",
+   "vendor": "TrendSpider",
+   "dimension": "Reliability",
+   "claim": "SLA: 99.95% uptime target with service credits.",
+   "url": "https://trendspider.com/sla/",
+   "evidence_class": "official contract",
+   "confidence": "high",
+   "caveat": "Not measured",
+   "observed": "2026-11-07 (WITA, UTC+8)"
+  },
+  {
+   "id": "TS-7",
+   "vendor": "TrendSpider",
+   "dimension": "Education",
+   "claim": "TrendSpider University: video courses (platform, Technical Charting 101, CME Group courses).",
+   "url": "https://trendspider.com/university/",
+   "evidence_class": "official",
+   "confidence": "high",
+   "caveat": "No quiz/pass gating observed: UNKNOWN",
+   "observed": "2026-11-07 (WITA, UTC+8)"
+  },
+  {
+   "id": "TS-8",
+   "vendor": "TrendSpider",
+   "dimension": "Privacy",
+   "claim": "Privacy page returned HTTP 202 with empty body (bot protection).",
+   "url": "https://trendspider.com/privacy/",
+   "evidence_class": "blocked",
+   "confidence": "n/a",
+   "caveat": "No inference",
+   "observed": "2026-11-07 (WITA, UTC+8)"
+  },
+  {
+   "id": "CP-1",
+   "vendor": "Composer",
+   "dimension": "Pricing",
+   "claim": "Starter $0; Advanced $10/mo (5 automated strategies, 350 nodes); Pro $32/mo billed $384/yr, or $40 monthly (500 strategies, 10,000 nodes, API).",
+   "url": "https://www.composer.trade/pricing",
+   "evidence_class": "official pricing + fee schedule PDF (updated 9/15/26)",
+   "confidence": "high",
+   "caveat": "USD",
+   "observed": "2026-11-07 (WITA, UTC+8)"
+  },
+  {
+   "id": "CP-2",
+   "vendor": "Composer",
+   "dimension": "Regulation/broker",
+   "claim": "Composer Securities LLC is a SEC-registered FINRA/SIPC broker-dealer; clearing via Alpaca Securities / Apex.",
+   "url": "https://www.composer.trade/disclosures",
+   "evidence_class": "official disclosure",
+   "confidence": "high",
+   "caveat": "US-centric; jurisdiction eligibility UNKNOWN",
+   "observed": "2026-11-07 (WITA, UTC+8)"
+  },
+  {
+   "id": "CP-3",
+   "vendor": "Composer",
+   "dimension": "AI",
+   "claim": "AI disclosure: the tool uses GPT-4o API knowledge, may not have current info, selects from listed ETFs and equities, and rebalances by client logic.",
+   "url": "https://storage.googleapis.com/www.investcomposer.com/docs/disclosure-createwithai.pdf",
+   "evidence_class": "official disclosure",
+   "confidence": "high",
+   "caveat": "Document date not parsed",
+   "observed": "2026-11-07 (WITA, UTC+8)"
+  },
+  {
+   "id": "CP-4",
+   "vendor": "Composer",
+   "dimension": "Paper",
+   "claim": "No paper mode documented on fetched pages.",
+   "url": "https://www.composer.trade/",
+   "evidence_class": "n/a",
+   "confidence": "low",
+   "caveat": "UNKNOWN, not absence",
+   "observed": "2026-11-07 (WITA, UTC+8)"
+  },
+  {
+   "id": "CP-5",
+   "vendor": "Composer",
+   "dimension": "Education",
+   "claim": "Learn hub has article guides (stock market/ETFs, trading as a business).",
+   "url": "https://www.composer.trade/learn",
+   "evidence_class": "official",
+   "confidence": "medium",
+   "caveat": "No graded course observed",
+   "observed": "2026-11-07 (WITA, UTC+8)"
+  },
+  {
+   "id": "3C-1",
+   "vendor": "3Commas",
+   "dimension": "Pricing",
+   "claim": "Starter $15 annual / $20 monthly (spot, 1 exchange); Pro $38/$50; Expert $105/$140 (API read/write). All plans include Demo Account.",
+   "url": "https://3commas.io/pricing",
+   "evidence_class": "official pricing",
+   "confidence": "high",
+   "caveat": "USD per month",
+   "observed": "2026-11-07 (WITA, UTC+8)"
+  },
+  {
+   "id": "3C-2",
+   "vendor": "3Commas",
+   "dimension": "Key security",
+   "claim": "Sign Center isolates exchange API key storage and signs requests; IP whitelist; trade-only keys, no withdrawal; WAF/DDoS/TLS.",
+   "url": "https://3commas.io/security",
+   "evidence_class": "official",
+   "confidence": "high",
+   "caveat": "No audit report seen",
+   "observed": "2026-11-07 (WITA, UTC+8)"
+  },
+  {
+   "id": "3C-3",
+   "vendor": "3Commas",
+   "dimension": "Stop semantics",
+   "claim": "AI bot FAQ: bots don't pause automatically unless stop conditions are set; DCA may add safety orders in extreme moves.",
+   "url": "https://3commas.io/ai-trading-bot",
+   "evidence_class": "official FAQ",
+   "confidence": "high",
+   "caveat": "Important risk-semantics lesson",
+   "observed": "2026-11-07 (WITA, UTC+8)"
+  },
+  {
+   "id": "3C-4",
+   "vendor": "3Commas",
+   "dimension": "AI",
+   "claim": "AI assistant turns a prompt into a bot config. FAQ says AI bots 'learn from historical and real-time data'.",
+   "url": "https://3commas.io/ai-trading-bot",
+   "evidence_class": "marketing",
+   "confidence": "low",
+   "caveat": "Learning claim unverified",
+   "observed": "2026-11-07 (WITA, UTC+8)"
+  },
+  {
+   "id": "3C-5",
+   "vendor": "3Commas",
+   "dimension": "Exchanges",
+   "claim": "Binance, Hyperliquid, Bybit, OKX, Bitget, Gate, Kraken, KuCoin, Coinbase (spot/futures).",
+   "url": "https://3commas.io/exchanges",
+   "evidence_class": "official",
+   "confidence": "high",
+   "caveat": "Crypto only",
+   "observed": "2026-11-07 (WITA, UTC+8)"
+  },
+  {
+   "id": "3C-6",
+   "vendor": "3Commas",
+   "dimension": "Beta",
+   "claim": "QuantPilot is early access per homepage; /quantpilot URL 404.",
+   "url": "https://3commas.io/",
+   "evidence_class": "marketing",
+   "confidence": "medium",
+   "caveat": "Announced beta",
+   "observed": "2026-11-07 (WITA, UTC+8)"
+  },
+  {
+   "id": "TI-1",
+   "vendor": "Trade Ideas",
+   "dimension": "Pricing",
+   "claim": "TI Standard $127/mo monthly or $89/mo annual ($1,068/yr); TI Premium $254/mo or $178/mo annual ($2,136/yr). Free tier has 15-min delayed data.",
+   "url": "https://www.trade-ideas.com/pricing/",
+   "evidence_class": "official pricing",
+   "confidence": "high",
+   "caveat": "USD",
+   "observed": "2026-11-07 (WITA, UTC+8)"
+  },
+  {
+   "id": "TI-2",
+   "vendor": "Trade Ideas",
+   "dimension": "Paper",
+   "claim": "Simulated trading on live data (web and Pro). Money Machine has a Simulated Mode. Simulated fills are estimates.",
+   "url": "https://www.trade-ideas.com/features/paper-trading/",
+   "evidence_class": "official",
+   "confidence": "high",
+   "caveat": "",
+   "observed": "2026-11-07 (WITA, UTC+8)"
+  },
+  {
+   "id": "TI-3",
+   "vendor": "Trade Ideas",
+   "dimension": "Brokers",
+   "claim": "Broker API connections: IBKR, E*TRADE, TradeStation, Alpaca, plus partners CenterPoint and Cobra.",
+   "url": "https://www.trade-ideas.com/pricing/",
+   "evidence_class": "official",
+   "confidence": "high",
+   "caveat": "US stocks focus",
+   "observed": "2026-11-07 (WITA, UTC+8)"
+  },
+  {
+   "id": "TI-4",
+   "vendor": "Trade Ideas",
+   "dimension": "AI/learning",
+   "claim": "Holly backtests strategies nightly and picks the strongest for the next day; signals carry an entry and a stop of about 3%; gaps can enlarge losses.",
+   "url": "https://www.trade-ideas.com/features/ai-signals/",
+   "evidence_class": "official marketing",
+   "confidence": "medium",
+   "caveat": "Selected examples; not independent",
+   "observed": "2026-11-07 (WITA, UTC+8)"
+  },
+  {
+   "id": "TI-5",
+   "vendor": "Trade Ideas",
+   "dimension": "Export/per-strategy perf",
+   "claim": "Premium: equity curve, drawdown, daily P&L calendar with CSV export; CSV alert logging.",
+   "url": "https://www.trade-ideas.com/pricing/",
+   "evidence_class": "official",
+   "confidence": "high",
+   "caveat": "",
+   "observed": "2026-11-07 (WITA, UTC+8)"
+  },
+  {
+   "id": "TI-6",
+   "vendor": "Trade Ideas",
+   "dimension": "Education",
+   "claim": "Learning Center article categories (order types, AI in trading, brokers, etc.).",
+   "url": "https://www.trade-ideas.com/learning-center/",
+   "evidence_class": "official",
+   "confidence": "high",
+   "caveat": "No graded course observed",
+   "observed": "2026-11-07 (WITA, UTC+8)"
+  }
+ ],
+ "blocked_or_unverified": [
+  {
+   "url": "https://trendspider.com/privacy/",
+   "result": "202 empty"
+  },
+  {
+   "url": "https://trendspider.com/product/machine-learning-quant-trading-strategy-lab/",
+   "result": "202 empty"
+  },
+  {
+   "url": "https://help.trendspider.com/kb/trading-bots/getting-started-with-trading-bots",
+   "result": "404"
+  },
+  {
+   "url": "https://3commas.io/quantpilot",
+   "result": "404"
+  },
+  {
+   "url": "https://trade.3commas.io/docs",
+   "result": "403"
+  },
+  {
+   "url": "https://status.3commas.io/",
+   "result": "connection failed"
+  },
+  {
+   "url": "https://www.quantconnect.com/research-pipeline",
+   "result": "error page"
+  },
+  {
+   "url": "https://www.trade-ideas.com/terms-of-service/",
+   "result": "404"
+  },
+  {
+   "url": "https://www.composer.trade/faq",
+   "result": "404"
+  }
+ ]
+}

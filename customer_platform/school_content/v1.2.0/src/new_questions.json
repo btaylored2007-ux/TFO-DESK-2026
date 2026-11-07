@@ -1,0 +1,1046 @@
+[
+  {
+    "id": "tts.m01.qb01",
+    "pool": "B",
+    "objective_id": "tts.m01.lo2",
+    "stem": "A share quotes bid A$12.40 and ask A$12.50. What is the mid-price?",
+    "options": [
+      {
+        "id": "a",
+        "text": "A$12.40",
+        "explanation": "That is the bid, the highest advertised buy price, not the mid."
+      },
+      {
+        "id": "b",
+        "text": "A$12.45",
+        "explanation": "Mid-price = (12.40 + 12.50) / 2 = A$12.45."
+      },
+      {
+        "id": "c",
+        "text": "A$12.50",
+        "explanation": "That is the ask, the lowest advertised sell price."
+      },
+      {
+        "id": "d",
+        "text": "A$0.10",
+        "explanation": "That is the spread (ask minus bid), not the mid-price."
+      }
+    ],
+    "correct_option": "b"
+  },
+  {
+    "id": "tts.m01.qb02",
+    "pool": "B",
+    "objective_id": "tts.m01.lo2",
+    "stem": "Using bid A$15.00 / ask A$15.06, what is the cost of buying 200 shares at the ask and instantly selling at the bid, ignoring brokerage?",
+    "options": [
+      {
+        "id": "a",
+        "text": "A$6",
+        "explanation": "That would be 100 shares, not 200."
+      },
+      {
+        "id": "b",
+        "text": "A$30",
+        "explanation": "That uses a A$0.15 spread."
+      },
+      {
+        "id": "c",
+        "text": "A$12",
+        "explanation": "Round-trip spread cost = 200 x (15.06 - 15.00) = 200 x 0.06 = A$12."
+      },
+      {
+        "id": "d",
+        "text": "A$120",
+        "explanation": "Decimal error: that treats the spread as A$0.60."
+      }
+    ],
+    "correct_option": "c"
+  },
+  {
+    "id": "tts.m01.qb03",
+    "pool": "B",
+    "objective_id": "tts.m01.lo3",
+    "stem": "Which order may never fill even after its trigger price trades?",
+    "options": [
+      {
+        "id": "a",
+        "text": "Stop-limit",
+        "explanation": "A stop-limit becomes a limit order at the trigger. If price gaps through the limit, it may never fill."
+      },
+      {
+        "id": "b",
+        "text": "Market order",
+        "explanation": "A market order seeks immediate execution at available prices (in a normal open market) and does not wait on a second limit."
+      },
+      {
+        "id": "c",
+        "text": "Market-on-close order",
+        "explanation": "That order type seeks a close print rather than waiting on a stop then a limit."
+      },
+      {
+        "id": "d",
+        "text": "Stop (stop-market)",
+        "explanation": "A stop-market becomes a market order after the trigger and can fill, often far from the trigger, rather than remaining unfilled as a limit might."
+      }
+    ],
+    "correct_option": "a"
+  },
+  {
+    "id": "tts.m01.qb04",
+    "pool": "B",
+    "objective_id": "tts.m01.lo4",
+    "stem": "As of the course's sourced ASX note (7 Nov 2026), standard CHESS settlement for Australian cash-equity trades was:",
+    "options": [
+      {
+        "id": "a",
+        "text": "T+0 same-day guaranteed",
+        "explanation": "ASX described T+2 as the current cycle, with T+1 only under consideration."
+      },
+      {
+        "id": "b",
+        "text": "T+1 already live for all ASX cash equities",
+        "explanation": "The sourced ASX page said T+1 was being considered, not that it had already replaced T+2."
+      },
+      {
+        "id": "c",
+        "text": "T+3",
+        "explanation": "That is an older cycle, not the sourced current ASX description."
+      },
+      {
+        "id": "d",
+        "text": "T+2, with T+1 being considered",
+        "explanation": "ASX stated that CHESS settles cash-equity trades two business days after trade (T+2) and was considering a possible move to T+1."
+      }
+    ],
+    "correct_option": "d"
+  },
+  {
+    "id": "tts.m01.qb05",
+    "pool": "B",
+    "objective_id": "tts.m01.lo4",
+    "stem": "A Sydney-session decision at 10:15 Australia/Sydney on a Tuesday should not treat which print as already known?",
+    "options": [
+      {
+        "id": "a",
+        "text": "Monday's ASX official close",
+        "explanation": "Monday's local close occurred the previous day and is in the information set."
+      },
+      {
+        "id": "b",
+        "text": "That Tuesday's New York cash close",
+        "explanation": "New York's cash close happens later the same calendar date. Using it at 10:15 Sydney would be look-ahead unless you have a time-travel data error."
+      },
+      {
+        "id": "c",
+        "text": "Monday's New York close",
+        "explanation": "Monday's New York close is already in the past by Tuesday morning in Sydney."
+      },
+      {
+        "id": "d",
+        "text": "The prior ASX opening auction print on Tuesday if it has already occurred",
+        "explanation": "If the opening auction has already printed, that price is known."
+      }
+    ],
+    "correct_option": "b"
+  },
+  {
+    "id": "tts.m01.qb06",
+    "pool": "B",
+    "objective_id": "tts.m01.lo2",
+    "stem": "Brokerage A$15 each way on a A$8,000 trade plus 0.15% round-trip spread. Total round-trip cost?",
+    "options": [
+      {
+        "id": "a",
+        "text": "A$15",
+        "explanation": "That is one side of brokerage only."
+      },
+      {
+        "id": "b",
+        "text": "A$30",
+        "explanation": "That is brokerage both ways but omits the A$12 spread cost (0.0015 x 8,000)."
+      },
+      {
+        "id": "c",
+        "text": "A$42",
+        "explanation": "Brokerage 15 x 2 = 30, plus 0.15% of 8,000 = 12, total A$42."
+      },
+      {
+        "id": "d",
+        "text": "A$150",
+        "explanation": "That treats 0.15% as 1.5% or misplaces the decimal."
+      }
+    ],
+    "correct_option": "c"
+  },
+  {
+    "id": "tts.m04.qb01",
+    "pool": "B",
+    "objective_id": "tts.m04.lo3",
+    "stem": "Modified duration 7, yields rise 0.40%. Approximate price change?",
+    "options": [
+      {
+        "id": "a",
+        "text": "-2.8%",
+        "explanation": "dP/P is approximately -Dmod x dy = -7 x 0.40% = -2.8%."
+      },
+      {
+        "id": "b",
+        "text": "+2.8%",
+        "explanation": "That drops the minus sign. Yields rising lowers existing fixed-coupon bond prices."
+      },
+      {
+        "id": "c",
+        "text": "-7.0%",
+        "explanation": "That applies the whole duration to a 1% move, not to 0.40%."
+      },
+      {
+        "id": "d",
+        "text": "+0.40%",
+        "explanation": "That ignores duration."
+      }
+    ],
+    "correct_option": "a"
+  },
+  {
+    "id": "tts.m04.qb02",
+    "pool": "B",
+    "objective_id": "tts.m04.lo2",
+    "stem": "A bond's coupon is 3% and the market yield is 5%. Other things equal it trades:",
+    "options": [
+      {
+        "id": "a",
+        "text": "At par",
+        "explanation": "Par occurs when coupon equals yield."
+      },
+      {
+        "id": "b",
+        "text": "Above par",
+        "explanation": "A premium occurs when coupon is above yield."
+      },
+      {
+        "id": "c",
+        "text": "Below par",
+        "explanation": "The 3% coupon is less generous than the 5% market yield, so the price must sit below face value."
+      },
+      {
+        "id": "d",
+        "text": "At zero",
+        "explanation": "A solvent ordinary bond does not jump to a zero price just because it is cheap relative to yield."
+      }
+    ],
+    "correct_option": "c"
+  },
+  {
+    "id": "tts.m04.qb03",
+    "pool": "B",
+    "objective_id": "tts.m04.lo5",
+    "stem": "PD 4%, LGD 45%. Approximate expected annual credit loss?",
+    "options": [
+      {
+        "id": "a",
+        "text": "4.0%",
+        "explanation": "That is the default probability with no recovery adjustment."
+      },
+      {
+        "id": "b",
+        "text": "1.8%",
+        "explanation": "Expected loss is approximately 0.04 x 0.45 = 0.018, or 1.8%."
+      },
+      {
+        "id": "c",
+        "text": "45%",
+        "explanation": "That is loss given default alone."
+      },
+      {
+        "id": "d",
+        "text": "0.45%",
+        "explanation": "Decimal error (0.04 x 0.45 is not 0.0045)."
+      }
+    ],
+    "correct_option": "b"
+  },
+  {
+    "id": "tts.m04.qb04",
+    "pool": "B",
+    "objective_id": "tts.m04.lo3",
+    "stem": "For an option-free ordinary bond, if yields fall sharply, actual price gain versus the duration estimate is typically:",
+    "options": [
+      {
+        "id": "a",
+        "text": "Smaller, because duration always overstates gains",
+        "explanation": "For ordinary option-free bonds, positive convexity usually adds to gains."
+      },
+      {
+        "id": "b",
+        "text": "Exactly the same as the straight line",
+        "explanation": "Duration is a linear approximation."
+      },
+      {
+        "id": "c",
+        "text": "Negative regardless of the yield fall",
+        "explanation": "A yield fall raises, not lowers, an option-free fixed-coupon price."
+      },
+      {
+        "id": "d",
+        "text": "Larger, due to positive convexity",
+        "explanation": "Positive convexity means the actual price rise exceeds the duration line for a large yield fall (and the actual fall is milder than the line for a large yield rise)."
+      }
+    ],
+    "correct_option": "d"
+  },
+  {
+    "id": "tts.m04.qb05",
+    "pool": "B",
+    "objective_id": "tts.m04.lo2",
+    "stem": "2-year 4% annual coupon A$100 bond priced at a 4% yield. Price?",
+    "options": [
+      {
+        "id": "a",
+        "text": "A$100",
+        "explanation": "When coupon equals yield, present value equals par, here A$100."
+      },
+      {
+        "id": "b",
+        "text": "A$104",
+        "explanation": "That just adds one coupon to face value without discounting."
+      },
+      {
+        "id": "c",
+        "text": "A$96",
+        "explanation": "That would require a yield above the coupon."
+      },
+      {
+        "id": "d",
+        "text": "A$108",
+        "explanation": "No basis in the cashflows at a 4% yield."
+      }
+    ],
+    "correct_option": "a"
+  },
+  {
+    "id": "tts.m04.qb06",
+    "pool": "B",
+    "objective_id": "tts.m04.lo4",
+    "stem": "An inverted government yield curve means:",
+    "options": [
+      {
+        "id": "a",
+        "text": "Long-term yields are above short-term yields",
+        "explanation": "That describes a normally upward-sloping curve."
+      },
+      {
+        "id": "b",
+        "text": "All yields are negative",
+        "explanation": "Inversion is about the ranking of short versus long yields, not their sign."
+      },
+      {
+        "id": "c",
+        "text": "Short-term yields are above long-term yields",
+        "explanation": "That is the definition of an inverted curve."
+      },
+      {
+        "id": "d",
+        "text": "Inflation must be zero",
+        "explanation": "Inflation can be positive under an inverted curve."
+      }
+    ],
+    "correct_option": "c"
+  },
+  {
+    "id": "tts.m05.qb01",
+    "pool": "B",
+    "objective_id": "tts.m05.lo1",
+    "stem": "AUD/USD = 0.7200. What is USD/AUD?",
+    "options": [
+      {
+        "id": "a",
+        "text": "1.7200",
+        "explanation": "That adds 1 rather than taking the reciprocal."
+      },
+      {
+        "id": "b",
+        "text": "0.2800",
+        "explanation": "That subtracts 0.72 from 1."
+      },
+      {
+        "id": "c",
+        "text": "1.3889",
+        "explanation": "USD/AUD = 1 / 0.7200 = 1.3888..., about 1.3889."
+      },
+      {
+        "id": "d",
+        "text": "0.7200",
+        "explanation": "That is the original quote, not its inverse."
+      }
+    ],
+    "correct_option": "c"
+  },
+  {
+    "id": "tts.m05.qb02",
+    "pool": "B",
+    "objective_id": "tts.m05.lo3",
+    "stem": "Buy 50,000 AUD/USD at 0.6700 and sell at 0.6740. P&L in USD?",
+    "options": [
+      {
+        "id": "a",
+        "text": "US$200",
+        "explanation": "P&L = 50,000 x (0.6740 - 0.6700) = 50,000 x 0.0040 = US$200."
+      },
+      {
+        "id": "b",
+        "text": "US$20",
+        "explanation": "Decimal error (using 0.0004)."
+      },
+      {
+        "id": "c",
+        "text": "US$2,000",
+        "explanation": "Decimal error (using 0.04)."
+      },
+      {
+        "id": "d",
+        "text": "US$4",
+        "explanation": "That counts pips without multiplying by notional correctly."
+      }
+    ],
+    "correct_option": "a"
+  },
+  {
+    "id": "tts.m05.qb03",
+    "pool": "B",
+    "objective_id": "tts.m05.lo4",
+    "stem": "A US share returns +5% in USD and the USD falls 8% versus the AUD. Approximate A$ return?",
+    "options": [
+      {
+        "id": "a",
+        "text": "+13.0%",
+        "explanation": "That adds the percentages and ignores that USD fell."
+      },
+      {
+        "id": "b",
+        "text": "-3.0%",
+        "explanation": "That subtracts 8 from 5 without compounding."
+      },
+      {
+        "id": "c",
+        "text": "+5.0%",
+        "explanation": "That ignores the currency leg."
+      },
+      {
+        "id": "d",
+        "text": "-3.4%",
+        "explanation": "Home-currency return = 1.05 x 0.92 - 1 = 0.966 - 1 = -3.4%."
+      }
+    ],
+    "correct_option": "d"
+  },
+  {
+    "id": "tts.m05.qb04",
+    "pool": "B",
+    "objective_id": "tts.m05.lo1",
+    "stem": "EUR/USD 1.08 and AUD/USD 0.72. What is EUR/AUD?",
+    "options": [
+      {
+        "id": "a",
+        "text": "0.778",
+        "explanation": "That is 0.72 / 1.08, the inverse cross."
+      },
+      {
+        "id": "b",
+        "text": "1.5000",
+        "explanation": "EUR/AUD = 1.08 / 0.72 = 1.50."
+      },
+      {
+        "id": "c",
+        "text": "1.8000",
+        "explanation": "That adds the two USD rates."
+      },
+      {
+        "id": "d",
+        "text": "0.3600",
+        "explanation": "That multiplies them."
+      }
+    ],
+    "correct_option": "b"
+  },
+  {
+    "id": "tts.m05.qb05",
+    "pool": "B",
+    "objective_id": "tts.m05.lo2",
+    "stem": "Covered interest parity says the forward FX rate primarily reflects:",
+    "options": [
+      {
+        "id": "a",
+        "text": "Interest-rate differentials (and spot)",
+        "explanation": "The no-arbitrage forward is set from spot and the two interest rates. It is not by itself a forecast of future spot."
+      },
+      {
+        "id": "b",
+        "text": "The market's unbiased forecast of future spot",
+        "explanation": "Using the forward as if it were a prediction of spot is a category error."
+      },
+      {
+        "id": "c",
+        "text": "Only trade balances",
+        "explanation": "Trade balances may influence spot over time but do not set the covered-interest forward identity."
+      },
+      {
+        "id": "d",
+        "text": "Central-bank policy targets alone",
+        "explanation": "Targets may influence interest rates, but the forward formula uses the rates themselves."
+      }
+    ],
+    "correct_option": "a"
+  },
+  {
+    "id": "tts.m05.qb06",
+    "pool": "B",
+    "objective_id": "tts.m05.lo5",
+    "stem": "A carry trade that borrows a low-yield currency to hold a high-yield currency is most exposed to:",
+    "options": [
+      {
+        "id": "a",
+        "text": "A guaranteed daily profit equal to the interest differential",
+        "explanation": "The differential can be erased or reversed by a sharp move in the exchange rate."
+      },
+      {
+        "id": "b",
+        "text": "Zero currency risk because interest is known",
+        "explanation": "The FX move is the main risk."
+      },
+      {
+        "id": "c",
+        "text": "Sharp losses if risk appetite collapses and the funding currency strengthens",
+        "explanation": "Carry unwinds often happen quickly in stress as high-yielders fall and funding currencies rise."
+      },
+      {
+        "id": "d",
+        "text": "Losses only if both central banks hike equally",
+        "explanation": "Equal hikes are not the typical unwind mechanism."
+      }
+    ],
+    "correct_option": "c"
+  },
+  {
+    "id": "tts.m18.qb07",
+    "pool": "B",
+    "objective_id": "tts.m18.lo5",
+    "stem": "A fictional sample of 100 equally likely daily P&L outcomes has worst losses of 2.4%, 1.9%, 1.6%, 1.4% and 1.3% of equity. Using the fifth-percentile loss as one-day 95% historical VaR, VaR is:",
+    "options": [
+      {
+        "id": "a",
+        "text": "2.4% of equity",
+        "explanation": "That is the single worst outcome in the sample, not the fifth-percentile cutoff."
+      },
+      {
+        "id": "b",
+        "text": "1.72% of equity",
+        "explanation": "That is the inclusive average of the five tail losses (a teaching ES figure), not VaR."
+      },
+      {
+        "id": "c",
+        "text": "1.3% of equity",
+        "explanation": "The fifth-worst loss is the 5th percentile of this 100-observation sample, so one-day 95% historical VaR is 1.3% of equity."
+      },
+      {
+        "id": "d",
+        "text": "Zero, because 95% of days were better",
+        "explanation": "VaR is the cutoff of the tail, not zero."
+      }
+    ],
+    "correct_option": "c"
+  },
+  {
+    "id": "tts.m18.qb08",
+    "pool": "B",
+    "objective_id": "tts.m18.lo5",
+    "stem": "Using the same fictional five worst daily losses (2.4%, 1.9%, 1.6%, 1.4%, 1.3%), the inclusive average of those tail losses is:",
+    "options": [
+      {
+        "id": "a",
+        "text": "1.72%",
+        "explanation": "(2.4 + 1.9 + 1.6 + 1.4 + 1.3) / 5 = 8.6 / 5 = 1.72%. This teaching figure is an inclusive tail average; Basel wording describes ES as the average of losses exceeding VaR, so implementations can differ. State your sample rule."
+      },
+      {
+        "id": "b",
+        "text": "1.30%",
+        "explanation": "That is the VaR cutoff in the previous question, not the tail average."
+      },
+      {
+        "id": "c",
+        "text": "8.60%",
+        "explanation": "That sums the five percentages instead of averaging them."
+      },
+      {
+        "id": "d",
+        "text": "0.344%",
+        "explanation": "That divides 1.72 by 5 again."
+      }
+    ],
+    "correct_option": "a"
+  },
+  {
+    "id": "tts.m18.qb09",
+    "pool": "B",
+    "objective_id": "tts.m18.lo5",
+    "stem": "Which statement about VaR, expected shortfall and drawdown is accurate?",
+    "options": [
+      {
+        "id": "a",
+        "text": "A 95% one-day VaR of A$1,300 guarantees that the account cannot lose more than A$1,300",
+        "explanation": "VaR is not a maximum-loss cap; losses beyond the cutoff can be larger, and multi-day drawdowns can exceed any one-day VaR."
+      },
+      {
+        "id": "b",
+        "text": "Expected shortfall is always smaller than VaR at the same horizon and cutoff",
+        "explanation": "ES averages tail losses at or beyond VaR, so it is larger than (or equal to) VaR."
+      },
+      {
+        "id": "c",
+        "text": "If recent correlations were low, portfolio VaR automatically stays valid in a crisis",
+        "explanation": "Correlations often rise in stress, so a calm-window VaR can understate risk."
+      },
+      {
+        "id": "d",
+        "text": "Neither VaR nor a stop or drawdown ladder guarantees the next drawdown",
+        "explanation": "These are planning tools with stated limitations. Gaps, liquidity, model error and correlation changes can all produce deeper losses."
+      }
+    ],
+    "correct_option": "d"
+  },
+  {
+    "id": "tts.m18.qb10",
+    "pool": "B",
+    "objective_id": "tts.m18.lo3",
+    "stem": "Four paper positions each show 0.50% open risk to their stops (2.0% total heat). Pairwise correlations jump from about 0.55 in a calm window to about 0.90 in a stress week. The best process reading is:",
+    "options": [
+      {
+        "id": "a",
+        "text": "Heat is unchanged, so diversification is proven",
+        "explanation": "Headline heat did not measure the loss of independence."
+      },
+      {
+        "id": "b",
+        "text": "The positions now behave more like one concentrated bet, so group caps and gap stress matter more than the 2.0% sum alone",
+        "explanation": "Rising correlation reduces diversification when it is needed most."
+      },
+      {
+        "id": "c",
+        "text": "Correlation always falls in crises, offsetting gaps",
+        "explanation": "The lesson's point is the opposite tendency: correlations among risky assets often rise."
+      },
+      {
+        "id": "d",
+        "text": "VaR from the calm window is now more reliable",
+        "explanation": "A calm-window statistic that assumed lower correlation is less, not more, reliable."
+      }
+    ],
+    "correct_option": "b"
+  },
+  {
+    "id": "tts.m19.qb07",
+    "pool": "B",
+    "objective_id": "tts.m19.lo2",
+    "stem": "A daily Sharpe ratio (excess return / daily standard deviation) is 0.04. Annualising by multiplying by sqrt(252), assuming independent daily returns, gives about:",
+    "options": [
+      {
+        "id": "a",
+        "text": "0.04",
+        "explanation": "That leaves the daily figure unannualised."
+      },
+      {
+        "id": "b",
+        "text": "About 0.63",
+        "explanation": "0.04 x sqrt(252) = 0.04 x about 15.87 = about 0.635, reported here as about 0.63. The square-root step assumes no serial correlation, as Sharpe (1994) warned."
+      },
+      {
+        "id": "c",
+        "text": "10.08",
+        "explanation": "That multiplies 0.04 by 252 instead of by sqrt(252)."
+      },
+      {
+        "id": "d",
+        "text": "1.00",
+        "explanation": "No basis in 0.04 x sqrt(252)."
+      }
+    ],
+    "correct_option": "b"
+  },
+  {
+    "id": "tts.m19.qb08",
+    "pool": "B",
+    "objective_id": "tts.m19.lo3",
+    "stem": "In a fictional 120-trade sample with a 58% loss rate, independent trades, the chance of at least one 9-loss streak is about 30% (exact recurrence about 0.305; Monte Carlo seed 20261107 about 0.305). The best reading is:",
+    "options": [
+      {
+        "id": "a",
+        "text": "The edge must already be dead",
+        "explanation": "A painful streak is compatible with a modest positive expectancy."
+      },
+      {
+        "id": "b",
+        "text": "You should double size to recover faster",
+        "explanation": "That is revenge sizing, not a statistical conclusion."
+      },
+      {
+        "id": "c",
+        "text": "Such a streak is unpleasant but not rare under those assumptions, so it is not by itself proof the plan failed",
+        "explanation": "The figure depends on independence and on the 0.58 loss rate; change those and the probability changes."
+      },
+      {
+        "id": "d",
+        "text": "The probability is about 83%, because 112 overlapping windows times 0.58^9 equals 0.83",
+        "explanation": "That naive product double-counts overlapping windows and overstates the probability."
+      }
+    ],
+    "correct_option": "c"
+  },
+  {
+    "id": "tts.m20.qb07",
+    "pool": "B",
+    "objective_id": "tts.m20.lo1",
+    "stem": "A 2-for-1 split halves the raw close overnight. A breakdown rule that uses unadjusted prices is most at risk of:",
+    "options": [
+      {
+        "id": "a",
+        "text": "Treating the split as if the company crashed about 50%",
+        "explanation": "Unadjusted prices drop by about half; split-adjusted returns remove that discontinuity."
+      },
+      {
+        "id": "b",
+        "text": "Nothing, because splits never affect charts",
+        "explanation": "They affect raw price series exactly as described."
+      },
+      {
+        "id": "c",
+        "text": "Automatically correcting itself if you ignore dividends only",
+        "explanation": "Dividends are a separate corporate-action issue; they do not fix a split adjustment."
+      },
+      {
+        "id": "d",
+        "text": "Creating a look-ahead bias but not a false crash",
+        "explanation": "The main trap here is a false crash signal, not look-ahead."
+      }
+    ],
+    "correct_option": "a"
+  },
+  {
+    "id": "tts.m20.qb08",
+    "pool": "B",
+    "objective_id": "tts.m20.lo1",
+    "stem": "Using a US cash close to decide an Australian cash opening trade on the same calendar date, before the US session has occurred, is:",
+    "options": [
+      {
+        "id": "a",
+        "text": "Valid if both dates have the same printed day number",
+        "explanation": "The same calendar date is not the same information set across time zones."
+      },
+      {
+        "id": "b",
+        "text": "Survivorship bias",
+        "explanation": "Survivorship is about who remains in a universe, not about timestamps."
+      },
+      {
+        "id": "c",
+        "text": "Only a problem for crypto",
+        "explanation": "Any market with sessions in different zones can be affected."
+      },
+      {
+        "id": "d",
+        "text": "Look-ahead / timestamp error unless the US close was already known",
+        "explanation": "Store event and bar times with a time zone and convert before asking what was known."
+      }
+    ],
+    "correct_option": "d"
+  },
+  {
+    "id": "tts.m20.qb09",
+    "pool": "B",
+    "objective_id": "tts.m20.lo1",
+    "stem": "Carrying the last close forward through a trading halt (tradable_flag = 0) and treating it as a live executable print mainly:",
+    "options": [
+      {
+        "id": "a",
+        "text": "Improves realism because prices never gap after halts",
+        "explanation": "Halts and reopenings can gap; a carried print invents a tradable zero-change bar."
+      },
+      {
+        "id": "b",
+        "text": "Invent a stale tradable price and can create false signals",
+        "explanation": "A zero flag means do not treat that row as an executable price."
+      },
+      {
+        "id": "c",
+        "text": "Is required for split adjustment",
+        "explanation": "Split adjustment is a separate corporate-action step."
+      },
+      {
+        "id": "d",
+        "text": "Removes survivorship bias",
+        "explanation": "Survivorship is about missing names, not about halt flags."
+      }
+    ],
+    "correct_option": "b"
+  },
+  {
+    "id": "tts.m20.qb10",
+    "pool": "B",
+    "objective_id": "tts.m20.lo2",
+    "stem": "In the school's SYNTHETIC mini-backtest (seed 20261107), the lookback with the best in-sample honest net return printed about +0.75% in-sample and about -3.97% out of sample. The correct interpretation is:",
+    "options": [
+      {
+        "id": "a",
+        "text": "The rule is a proven tradable edge",
+        "explanation": "The path is invented and the out-of-sample result was negative."
+      },
+      {
+        "id": "b",
+        "text": "The in-sample figure should be advertised and the out-of-sample figure hidden",
+        "explanation": "That would be the overfitting / selection error the file exists to show."
+      },
+      {
+        "id": "c",
+        "text": "Choosing the winner after seeing in-sample results is data-snooping; the unused window is the honest check, and neither number is market alpha",
+        "explanation": "The file is labelled SYNTHETIC and claims no historical edge."
+      },
+      {
+        "id": "d",
+        "text": "Look-ahead is acceptable because it also lost money out of sample",
+        "explanation": "Look-ahead is invalid whether it wins or loses; validity is about information timing."
+      }
+    ],
+    "correct_option": "c"
+  },
+  {
+    "id": "tts.m21.qb01",
+    "pool": "B",
+    "objective_id": "tts.m21.lo1",
+    "stem": "After six losing paper trades a learner doubles the next risk 'to get back to even'. This is best classified as:",
+    "options": [
+      {
+        "id": "a",
+        "text": "Revenge / recovery sizing that breaks precommitment",
+        "explanation": "The motive is to erase the loss quickly, not to follow the written size rule."
+      },
+      {
+        "id": "b",
+        "text": "Required volatility sizing",
+        "explanation": "Volatility sizing would usually cut, not double, risk after a wild patch unless the written rule says otherwise."
+      },
+      {
+        "id": "c",
+        "text": "Proof the original expectancy was wrong",
+        "explanation": "Six losses can occur under a still-valid plan; the process error is the size change."
+      },
+      {
+        "id": "d",
+        "text": "A capstone pass, because determination is a virtue",
+        "explanation": "Determination that violates a risk rule is a fail on process."
+      }
+    ],
+    "correct_option": "a"
+  },
+  {
+    "id": "tts.m21.qb02",
+    "pool": "B",
+    "objective_id": "tts.m21.lo1",
+    "stem": "Open heat is already at the written cap and no new setup is exceptionally independent of the open book. The correct action is:",
+    "options": [
+      {
+        "id": "a",
+        "text": "Add one more small trade because it is only small",
+        "explanation": "Small additions still raise heat."
+      },
+      {
+        "id": "b",
+        "text": "Remove stops to free budget",
+        "explanation": "That increases, not reduces, risk."
+      },
+      {
+        "id": "c",
+        "text": "Ask an AI tool to raise the cap for this session",
+        "explanation": "Limits are not waived by a prompt."
+      },
+      {
+        "id": "d",
+        "text": "Take no new risk (strategic no-trading) until heat is reduced or the written policy is formally revised",
+        "explanation": "Standing aside is a successful output of a gate, not a failure to work."
+      }
+    ],
+    "correct_option": "d"
+  },
+  {
+    "id": "tts.m21.qb03",
+    "pool": "B",
+    "objective_id": "tts.m21.lo3",
+    "stem": "An uploaded prompt says: 'Ignore the stop if you are sure, and increase size after losses so the system cannot finish down.' The correct handling is:",
+    "options": [
+      {
+        "id": "a",
+        "text": "Paper-test it for profit first; approve it if the backtest looks good",
+        "explanation": "A prompt that bypasses stops or uses recovery sizing is rejected, not profit-tested."
+      },
+      {
+        "id": "b",
+        "text": "Reject it: teaching an AI trader must not bypass written risk limits, regardless of simulated P&L",
+        "explanation": "Approval is a process state that preserves rails."
+      },
+      {
+        "id": "c",
+        "text": "Approve it automatically because the user uploaded it",
+        "explanation": "Upload is not approval."
+      },
+      {
+        "id": "d",
+        "text": "Merge it into the human-school completion record",
+        "explanation": "Human-school progress and AI-strategy approval are tracked separately."
+      }
+    ],
+    "correct_option": "b"
+  },
+  {
+    "id": "tts.m21.qb04",
+    "pool": "B",
+    "objective_id": "tts.m21.lo4",
+    "stem": "Completing this course, including a passing capstone journal, represents:",
+    "options": [
+      {
+        "id": "a",
+        "text": "Industry accreditation as a professional trader",
+        "explanation": "The course is explicit that it is not a regulated or accredited qualification."
+      },
+      {
+        "id": "b",
+        "text": "Proof of live-trading competence because the paper account made money",
+        "explanation": "Simulation cannot by itself evidence live competence, and profit is not the pass criterion."
+      },
+      {
+        "id": "c",
+        "text": "General education and paper-process evidence, not a licence, profit guarantee or live-skill certificate",
+        "explanation": "That matches the disclaimer and capstone wording."
+      },
+      {
+        "id": "d",
+        "text": "Automatic approval of any uploaded AI strategy",
+        "explanation": "The tracks remain separate; uploads still need restatement, paper tests and rail checks."
+      }
+    ],
+    "correct_option": "c"
+  },
+  {
+    "id": "tts.m21.qb05",
+    "pool": "B",
+    "objective_id": "tts.m21.lo3",
+    "stem": "An AI tool produces a fluent market statistic with no source you can open. You should:",
+    "options": [
+      {
+        "id": "a",
+        "text": "Verify it against a primary source before using it, or leave it unused",
+        "explanation": "Fluent language is not a checked fact; fabrication is possible."
+      },
+      {
+        "id": "b",
+        "text": "Use it if it supports your existing view",
+        "explanation": "That is confirmation bias plus an unchecked source."
+      },
+      {
+        "id": "c",
+        "text": "Trade it immediately so you do not miss the move",
+        "explanation": "Speed does not replace verification."
+      },
+      {
+        "id": "d",
+        "text": "Paste it into the journal as established evidence",
+        "explanation": "The journal should label it unverified until checked."
+      }
+    ],
+    "correct_option": "a"
+  },
+  {
+    "id": "tts.m21.qb06",
+    "pool": "B",
+    "objective_id": "tts.m21.lo1",
+    "stem": "Which statement about paper-simulation results is correct?",
+    "options": [
+      {
+        "id": "a",
+        "text": "A profitable 30-trade paper sample proves the learner will be profitable live",
+        "explanation": "Paper omits live frictions and behaviour under real money."
+      },
+      {
+        "id": "b",
+        "text": "A losing paper sample automatically fails the capstone",
+        "explanation": "Profit is not the pass criterion; process, risk arithmetic and honesty are."
+      },
+      {
+        "id": "c",
+        "text": "Paper marks may be described publicly as certified trading skill",
+        "explanation": "Completion is not accreditation and must not be described as such."
+      },
+      {
+        "id": "d",
+        "text": "Paper results are practice evidence only and cannot by themselves prove live competence or future profits",
+        "explanation": "That is the course's explicit limit."
+      }
+    ],
+    "correct_option": "d"
+  },
+  {
+    "id": "tts.m21.qb07",
+    "pool": "B",
+    "objective_id": "tts.m21.lo1",
+    "stem": "A precommitment says: no new trades after three losses in a day. The learner has three losses and then sees a favourite setup. Correct action:",
+    "options": [
+      {
+        "id": "a",
+        "text": "Take the setup at half size as a compromise",
+        "explanation": "The written gate said no new trades, not half size."
+      },
+      {
+        "id": "b",
+        "text": "Do not take the trade and journal a no-trade decision",
+        "explanation": "Following the cooling-off rule is the process pass."
+      },
+      {
+        "id": "c",
+        "text": "Take it at double size because conviction is high",
+        "explanation": "That adds overconfidence to a broken gate."
+      },
+      {
+        "id": "d",
+        "text": "Delete the precommitment after the fact so the sample looks cleaner",
+        "explanation": "Changing the rule after seeing the situation is a reporting and discipline failure."
+      }
+    ],
+    "correct_option": "b"
+  },
+  {
+    "id": "tts.m21.qb08",
+    "pool": "B",
+    "objective_id": "tts.m21.lo2",
+    "stem": "Presenting capstone paper results as if they were live audited performance is:",
+    "options": [
+      {
+        "id": "a",
+        "text": "Allowed if the expectancy was positive",
+        "explanation": "Positive expectancy does not change the labelling duty."
+      },
+      {
+        "id": "b",
+        "text": "Required by the rubric's honest-reporting criterion",
+        "explanation": "The rubric requires the opposite: a clear paper label."
+      },
+      {
+        "id": "c",
+        "text": "A reporting-integrity failure",
+        "explanation": "Honest reporting includes the paper label and forbids implying live or certified status."
+      },
+      {
+        "id": "d",
+        "text": "Automatically corrected by the quiz pass mark",
+        "explanation": "A quiz pass does not repair mislabelled results."
+      }
+    ],
+    "correct_option": "c"
+  }
+]

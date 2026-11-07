@@ -1,0 +1,252 @@
+{
+  "version": "1.2.1",
+  "n_changes": 43,
+  "key_changes": [],
+  "changes": [
+    {
+      "id": "tts.m01.q03:d",
+      "field": "explanation",
+      "old": "A market order guarantees execution, not price.",
+      "reason": "Removed the overclaim that a market order guarantees execution."
+    },
+    {
+      "id": "tts.m04.q04:b",
+      "field": "explanation",
+      "old": "Floaters reset, so duration is near zero.",
+      "reason": "FRN duration is time-to-next-reset, not unconditionally near zero."
+    },
+    {
+      "id": "tts.m06.q03",
+      "field": "stem",
+      "old": "Costs A$60/unit, price rises from A$80 to A$88. Margin change?",
+      "reason": "Stem said only 'Margin change?', which could be read as futures margin rather than producer unit margin. Key unchanged (b, +40%)."
+    },
+    {
+      "id": "tts.m07.q10:a",
+      "field": "explanation",
+      "old": "No.",
+      "reason": "Replaced a one-word 'No.' with the actual reason the option is wrong."
+    },
+    {
+      "id": "tts.m07.q10:b",
+      "field": "explanation",
+      "old": "No.",
+      "reason": "Replaced a one-word 'No.' with the actual reason the option is wrong."
+    },
+    {
+      "id": "tts.m07.q10:c",
+      "field": "explanation",
+      "old": "No.",
+      "reason": "Replaced a one-word 'No.' with the actual reason the option is wrong."
+    },
+    {
+      "id": "tts.m08.qb03:b",
+      "field": "explanation",
+      "old": "Instrument 2020-986 s7(2)(d).",
+      "reason": "Kept the sourced s7(2)(d) figure and added a current-compilation qualifier."
+    },
+    {
+      "id": "tts.m12.q04:a",
+      "field": "explanation",
+      "old": "No.",
+      "reason": "Replaced 'No.' with the reason CET1 does not use that denominator."
+    },
+    {
+      "id": "tts.m12.q04:b",
+      "field": "explanation",
+      "old": "No.",
+      "reason": "Replaced 'No.' with the reason CET1 does not use that denominator."
+    },
+    {
+      "id": "tts.m12.q04:d",
+      "field": "explanation",
+      "old": "No.",
+      "reason": "Replaced 'No.' with the reason CET1 does not use that denominator."
+    },
+    {
+      "id": "tts.m13.q01:a",
+      "field": "explanation",
+      "old": "No.",
+      "reason": "Replaced empty 'No.' with the likely mix-up (total cost, not margin)."
+    },
+    {
+      "id": "tts.m13.q01:c",
+      "field": "explanation",
+      "old": "No.",
+      "reason": "Replaced empty 'No.' with why A$80m is not the product."
+    },
+    {
+      "id": "tts.m13.q01:d",
+      "field": "explanation",
+      "old": "Per-oz margin only.",
+      "reason": "Previous rationale 'Per-oz margin only' was wrong: A$800m is revenue-scale, not the A$800/oz margin."
+    },
+    {
+      "id": "tts.m16.q03:a",
+      "field": "explanation",
+      "old": "No.",
+      "reason": "Replaced 'No.' with the reason the option is not the explanation for a sell-off after a beat."
+    },
+    {
+      "id": "tts.m16.q03:c",
+      "field": "explanation",
+      "old": "No.",
+      "reason": "Replaced 'No.' with the reason the option is not the explanation for a sell-off after a beat."
+    },
+    {
+      "id": "tts.m16.q03:d",
+      "field": "explanation",
+      "old": "No.",
+      "reason": "Replaced 'No.' with the reason the option is not the explanation for a sell-off after a beat."
+    },
+    {
+      "id": "tts.m17.q02:a",
+      "field": "explanation",
+      "old": "1.5 x 15.87.",
+      "reason": "Kept the arithmetic and stated the iid/sqrt(N) assumption."
+    },
+    {
+      "id": "tts.m21.q05:c",
+      "field": "explanation",
+      "old": "That is a different concept.",
+      "reason": "Named the distinct tax concept instead of 'a different concept'."
+    },
+    {
+      "id": "tts.m21.q06:a",
+      "field": "explanation",
+      "old": "No.",
+      "reason": "Replaced 'No.' with the actual limit on what completion means."
+    },
+    {
+      "id": "tts.m21.q06:b",
+      "field": "explanation",
+      "old": "No.",
+      "reason": "Replaced 'No.' with the actual limit on what completion means."
+    },
+    {
+      "id": "tts.m21.q06:d",
+      "field": "explanation",
+      "old": "No.",
+      "reason": "Replaced 'No.' with the actual limit on what completion means."
+    },
+    {
+      "id": "tts.m18.l5",
+      "field": "body",
+      "reason": "Made the conventional historical-VaR stationarity / non-iid limitation explicit."
+    },
+    {
+      "id": "tts.m20.l6",
+      "field": "body",
+      "reason": "Labelled the Sharpe 1.8/0.6/0.4/0.1 case and its random-entry counterfactual as invented teaching numbers, not SYNTHETIC-file or holdout-selected results."
+    },
+    {
+      "id": "tts.m01.paper_exercise",
+      "field": "paper_exercise",
+      "old": "Pick any three listed shares from different countries using free exchange or public quote pages. Record bid, ask, mid and spread % at the same time of day for five days. In the paper app, place one limit order and one market order of equal size on the same share and record fill price versus mid. Write two sentences on which cost you were actually charged.",
+      "reason": "Added the missing ask so an already-present rubric criterion can be evidenced from the prompt."
+    },
+    {
+      "id": "tts.m03.paper_exercise",
+      "field": "paper_exercise",
+      "old": "Create a paper ledger with three closed and two open trades. Record entry, exit or mark, all costs and dividends. Calculate realised, unrealised and net P&L, then the account's TWR around one fictional A$2,000 deposit.",
+      "reason": "Added the missing ask so an already-present rubric criterion can be evidenced from the prompt."
+    },
+    {
+      "id": "tts.m06.paper_exercise",
+      "field": "paper_exercise",
+      "old": "From an exchange's public settlement page, note three consecutive monthly futures prices for one energy and one agricultural contract. Label each curve contango or backwardation and estimate monthly roll for a fund rolling front to second month.",
+      "reason": "Added the missing ask so an already-present rubric criterion can be evidenced from the prompt."
+    },
+    {
+      "id": "tts.m10.paper_exercise",
+      "field": "paper_exercise",
+      "old": "Download one free annual report (any exchange). Compute gross, EBIT and net margins, current ratio, net debt/EBITDA and FCF for two years. Write three sentences on earnings quality.",
+      "reason": "Added the missing ask so an already-present rubric criterion can be evidenced from the prompt."
+    },
+    {
+      "id": "tts.m16.paper_exercise",
+      "field": "paper_exercise",
+      "old": "For two weeks, log three macro releases and two company announcements: consensus, actual, surprise, and the paper market reaction in the first hour. Note whether reaction matched the sign of the surprise.",
+      "reason": "Added the missing ask so an already-present rubric criterion can be evidenced from the prompt."
+    },
+    {
+      "id": "tts.m18.paper_exercise",
+      "field": "paper_exercise",
+      "old": "Write a one-page paper risk policy: per-trade risk %, heat cap, correlation grouping, gap stress, and drawdown steps. Apply it to five current paper positions and show the numbers.",
+      "reason": "Added the missing ask so an already-present rubric criterion can be evidenced from the prompt."
+    },
+    {
+      "id": "tts.m19.paper_exercise",
+      "field": "paper_exercise",
+      "old": "Export your paper trades (minimum 30). Compute win rate, payoff, expectancy in R, profit factor, max drawdown, Sharpe and the t-statistic of mean R. Write a one-paragraph honest performance statement.",
+      "reason": "Added the missing ask so an already-present rubric criterion can be evidenced from the prompt."
+    },
+    {
+      "id": "tts.m20.paper_exercise",
+      "field": "paper_exercise",
+      "old": "Take one rule from Module 17. Run in-sample, holdout and a 3-window walk-forward test on free data. Repeat with 2x costs and a random-entry benchmark. Fill in the credibility checklist.",
+      "reason": "Added the missing ask so an already-present rubric criterion can be evidenced from the prompt."
+    },
+    {
+      "id": "tts.m21.paper_exercise",
+      "field": "paper_exercise",
+      "old": "Write a full one-page paper trading plan, run it for 30 paper trades, journal each, and complete a final review: rule adherence %, expectancy, biggest mistake, and one rule change justified by evidence. Fact-check one AI-generated market claim against a primary source.",
+      "reason": "Aligned the capstone prompt with the official ten criteria and made an AI-strategy upload optional rather than a hidden extra barrier."
+    },
+    {
+      "id": "tts.m02.instrument_fit",
+      "field": "practical_rubric.criteria",
+      "reason": "Retargeted to the exercise (fees, domicile, concentration) instead of an unasked leveraged-ETF suitability write-up."
+    },
+    {
+      "id": "tts.m05.fx_arithmetic+exposure_intent",
+      "field": "practical_rubric.criteria",
+      "reason": "Evidence now matches the asked cross and unhedged decomposition, not an extra inverse or a separate yes/no intent form."
+    },
+    {
+      "id": "tts.m07.custody_checklist",
+      "field": "practical_rubric.criteria",
+      "reason": "Grades the five Moneysmart risks the exercise asks for, not a custody form the prompt never requested."
+    },
+    {
+      "id": "tts.m08.leverage_identity+futures_quantity",
+      "field": "practical_rubric.criteria",
+      "reason": "Critical: the exercise asks for a 50% close-out (5% of notional at 10:1), not the 10% full-wipeout or an unasked futures-multiplier problem."
+    },
+    {
+      "id": "tts.m09.carry_and_tax_caveat",
+      "field": "practical_rubric.criteria",
+      "reason": "Retargeted to the asked slippage-versus-ADV test instead of an unasked carry/tax calculation."
+    },
+    {
+      "id": "tts.m11.sensitivity_range",
+      "field": "practical_rubric.criteria",
+      "reason": "Evidence now matches the exercise's three r scenarios (8/9/10%), not an unasked pair of (r,g) combinations."
+    },
+    {
+      "id": "tts.m14.unit_metrics",
+      "field": "practical_rubric.criteria",
+      "reason": "Removed an unasked stock-based-compensation fail and the extra limitation sentence the prompt did not require."
+    },
+    {
+      "id": "tts.m15.eleven_sector_coverage",
+      "field": "practical_rubric.criteria",
+      "reason": "Criterion id kept; text now grades the five named sectors in the exercise, not an eleven-sector sweep the prompt never asked."
+    },
+    {
+      "id": "tts.m17.vol_convention",
+      "field": "practical_rubric.criteria",
+      "reason": "Grades the SMA/z-score/ATR computations the exercise asks for; annualisation N is required only if the learner annualises."
+    },
+    {
+      "id": "tts.m18.gap_var_stress",
+      "field": "practical_rubric.criteria",
+      "reason": "Gap stress and no-guarantee language match the exercise; VaR/ES is optional rather than a hidden extra worksheet."
+    },
+    {
+      "id": "tts.m21.practical_rubric",
+      "field": "practical_rubric.criteria+note",
+      "reason": "Kept the ten capstone IDs plus the three extra IDs, but rewrote the extras so an upload is not required and an uneventful psychology sample is not an automatic fail."
+    }
+  ]
+}
