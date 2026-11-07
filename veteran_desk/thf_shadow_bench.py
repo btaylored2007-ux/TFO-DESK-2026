@@ -79,8 +79,12 @@ def run_matched(task, transport):
     return dict(eligible=True, reason="matched", prompt_hash=prompt_hash, data_asof=asof, rows=rows)
 
 
-def recommend(rows):
-    """Per role and task class. Small samples stay a gap. Paper P&L is not an input."""
+def recommend(rows, review_at=None):
+    """Per role and task class. Small samples stay a gap. Paper P&L is not an input.
+
+    review_at is the persisted window when the sampler has one. REVIEW_AT remains
+    only for a caller that has no window yet.
+    """
     cells = {}
     for row in rows:
         key = (row.get("role"), row.get("task_class"), row.get("provider_requested"))
@@ -91,8 +95,8 @@ def recommend(rows):
         advice.append(dict(role=role, task_class=task_class, provider=provider, n=n,
                            recommendation="gap" if n < MIN_N else "enough_to_compare",
                            uncertainty="sample below 20; no switch" if n < MIN_N else "disclose interval before any switch"))
-    return dict(version=VERSION, review_at=REVIEW_AT, global_winner=None, cells=advice,
-                note="Seven-day paper P&L is not evidence of edge.")
+    return dict(version=VERSION, review_at=review_at or REVIEW_AT, global_winner=None, cells=advice,
+                note="Seven-day paper P&L is not evidence of edge. Elapsed time alone is not a recommendation.")
 
 
 def note_production(task, path):

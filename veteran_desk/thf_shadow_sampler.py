@@ -257,7 +257,9 @@ def pending_jobs(root):
             continue
         # A started/deferred status row does not repeat the prompt. Keep the queued text.
         job = dict(queued.get(task_id) or {})
+        queued_utc = job.get("utc")
         job.update(row)
+        job["queued_utc"] = queued_utc or job.get("utc")
         out.append(job)
     return out
 
@@ -281,17 +283,45 @@ def _latest_by_seat(root):
     return latest
 
 
+def is_coverage(job):
+    return job.get("source") == "coverage" or str(job.get("task_id") or "").startswith("coverage-")
+
+
+def _coverage_state(events, seat):
+    """Latest coverage job for a seat. A production queued row is not coverage."""
+    latest_for_task = {}
+    for row in events:
+        task_id = row.get("task_id")
+        if task_id:
+            latest_for_task[task_id] = row
+    queued = None
+    seated_terminal = None
+    for row in events:
+        if row.get("seat") != seat or row.get("source") == "production_prompt":
+            continue
+        if row.get("event") in ("finished", "incomplete", "invalid"):
+            seated_terminal = row
+        if row.get("event") == "queued" and (row.get("source") == "coverage" or str(row.get("task_id") or "").startswith("coverage-")):
+            queued = row
+    if queued:
+        return latest_for_task.get(queued.get("task_id"), queued)
+    return seated_terminal
+
+
 def ensure_coverage(root, now=None, resample_after_s=6 * 3600):
-    """Queue every seat, then again after resample_after_s once the previous job finished."""
+    """Queue every seat, then again after resample_after_s once that coverage job closed.
+
+    A production_prompt row does not block this. The previous coverage task stays closed.
+    """
     now_text = now or _now()
     now_dt = _parse_utc(now_text) or dt.datetime.now(dt.timezone.utc)
-    latest = _latest_by_seat(root)
+    events = _events(root)
     added = []
     for seat in LT.SEATS:
-        row = latest.get(seat)
-        if row and row.get("event") not in ("finished", "incomplete"):
+        row = _coverage_state(events, seat)
+        if row and row.get("event") not in ("finished", "incomplete", "invalid"):
             continue
-        if row and row.get("event") in ("finished", "incomplete"):
+        if row and row.get("event") in ("finished", "incomplete", "invalid"):
             then = _parse_utc(row.get("utc"))
             if then is not None and (now_dt - then).total_seconds() < float(resample_after_s):
                 continue
@@ -416,6 +446,63 @@ def run_job(job, timeout, budgets=None, only=None):
     return rows
 
 
+def _defer_count(events, task_id):
+    """Busy defers wait for a lock. They do not close a comparison."""
+    return sum(1 for row in events
+               if row.get("task_id") == task_id and row.get("event") == "deferred" and row.get("reason") != "provider_busy")
+
+
+def _age_s(job, now_dt):
+    queued = _parse_utc(job.get("utc"))
+    if queued is None or now_dt is None:
+        return None
+    return (now_dt - queued).total_seconds()
+
+
+def production_callable(job, now_dt, window_s):
+    """A production prompt is one current comparison, not a backlog of old market decisions."""
+    if job.get("source") != "production_prompt":
+        return False
+    age = _age_s(dict(job, utc=job.get("queued_utc") or job.get("utc")), now_dt)
+    return age is not None and 0 <= age <= float(window_s)
+
+
+def _recent_provider_busy(job, samples, now_dt, backoff_s):
+    missing = [name for name in PROVIDERS if name not in terminal_providers(samples, job.get("task_id"))]
+    if not missing:
+        return False
+    latest = {}
+    for row in samples:
+        if row.get("task_id") == job.get("task_id") and row.get("provider_requested"):
+            latest[row["provider_requested"]] = row
+    if not all(name in latest and fast_defer(latest[name]) for name in missing):
+        return False
+    times = [_parse_utc(latest[name].get("utc")) for name in missing]
+    times = [item for item in times if item is not None]
+    if not times or now_dt is None:
+        return False
+    return (now_dt - max(times)).total_seconds() < float(backoff_s)
+
+
+def select_jobs(jobs, cap, now_dt, samples, window_s, backoff_s):
+    """Coverage first. At most one fresh production row fills a spare slot. Stale production is not called."""
+    coverage = [job for job in jobs if is_coverage(job)]
+    ready = [job for job in coverage if not _recent_provider_busy(job, samples, now_dt, backoff_s)]
+    held = [job for job in coverage if job not in ready]
+    other = [job for job in jobs if not is_coverage(job) and job.get("source") != "production_prompt"]
+    chosen = []
+    for job in ready + held + other:
+        if len(chosen) >= cap:
+            break
+        chosen.append(job)
+    if len(chosen) < cap:
+        for job in jobs:
+            if production_callable(job, now_dt, window_s):
+                chosen.append(job)
+                break
+    return chosen
+
+
 def refuses_root():
     return os.geteuid() == 0
 
@@ -492,22 +579,28 @@ def once(root, now=None):
         status["availability"] = "pending_configuration" if config.get("reason") else "disabled"
         _write_status(root, status)
         return status
-    ensure_coverage(root, now=now, resample_after_s=int(config.get("resample_after_s") or 6 * 3600))
+    window_s = int(config.get("resample_after_s") or 6 * 3600)
+    ensure_coverage(root, now=now, resample_after_s=window_s)
     budgets = provider_budgets(config)
     timeout = int(config.get("provider_timeout_s") or 90)
     ran = 0
     invalid = 0
     closed_limit = 0
     fast = 0
+    coverage_selected = 0
+    production_sampled = 0
     samples = _read_samples(root)
     cap = max(1, int(config.get("max_jobs_per_run") or 1))
-    for job in pending_jobs(root)[:cap]:
+    now_dt = _parse_utc(now) or dt.datetime.now(dt.timezone.utc)
+    backoff_s = int(config.get("busy_backoff_s") or 1800)
+    open_jobs = pending_jobs(root)
+    for job in select_jobs(open_jobs, cap, now_dt, samples, window_s, backoff_s):
         task_id = job.get("task_id")
         if usable_prompt(job) is None:
             _append(jobs_path(root), dict(event="invalid", reason="empty_prompt", task_id=task_id, utc=_now(), providers=[]))
             invalid += 1
             continue
-        prior_defers = sum(1 for row in _events(root) if row.get("task_id") == task_id and row.get("event") == "deferred")
+        prior_defers = _defer_count(_events(root), task_id)
         if prior_defers >= DEFER_LIMIT:
             _append(jobs_path(root), dict(event="incomplete", reason="defer_limit", task_id=task_id, utc=_now(), providers=[]))
             closed_limit += 1
@@ -520,14 +613,25 @@ def once(root, now=None):
         samples.extend(rows)
         done = terminal_providers(samples, task_id)
         deferred = [name for name in PROVIDERS if name not in done]
+        new_by = {row.get("provider_requested"): row for row in rows}
+        busy_only = bool(deferred) and all(fast_defer(new_by.get(name) or {}) for name in deferred)
         if not deferred:
             event = "finished"
+            reason = None
+        elif busy_only:
+            event = "deferred"
+            reason = "provider_busy"
         else:
-            waits = sum(1 for row in _events(root) if row.get("task_id") == task_id and row.get("event") == "deferred")
+            waits = _defer_count(_events(root), task_id)
             event = "incomplete" if waits + 1 >= DEFER_LIMIT else "deferred"
-        _append(jobs_path(root), dict(event=event, task_id=task_id, utc=_now(),
+            reason = "defer_limit" if event == "incomplete" else None
+        _append(jobs_path(root), dict(event=event, reason=reason, task_id=task_id, utc=_now(),
                                      providers=[row.get("provider_requested") for row in rows], deferred=deferred))
         ran += 1
+        if is_coverage(job):
+            coverage_selected += 1
+        elif job.get("source") == "production_prompt":
+            production_sampled += 1
         if rows and all(fast_defer(row) for row in rows):
             fast += 1
     status.update(called=True, jobs=ran, fast_deferred=fast, invalid_empty_prompt=invalid, closed_at_defer_limit=closed_limit, availability="ran", provider_timeout_s=timeout,
@@ -549,9 +653,17 @@ def once(root, now=None):
     except Exception:
         pass
     status["seats_expected"] = len(LT.SEATS)
-    status["pending_jobs"] = len(pending_jobs(root))
+    still_open = pending_jobs(root)
+    still_audit = [job for job in still_open if job.get("source") == "production_prompt" and not production_callable(job, now_dt, window_s)]
+    status["pending_jobs"] = len(still_open) - len(still_audit)
+    status["production_audit_held"] = len(still_audit)
+    status["production_sampled"] = production_sampled
+    status["coverage_selected"] = coverage_selected
+    status["throughput"] = "ran_not_a_matched_comparison"
     status["comparison"] = "paired rows in shadow_samples.jsonl only; a production log with shadow_calls 0 is not the trial"
-    status["recommendation"] = BENCH.recommend([row for row in samples if row.get("scored") and row.get("kind") == "shadow_evaluation"])
+    status["recommendation"] = BENCH.recommend(
+        [row for row in samples if row.get("scored") and row.get("kind") == "shadow_evaluation"],
+        review_at=clock.get("review_due_utc"))
     status["recommendation"]["global_winner"] = None
     _write_status(root, status)
     return status
