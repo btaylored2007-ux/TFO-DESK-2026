@@ -1,8 +1,9 @@
 """2026-10-29 infra: venue_of suffixes, prior_close sanity, amend risk_aud, quote_asof, py3.9 yahoo_v8."""
-import datetime as dt, json, os, sys, tempfile
+import copy, datetime as dt, json, os, sys, tempfile
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 os.environ.setdefault("PYTEST_CURRENT_TEST", "1")
 from veteran_desk import pit as P, feeds as FD, book as BK, gate_v2 as G, seat_cli as SC, desk as D
+from veteran_desk.tests.synthetic_book import skeleton
 
 def test_venue_of_exchange_suffixes():
     assert P.venue_of("AAPL") == "US"
@@ -36,7 +37,9 @@ def test_aud_per_unit_still_uses_listing_ccy_for_jp_hk():
     finally:
         BK.ccy_per_aud = real
 
-def test_prior_close_rejects_bogus_previous_close():
+def test_prior_close_rejects_bogus_previous_close(tmp_path, monkeypatch):
+    from veteran_desk.tests.isolated_pit import open_pit
+    open_pit(tmp_path, monkeypatch)
     # bar 1000, previousClose 700 (= -30%) -> use bar
     r = FD.prior_close("7203.T", yahoo_prev=700.0, bar_close=1000.0, max_div=0.05)
     assert r["close"] == 1000.0 and r["src"] == "daily_bar" and r.get("rejected_prev") == 700.0
@@ -63,7 +66,7 @@ def test_amend_stop_recalculates_risk_aud():
     # Theo case: EURUSD stop 1.1245 fill, stop tightened 1.1000 -> 1.1200; risk_aud must fall with new distance
     import copy
     td = tempfile.mkdtemp(); pid = "VET-TEST-EURUSD-amend"
-    D_ = copy.deepcopy(json.load(open(BK._REAL_BOOK)))
+    D_ = copy.deepcopy(skeleton())
     for B in D_["seats"].values(): B["positions"] = {}; B["closed"] = []
     seat = "fx_commodities"
     if seat not in D_["seats"]: seat = list(D_["seats"].keys())[0]

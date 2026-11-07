@@ -16,11 +16,13 @@ def P0(**k):
     d = dict(ticker="TEST", side="LONG", entry=c, stop=c - 2 * a, target=c + 4 * a, grade="A"); d.update(k); return d
 def g(p=None, ch=CH, da=DA, used=0, env=ENV, hist=HIST, th=None): return G.gate(p or P0(), None, ch, da, asof(), used, hist=hist, env=env, th=th)
 def test_never_arms():
-    r = g(); assert r["armed"] is False and r["can_arm"] is False and r["needs_brett_tick"] is True
+    # t2816u: the live gate keeps needs_brett_tick false. The gate still does not arm.
+    r = g(); assert r["armed"] is False and r["can_arm"] is False and r["needs_brett_tick"] is False
 def test_hard_rules_kept():
     c = HIST[0][-1][4]
     assert not g(P0(stop=0))["passed"]; assert not g(P0(stop=c + 1))["passed"]                  # stop on every trade, right side
-    assert not g(P0(ticker="BBCA.JK"))["passed"]; assert not g(P0(grade="B"))["passed"]
+    assert not g(P0(ticker="BBCA.JK"))["passed"]
+    b = g(P0(grade="B")); assert b["passed"] and not any("grade B" in x for x in b["reasons"])   # t2808u: B is sized, not blocked. Stops and halts below still block.
     a = G.arrays(HIST[0])["atr"][-1]; assert not g(P0(stop=c - .2 * a))["passed"]               # inside noise
     assert not g(P0(stop=c - 8 * a, target=c + 20 * a))["passed"]                               # not a stop
     assert g(used=3900)["passed"]   # A$4k run cap removed (Brett 19:00 WITA); heat cap still blocks
@@ -36,7 +38,10 @@ def test_single_llm_objection_sizes_down_not_blocks():
     r = g(P0(grade="A+"), ch=dict(call="SHORT")); assert r["passed"] and r["size_mult"] == 1.0   # TFO 19:18 advisory
     r = g(P0(grade="A+"), da=dict(factual_kill=True, fact="x")); assert r["passed"] and r["size_mult"] == 1.0
 def test_base_rate_negative_blocks():
-    r = g(th=dict(base_block_exp=5.0)); assert not r["passed"] and any("history" in x for x in r["reasons"])
+    # t2808u: a negative base rate sizes the trade. base_block_exp is not a veto.
+    r = g(th=dict(base_block_exp=5.0, base_half_exp=5.0))
+    assert r["passed"] and any("similar setups negative" in x for x in r["warnings"]) and r["size_mult"] <= 0.5
+    assert not any("history" in x for x in r["reasons"])
     assert g()["history"]["base_rate"]["n"] > 40
 def test_heat_and_adv():
     big = dict(ticker="TEST2", side="LONG", risk_aud=80000)

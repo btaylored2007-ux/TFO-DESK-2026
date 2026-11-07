@@ -1,0 +1,136 @@
+{
+  "command": "cd /tmp/thf-clean2 && python3 -m pytest veteran_desk/tests --continue-on-collection-errors -q --tb=line",
+  "tree": "8c14efe",
+  "python": "3.12.3",
+  "pytest": "9.2.0",
+  "result": "754 passed, 44 failed, 9 errors, 139 subtests passed",
+  "unique_nodes": 45,
+  "formula": "44 failed + 9 errors - 8 nodes that appear in both lists = 45",
+  "overlap_failed_and_error": [
+    "veteran_desk/tests/test_desk.py::test_scorecard_shape",
+    "veteran_desk/tests/test_e2e_autoarm.py::test_e2e",
+    "veteran_desk/tests/test_fwd_cancelled_20261028.py::test_cancelled_never_marked",
+    "veteran_desk/tests/test_scan_breadth_20261029.py::test_crypto_seat_uses_kraken_24h",
+    "veteran_desk/tests/test_scan_breadth_20261029.py::test_pack_scan_line_and_topn",
+    "veteran_desk/tests/test_scan_breadth_20261029.py::test_pack_trend_not_swamped_by_crypto",
+    "veteran_desk/tests/test_withdraw_sticks_20261029.py::test_withdraw_landing_mid_tick_is_not_clobbered",
+    "veteran_desk/tests/test_withdraw_sticks_20261029.py::test_withdrawn_after_arm_is_cancelled_and_never_rearmed"
+  ],
+  "scoped_acceptance": "78 passed on the security, tenant, sequence, learning-health, bank snapshot, feed, integrated, chat-image, bank, exit-rail, learning, Yahoo-callsite, source-completeness, and FX characterization tests",
+  "oanda_isolated": "41 passed",
+  "book_sha256_unchanged": "b4453b503f33e34110519bf4d7a9bf391ecc2802edbd87acca3e77dc96b7e891",
+  "no_archive": "No unprotected production defect was fixed. No live base was guessed. No archive was built.",
+  "classes": {
+    "unresolved_book_or_gate_policy": [
+      "test_a1pct_20261031.py::test_non_a_2pct_and_aplus_4pct",
+      "test_a1pct_20261031.py::test_cut_non_a_below_2pct_rejected_never_1pct",
+      "test_costmodel_hold_20261030.py::test_giveback_fires_open_held_closed",
+      "test_desk.py::test_blocks",
+      "test_floor_fix_20261029.py::test_crypto_floor_half_pct",
+      "test_fx_settlement_20261029.py::test_round_trip_cash_via_tick",
+      "test_gate_v2.py::test_base_rate_negative_blocks",
+      "test_gate_v2.py::test_hard_rules_kept",
+      "test_gate_v2.py::test_never_arms",
+      "test_kai_floor_tol_20261029.py::test_genuine_0p4pct_rejected",
+      "test_kai_rails_20261029.py::test_below_floor_rejected",
+      "test_kai_rails_20261029.py::test_other_seats_unchanged",
+      "test_krakenfx_20261029.py::test_usdkrw_theo_case_risk",
+      "test_one_sizing.py::test_band",
+      "test_one_sizing.py::test_cut_toward_2pct_never_below",
+      "test_railfix_20261029.py::test_crypto_seat_floor_kept",
+      "test_railfix_20261029.py::test_rebook_below_floor_rejected_not_lifted",
+      "test_railfix_20261029.py::test_risk_plan_rejects_sub_floor",
+      "test_venuestale_20261029.py::test_lse_over_25_no_fill",
+      "test_venuestale_20261029.py::test_realtime_venue_still_15"
+    ],
+    "live_write_guard_data_pit": [
+      "test_desk.py::test_scorecard_shape",
+      "test_e2e_autoarm.py::test_e2e",
+      "test_fwd_cancelled_20261028.py::test_cancelled_never_marked",
+      "test_infra_20261029.py::test_prior_close_rejects_bogus_previous_close",
+      "test_scan_breadth_20261029.py::test_crypto_seat_uses_kraken_24h",
+      "test_scan_breadth_20261029.py::test_pack_scan_line_and_topn",
+      "test_scan_breadth_20261029.py::test_pack_trend_not_swamped_by_crypto",
+      "test_withdraw_sticks_20261029.py::test_withdraw_landing_mid_tick_is_not_clobbered",
+      "test_withdraw_sticks_20261029.py::test_withdrawn_after_arm_is_cancelled_and_never_rearmed"
+    ],
+    "missing_pit_or_queue_fixture": [
+      "test_book_weekly_hook.py::test_tick_writes_weekly_beside_temp_book_only",
+      "test_datalayer_20261030.py::test_paid_first_frame_shape_and_adjust",
+      "test_desk.py::test_full_pipeline_mocked_llm_temp_queue",
+      "test_gate_stale_crypto_hkd_20261029.py::test_crypto_history_atr_is_coin_scale_not_etf",
+      "test_guard_live_paths_20261029.py::test_guard_blocks_live_and_allows_tmp",
+      "test_kai_rails_20261029.py::test_wide_atr_sized_down_not_skipped",
+      "test_scan_breadth_20261029.py::test_dead_names_dropped",
+      "test_scan_breadth_20261029.py::test_news_has_asia",
+      "test_scan_breadth_20261029.py::test_scan_file_exists_and_cleared",
+      "test_scan_breadth_20261029.py::test_seat_list_broad_ge_500",
+      "test_scan_breadth_20261029.py::test_seat_list_sector_or_full"
+    ],
+    "book_tick_did_not_arm_on_synthetic_or_empty_book": [
+      "test_book_payouts.py::test_tick_arms_only_ticked_with_stop_and_2to5pct_risk",
+      "test_dedupe_arm_20261028.py::test_dedupe",
+      "test_no_rearm_20261028.py::test_cancelled_never_rearms",
+      "test_offhours_rebook_20261028.py::test_flag_then_rebook"
+    ],
+    "bridge_health_read_before_second_guard": [
+      "test_bridge_maintenance_20261104.py::MaintenanceTests::test_client_second_guard_rolls_back_reserved_quota"
+    ]
+  },
+  "after_fixture_environment_2f5e315": {
+    "command": "cd /tmp/thf-clean5 && python3 -m pytest veteran_desk/tests --continue-on-collection-errors -q --tb=line",
+    "result": "779 passed, 20 failed, 0 errors, 139 subtests passed",
+    "unique_nodes": 20,
+    "formula": "20 failed + 0 errors",
+    "scoped_acceptance": "79 passed",
+    "oanda_isolated": "41 passed",
+    "book_sha256": "b4453b503f33e34110519bf4d7a9bf391ecc2802edbd87acca3e77dc96b7e891",
+    "pandas": "2.2.3 installed with python3 -m pip install --user pandas==2.2.3. Receipt docs/TEST_DEPENDENCY_RECEIPT_20261106.json. Without it, test_paid_first_frame_shape_and_adjust raises ModuleNotFoundError.",
+    "pit_guard": "Live P.con() still raises PermissionError and is asserted. The ten former guard nodes use a temp pit.sqlite.",
+    "borrow": "Dedupe and cancel-rearm use a synthetic fresh ibkr borrow file. test_short_without_borrow_snapshot_stays_blocked still requires the production reject.",
+    "chatgpt_repo_sha256": "c477d99674f5d6dd49bd2be60c21d35f8716fbd1f72e790ad7832c2645920098",
+    "chatgpt": "The delivery health probe now runs only after a maintenance recheck, and another recheck still runs immediately before the POST. A hold rolls the hourly slot back and does not call urlopen. Not deployed. The live file remains 26446b5b61218bfc370fff62988db47efecb7b8afafd15e694ceaecf35deac0c.",
+    "remaining": "The 20 book and gate policy nodes. They are not accepted."
+  },
+  "after_historical_universe_a513cff": {
+    "command": "cd /tmp/thf-clean4 && python3 -m pytest veteran_desk/tests --continue-on-collection-errors -q --tb=line",
+    "result": "765 passed, 33 failed, 10 errors, 139 subtests passed",
+    "unique_nodes": 34,
+    "formula": "33 + 10 - 9 = 34",
+    "scoped_acceptance": "79 passed, including one historical scan-list test",
+    "oanda_isolated": "41 passed",
+    "chatgpt_bridge_live_sha256": "26446b5b61218bfc370fff62988db47efecb7b8afafd15e694ceaecf35deac0c",
+    "chatgpt_bridge_repo_matches_live": true,
+    "scan_universe_fixture_sha256": "136c3721eb121040b8ab49ef92d98ec4143af75718e6bf3aab60e0629c4430ba",
+    "scan_universe_note": "Historical 2026-11-06T08:31:54Z file. universe 19914, scanned 19810, cleared 9846. Tests keep the old thresholds. Not copied to data/pit.",
+    "borrow_shorts": "test_dedupe and test_cancelled_never_rearms expire a BAC short with why 'execution rules: no borrow snapshot' once posture is known. book.py was not edited.",
+    "pit_guard": "P.con() still creates data/pit. The guard still rejects that. The pack, scorecard, e2e, forward-mark, infra, and withdraw tests hit it. Not weakened.",
+    "environment": "pandas is required for test_paid_first_frame_shape_and_adjust and is not installed here."
+  },
+  "after_fixture_commit_825d3b5": {
+    "command": "cd /tmp/thf-clean3 && python3 -m pytest veteran_desk/tests --continue-on-collection-errors -q --tb=line",
+    "result": "760 passed, 38 failed, 10 errors, 139 subtests passed",
+    "unique_nodes": 39,
+    "formula": "38 + 10 - 9 = 39",
+    "scoped_acceptance": "78 passed",
+    "oanda_isolated": "41 passed",
+    "passed_because_of_synthetic_fixtures": [
+      "test_guard_live_paths_20261029.py::test_guard_blocks_live_and_allows_tmp",
+      "test_book_weekly_hook.py::test_tick_writes_weekly_beside_temp_book_only",
+      "test_gate_stale_crypto_hkd_20261029.py::test_crypto_history_atr_is_coin_scale_not_etf",
+      "test_kai_rails_20261029.py::test_wide_atr_sized_down_not_skipped",
+      "test_book_payouts.py::test_tick_arms_only_ticked_with_stop_and_2to5pct_risk",
+      "test_offhours_rebook_20261028.py::test_flag_then_rebook"
+    ],
+    "arm_evidence": "With posture forced to calm/risk-off, the XOM long arms and fills. The BAC short in test_dedupe and test_no_rearm is expired with why 'execution rules: no borrow snapshot'. That check is in book.py and was not edited.",
+    "chatgpt_evidence": "Live baseline chatgpt_bridge.py sha256 e094a13c119e311be0e79fcecf715ed0d7cc28656b7d0b923740c2cc868e268a calls health() only from busy(). The git file also calls health() to detect ack_poll_v1 before the second client_guard, so the test sees one GET /health. The quota rollback still runs. The bridge was not edited and no archive was built, because the confirmed live hash is the pre-ack file and the deployed ack-poll bytes were not re-hashed."
+  },
+  "notes": {
+    "pandas": "test_paid_first_frame_shape_and_adjust raises ModuleNotFoundError: pandas. Documented as an environment package. Not vendored.",
+    "weekly_hook": "OperationalError: unable to open database file. The weekly score opens the pit database. No scan-universe or sqlite fixture was invented, and the data/pit guard was not weakened.",
+    "gate_empty_history": "test_crypto_history_atr_is_coin_scale_not_etf hits gate_v2.arrays on an empty bar list (IndexError at c[0]). The empty list comes from a checkout with no pit bars. Not treated as a proven production defect.",
+    "arm_failures": "awaiting_funder instead of armed, KeyError 'A', and 'A' not in positions are book.tick results on these fixtures. book.py was not edited.",
+    "bridge": "The second maintenance guard rolls the quota back. ask() has already GET http://127.0.0.1:18891/health. chatgpt_bridge.py was not changed. No live hash was taken for an archive.",
+    "still_not_in_git": "Parent supplied sha256 for three live files that are not in this workspace and not on this VM. They were not invented. Stage the scrubbed bytes at these paths so the hashes can be checked before commit: veteran_desk/thf_hub.py 4959eb8b58aa7db5aa3ede86877eb4cf643e6ce87a25aa43b5e4649641ddae80; veteran_desk/thf_order_diagnostics.py 0ebddb31db764118c29cfd2a1c6a8303fbb606de4133fb7a2a5330945609659f; veteran_desk/vendor_health.py ddbef97b5a986050b880d028af0f7fb3add094032e8e14a9ae460f725422edec. Live paths are /opt/tfo/live/thf/veteran_desk/ on tfo-sgp1. This environment has no copy and no route to that tree. thf_push.py matches the earlier baseline but the committed vd_engine does not import it, so it stays out. local_llm.py, seat_cli.py, and vd_engine.py match that baseline and stay uncommitted."
+  }
+}

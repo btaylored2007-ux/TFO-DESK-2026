@@ -1,0 +1,114 @@
+{
+  "name": "lesson_final_20261107",
+  "deployed": false,
+  "apply_to_production": false,
+  "prior_package_sha256": "629241d458c7fe4ae9a3806510861573b9f93b297cd6f6fbb677d84b2cbaa6d6",
+  "caller_capture_sha256": "9046b991a889fb9ac50353c75e47dafebc2562cfd837cd42064598b7b8ea52af",
+  "book_must_remain": "b4453b503f33e34110519bf4d7a9bf391ecc2802edbd87acca3e77dc96b7e891",
+  "genuine_verifiers": [],
+  "rule_gap_unaccepted": true,
+  "live_validated_count": 0,
+  "authority_rule": "A lesson is included when placed in a prompt, cited only if the reply names that ref, and validated only by a later book close. Otherwise the state is insufficient_data.",
+  "levels": {
+    "included": "The prompt for this task id contained the ref. Not a citation.",
+    "cited": "The reply named a ref that this same task included. Not a decision.",
+    "queued": "accept_round_ticket after a real queued proposal id, and only when that reply cited the ref. Stores queue_id. Not a close.",
+    "closed": "A book close whose id is that queue id or a -P<n> or -Q slice, and whose closed_utc is not before the citation. outcome_link, validated false, causal_edge false.",
+    "validated": "record_validated raises. GENUINE_VERIFIERS is empty. AUTHORITY.rule still says a book close validates. That difference is RULE_GAP and is not accepted."
+  },
+  "payloads": [
+    {
+      "path": "veteran_desk/lesson_trace.py",
+      "action": "replace_only_if_base",
+      "base_sha256": "99313083f15c7449edf4a21c849b59f642c57c71b7ddebefce17acb43bdc7370",
+      "target_sha256": "9f1a2391bcb76b1c10b7caa9e375855c589cdc5f26c75069a274cbf156b0a8ab",
+      "live_root": "/opt/tfo/live/thf",
+      "dash_root": "/opt/tfo/dash/base",
+      "live_equals_dash": true
+    },
+    {
+      "path": "veteran_desk/seat_brain.py",
+      "action": "replace_only_if_base",
+      "base_sha256": "a294b07d3503411ef441dcaa709cc4e98caba8746a3d69ce42c095342a2c7ab0",
+      "target_sha256": "4f6f49896c056b3814a41932541387b7697c07b18c3609a269fb9b44a933c037",
+      "live_root": "/opt/tfo/live/thf",
+      "dash_root": "/opt/tfo/dash/base",
+      "live_equals_dash": true
+    },
+    {
+      "path": "veteran_desk/thf_round.py",
+      "action": "replace_only_if_base",
+      "base_sha256": "8ee00fb7519b2c27b5b32b98e56b29d42d3faa0528f7004e5772ad839b5c78f6",
+      "target_sha256": "c150e5987414e70c3b0ad751a4b7d61d6e4e37bcc90ce30517705fe87a326867",
+      "live_root": "/opt/tfo/live/thf",
+      "dash_root": "/opt/tfo/dash/base",
+      "live_equals_dash": true
+    },
+    {
+      "path": "veteran_desk/thf_msgdesk.py",
+      "action": "replace_only_if_base",
+      "base_sha256": "9607803a718f16041a712544bea1582df7e153a8286cb695b03c92f5ea12376e",
+      "target_sha256": "72a8abaaa8a8127ccaa20db04f92e18cde229f37db788c7ce9ef2f513d13b81e",
+      "live_root": "/opt/tfo/live/thf",
+      "dash_root": "/opt/tfo/dash/base",
+      "live_equals_dash": true
+    },
+    {
+      "path": "thf_feedkeeper.py",
+      "action": "replace_only_if_base",
+      "base_sha256": "dad09f369fe1fe7c7eb063456771920975cf62bb7417ede582b87a5e7c0bc7a3",
+      "target_sha256": "2e32739a27e4b3ff9c27d8ff510ce82666c036dfb2cc582eb5e032ac7b65b405",
+      "live_root": "/opt/tfo/live/thf",
+      "dash_root": "/opt/tfo/dash/base",
+      "live_equals_dash": true
+    },
+    {
+      "path": "veteran_desk/thf_home.py",
+      "action": "replace_only_if_base",
+      "base_sha256": "50d8b3dcab66bf154f2ce21433a84f7147ed446193e6c12f74731e15ed26c1ed",
+      "target_sha256": "0a546c850e93cf7aac5c11dfa531386e840c17f751d1d9cfa7edf578904e9bbf",
+      "live_root": "/opt/tfo/live/thf",
+      "dash_root": "/opt/tfo/dash/base",
+      "live_equals_dash": true
+    },
+    {
+      "path": "veteran_desk/desk.py",
+      "action": "replace_only_if_base",
+      "base_sha256": "670a55e65f52e6730561f0bac46248ccdee965680444aaff62384e2252124dd4",
+      "target_sha256": "eecfd886da9ead076530358c40af41ccf9d9a809f9b23b84a00d5e5e79077e1e",
+      "live_root": "/opt/tfo/live/thf",
+      "dash_root": "/opt/tfo/dash/base",
+      "live_equals_dash": true
+    },
+    {
+      "path": "veteran_desk/thf_chat_tasks.py",
+      "action": "replace_only_if_base",
+      "base_sha256": "3ebeda8439b66b7eafa28555185670d1b38dfb804202ed4f62399e4252ca581f",
+      "target_sha256": "8e94965310aff9e0f36dc4ae8fab5a4b50cea7f1c06ce6dcc770b0e40631ed17",
+      "live_root": "/opt/tfo/live/thf",
+      "dash_root": "/opt/tfo/dash/base",
+      "live_equals_dash": true
+    }
+  ],
+  "unchanged": [
+    {
+      "path": "veteran_desk/feed_health.py",
+      "action": "require_unchanged",
+      "sha256": "f44734c552d7cb4f751df9d039f414ec19ed9229a01a618f9673a24738a41edb"
+    },
+    {
+      "path": "veteran_desk/thf_shadow_sampler.py",
+      "action": "require_unchanged",
+      "sha256": "a779a30626e765e5d6351ab851399240154802a54cdb955c309e8f97d4ad28ef",
+      "note": "Live bytes match the repo. Callers use enqueue_production_prompt. once() calls publish_authority and load. It does not call prompt_block or record_validated. Not copied."
+    }
+  ],
+  "new_files": [
+    {
+      "path": "veteran_desk/feed_status_facts.py",
+      "action": "install_only_if_absent",
+      "base_sha256": null,
+      "target_sha256": "f06c72a8b4a127ede4ff1b3257d8de1ddbb052baf92d8d2618cbac6da265a221"
+    }
+  ]
+}

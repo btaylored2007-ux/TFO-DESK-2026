@@ -2,8 +2,10 @@
 import json, os, sys, tempfile
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 from veteran_desk import book as BK, desk as D, seat_cli as SC, pit as P, payouts as PY
-def test_e2e():
+from veteran_desk.tests.isolated_pit import open_pit, seed_bars
+def test_e2e(monkeypatch):
     tmp = tempfile.mkdtemp(); q = os.path.join(tmp, "state", "funder_queue.json"); os.makedirs(os.path.dirname(q))
+    c = open_pit(tmp, monkeypatch); seed_bars(c, "XOM", close=100.0, spread=1.0); seed_bars(c, "AUDUSD=X", close=0.65, spread=0.001)
     keepP = (PY.DEFAULT_OUT_PATH, PY.DEFAULT_FWD_PATH, PY.DEFAULT_SCORE_PATH); real = open(keepP[0]).read()
     PY.DEFAULT_OUT_PATH, PY.DEFAULT_FWD_PATH, PY.DEFAULT_SCORE_PATH = (os.path.join(tmp, x) for x in ("payouts.json", "fwd.json", "score.json"))   # 19:17 leak fix: never touch the real payouts ledger
     from veteran_desk import learning as LN; keep_ca = LN.critique_async; LN.critique_async = lambda recs, runid="run": dict(spawned=False, n=len(recs or []), test_stub=True)   # fixer 2026-10-29: never write live state/learning/pending_critique

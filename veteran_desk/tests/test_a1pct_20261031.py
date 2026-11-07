@@ -6,7 +6,9 @@ def test_a_seat_choice_kept_not_forced_up():
     assert abs(BK.risk_plan(500000, "A", seat_pct=.01)["pct"] - .01) < 1e-9
     assert abs(BK.risk_plan(500000, "A", seat_pct=.02)["pct"] - .02) < 1e-9
 def test_non_a_2pct_and_aplus_4pct():
-    assert abs(BK.risk_plan(500000, "B")["pct"] - .02) < 1e-9
+    # t2808u effective now: B is half the seat's full risk (default half of 2%), not required at 2%. A+ stays 4%.
+    assert abs(BK.risk_plan(500000, "B")["pct"] - .01) < 1e-9
+    assert abs(BK.risk_plan(500000, "B", seat_pct=.02)["pct"] - .01) < 1e-9
     assert abs(BK.risk_plan(500000, "A+")["pct"] - .04) < 1e-9
 def test_capbind_constant():
     assert BK.RISK_A_CAPBIND_MIN == .015 and BK.RISK_NON_A_MIN == .02 and BK.RISK_MIN == .01
@@ -23,10 +25,12 @@ def test_deskrun_ack_wired():
 # ---- tfo_review_fix_20261031 ----
 import datetime as _dt, json as _json, tempfile as _tf
 def test_cut_a_sizes_to_1pct_not_rejected():
-    r = BK.risk_plan(500000, "A", mult=.5); assert r["pct"] == .01 and r["reject"] is None
+    # t2808u: a history cut is not lifted back to 1%. It stays the cut and is not rejected.
+    r = BK.risk_plan(500000, "A", mult=.5); assert r["pct"] == .005 and r["reject"] is None and not r["sized_up"]
 def test_cut_non_a_below_2pct_rejected_never_1pct():
-    r = BK.risk_plan(500000, "B", mult=.5); assert r["pct"] == 0 and r["reject"] == "below_2pct_nonA_floor"
-    assert BK.risk_plan(500000, "B", mult=1.0)["pct"] == .02
+    # t2808u: B at full is half of 2%. A further cut stays at that cut. It is not a below_2pct veto and not lifted.
+    r = BK.risk_plan(500000, "B", mult=.5); assert abs(r["pct"] - .005) < 1e-9 and r["reject"] is None and not r["sized_up"]
+    assert BK.risk_plan(500000, "B", mult=1.0)["pct"] == .01
 def _ack_entry(eid, mins, **k):
     from veteran_desk.tests import test_insufficient_cash_20261029 as IC
     e = IC._entry(eid); e.update(grade="A", ack_required=True, acked=False, queued_utc=(IC.T - _dt.timedelta(minutes=mins)).isoformat()); e.update(k); return e

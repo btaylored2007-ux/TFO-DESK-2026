@@ -7,14 +7,19 @@ import urllib.parse, datetime as dt, email.utils, json, os, re, sys, urllib.requ
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__))); UTC = dt.timezone.utc; OUT = os.path.join(BASE, "state", "veteran_desk", "news.json")
 ALERTS = os.path.join(BASE, "state", "veteran_desk", "news_alerts.jsonl"); UA = {"User-Agent": "TFO paper research brett-desk research@example.com"}
+try: from veteran_desk import sec_forms as SF   # newstags_20261103 (F23): real SEC form type per entry; routine prospectus/shelf filings are not catalysts
+except Exception: SF = None
 TEAM = {"chief": "Quinn Mercer", "tech_desk_reader": "Nico Hart (reads)", "wire": "Ravi Sandhu", "macro": "Elena Park", "geo": "Tom Barrett", "credit": "Mara Quist"}
 FEEDS = {"BBC Business": "https://feeds.bbci.co.uk/news/business/rss.xml", "CNBC": "https://www.cnbc.com/id/100003114/device/rss/rss.html",
          "MarketWatch": "https://feeds.content.dowjones.io/public/rss/mw_topstories", "Guardian Business": "https://www.theguardian.com/business/rss",
          "OilPrice": "https://oilprice.com/rss/main", "Federal Reserve": "https://www.federalreserve.gov/feeds/press_all.xml", "ECB": "https://www.ecb.europa.eu/rss/press.html",
          "RBA": "https://www.rba.gov.au/rss/rss-cb-media-releases.xml", "SEC 8-K": "https://www.sec.gov/cgi-bin/browse-edgar?action=getcurrent&type=8-K&count=40&output=atom",
          "CoinDesk": "https://www.coindesk.com/arc/outboundfeeds/rss", "SEC Form 4": "https://www.sec.gov/cgi-bin/browse-edgar?action=getcurrent&type=4&count=40&output=atom", "DCD (datacentre)": "https://www.datacenterdynamics.com/en/rss/"}
-NOT_WIRED = {"ASX announcements": "no free machine feed (JS-rendered) - planned", "LSE RNS": "no free RSS - planned", "HKEX": "planned", "JPX/TDnet": "planned",
-             "economic calendar": "no reliable free API - Fed/ECB/RBA press feeds used instead"}
+NOT_WIRED = {"ASX announcements": "live path is catalyst_stream (com.tfo.catalyst-stream); this 15-min job keeps the regime flag",
+             "LSE RNS": "live path is catalyst_stream via the Investegate RNS RSS",
+             "HKEX": "live path is catalyst_stream (HKEX disclosure feed, best effort)",
+             "JPX/TDnet": "live path is catalyst_stream (public TDnet mirror)",
+             "economic calendar": "live path is catalyst_stream: FMP calendar primary, Fed/CB RSS and the macro file as fallback"}
 DESK = {"macro": r"\b(fed|fomc|ecb|rba|boj|rate (cut|hike)|cpi|inflation|payrolls|jobs report|gdp|central bank|powell|lagarde|bullock|treasury yields?)\b",
         "geo": r"\b(war|missile|strike|sanction|opec|tariff|houthi|red sea|strait|shipping|pipeline|iran|russia|ukraine|israel|embargo)\b",
         "credit": r"\b(default|downgrade|credit spread|bankrupt|chapter 11|liquidity|bank run|margin call|vix|selloff|sell-off|crash|private credit|neocloud|coreweave|nebius|notes offering|convertible notes|credit facility|debt raise|gpu-backed|data center financing)\b"}
@@ -47,7 +52,7 @@ def _paid_news(health):
         js = _DL.call("news", "/news", {"t": "markets", "limit": 30}); n = 0
         for r in js if isinstance(js, list) else []:
             p = _ts(str(r.get("date") or ""))
-            if r.get("title") and p: H.append(dict(title=r["title"][:220], link=r.get("link") or "", source="EODHD news", feed_source="eodhd_news", published_utc=p.isoformat())); n += 1
+            if r.get("title") and p: H.append(dict(title=r["title"][:220], link=r.get("link") or "", source="EODHD news", feed_source="eodhd_news", published_utc=p.isoformat(), tickers=r.get("symbols") or r.get("tickers") or [])); n += 1
         health["eodhd_news"] = "ok" if n else "empty"
     except Exception as e: health["eodhd_news"] = "fail: " + str(e)[:60]
     try:
@@ -56,10 +61,19 @@ def _paid_news(health):
         js = _PP._get("fmp_news", "https://financialmodelingprep.com/stable/news/general-latest?page=0&limit=30&apikey=" + urllib.parse.quote(k)) if k else None
         for r in js if isinstance(js, list) else []:
             pd_ = str(r.get("publishedDate") or ""); p = _ts(pd_.replace(" ", "T") + ("" if ("+" in pd_ or pd_.endswith("Z")) else "+00:00"))   # FMP naive stamp read as UTC
-            if r.get("title") and p: H.append(dict(title=r["title"][:220], link=r.get("url") or "", source="FMP / " + str(r.get("publisher") or r.get("site") or "news"), feed_source="fmp_news", published_utc=p.isoformat())); n += 1
+            if r.get("title") and p: H.append(dict(title=r["title"][:220], link=r.get("url") or "", source="FMP / " + str(r.get("publisher") or r.get("site") or "news"), feed_source="fmp_news", published_utc=p.isoformat(), tickers=r.get("symbol") or [])); n += 1
         health["fmp_news"] = "ok" if n else "empty"
     except Exception as e: health["fmp_news"] = "fail: " + str(e)[:60]
     return H
+def _sec_tag(h, it, feed):
+    """newstags_20261103 (F23): EDGAR getcurrent 'type=' is a PREFIX filter - the 'SEC Form 4' feed also returns 424B2/424B3/425/497 ... and
+    every entry carried the feed name as its source. Now: source = the entry's own form ('SEC Form 4' only for 4 and 4/A) + form/accession;
+    routine prospectus/shelf paperwork -> catalyst False (veteran_desk/sec_forms.py). Unreadable form -> kept as news (old behaviour) + warning."""
+    C = SF.classify(SF.atom_form(it, h["title"]), title=h["title"])
+    h.update(source=C["label"], sec_feed=feed, form=C["form"] or "unknown", accession=SF.accession(h.get("link")), catalyst=C["catalyst"])
+    if not C["catalyst"]: h.update(routine=C["routine"],non_catalyst_why=C["why"],amendment=C.get("amendment",False))
+    if not C["form"]: print("news_desk WARNING newstags_20261103: SEC item from '%s' has no readable form type, kept as news: %s" % (feed, h["title"][:120]), file=sys.stderr)
+    return h
 def headlines():
     H, health = [], {}
     H += _paid_news(health)
@@ -70,16 +84,26 @@ def headlines():
                 ti = (it.findtext("title") or it.findtext(A + "title") or "").strip(); le = it.find(A + "link")
                 ln = it.findtext("link") or (le.get("href") if le is not None else "")
                 pub = _ts(it.findtext("pubDate") or it.findtext(A + "updated") or "")
-                if ti and pub: H.append(dict(title=ti[:220], link=(ln or "").strip(), source=src, feed_source="rss_fallback", published_utc=pub.isoformat())); n += 1
+                if ti and pub:
+                    H.append(dict(title=ti[:220], link=(ln or "").strip(), source=src, feed_source="rss_fallback", published_utc=pub.isoformat())); n += 1
+                    if SF and src.startswith("SEC "): _sec_tag(H[-1], it, src)   # newstags_20261103: label by the entry's own form type, not the feed name
                 if n >= 25: break
             health[src] = "ok"
         except Exception as e: health[src] = "fail: " + str(e)[:60]
     for h in H: h["available_at_utc"] = now().isoformat()
     cut = now() - dt.timedelta(hours=36); H = [h for h in H if dt.datetime.fromisoformat(h["published_utc"]) >= cut]
     for h in H:
-        t = h["title"].lower(); h["desk"] = [k for k, r in DESK.items() if re.search(r, t)] or ["wire"]; h["owner"] = TEAM[h["desk"][0]]
-        h["assets"] = [a for a, r in ASSET_KW.items() if re.search(r, t)]; h["markets"] = [m for m, r in MARKETS.items() if re.search(r, t)]
+        from veteran_desk.headline_subject import subject
+        attribution=subject(h["title"],ASSET_KW,h.get("tickers") or h.get("symbol") or [])
+        t=attribution["subject_text"].lower()
+        h["desk"]=[k for k,r in DESK.items() if re.search(r,t)] or ["wire"];h["owner"]=TEAM[h["desk"][0]]
+        h["assets"]=list(dict.fromkeys(attribution["tickers"]+[a for a,r in ASSET_KW.items() if re.search(r,t)]))
+        h["markets"]=[market for market,pattern in MARKETS.items() if re.search(pattern,t)]
+        if attribution["broker_rating"]:h["rating_attribution"]=attribution
         h["score"] = 2 * len(h["assets"]) + (3 if "credit" in h["desk"] else 0) + (2 if "geo" in h["desk"] else 0) + (1 if "macro" in h["desk"] else 0)
+        if h.get("routine") or h.get("catalyst") is False:   # newstags_20261103: routine SEC paperwork never tags an asset/market -> no asset_tags, news hit, top5 crypto tag, alert or rail input; kept in news.json routine_filings
+            h["non_catalyst_why"] = SF.routine_reason(h.get("form"), (h["assets"] or [None])[0], h["title"]) or h.get("non_catalyst_why")
+            h["filing_assets"], h["assets"], h["markets"], h["score"] = h["assets"], [], [], -1
     H.sort(key=lambda h: (h["score"], h.get("feed_source") != "rss_fallback", h["published_utc"]), reverse=True); return H, health
 REGIME_REQUIRED = ("vix", "spx_5d_pct", "spx_efficiency20", "hyg_lqd_20d_pct", "hy_oas_pct")
 def _closes(yf, s):   # tfo_seatpipe_regimefb_20261030: yfinance empty/429 -> direct Yahoo chart v8 (pit.yahoo_chart) closes
@@ -121,7 +145,10 @@ def held_positions():
 def run():
     H, health = headlines(); flag, gauges = regime(); held = held_positions(); tags = {}
     for h in H:
-        for a in h["assets"]: tags.setdefault(a, []).append(dict(title=h["title"], source=h["source"], link=h["link"], published_utc=h["published_utc"], desk=h["desk"]))
+        for a in h["assets"]: tags.setdefault(a, []).append(dict(title=h["title"], source=h["source"], link=h["link"], published_utc=h["published_utc"], desk=h["desk"], **({"form": h["form"]} if h.get("form") else {})))   # newstags_20261103: + SEC form
+    routine = {}   # newstags_20261103 (F23): routine SEC filings per asset - visible + labelled, never a catalyst (not in asset_tags / at_risk / news_alerts)
+    for h in H:
+        for a in h.get("filing_assets") or []: routine.setdefault(a, []).append(dict(title=h["title"], source=h["source"], form=h.get("form"), link=h["link"], published_utc=h["published_utc"], catalyst=False, why=h.get("non_catalyst_why")))
     at_risk = [dict(seat=p["seat"], ticker=p["ticker"], side=p["side"], headlines=tags[p["ticker"]][:3]) for p in held if p["ticker"] in tags]
     prev = set()
     try: prev = set(json.load(open(OUT)).get("alerted", []))
@@ -131,7 +158,7 @@ def run():
     with open(ALERTS, "a") as f:
         for t, ti in new: f.write(json.dumps(dict(utc=now().isoformat(), ticker=t, headline=ti, urgent=True)) + "\n")
     out = dict(updated_utc=now().isoformat(), team=TEAM, regime=dict(flag=flag, gauges=gauges, owner=TEAM["credit"], sizing_effect="crisis halves new-trade risk (Marcus enforces); never blocks a tick"),
-               top5=H[:5], headlines=H[:60], asset_tags=tags, positions_at_risk=at_risk, alerted=sorted(prev | {t + ti for t, ti in new}), new_alerts=new,
+               top5=H[:5], headlines=H[:60], asset_tags=tags, routine_filings={a: dict(n=len(v), forms=sorted({str(x["form"]) for x in v}), newest_utc=max(x["published_utc"] for x in v), note="routine SEC paperwork: not a catalyst, not a news hit, no alert/rail input (newstags_20261103)", items=v[:3]) for a, v in routine.items()}, positions_at_risk=at_risk, alerted=sorted(prev | {t + ti for t, ti in new}), new_alerts=new,
                feed_health=health, not_wired=NOT_WIRED, delays="RSS 1-15 min; SEC 8-K minutes; VIX/credit ETFs ~15 min (Yahoo); FRED HY spread prior day", info_only=True)
     d = os.path.join(BASE, "reports", "veteran_desk"); os.makedirs(d, exist_ok=True)
     for m in MARKETS:

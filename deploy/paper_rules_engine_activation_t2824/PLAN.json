@@ -1,0 +1,40 @@
+{
+  "release": "paper_rules_engine_activation_t2824",
+  "authorization_verbatim": "Finish it up",
+  "authorization_id": "t2824u",
+  "authorization_wita": "2026-11-07 20:08 WITA",
+  "ops_restart": {
+    "unit": "tfo-thf-engine.service",
+    "wita": "2026-11-07 20:12:24-25 WITA",
+    "release_py_rerun": false,
+    "reported_main_pid": "366917 -> 1940860",
+    "reported_cwd": "/opt/tfo/live/thf"
+  },
+  "source_fact": "run_thf_engine_sgp.sh execs python -m veteran_desk.engine_supervisor. That module is not in this repository. The unit MainPID is the supervisor. vd_engine is its child. A fresh supervisor PID does not prove book.py or gate_v2.py was imported.",
+  "reported_unverified_from_cloud": {
+    "official_supervisor": 1940860,
+    "official_children": [],
+    "leftover_supervisor": 833092,
+    "leftover_started_wita": "00:20:58",
+    "leftover_cgroup": "user.slice/session-56389",
+    "vd_engine": 1941386,
+    "vd_engine_started_wita": "20:12:52",
+    "old_vd_engine": 372060,
+    "firm_risk": 337359
+  },
+  "do_not": [
+    "kill -s KILL any of these pids",
+    "kill -s TERM 1941386, 1940860, or 337359",
+    "systemctl restart or stop tfo-thf-engine.service",
+    "stop or restart the tick timer",
+    "spawn a second vd_engine",
+    "rerun release.py"
+  ],
+  "why_restart_is_unsafe": "KillMode=control-group does not include the user session. Another unit restart replaces 1940860 and still leaves 833092 holding 1941386. The new official supervisor sees that daemon and does not spawn.",
+  "stops": "The tick owns stops. Leave tfo-thf-tick.timer running. Firm-risk PID 337359 is exec_speed risk-serve and stays up.",
+  "retire_command": null,
+  "capture_archive_sha256": "f056ac1c236646c0fac148c8161467471ac0450bdb37c20a5d2486af64bad33e",
+  "supervisor_sha256": "0d0b7f640a7c9644a56f0bbe8c91b640976c1db7ecf968c328112e542de96e0e",
+  "handover": "HANDOVER.json is the census at 20:24:20 WITA. The only later signal is kill -s TERM 833092, and only after the live recheck in that file. No SIGKILL, no unit restart, no manual daemon.",
+  "next": "Ops rechecks the preconditions on tfo-sgp1, then sends that one signal. Persist the result under state/thf/build_handover/paper_rules_engine_activation_t2824_20261107T201225/TAKEOVER."
+}

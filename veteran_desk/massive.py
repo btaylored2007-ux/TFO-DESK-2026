@@ -54,6 +54,8 @@ def news(tickers=None, limit=25, get=None):
         out = []
         for r in (js or {}).get("results") or []:
             ti = (r.get("title") or "").strip(); pub = r.get("published_utc") or r.get("published")
-            if ti and pub: out.append(dict(title=ti[:220], link=r.get("article_url") or r.get("url") or "", source=src, published_utc=str(pub)))
+            if ti and pub:
+                from veteran_desk.headline_subject import normalized_tickers
+                out.append(dict(title=ti[:220],link=r.get("article_url") or r.get("url") or "",source=src,published_utc=str(pub),tickers=normalized_tickers(r.get("tickers") or r.get("stocks") or r.get("symbols"))))
         if out: return out
     return []

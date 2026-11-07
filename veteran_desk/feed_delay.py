@@ -25,13 +25,40 @@ def build():
         meas = min(live) if live else None; floor = KNOWN_FLOOR.get(v, 15)
         V[v] = dict(delay_min=max(floor, meas or 0), measured_age_min=meas, known_floor_min=floor, delayed=max(floor, meas or 0) > 2,
                     session_open=bool(live), probes=ps)
-    J = dict(built_utc=now.isoformat(), source="yahoo chart v8 (primary); IBKR gateway delayed-only for EU/UK (no RT subscription)",
+    J = dict(built_utc=now.isoformat(), source="yahoo chart v8 probe; EODHD Cboe Europe websocket is primary for LSE/EU when health.healthy (Yahoo fallback only)",
              rule="quote from a venue with delayed=True is DELAYED, never live: label it, use quote_utc not wall clock, and never grade a setup on a breakout the delayed tape could not have seen. Fills already use book.stale_limit_min (delay+5).",
              venues=V)
+    apply_eu_ws(J)
     tmp = OUT + ".tmp"; json.dump(J, open(tmp, "w"), indent=1); os.replace(tmp, OUT); return J
+EU_VENUES = {"LSE", "Euronext", "XETRA", "BME", "SIX", "MILAN", "NORDIC"}
 def label(sym_venue):
+    """Yahoo floor unless the EODHD Cboe Europe websocket is healthy for this venue (then delay_min 0)."""
+    if sym_venue in EU_VENUES:
+        try:
+            from veteran_desk import eodhd_eu_ws as EU
+            h = EU.health()
+            if h.get("healthy") and sym_venue in (h.get("venues_live") or []):
+                return dict(delayed=False, delay_min=0, src="eodhd_eu_ws")
+        except Exception: pass
     try: v = json.load(open(OUT))["venues"].get(sym_venue) or {}
     except Exception: v = {}
+    if sym_venue in EU_VENUES:
+        delay = max(KNOWN_FLOOR.get(sym_venue, 15), float(v.get("delay_min") or 0))
+        return dict(delayed=delay > 2, delay_min=delay, src="yahoo_fallback")
     return dict(delayed=v.get("delayed", True), delay_min=v.get("delay_min", 20))
+def apply_eu_ws(J):
+    """Overlay feed_delay.json: a healthy EU websocket is primary, so those venues are not the 15m Yahoo tape."""
+    try:
+        from veteran_desk import eodhd_eu_ws as EU
+        h = EU.health()
+        live = set(h.get("venues_live") or [])
+        J["eu_ws"] = dict(healthy=bool(h.get("healthy")), venues_live=sorted(live), why=h.get("why"), age_sec=h.get("age_sec"))
+        if h.get("healthy"):
+            for v in live:
+                slot = (J.get("venues") or {}).get(v)
+                if slot is None: continue
+                slot["delayed"] = False; slot["delay_min"] = 0; slot["eu_ws"] = "primary"
+    except Exception: pass
+    return J
 if __name__ == "__main__":
     J = build(); print(json.dumps({k: (v["delay_min"], v["measured_age_min"], v["session_open"]) for k, v in J["venues"].items()}))

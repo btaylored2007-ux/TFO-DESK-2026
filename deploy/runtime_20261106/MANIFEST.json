@@ -1,0 +1,33 @@
+{
+  "book_must_remain": "b4453b503f33e34110519bf4d7a9bf391ecc2802edbd87acca3e77dc96b7e891",
+  "files": [
+    {
+      "path": "veteran_desk/thf_shadow_sampler.py",
+      "payload_sha256": "86204eb2557c26f2ad30c59181e134950f59620e9b02428eacabefa8396b43fe",
+      "base_sha256": [
+        "27d49d68c98b9d1691bc0f0881e77f1e7796e2af6fdc5c658943859f5e8668a4"
+      ]
+    },
+    {
+      "path": "veteran_desk/thf_grok.py",
+      "payload_sha256": "2adbecef98d5f98e0d76e48795846b153dfa71f138bbe0a36faa31f28eb468cd",
+      "base_sha256": [
+        "382b1f23764ad09cff4581d9ac1e17cf74670a05b5c05b857f7ec7428ae64646"
+      ]
+    },
+    {
+      "path": "veteran_desk/deepseek_bridge.py",
+      "payload_sha256": "b632ddeeea08bdd2d9c036767871b99f57a156a32c7890a9e6eb707eb38d6175",
+      "base_sha256": [
+        "ac5e6024b7e4bb935237a911bc1707b58f7518cffba37c8be3075890cd232989"
+      ]
+    },
+    {
+      "path": "deploy/incremental_20261106/tfo-thf-shadow.service",
+      "payload_sha256": "0d2ca550a7eac03991e6731a1d76d6b863a961cf0621a80cdf2a37fc60348942",
+      "base_sha256": [
+        "0d56c6dce437149a2c1429f1c42f9db881a3a568483ff8bb6d887d4b747c8aff"
+      ]
+    }
+  ]
+}

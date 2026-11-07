@@ -13,10 +13,13 @@ def test_no_basis_constant():
 
 def test_theo_eurusd_1R_original_risk(monkeypatch):
     monkeypatch.setattr(BK, "quote_to_aud", lambda *a, **k: 1.0)
-    p = _fx(); assert BK.bank_trigger(p, 1.1168 - 0.0040, 0.65) is None
-    assert BK.bank_trigger(p, 1.1168 - 0.0050, 0.65) == "rail_1R_aud_scale_out"
-    p = _fx(stop=1.1168)   # trailed stop at BE must NOT shrink 1R
-    assert BK.bank_trigger(p, 1.1168 - 0.0040, 0.65) is None
+    assert BK.RAIL_BANK_R == 0.7 and BK.RAIL_BANK_ALL_POSITIONS is True
+    p = _fx()
+    below, above = 1.1168 - 0.00447 * 0.5, 1.1168 - 0.00447 * 0.9
+    assert BK.net_R(p, below, 0.65) < 0.7 and BK.bank_trigger(p, below, 0.65) is None
+    assert BK.net_R(p, above, 0.65) >= 0.7 and BK.bank_trigger(p, above, 0.65) == "rail_0_7R_aud_scale_out"
+    trailed = _fx(stop=1.1168)   # trailed stop at BE must NOT shrink the original R
+    assert BK.bank_trigger(trailed, below, 0.65) is None
 
 def test_plus1pct_leg_gone(monkeypatch):
     monkeypatch.setattr(BK, "aud", lambda s, x, au: x)
@@ -26,16 +29,17 @@ def test_plus1pct_leg_gone(monkeypatch):
 def test_grade_must_be_persisted(monkeypatch):
     monkeypatch.setattr(BK, "quote_to_aud", lambda *a, **k: 1.0)
     p = _fx(); p.pop("grade"); p["tags"] = {"strategy": "veteran:macro grade A"}
-    assert BK.bank_trigger(p, 1.1168 - 0.0060, 0.65) is not None   # tfo_review_20261030 item 6: Option C fires on legacy opens via pos_grade (tags)
-    p["tags"] = {}; assert BK.bank_trigger(p, 1.1168 - 0.0060, 0.65) is None   # no grade anywhere -> no bank
-    for g in ("B", "C"): assert BK.bank_trigger(_fx(grade=g), 1.1168 - 0.0060, 0.65) is None
+    above = 1.1168 - 0.00447 * 0.9
+    assert BK.bank_trigger(p, above, 0.65) == "rail_0_7R_aud_scale_out"   # tags still resolve a grade
+    p["tags"] = {}; assert BK.bank_trigger(p, above, 0.65) == "rail_0_7R_aud_scale_out"   # bank07: every open, grade no longer required
+    for g in ("B", "C"): assert BK.bank_trigger(_fx(grade=g), above, 0.65) == "rail_0_7R_aud_scale_out"
 
 def test_trend_seat_banks_at_1_5R(monkeypatch):
     monkeypatch.setattr(BK, "aud", lambda s, x, au: x)
     p = dict(ticker="SPY", venue="US", side="LONG", fill=100.0, initial_stop=98.0, stop=98.0, shares=100, cost_aud=0.0, grade="A", seat="trend")
-    assert BK.bank_trigger(p, 102.3, 1) is None
-    assert BK.bank_trigger(p, 103.3, 1) == "rail_1_5R_aud_scale_out"
-    p["seat"] = "energy"; assert BK.bank_trigger(p, 102.3, 1) == "rail_1R_aud_scale_out"
+    assert BK.bank_trigger(p, 101.2, 1) is None   # 0.6R, under 0.7R
+    assert BK.bank_trigger(p, 102.3, 1) == "rail_0_7R_aud_scale_out"
+    p["seat"] = "energy"; assert BK.bank_trigger(p, 102.3, 1) == "rail_0_7R_aud_scale_out"   # no seat is still on 1R or 1.5R
 
 def test_capped_sleeve_opts_out():
     assert BK.bank_trigger(dict(bank_capped=True, grade="A"), 1, 1) is None
@@ -46,12 +50,12 @@ def test_tick_banks_half_fee_floor_and_audit():
     p = D["seats"]["energy"]["positions"]["P1"]
     assert p["t1_done"] and p["shares"] == 50 and p["stop"] >= 100.0 * (1 + BK.COST_RT["US"]) - 1e-9
     a = [json.loads(l) for l in open(os.path.join(os.path.dirname(path), "early_bank_audit.jsonl"))]
-    assert a[-1]["reason"] == "rail_1R_aud_scale_out" and 98.0 <= a[-1]["cf_rail_stop_px"] < 103.0 and a[-1]["cf_rail_half_px"] == 104.0
+    assert a[-1]["reason"] == "rail_0_7R_aud_scale_out" and 98.0 <= a[-1]["cf_rail_stop_px"] < 103.0
 
 def test_giveback_a_fires_before_half(monkeypatch):
     pos = _pos(cost_aud=0.0, grade="B")   # all grades; R0=2 (fill 100 stop 98)
     path, q = _book(pos)
-    D, _ = _tick(path, q, [dict(last=101.6, hi=101.6, lo=101.0)])   # net ~0.75R peak, no half (grade B)
+    D, _ = _tick(path, q, [dict(last=101.2, hi=101.2, lo=101.0)])   # 0.6R, under the 0.7R half-bank
     assert D["seats"]["energy"]["positions"]["P1"]["shares"] == 100
     D, _ = _tick(path, q, [dict(last=100.5, hi=100.9, lo=100.4)])   # net ~0.2R <= 50% of peak, still > 0
     p = D["seats"]["energy"]["positions"]["P1"]; c = D["seats"]["energy"]["closed"][-1]
@@ -95,7 +99,7 @@ def test_crypto_net_uses_kraken_fees(monkeypatch):
     n = BK.net_open_aud(p, 105.0, 1)
     sp = BK.CT.CM_SPREAD_TIER_BPS["CRYPTO"] / 1e4; fx = BK.CT.CM_FX_CONV   # costmodel 20261030: Kraken maker/taker + spread + FX conversion (USD pair)
     assert abs(n - (500 - (0.0025 + sp + fx) * 10000 - (0.004 + sp + fx) * 10500)) < 1e-6   # recorded cost_aud ignored for crypto
-    assert BK.bank_trigger(p, 105.0, 1) is None and BK.bank_trigger(p, 106.0, 1) == "rail_1R_aud_scale_out"
+    assert BK.bank_trigger(p, 103.0, 1) is None and BK.bank_trigger(p, 105.0, 1) == "rail_0_7R_aud_scale_out"
 
 def test_crypto_news_from_news_json(monkeypatch, tmp_path):
     (tmp_path / "state" / "veteran_desk").mkdir(parents=True)

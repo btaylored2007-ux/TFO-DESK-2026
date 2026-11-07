@@ -110,47 +110,75 @@ def edgar_8k(tickers):
             out[t] = [dict(filed=h["_source"].get("file_date"), name=(h["_source"].get("display_names") or [""])[0][:80]) for h in d.get("hits", {}).get("hits", [])[:3]]
         except Exception: pass
     return out
-def edgar_8k_text(r, chars=1500):
-    import re as _re
-    if r.get("text"): return r
+def edgar_8k_text(r,chars=1500,allow_fetch=False):
+    r=dict(r)
+    if r.get("text") or not allow_fetch:return r
     try:
-        t = _get(r["url"], 20).decode("utf-8", "ignore"); t = _re.sub(r"(?s)<(script|style).*?</\1>", " ", t); t = _re.sub(r"<[^>]+>|&#?\w+;", " ", t)
-        t = _re.sub(r"\s+", " ", t); i = t.find("Item "); r["text"] = t[i if i > 0 else 0:][:chars]
-    except Exception: pass
+        import re
+        text=_get(r["url"],20).decode("utf-8","ignore")
+        text=re.sub(r"(?s)<(script|style).*?</\1>"," ",text);text=re.sub(r"<[^>]+>|&#?\w+;"," ",text);text=re.sub(r"\s+"," ",text)
+        start=text.find("Item ");r["text"]=text[start if start>0 else 0:][:chars]
+    except Exception:r["text_status"]="not available"
     return r
-def edgar_8k_recent(days=2, n_text=8, chars=1500, ttl=1800):
-    """tfo_seatpipe_6c_20261030: all 8-Ks filed in the last `days` (EDGAR efts, public) -> [{sym, name, filed, items, url, text?}].
-    Text (first `chars` of the primary doc, HTML stripped) for the newest n_text. Cached ttl s in state/veteran_desk/edgar_8k_cache.json."""
-    import re as _re
-    cp = os.path.join(BASE, "state", "veteran_desk", "edgar_8k_cache.json") if not os.environ.get("PYTEST_CURRENT_TEST") else os.path.join(__import__("tempfile").gettempdir(), "edgar_8k_cache_pytest.json")   # tfo_review_20261030: tests never write the live cache
-    try:
-        C = json.load(open(cp))
-        if (now() - dt.datetime.fromisoformat(C["utc"])).total_seconds() < ttl: return C["rows"]
-    except Exception: pass
-    s = (now() - dt.timedelta(days=days)).date().isoformat(); e = now().date().isoformat(); rows = []
-    for frm in (0, 100, 200):
-        d = json.loads(_get(f"https://efts.sec.gov/LATEST/search-index?forms=8-K&dateRange=custom&startdt={s}&enddt={e}&from={frm}"))
-        H = d.get("hits", {}).get("hits", [])
-        for h in H:
-            src = h["_source"]; dn = (src.get("display_names") or [""])[0]; m = _re.search(r"\(([A-Z0-9.\-]+)(?:,[^)]*)?\)\s+\(CIK", dn)
-            if not m: continue
-            adsh, fn = h["_id"].split(":", 1); cik = int((src.get("ciks") or ["0"])[0])
-            rows.append(dict(sym=m.group(1), name=dn.split("  (")[0][:60], filed=src.get("file_date"), items=src.get("items") or [],
-                             url=f"https://www.sec.gov/Archives/edgar/data/{cik}/{adsh.replace('-', '')}/{fn}"))
-        if len(H) < 100: break
-    seen = set(); out = []
-    for r in rows:
-        if r["sym"] in seen: continue
-        seen.add(r["sym"]); out.append(r)
-    for r in out[:n_text]:
-        try:
-            t = _get(r["url"], 20).decode("utf-8", "ignore"); t = _re.sub(r"(?s)<(script|style).*?</\1>", " ", t); t = _re.sub(r"<[^>]+>|&#?\w+;", " ", t)
-            t = _re.sub(r"\s+", " ", t); i = t.find("Item "); r["text"] = t[i if i > 0 else 0:][:chars]
-        except Exception: pass
-    try:
-        tmp = cp + ".tmp"; json.dump(dict(utc=now().isoformat(), rows=out), open(tmp, "w")); os.replace(tmp, cp)
-    except Exception: pass
+def parse_efts_hit(hit):
+    import re
+    source=hit.get("_source") or {};form=str(source.get("file_type") or "").upper()
+    if form not in ("8-K","8-K/A"):return []
+    try:acc,document=hit["_id"].split(":",1)
+    except (KeyError,ValueError):return []
+    out=[]
+    for display in source.get("display_names") or []:
+        match=re.search(r"\(([A-Z0-9.\-]+)(?:,[^)]*)?\)\s+\(CIK\s*(\d+)\)",display)
+        if not match:continue
+        sym,cik=match.group(1),int(match.group(2))
+        out.append(dict(sym=sym,name=display.split("  (")[0][:60],form=form,filed=source.get("file_date"),report_date=source.get("period_ending"),accession=acc,primary_document=document,items=source.get("items") or [],url="https://www.sec.gov/Archives/edgar/data/%d/%s/%s"%(cik,acc.replace("-",""),document),source="SEC EFTS",time_precision="date"))
     return out
+def _edgar_path():
+    if os.environ.get("PYTEST_CURRENT_TEST"):return os.path.join(__import__("tempfile").gettempdir(),"edgar_8k_cache_pytest.json")
+    return os.path.join(BASE,"state/veteran_desk/edgar_8k_cache.json")
+def _edgar_rows(cached):
+    from veteran_desk.filing_freshness import annotate
+    try:stale=(now()-dt.datetime.fromisoformat(cached["utc"])).total_seconds()>1800
+    except Exception:stale=True
+    return [dict(annotate(row["sym"],row),cache_stale=stale) for row in cached.get("rows") or [] if row.get("sym")]
+def edgar_8k_recent(days=2,n_text=8,chars=1500,ttl=1800,refresh=True):
+    """Scheduled collector entry; trader readers must pass refresh=False. Failures keep dated last-good records."""
+    import fcntl
+    cp=_edgar_path()
+    try:cached=json.load(open(cp))
+    except (OSError,ValueError):cached={}
+    if not refresh:return _edgar_rows(cached)
+    try:
+        if cached.get("version")==3 and (now()-dt.datetime.fromisoformat(cached["utc"])).total_seconds()<ttl:return _edgar_rows(cached)
+    except (ValueError,KeyError):pass
+    os.makedirs(os.path.dirname(cp),exist_ok=True)
+    with open(cp+".refresh.lock","a+") as lock:
+        try:fcntl.flock(lock,fcntl.LOCK_EX|fcntl.LOCK_NB)
+        except BlockingIOError:return _edgar_rows(cached)
+        try:
+            start=(now()-dt.timedelta(days=days)).date().isoformat();end=now().date().isoformat()
+            rows=[];seen=set();total=None;read=0;pages=0
+            for offset in range(0,1000,100):
+                result=json.loads(_get("https://efts.sec.gov/LATEST/search-index?forms=8-K&dateRange=custom&startdt=%s&enddt=%s&from=%d"%(start,end,offset)))
+                hits=(result.get("hits") or {}).get("hits") or []
+                count=(result.get("hits") or {}).get("total")
+                total=count.get("value") if isinstance(count,dict) else count
+                pages+=1;read+=len(hits)
+                for hit in hits:
+                    for row in parse_efts_hit(hit):
+                        key=(row["sym"],row["accession"])
+                        if key not in seen:seen.add(key);rows.append(row)
+                if len(hits)<100:break
+            rows.sort(key=lambda row:(str(row.get("filed") or ""),str(row.get("accession") or "")),reverse=True)
+            rows=[edgar_8k_text(row,chars,allow_fetch=True) if i<n_text else row for i,row in enumerate(rows)]
+            result=dict(utc=now().isoformat(),version=3,rows=rows,coverage=dict(start=start,end=end,hits_total=total,hits_read=read,pages=pages,partial=bool(total and total>read)))
+            temporary=cp+".%d.%d.tmp"%(os.getpid(),__import__("time").time_ns())
+            with open(temporary,"w") as stream:json.dump(result,stream)
+            os.replace(temporary,cp)
+            return _edgar_rows(result)
+        except Exception:
+            return _edgar_rows(cached)
+        finally:fcntl.flock(lock,fcntl.LOCK_UN)
 TECH = ["NVDA", "AMD", "AVGO", "MSFT", "META", "ORCL", "CRWV", "NBIS", "SMCI", "MU"]
 def tech_pack():
     """Nico Hart: options put/call volume (Yahoo, ~15m delayed), short % float (Yahoo, bi-monthly FINRA data), IBKR borrow, SEC Form 4 insider atom,
@@ -169,29 +197,57 @@ def tech_pack():
     try:
         root = ET.fromstring(_get("https://www.sec.gov/cgi-bin/browse-edgar?action=getcurrent&type=4&count=100&output=atom")); A = "{http://www.w3.org/2005/Atom}"
         names = ("NVIDIA", "ADVANCED MICRO", "BROADCOM", "MICROSOFT", "META PLATFORMS", "ORACLE", "COREWEAVE", "NEBIUS", "SUPER MICRO", "MICRON")
-        out["insider_form4"] = [dict(title=e.findtext(A + "title"), updated=e.findtext(A + "updated"), src="sec_form4_atom") for e in root.iter(A + "entry") if any(n in (e.findtext(A + "title") or "").upper() for n in names)][:10]
+        from veteran_desk import sec_forms as _SF   # newstags_20261103 (F23): type=4 is a PREFIX match (424B2/424B3/425/497 ...); keep real Form 4 / 4/A only
+        out["insider_form4"] = [dict(title=e.findtext(A + "title"), updated=e.findtext(A + "updated"), src="sec_form4_atom") for e in root.iter(A + "entry") if any(n in (e.findtext(A + "title") or "").upper() for n in names) and _SF.is_form4(_SF.atom_form(e))][:10]
     except Exception: pass
     return out
 FEEDS = {"tech_pack": tech_pack, "kraken_spot": kraken_spot, "kraken_futures": kraken_futures, "coingecko_global": coingecko_global, "cftc_cot": cftc_cot,
          **{f"rss_{k}": (lambda k=k: rss(k)) for k in RSS}}
 def _paid_pack():   # tfo_paidpush_20261030 (Brett 21:17 WITA): paid feeds first, source-tagged; free feeds stay as fallback
-    from veteran_desk import thf_paid_pack as _PF; return _PF.pack()
+    from veteran_desk import thf_paid_pack as _PF; return _PF.snapshot()
 FEEDS["paid_pack"] = _paid_pack
-NOT_WIRED = {"binance_okx_public": "blocked by ISP DNS sinkhole on current Wi-Fi (connection refused)", "eia": "needs a free EIA API key from Brett (not provisioned; not requested - no keys in prompts)",
-             "google_trends": "no stable free API (pytrends rate-limited) - planned", "alfred_vintages": "planned phase 2", "earnings_calendar": "planned (Nasdaq JSON needs scraping)",
+FEEDS["eia"] = lambda: (_paid_pack().get("feeds") or {}).get("eia_spot")
+NOT_WIRED = {"binance_okx_public": "blocked by ISP DNS sinkhole on current Wi-Fi (connection refused)", "google_trends": "no stable free API (pytrends rate-limited) - planned", "alfred_vintages": "planned phase 2", "earnings_calendar": "planned (Nasdaq JSON needs scraping)",
              "onchain_flows": "no reliable free keyless source found - planned"}
+_FETCH_LOCK = __import__("threading").Lock()
+_NAME_LOCKS = {}
+_ROUND = None   # name -> result, set for one desk round so 11 seats share one paid-pack fetch
+def _name_lock(n):
+    with _FETCH_LOCK:
+        lk = _NAME_LOCKS.get(n)
+        if lk is None: lk = __import__("threading").Lock(); _NAME_LOCKS[n] = lk
+        return lk
+class round_cache:
+    def __enter__(self):
+        global _ROUND
+        self._prev = _ROUND
+        if _ROUND is None: _ROUND = {}
+        return _ROUND
+    def __exit__(self, *a):
+        global _ROUND
+        _ROUND = self._prev
 def fetch(names):
     H = {}
-    try: H = json.load(open(FH))
-    except Exception: pass
+    with _FETCH_LOCK:
+        try: H = json.load(open(FH))
+        except Exception: pass
     out = {}
     for n in names:
-        h = H.setdefault(n, dict(fails=0)); dropped = h["fails"] >= 3 and h.get("last_try", "")[:10] == now().isoformat()[:10]
-        if dropped: out[n] = dict(source=n, dropped=True, why="unreliable: 3+ consecutive failures"); continue
-        h["last_try"] = now().isoformat()
-        try: out[n] = dict(source=n, available_at_utc=now().isoformat(), data=FEEDS[n]()); h.update(fails=0, last_ok=now().isoformat()); h.pop("last_err", None)   # fix 6/7: no stale error after a success
-        except Exception as e: h["fails"] += 1; h["last_err"] = str(e)[:120]; out[n] = dict(source=n, error=str(e)[:120])
-    H["_not_wired"] = NOT_WIRED; os.makedirs(os.path.dirname(FH), exist_ok=True); json.dump(H, open(FH, "w"), indent=1); return out
+        if _ROUND is not None and n in _ROUND:
+            out[n] = _ROUND[n]; continue
+        with _name_lock(n):
+            if _ROUND is not None and n in _ROUND:
+                out[n] = _ROUND[n]; continue
+            h = H.setdefault(n, dict(fails=0)); dropped = h["fails"] >= 3 and h.get("last_try", "")[:10] == now().isoformat()[:10]
+            if dropped: out[n] = dict(source=n, dropped=True, why="unreliable: 3+ consecutive failures")
+            else:
+                h["last_try"] = now().isoformat()
+                try: out[n] = dict(source=n, available_at_utc=now().isoformat(), data=FEEDS[n]()); h.update(fails=0, last_ok=now().isoformat()); h.pop("last_err", None)   # fix 6/7: no stale error after a success
+                except Exception as e: h["fails"] += 1; h["last_err"] = str(e)[:120]; out[n] = dict(source=n, error=str(e)[:120])
+            if _ROUND is not None: _ROUND[n] = out[n]
+    with _FETCH_LOCK:
+        H["_not_wired"] = NOT_WIRED; os.makedirs(os.path.dirname(FH), exist_ok=True); json.dump(H, open(FH, "w"), indent=1)
+    return out
 if __name__ == "__main__":
     r = fetch(list(FEEDS)); print({k: ("OK" if "data" in v else v.get("error") or "dropped") for k, v in r.items()})
 # ---- live VIX (Brett follow-up 2026-10-28 20:35 WITA): Yahoo chart API ^VIX (free, no key) -> CBOE delayed quote fallback; every quote time-stamped.

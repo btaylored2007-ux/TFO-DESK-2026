@@ -1,0 +1,13 @@
+Scoped acceptance run on this workspace after queue_answerer_sgp.py sha256 0059287299eb6a41596461290a7a4a7295f3fdd917faa56c82a531ab56c3e4af. Not a Singapore run.
+
+Command:
+
+python3 -m pytest tests/test_bank07_20261106.py tests/test_fillfix_20261103.py veteran_desk/tests/test_review_20261030.py::test_half_risk_a_allowed_at_1pct veteran_desk/tests/test_autonomy_runtime_20261106.py veteran_desk/tests/test_autonomy_integration_20261106.py veteran_desk/tests/test_learning_retry_durable.py veteran_desk/tests/test_shadow_sampler_20261106.py veteran_desk/tests/test_research_and_shadow_20261106.py veteran_desk/tests/test_lesson_trace_20261106.py veteran_desk/tests/test_integrated_paths_20261106.py veteran_desk/tests/test_feed_health_20261106.py veteran_desk/tests/test_hub_brand_20261106.py veteran_desk/tests/test_incremental_deploy_20261106.py veteran_desk/tests/test_live_bank_snapshot_20261106.py veteran_desk/tests/test_intent_routing_20261104.py::RoutingIntegration::test_advisor_uses_original_intent_and_respects_ask veteran_desk/tests/test_ai_status_stall_20261106.py -q --tb=line
+
+Result: 130 passed, 7 subtests passed in 2.91s.
+
+veteran_desk/book.py sha256 b4453b503f33e34110519bf4d7a9bf391ecc2802edbd87acca3e77dc96b7e891
+
+Chat renderer fixture, same workspace: 6 scenarios passed, requests mocked.
+
+Not claimed: every other test file in the repo, a droplet restart, or a live provider call.

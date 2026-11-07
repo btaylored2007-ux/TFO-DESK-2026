@@ -1,0 +1,60 @@
+{
+  "release": "shadow_throughput_prod_20261107",
+  "host": "tfo-sgp1",
+  "roots": ["/opt/tfo/live/thf", "/opt/tfo/dash/base"],
+  "not_roots": ["/opt/tfo/dash/codemerge"],
+  "package": "shadow_throughput_prod_20261107",
+  "package_sha256": "efd7f25605cc64a9e7280a710c76b7fffaef6c07b542fd3ecb3f5cbfa4db212d",
+  "preflight_sha256": "7bcfc0f3ba1af32374a41acd391212563f0315c74f757dd5de5f54c65b9ea4bd",
+  "preflight_report_sha256": "bf31489291a482a64f15f90b508752ab0116a9858dd44918c9bcbb98b273d8f9",
+  "staging_archive_sha256": "dcdb650f1a97d52e94a9e752276b8f72214371dc0e311082b02a178756e166eb",
+  "rejected_archive_sha256": ["3a12ff433c1d0c5fbe8d47c612899225c9dfcd78584162e57539e67e1b98d9c8"],
+  "rejected_authorization_ids": ["t2809u", "t2816u", "t2824u"],
+  "files": [
+    {
+      "path": "veteran_desk/thf_shadow_sampler.py",
+      "base_sha256": "7e2eeb3e544814411f7fb2371b50b232746e2edec9a971197c46b319570de2bf",
+      "target_sha256": "d10f5cb6655a02606f249e22f0205e83e362c9fd68983c74acf79907d44c1b42"
+    },
+    {
+      "path": "veteran_desk/thf_shadow_bench.py",
+      "base_sha256": "957539fa9d52ac1d63e3fb9c7064e0d54aae6af88f687f01b477afaf3795e3fa",
+      "target_sha256": "96e084dccefe62bc29406485c259154c1981dcd211fbc60b553e886866a4b62c"
+    }
+  ],
+  "expected_modes": {
+    "veteran_desk/thf_shadow_sampler.py": "0664",
+    "veteran_desk/thf_shadow_bench.py": "0644"
+  },
+  "preserve_bytes": {
+    "state/thf/shadow_window.json": "dc4e148f27d7af7cb9236dc9d1eb0cced9550fa07ec5b9e05ed464c43687e913",
+    "state/thf/shadow_sampler.json": "b954cd38057b26c7d2b1728a9bfd8d3b0e8aaa3bb50fa444da71bc987618823c"
+  },
+  "protected": [
+    {"path": "veteran_desk/book.py", "sha256": "a739477001c33b23ad87ebdf8ca5fc40c76b441eb13100daf1bc67136eb12c7b"},
+    {"path": "veteran_desk/chatgpt_bridge.py", "sha256": "26446b5b61218bfc370fff62988db47efecb7b8afafd15e694ceaecf35deac0c"},
+    {"path": "tools/chatgpt_web.py", "sha256": "cc86f0afeef4e26ca609b669356c95c4f4009b9d571dbd710303d8a4a73779a4"},
+    {"path": "veteran_desk/seat_brain.py", "sha256": "a294b07d3503411ef441dcaa709cc4e98caba8746a3d69ce42c095342a2c7ab0"},
+    {"path": "veteran_desk/thf_round.py", "sha256": "8ee00fb7519b2c27b5b32b98e56b29d42d3faa0528f7004e5772ad839b5c78f6"}
+  ],
+  "unchanged_owner_targets": {
+    "veteran_desk/thf_msgdesk.py": "784785031b65c06e82dd2de97605de068f97ff779c706c6a4905054e5b66af29",
+    "veteran_desk/thf_chat_clarity.py": "79c6aa3314b3a506169254ad05536f07a48754ae8508a9048032862c63e3f0cb",
+    "veteran_desk/supergrok_bridge.py": "7c6ed10810c2041b2026ec25df5896e53eaeb1bfa4f641e6debd32bb0c7976b2",
+    "tools/grok_web.py": "b2bc291525a08e370fbf39071f2352afecf5ea77c5405d8dc38666a4ec369e82",
+    "veteran_desk/thf_chat_home.py": "2d5ecfad55537d591b2027a3e676c44308fc2b9868c2aff20349a70d2cee92b6",
+    "veteran_desk/ai_router.py": "4e18964b65af1c6a8ba0e8916d5007b1a80e760a9509c3abd14765e059dcd61e",
+    "veteran_desk/ai_readiness.py": "b062070c5101f29a5f6f8eee75c2e492533eabaa776ae0d05350e5427cfc25bd",
+    "veteran_desk/thf_funder.py": "0f4109c21ee99cd5fabe5f232eac47fae410b77d121764157daf26c6fe679c44"
+  },
+  "not_in_this_apply": ["veteran_desk/thf_msgdesk.py", "veteran_desk/lesson_trace.py"],
+  "msgdesk_stale_pin_not_required": "9607803a718f16041a712544bea1582df7e153a8286cb695b03c92f5ea12376e",
+  "msgdesk_reported_separately": "784785031b65c06e82dd2de97605de068f97ff779c706c6a4905054e5b66af29",
+  "flags": ["no_engine_restart", "no_tick_restart", "no_nginx_change", "no_gpt_restart", "no_forced_sampler_run", "no_quota_change", "no_clock_change", "no_provider_call"],
+  "locks": ["tools/.code_release.lock", "tools/deploy.lock"],
+  "idle_unit": "tfo-thf-shadow.service",
+  "clock_start_utc": "2026-11-06T15:36:07+00:00",
+  "review_due_wita": "2026-11-14 08:00 WITA",
+  "min_n": 20,
+  "comparison_n": 4
+}

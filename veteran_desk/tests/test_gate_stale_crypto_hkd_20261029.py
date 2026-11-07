@@ -10,7 +10,20 @@ def test_crypto_canon_maps_bare_btc_to_kraken():
     assert G.canon("XRP") == "KRAKEN:XRPUSD"
     assert G.canon("AAPL") == "AAPL"
 
-def test_crypto_history_atr_is_coin_scale_not_etf():
+def test_crypto_history_atr_is_coin_scale_not_etf(tmp_path, monkeypatch):
+    import sqlite3
+    db = tmp_path / "bars.sqlite"
+    con = sqlite3.connect(db)
+    con.execute("CREATE TABLE bars(sym TEXT, date TEXT, o REAL, h REAL, l REAL, c REAL, v REAL, knowable_utc TEXT)")
+    # Synthetic coin-scale series. Not a market download and not the pit scan universe.
+    start = dt.date(2026, 8, 1)
+    for i in range(40):
+        day = start + dt.timedelta(days=i)
+        px = 60000 + (i % 5) * 400
+        con.execute("INSERT INTO bars VALUES (?,?,?,?,?,?,?,?)",
+                    ("KRAKEN:XBTUSD", day.isoformat(), px, px + 800, px - 800, px, 10, "2026-09-30T00:00:00+00:00"))
+    con.commit(); con.close()
+    monkeypatch.setattr(P, "DB", str(db))
     now = dt.datetime.now(dt.timezone.utc)
     rows, _ = G.history("BTC", now)
     A = G.arrays(rows)

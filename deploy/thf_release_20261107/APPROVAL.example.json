@@ -1,0 +1,15 @@
+{
+  "example": true,
+  "authorization_verbatim": "Explicitly authorisation to deploy and clear the blocks.",
+  "authorization_id": "t2809u",
+  "authorization_wita": "2026-11-07 18:52 WITA",
+  "host": "tfo-sgp1",
+  "roots": ["/opt/tfo/live/thf", "/opt/tfo/dash/base"],
+  "excludes": ["veteran_desk/book.py"],
+  "no_tick_restart": true,
+  "archives": [
+    {"name": "empty_prompt_20261107", "sha256": "fd2c2b96eb069c7e6b78fe7ff04dc91e6355361ff5b3002f65eb618110fc85b8"},
+    {"name": "review_budget_20261107", "sha256": "affc61134490634edfc98dd1819147db8584350a81c6489e94796edd18c72534"},
+    {"name": "retail_dash_20261107", "sha256": "9d58be9e311b7e279bbb6549a7039c4ecd90abeefd4ca0cdc59d1e22d8f14b96"}
+  ]
+}

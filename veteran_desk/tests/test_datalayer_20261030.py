@@ -21,6 +21,7 @@ def test_rows_and_yahoo_fallback():
 def test_no_key_in_errors():
     assert "api_token=***" in D.redact("https://eodhd.com/api/eod/A.US?api_token=SECRET123&fmt=json")
 def test_paid_first_frame_shape_and_adjust():
+    # Needs pandas. Receipt: docs/TEST_DEPENDENCY_RECEIPT_20261106.json. Missing pandas raises ModuleNotFoundError.
     from veteran_desk import paid_first as PF
     js = [{"date": "2026-10-28", "open": 10, "high": 11, "low": 9, "close": 10, "adjusted_close": 5, "volume": 1},
           {"date": "2026-10-29", "open": 10, "high": 12, "low": 9, "close": 11, "adjusted_close": 5.5, "volume": 2}]

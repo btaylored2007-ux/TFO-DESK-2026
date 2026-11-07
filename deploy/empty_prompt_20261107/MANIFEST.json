@@ -1,0 +1,142 @@
+{
+  "package": "empty_prompt_20261107",
+  "source_capture_sha256": "1cfe1b911954c3d16fcb0cd103a39031eda73f7737bf25091405b6b465250f67",
+  "captured_at": "2026-11-07 14:18:36 WITA",
+  "book_must_remain": "b4453b503f33e34110519bf4d7a9bf391ecc2802edbd87acca3e77dc96b7e891",
+  "production": false,
+  "not_deployed": true,
+  "payloads": [
+    {
+      "path": "veteran_desk/thf_shadow_sampler.py",
+      "base_sha256": "a779a30626e765e5d6351ab851399240154802a54cdb955c309e8f97d4ad28ef",
+      "target_sha256": "935c73460dcce8789b9eec9e8664b0ffcd44985ef9adc3da6bb053808b4e6673",
+      "live_base_captured": true,
+      "note": "Captured live and dash, identical."
+    },
+    {
+      "path": "veteran_desk/claude_brain.py",
+      "base_sha256": "10658378cf66908f5dd1ee3aaac5b878910a9093707bba72115a56bf44339318",
+      "target_sha256": "b896da9e49d6690bbda57c805952530aa9d9c2eb034f296f2cc31535255fa49d",
+      "live_base_captured": true,
+      "note": "Captured live and dash, identical."
+    },
+    {
+      "path": "veteran_desk/thf_grok.py",
+      "base_sha256": "2a6a975735fce2f3ed214b5eb35af84ce90629d7403204c8691bab9757568561",
+      "target_sha256": "cce75bfa91b94b4c938fe53853a8fbbbe40e1b39e12a080576cfdf8d103c85a6",
+      "live_base_captured": true,
+      "note": "Captured live and dash, identical."
+    }
+  ],
+  "unchanged": [],
+  "new_files": [],
+  "inspected_not_packed": [
+    {
+      "path": "tools/chatgpt_admission.py",
+      "sha256": "dceb94c59f426fb2a68f5fdd1f98e99df31de1c57dd860b1e481fef5d32addd8",
+      "bytes": 8205,
+      "packed": false,
+      "note": "Hashed from the 7 Nov 14:18:36 WITA capture. Not changed and not packed."
+    },
+    {
+      "path": "tools/chatgpt_web.py",
+      "sha256": "cc86f0afeef4e26ca609b669356c95c4f4009b9d571dbd710303d8a4a73779a4",
+      "bytes": 35220,
+      "packed": false,
+      "note": "Hashed from the 7 Nov 14:18:36 WITA capture. Not changed and not packed."
+    },
+    {
+      "path": "veteran_desk/ai_cooldown.py",
+      "sha256": "646850d9a4f28db88bf58703801c38e1e7f73715979091b3f5e658c1599cf5b3",
+      "bytes": 8046,
+      "packed": false,
+      "note": "Hashed from the 7 Nov 14:18:36 WITA capture. Not changed and not packed."
+    },
+    {
+      "path": "veteran_desk/ai_readiness.py",
+      "sha256": "37ba8d3a3fbaa762c16e5625fbef9dac189ec7db39b9d4f5db62addf1f71b97e",
+      "bytes": 1742,
+      "packed": false,
+      "note": "Hashed from the 7 Nov 14:18:36 WITA capture. Not changed and not packed."
+    },
+    {
+      "path": "veteran_desk/bridge_maintenance.py",
+      "sha256": "56874d5f12cd667486b6cfbe15a29e50837bbdc39f7a50678e3f018f50bf43fd",
+      "bytes": 20891,
+      "packed": false,
+      "note": "Hashed from the 7 Nov 14:18:36 WITA capture. Not changed and not packed."
+    },
+    {
+      "path": "veteran_desk/chatgpt_bridge.py",
+      "sha256": "26446b5b61218bfc370fff62988db47efecb7b8afafd15e694ceaecf35deac0c",
+      "bytes": 7128,
+      "packed": false,
+      "note": "Hashed from the 7 Nov 14:18:36 WITA capture. Not changed and not packed."
+    },
+    {
+      "path": "veteran_desk/communication_protocol.py",
+      "sha256": "a6649cb9901d30350ced95b3fd51c4454cd6e68adc5150078eb3288589255a36",
+      "bytes": 10226,
+      "packed": false,
+      "note": "Hashed from the 7 Nov 14:18:36 WITA capture. Not changed and not packed."
+    },
+    {
+      "path": "veteran_desk/deepseek_bridge.py",
+      "sha256": "bbe02efdf47ee3738dd4d6f34251fc01d7461578e856566248c3b814f8cc3149",
+      "bytes": 16515,
+      "packed": false,
+      "note": "Hashed from the 7 Nov 14:18:36 WITA capture. Not changed and not packed."
+    },
+    {
+      "path": "veteran_desk/head_review.py",
+      "sha256": "91dc58cafd1227740535b9b22323b3d32927fabfba799907afddda882ef519cc",
+      "bytes": 9208,
+      "packed": false,
+      "note": "Hashed from the 7 Nov 14:18:36 WITA capture. Not changed and not packed."
+    },
+    {
+      "path": "veteran_desk/lesson_trace.py",
+      "sha256": "99313083f15c7449edf4a21c849b59f642c57c71b7ddebefce17acb43bdc7370",
+      "bytes": 7667,
+      "packed": false,
+      "note": "Hashed from the 7 Nov 14:18:36 WITA capture. Not changed and not packed."
+    },
+    {
+      "path": "veteran_desk/llm_backend.py",
+      "sha256": "8b47e73083ccbeaad7e12aa4b7532a56d7d0311e5d02d73ef7e7d851ba540cac",
+      "bytes": 19232,
+      "packed": false,
+      "note": "Hashed from the 7 Nov 14:18:36 WITA capture. Not changed and not packed."
+    },
+    {
+      "path": "veteran_desk/local_llm.py",
+      "sha256": "2ec2e8c3c287d677740ed12278f9d1ef320ef9fbc685474bd494d337d2b8a51a",
+      "bytes": 7473,
+      "packed": false,
+      "note": "Hashed from the 7 Nov 14:18:36 WITA capture. Not changed and not packed."
+    },
+    {
+      "path": "veteran_desk/provider_rotation.py",
+      "sha256": "5af65015bcab926c8f52579f9051bb453db5315a1358d91fb8f18e6e8ecfe1ba",
+      "bytes": 4015,
+      "packed": false,
+      "note": "Hashed from the 7 Nov 14:18:36 WITA capture. Not changed and not packed."
+    },
+    {
+      "path": "veteran_desk/seat_brain.py",
+      "sha256": "a294b07d3503411ef441dcaa709cc4e98caba8746a3d69ce42c095342a2c7ab0",
+      "bytes": 29605,
+      "packed": false,
+      "note": "Hashed from the 7 Nov 14:18:36 WITA capture. Not changed and not packed."
+    },
+    {
+      "path": "veteran_desk/thf_shadow_bench.py",
+      "sha256": "957539fa9d52ac1d63e3fb9c7064e0d54aae6af88f687f01b477afaf3795e3fa",
+      "bytes": 6847,
+      "packed": false,
+      "note": "Hashed from the 7 Nov 14:18:36 WITA capture. Not changed and not packed."
+    }
+  ],
+  "chatgpt_bridge_live_sha256": "26446b5b61218bfc370fff62988db47efecb7b8afafd15e694ceaecf35deac0c",
+  "chatgpt_bridge_note": "Live bridge is the captured hash. The staged maintenance file is not this package and is not the live file."
+}

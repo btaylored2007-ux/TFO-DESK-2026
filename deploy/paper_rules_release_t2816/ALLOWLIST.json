@@ -1,0 +1,36 @@
+{
+  "release": "paper_rules_release_t2816",
+  "host": "tfo-sgp1",
+  "roots": ["/opt/tfo/live/thf", "/opt/tfo/dash/base"],
+  "authorization_verbatim": "Ok fix these and deploy.",
+  "authorization_id": "t2816u",
+  "authorization_wita": "2026-11-07 19:42 WITA",
+  "prior_authorization_verbatim": "Explicitly authorisation to deploy and clear the blocks.",
+  "prior_authorization_id": "t2809u",
+  "prior_authorization_wita": "2026-11-07 18:52 WITA",
+  "package": "paper_rules_livebase_20261107",
+  "package_sha256": "b1b289815776a6d912fa0b43bb8d0b337351d4058ee40eef4a4289f84cbe62ff",
+  "rejected_package_sha256": ["f65604a081fb3787e8ef2d57d5117fc7b8d3aeb76103f33ad922cdad13eb257d"],
+  "rejected_gate_base_sha256": ["5582d153fa2d4d7270de228dd4ca0df0321c2efc7380b0080edd8af9b6c1dcb0"],
+  "not_in_this_apply": ["empty_prompt_20261107", "review_budget_20261107", "retail_dash_20261107", "paper_rules_20261107"],
+  "files": [
+    {
+      "path": "veteran_desk/book.py",
+      "base_sha256": "b4453b503f33e34110519bf4d7a9bf391ecc2802edbd87acca3e77dc96b7e891",
+      "target_sha256": "a739477001c33b23ad87ebdf8ca5fc40c76b441eb13100daf1bc67136eb12c7b"
+    },
+    {
+      "path": "veteran_desk/gate_v2.py",
+      "base_sha256": "2326feaa522d4c9de014d1523435aeb8ab83fd817e45396448beb50363446d54",
+      "target_sha256": "1d1e8c82685e2df775d4543456f19104947fe6b24f567929707848c906f7f2a9"
+    }
+  ],
+  "needles": {
+    "veteran_desk/book.py": ["RAIL_BANK_R = 0.7", "RAIL_BANK_ALL_POSITIONS = True", "HARD_BACKSTOP_PCT = 0.05", "no valid stop"],
+    "veteran_desk/gate_v2.py": ["firm rail HALT - new entries halted", "stop missing or stop/target not on correct sides of entry", "needs_brett_tick=False", "this gate line is x1.0 and is not a second cut"]
+  },
+  "forbidden": ["needs_brett_tick=True", "SHORTS_OFF = False", "hunt48_shorts = True"],
+  "locks_observed_not_held": [".tick.flock", "state/thf/.book.flock"],
+  "locks_held": ["tools/.code_release.lock", "tools/deploy.lock"],
+  "idle_units": ["tfo-thf-shadow.service", "tfo-thf-tick.service"]
+}

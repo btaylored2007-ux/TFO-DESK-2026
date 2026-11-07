@@ -1,0 +1,15 @@
+{
+  "python": "3.12.3",
+  "command": "python3 -m pip install --user pandas==2.2.3",
+  "installed": {
+    "pandas": "2.2.3",
+    "python-dateutil": "4.0.0",
+    "pytz": "2026.6",
+    "tzdata": "2026.6"
+  },
+  "already_present": {"numpy": "1.26.4"},
+  "required_by": "veteran_desk/tests/test_datalayer_20261030.py::test_paid_first_frame_shape_and_adjust",
+  "without_it": "ModuleNotFoundError: No module named pandas, raised from veteran_desk/paid_first.py frame()",
+  "not_vendored": true,
+  "note": "pandas is an environment package. It is not copied into the repo and it is not a production deploy."
+}

@@ -3,12 +3,14 @@
 import datetime as dt, json, os, sys, tempfile, copy
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 from veteran_desk import book as BK, seat_cli as SC
+from veteran_desk.tests.synthetic_book import skeleton
 U = dt.timezone.utc; T = dt.datetime(2026, 10, 28, 18, 45, tzinfo=U)   # US + FX session open, past the open window
 
 # ---- 1. reject, don't lift ----
 def test_risk_plan_rejects_sub_floor():
-    r = BK.risk_plan(500000, "B", False, .45)   # tfo_review_fix_20261031: non-A floor 2% -> reject (cut A sizes to max(cut,1%))
-    assert r["reject"] == "below_2pct_nonA_floor" and r["pct"] == 0 and r["risk_aud"] == 0 and abs(r["wanted_pct"] - .009) < 1e-9
+    # t2808u: B full is 1% of equity. mult 0.45 keeps 0.45%. Not below_2pct_nonA_floor and not lifted.
+    r = BK.risk_plan(500000, "B", False, .45)
+    assert r["reject"] is None and abs(r["pct"] - .0045) < 1e-9 and r["risk_aud"] == 2250 and abs(r["wanted_pct"] - .0045) < 1e-9 and not r["sized_up"]
 def test_risk_plan_grades_and_cap():
     r = BK.risk_plan(500000, "A"); assert r["reject"] is None and r["pct"] == .01 and r["risk_aud"] == 5000   # tfo_review_fix_20261031 A default 1%
     r = BK.risk_plan(500000, "A+"); assert r["pct"] == .04 and r["reject"] is None
@@ -16,10 +18,10 @@ def test_risk_plan_grades_and_cap():
     r = BK.risk_plan(500000, "A+", mult=2.0); assert r["pct"] == BK.RISK_MAX == .05
 def test_crypto_seat_floor_kept():
     r = BK.risk_plan(500000, "A", mult=.8, floor=BK.RISK_CRYPTO_MIN); assert r["reject"] is None and abs(r["pct"] - .008) < 1e-9   # kairails: crypto base 1%
-    r = BK.risk_plan(500000, "A", mult=.2, floor=BK.RISK_CRYPTO_MIN); assert r["reject"] == "below_crypto_floor"
+    r = BK.risk_plan(500000, "A", mult=.2, floor=BK.RISK_CRYPTO_MIN); assert r["reject"] is None and abs(r["pct"] - .002) < 1e-9 and not r["sized_up"]   # t2808u: the cut stands
 
 def _book(pos=None, seat="energy"):
-    tmp = tempfile.mkdtemp(); D = copy.deepcopy(json.load(open(BK._REAL_BOOK)))
+    tmp = tempfile.mkdtemp(); D = copy.deepcopy(skeleton())
     for B in D["seats"].values(): B["positions"] = {}; B["closed"] = []; B["cash_aud"] = B["seed_aud"]
     D["hedge"] = {"disabled": True}; D["kill_switch"] = {"state": "OK"}; D["peak_equity_aud"] = None
     if pos: D["seats"][seat]["positions"][pos["id"]] = pos
@@ -42,7 +44,7 @@ def test_arm_rejects_sub_floor_idea():
              gate_size_mult=0.45, grade="A", tags={"strategy": "veteran:energy grade A"})   # tfo_review_fix_20261031: cut A now sizes to 1% (arms)
     json.dump({"entries": {e["id"]: e}}, open(q, "w"))
     D = _tick(path, q, dict(last=68.5, hi=68.6, lo=68.4))
-    p = D["seats"]["energy"]["positions"]["VET-X-1"]; assert abs(p["risk_pct"] - .01) < 1e-9   # tfo_review_fix_20261031: cut A sizes to max(cut,1%) - not rejected
+    p = D["seats"]["energy"]["positions"]["VET-X-1"]; assert abs(p["risk_pct"] - .009) < 1e-9   # t2808u: energy full risk is 2%; the 0.45 cut stays at 0.9% and is not lifted to 1%
 
 def _armed(side="LONG", entry=68.2, ot="limit", **kw):
     sg = 1 if side == "LONG" else -1
@@ -77,10 +79,13 @@ def test_rebook_never_through_limit():   # XLE: limit 68.2, first print 68.48 ->
     p = _tick(path, q, dict(last=68.45, hi=68.6, lo=68.4), fp=dict(px=68.48, asof="2026-10-28 09:30:00-04:00"))["seats"]["energy"]["positions"]["P1"]
     assert p["status"] == "armed" and "fill" not in p
 def test_rebook_below_floor_rejected_not_lifted():
+    # t2808u: a rebook that is not a history cut may lift to the grade budget and must tag it. It is not cancelled below_1pct_floor.
     path, q = _book(_offhours(68.1))
-    D = _tick(path, q, dict(last=68.1, hi=68.2, lo=68.0), fp=dict(px=68.1, asof="2026-10-28 09:30:00-04:00"))
-    assert "P1" not in D["seats"]["energy"]["positions"] or D["seats"]["energy"]["positions"]["P1"]["status"] == "cancelled"
-    assert any(c.get("exit_reason") == "below_1pct_floor" for c in D["seats"]["energy"]["closed"])
+    p = _tick(path, q, dict(last=68.1, hi=68.2, lo=68.0), fp=dict(px=68.1, asof="2026-10-28 09:30:00-04:00"))["seats"]["energy"]["positions"]["P1"]
+    assert p["status"] == "open" and p.get("lift_tag") == "lifted_subfloor" and p["risk_pct_actual"] >= 0.01 - 1e-9
+    path, q = _book(_offhours(68.1, size_mult=0.4))
+    kept = _tick(path, q, dict(last=68.1, hi=68.2, lo=68.0), fp=dict(px=68.1, asof="2026-10-28 09:30:00-04:00"))["seats"]["energy"]["positions"]["P1"]
+    assert kept["status"] == "open" and kept["shares"] == 100 and kept.get("lift_tag") is None and "not lifted" in kept["rebook_note"]
 
 # ---- 4. amend recomputes risk_aud; r0 stays the initial risk ----
 def test_amend_short_fx_recomputes_risk_keeps_r0():

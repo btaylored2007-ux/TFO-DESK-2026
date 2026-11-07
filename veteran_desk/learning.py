@@ -1,21 +1,36 @@
 """VETERAN DESK LEARNING LOOP (Brett approved 2026-10-28 20:26-20:27 WITA). PAPER ONLY. Advisory only: never loosens rails
 (stop on every trade, 2-5% risk, firm caps, kill switch stay in book.py/desk.py code). Nothing auto-applies; TFO approves.
   python3 -m veteran_desk.learning sync            # journal every fill/close (idempotent) + shadow runner
-  python3 -m veteran_desk.learning daily [--no-llm] # 21:00 WITA lessons.md per seat (rolling 30d) + Claude/GPT critique
+  python3 -m veteran_desk.learning daily [--no-llm] [--dry-run] # 21:00 WITA lessons.md per seat (rolling 30d) + critique; THF_DESK=1: own THF book only -> state/thf/learning (lessonsrc_20261103)
   python3 -m veteran_desk.learning weekly [--no-llm]# Sat 11:00 WITA rule-change proposals, held-out test, critique
   python3 -m veteran_desk.learning approve SEAT PID --by NAME   # TFO approval -> shadow run (>=20 paper trades)
   python3 -m veteran_desk.learning promote SEAT PID --by NAME   # only after >=20 shadow trades and shadow beat baseline
   python3 -m veteran_desk.learning card
-Models: Claude via ~/.local/bin/claude (-p opus) and GPT via the Codex CLI used by hunt_clearance (/Applications/ChatGPT.app/.../codex),
-both through desk._llm (secret screen, usage log). No codex->claude fallback here: a down model is tagged MISSING, never blocks."""
+Model (tfo_learngrok_20261031): Grok only - the second opinion goes through desk.llm -> desk._llm (secret screen, usage log) ->
+llm_backend.grok_call, the SAME Grok Bot fast path + state/llm_queue file queue the VD/THF seats use. No GPT/Codex/Claude.
+A down/unanswered model is tagged MISSING, never blocks. Legacy "gpt" rows in old sounding_board.jsonl are history only."""
 import concurrent.futures as cf, datetime as dt, json, os, re, sys
 HERE = os.path.dirname(os.path.abspath(__file__)); BASE = os.path.dirname(HERE)
 LD = os.path.join(BASE, "state", "learning"); REP = os.path.join(BASE, "reports", "learning"); WEEKLY = os.path.join(REP, "weekly_proposals.json")
 BOOK = os.path.join(BASE, "reports", "veteran_desk_book.json"); RUNS = os.path.join(BASE, "state", "veteran_desk", "runs")
 UTC = dt.timezone.utc; WITA = dt.timezone(dt.timedelta(hours=8)); SHADOW_MIN = 20; KEEP_DAYS = 30
-MODELS = (("gpt", "codex"),)   # Brett HARD 2026-10-29: GPT/Codex only; Claude retired from all VD reviews
+# lessonsrc_20261103 (Sam Reyes p1 for the crypto seat, 3 Nov 19:53 WITA): THF crypto was told '30d record: 2/4 winners, net A$219' while its
+# THF book has 0 fills / A$0. state/learning/<seat>/ is keyed by the bare seat name and written by the Mac Veteran Desk 'learning daily'
+# (21:00 WITA) from the OLD VD book reports/veteran_desk_book.json (4 KRAKEN:XMRUSD closes 29-30 Oct), then rsynced into this tree by
+# run_thf_feed_sgp.sh; the THF book tick never journals here. NOW, under THF_DESK=1 only: every record / lesson / daily review a THF seat
+# sees comes ONLY from that seat's own realised closes in state/thf/thf_book.json (status closed + a fill + net_aud), read-only; cancelled /
+# never-filled rows and shadow / lab / counterfactual rows never count. The THF review is published under state/thf/learning/ (droplet-owned,
+# never rsynced). VD behaviour unchanged.
+THF_BOOK = os.path.join(BASE, "state", "thf", "thf_book.json"); THF_LD = os.path.join(BASE, "state", "thf", "learning")
+_LD0, _THF_LD0 = LD, THF_LD
+def _thf():
+    """THF_DESK=1 - unless a (VD) test redirected LD alone (THF_LD left live): then the legacy VD paths stay in force, so a VD test run
+    from a THF_DESK=1 shell never reads the live THF book or writes state/thf/learning."""
+    if os.environ.get("THF_DESK") != "1": return False
+    return not (os.path.abspath(LD) != os.path.abspath(_LD0) and os.path.abspath(THF_LD) == os.path.abspath(_THF_LD0))
+MODELS = (("grok", "grok_queue"),)   # tfo_learngrok_20261031: Grok only (Brett 22:29 WITA 30 Oct: everything runs on Grok); was ("gpt","codex")
 if os.path.exists(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "state", "config", "claude_retired.json")) or os.environ.get("TFO_CLAUDE_OFF") == "1":
-    MODELS = (("gpt", "codex"),)   # Brett 2026-10-29 08:33 WITA: Claude removed from every review
+    MODELS = (("grok", "grok_queue"),)   # Claude retired 2026-10-29; GPT/Codex removed 2026-10-30 -> Grok only
 GUARD = ("You are an ADVISORY sounding board for a PAPER trading desk. You cannot place, arm, size or loosen anything. "
          "Hard rails are fixed in code and never loosen: a stop on every trade, 2-5% risk per trade, firm caps, kill switch. ")
 def now(): return dt.datetime.now(UTC)
@@ -44,7 +59,7 @@ def trader_seats(): return [k for k, v in seats().items() if v.get("role") == "p
 def _ask(engine, prompt, timeout=240, llm=None):
     if llm is None:
         sys.path.insert(0, BASE) if BASE not in sys.path else None
-        from veteran_desk import desk as D; llm = D.llm   # D.llm so test mocks apply; its codex->claude fallback is tagged MISSING for GPT
+        from veteran_desk import desk as D; llm = D.llm   # D.llm -> _llm -> llm_backend.grok_call (same Grok route as VD/THF seats); test mocks apply
     try: out = llm(engine, prompt, timeout)
     except Exception as e: out = "__ERR__ %s" % type(e).__name__
     return out or "__ERR__ empty"
@@ -103,7 +118,7 @@ def sound_board_all(recs, llm=None, max_parallel=2):
 SB_TIMEOUT_S = int(os.environ.get("VET_SB_TIMEOUT_S", "60"))
 def _one_model(i):
     f = os.environ.get("VET_SB_MODEL", "alternate").lower()
-    if f in ("claude", "gpt"): return tuple(m for m in MODELS if m[0] == f)
+    if f in ("claude", "gpt", "grok"): return tuple(m for m in MODELS if m[0] == f) or (MODELS[0],)   # legacy labels map to Grok
     return (MODELS[i % len(MODELS)],)
 def critique_async(recs, runid="run"):
     """Never blocks the caller: writes recs to a pending file and spawns a detached critique worker. Returns spawn info."""
@@ -194,7 +209,32 @@ def sync(D=None):
                 e = entry_for(p, ev, _run_rec(p.get("id")), _sb(seat, p.get("id")), D.get("audusd")); _app(jp, e); have.add(e["key"]); n += 1
                 if ev == "close": _shadow_step(seat, e)
     return dict(ok=True, new_entries=n)
+def _not_own(p):   # lessonsrc_20261103: shadow / strategy-lab / counterfactual rows are never the seat's own fills
+    return any(p.get(k) for k in ("shadow", "lab", "counterfactual", "is_shadow", "hypothetical")) or str(p.get("source") or p.get("kind") or "").lower() in ("shadow", "lab", "strategy_lab", "counterfactual")
+def _filled(p): return bool(p.get("filled_utc")) or p.get("fill") is not None
+def _own_rows(seat, D=None):
+    """lessonsrc_20261103: (book, the seat's OWN rows) from the THF book, read-only."""
+    D = D if isinstance(D, dict) else (_rj(THF_BOOK, {}) or {})
+    B = (D.get("seats") or {}).get(seat) or {}
+    return D, [p for p in list((B.get("positions") or {}).values()) + list(B.get("closed") or []) if isinstance(p, dict) and not _not_own(p)]
+def own_stats(seat, D=None):
+    """lessonsrc_20261103: fills / realised closes / winners / realised net A$ of ONE seat from its own THF book (read-only)."""
+    D, rows = _own_rows(seat, D); F = [p for p in rows if _filled(p)]
+    C = [p for p in F if p.get("status") == "closed" and p.get("net_aud") is not None]
+    return dict(fills=len(F), closes=len(C), wins=sum(1 for p in C if float(p["net_aud"]) > 0), net_aud=round(sum(float(p["net_aud"]) for p in C), 2),
+                open=sum(1 for p in rows if p.get("status") == "open"), source="state/thf/thf_book.json")
+def book_closes(seat, days=None, D=None):
+    """lessonsrc_20261103: the seat's own realised closes (status closed + a fill + net_aud) from its own THF book, as journal-shaped close
+    entries (R multiple / mistake tag computed as for the journal). Cancelled / expired / never-filled rows never count. Read-only."""
+    D, rows = _own_rows(seat, D); C = []
+    for p in rows:
+        if p.get("status") != "closed" or not _filled(p) or p.get("net_aud") is None: continue
+        e = entry_for(dict(p, seat=p.get("seat") or seat), "close", None, None, D.get("audusd")); e["source"] = "state/thf/thf_book.json"; C.append(e)
+    if days:
+        cut = (now() - dt.timedelta(days=days)).isoformat(); C = [x for x in C if (x.get("event_utc") or x.get("journal_utc") or "") >= cut]
+    return sorted(C, key=lambda x: x.get("event_utc") or x.get("journal_utc") or "")
 def closes(seat, days=None):
+    if _thf(): return book_closes(seat, days)   # lessonsrc_20261103: THF = the seat's own book, never the shared (Mac VD) journal
     C = [x for x in _jl(os.path.join(_sd(seat), "journal.jsonl")) if x.get("event") == "close" and x.get("pnl_aud_net") is not None]
     if days:
         cut = (now() - dt.timedelta(days=days)).isoformat(); C = [x for x in C if (x.get("event_utc") or x.get("journal_utc") or "") >= cut]
@@ -278,6 +318,10 @@ TAG_LESSON = dict(thesis_wrong_stopped="Stops were hit as designed: tighten the 
                   kill_switch_flat="Desk kill switch flattened positions: correlated heat too high.")
 def _lessons(seat):
     C = closes(seat, KEEP_DAYS); L = []
+    own = own_stats(seat) if _thf() else None   # lessonsrc_20261103: THF numbers = the seat's own book only
+    if not C and own is not None:
+        return ["No realised closes in your own THF book in the last 30 days (book: %d fills, %d realised closes, net A$%s realised): follow the playbook, stop on every trade, nothing to learn from data yet."
+                % (own["fills"], own["closes"], format(own["net_aud"], ",.0f"))], dict(n=0, wins=0, net_aud=0.0, fills=own["fills"], source=own["source"])
     if not C: return ["No closed paper trades in the last 30 days yet: follow the playbook, stop on every trade, nothing to learn from data yet."], dict(n=0)
     w = [x for x in C if x["pnl_aud_net"] > 0]; R = [x["r_multiple"] for x in C if x.get("r_multiple") is not None and abs(x["r_multiple"]) <= R_SUSPECT]
     tags = {}
@@ -289,16 +333,23 @@ def _lessons(seat):
     for x in C: by.setdefault(x.get("venue"), []).append(x["pnl_aud_net"])
     worst = min(by.items(), key=lambda z: sum(z[1]))
     if sum(worst[1]) < 0 and len(by) > 1: L.append(f"Weakest venue last 30d: {worst[0]} (A${sum(worst[1]):,.0f} net over {len(worst[1])} trades).")
+    if own is not None:   # lessonsrc_20261103
+        st.update(fills=own["fills"], source=own["source"])
+        L.append(f"30d record (your own THF book, realised closes only): {st['wins']}/{st['n']} winners, net A${st['net_aud']:,.0f} after costs, avg R {st['avg_r']}; book fills {own['fills']}.")
+        return L, st
     L.append(f"30d record: {st['wins']}/{st['n']} winners, net A${st['net_aud']:,.0f} after costs, avg R {st['avg_r']}.")
     return L, st
-def daily(use_llm=True, llm=None, today=None):
-    today = today or now().astimezone(WITA).date(); res = {}
+def daily(use_llm=True, llm=None, today=None, dry=False):
+    """dry=True (lessonsrc_20261103): compute + return every seat's review text, write nothing. THF_DESK=1: own-book numbers, published
+    under state/thf/learning/ (never the Mac-synced state/learning / reports/learning)."""
+    today = today or now().astimezone(WITA).date(); res = {}; thf = _thf()
     for s in trader_seats():
         L, st = _lessons(s); crit = {}
         if use_llm:
             pr = GUARD + f"Daily review for seat '{s}'. Critique these lessons: are they right, what is missing? Reply ONE JSON: {{\"agree\":true|false,\"critique\":str,\"extra_lesson\":str}}\n" + json.dumps(dict(lessons=L, stats=st, recent=closes(s, KEEP_DAYS)[-10:]), default=str)[:6000]
             crit = ask_both(pr, 300, llm)
-        p = os.path.join(_sd(s), "lessons.md"); old = open(p).read() if os.path.exists(p) else ""
+        sd = os.path.join(THF_LD, re.sub(r"[^a-z0-9_]", "", str(s).lower()) or "unknown") if thf else _sd(s)   # lessonsrc_20261103: THF review lives in state/thf/learning
+        p = os.path.join(sd, "lessons.md"); old = open(p).read() if os.path.exists(p) else ""
         secs = {m.group(1): m.group(0).rstrip() for m in re.finditer(r"^## (\d{4}-\d{2}-\d{2})\n.*?(?=^## \d{4}-\d{2}-\d{2}\n|\Z)", old, re.S | re.M)}
         body = f"## {today.isoformat()}\n" + "".join(f"- {'TOP: ' if i == 0 else ''}{x}\n" for i, x in enumerate(L))
         if use_llm:
@@ -306,23 +357,45 @@ def daily(use_llm=True, llm=None, today=None):
         secs[today.isoformat()] = body.rstrip()
         cut = (today - dt.timedelta(days=KEEP_DAYS - 1)).isoformat(); keep = sorted((d for d in secs if d >= cut), reverse=True)
         txt = f"# Lessons - {s} (rolling {KEEP_DAYS} days, PAPER, advisory; rails never loosen)\n\n" + "\n\n".join(secs[d] for d in keep) + "\n"
-        tmp = p + ".tmp"; open(tmp, "w").write(txt); os.replace(tmp, p)
+        if thf: txt = txt.replace(" (rolling ", " (THF own-book review: this seat's realised closes in state/thf/thf_book.json only; rolling ", 1)
+        if not dry:
+            os.makedirs(sd, exist_ok=True); tmp = p + ".tmp"; open(tmp, "w").write(txt); os.replace(tmp, p)
         res[s] = dict(top=L[0], stats=st, models={k: v["status"] for k, v in crit.items()})
-    _wj(os.path.join(REP, "daily_review_latest.json"), dict(utc=now().isoformat(), seats=res)); return res
+        if dry: res[s]["text"] = body
+    if dry: return res
+    if thf:
+        from veteran_desk import lesson_trace as LT
+        LT.publish_authority(THF_LD, LT.load(os.path.join(BASE, "state", "thf", "lesson_trace.jsonl")))
+    _wj(os.path.join(THF_LD if thf else REP, "daily_review_latest.json"), dict(utc=now().isoformat(), seats=res, **(dict(desk="thf", source="state/thf/seat_brain plus state/thf/lesson_trace.jsonl; state/thf/learning is not the citation store") if thf else {}))); return res
 def top_lesson(seat):
     p = os.path.join(_sd(seat), "lessons.md")
     try: m = re.search(r"^- TOP: (.+)$", open(p).read(), re.M); return m.group(1) if m else None
     except Exception: return None
+def _shared_learning_evidence(seat):
+    """Historical peer evidence is separate from this seat's own results."""
+    try:
+        from veteran_desk.learning_evidence import context_for
+        return context_for(seat, root=BASE, max_chars=4000)
+    except Exception:
+        return "\nSHARED TRADE EVIDENCE is unavailable; no profitability inference is permitted.\n"
+
 def lessons_for_prompt(seat, limit=900):
     """Read before every hunt (desk.prop_prompt). Advisory text; cannot change rails."""
     try:
+        if _thf():   # lessonsrc_20261103: never the Mac-synced Veteran Desk lessons.md; computed now from the seat's own THF book closes
+            L, _st = _lessons(seat)
+            sec = now().astimezone(WITA).strftime("%Y-%m-%d %H:%M WITA") + " (computed this round from your own THF book)\n" + "".join(f"- {'TOP: ' if i == 0 else ''}{x}\n" for i, x in enumerate(L))
+            s = "\nYOUR OWN LESSONS (your own realised closes in the THF book only; advisory; never loosen stops/2-5% risk/caps):\n## " + sec[:limit]
+            A = _rj(os.path.join(LD, seat, "active_rules.json"), []) or []
+            if A: s += "\nTFO-PROMOTED FILTERS (apply: stand aside if a setup fails one): " + "; ".join(a["rule"]["text"] for a in A)
+            return s + _shared_learning_evidence(seat)
         p = os.path.join(LD, seat, "lessons.md"); t = open(p).read() if os.path.exists(p) else ""
         sec = t.split("\n## ")[1] if "\n## " in t else ""
         A = _rj(os.path.join(LD, seat, "active_rules.json"), []) or []
         s = ("\nYOUR OWN LESSONS (latest daily review, advisory; never loosen stops/2-5% risk/caps):\n## " + sec[:limit]) if sec else ""
         if A: s += "\nTFO-PROMOTED FILTERS (apply: stand aside if a setup fails one): " + "; ".join(a["rule"]["text"] for a in A)
-        return s
-    except Exception: return ""
+        return s + _shared_learning_evidence(seat)
+    except Exception: return _shared_learning_evidence(seat)
 # ---------------- 6) card ----------------
 def card():
     out = []
@@ -340,9 +413,9 @@ def card():
 def main(a):
     if not a: print(__doc__); return 2
     c, nl = a[0], "--no-llm" in a; by = a[a.index("--by") + 1] if "--by" in a else None
-    r = dict(sync=lambda: sync(), daily=lambda: daily(not nl), weekly=lambda: weekly(not nl), card=card,
+    r = dict(sync=lambda: sync(), daily=lambda: daily(not nl, dry="--dry-run" in a), weekly=lambda: weekly(not nl), card=card,
              approve=lambda: approve(a[1], a[2], by), promote=lambda: promote(a[1], a[2], by), critique=lambda: critique_file(a[1])).get(c)
     if not r: print(__doc__); return 2
-    if c in ("daily", "weekly"): sync()
+    if c in ("daily", "weekly") and not _thf() and "--dry-run" not in a: sync()   # lessonsrc_20261103: THF reads its own book directly (sync journals the VD book into the Mac-synced state/learning)
     print(json.dumps(r(), default=str, indent=1)[:20000]); return 0
 if __name__ == "__main__": sys.exit(main(sys.argv[1:]))

@@ -1,0 +1,13 @@
+{
+  "book_must_remain": "b4453b503f33e34110519bf4d7a9bf391ecc2802edbd87acca3e77dc96b7e891",
+  "files": [
+    {
+      "path": "veteran_desk/thf_dash.py",
+      "payload_sha256": "bbaf57edd303350ec7fd0749ce068d4aa89fa6c223cccaeae26cee0f641cd58e",
+      "base_sha256": [
+        "e77d367e97f6a149ef0890f49262d0599753e6fac85efceaeb944158d133e745",
+        "310f395d2c8b9440d67be67a38549956a33ba971b4998836511a25ed0a51247e"
+      ]
+    }
+  ]
+}

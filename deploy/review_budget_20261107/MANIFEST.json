@@ -1,0 +1,55 @@
+{
+  "package": "review_budget_20261107",
+  "depends_on_package": "empty_prompt_20261107",
+  "depends_on_commit": "aa4af85909a8c97add42e7dab08a2d4f560986bb",
+  "source_capture_sha256": "1cfe1b911954c3d16fcb0cd103a39031eda73f7737bf25091405b6b465250f67",
+  "captured_at": "2026-11-07 14:18:36 WITA",
+  "book_must_remain": "b4453b503f33e34110519bf4d7a9bf391ecc2802edbd87acca3e77dc96b7e891",
+  "production": false,
+  "not_deployed": true,
+  "apply_order": [
+    "Apply deploy/empty_prompt_20261107 onto the captured live bytes first.",
+    "Apply this package only when the sampler, claude_brain, and thf_grok hashes equal the empty-prompt targets.",
+    "A raw live sampler a779a306 is BLOCKED here. Do not point this installer at that hash.",
+    "Do not apply empty_prompt again after this package. Its sampler base will no longer match."
+  ],
+  "live_ancestor": {
+    "veteran_desk/thf_shadow_sampler.py": "a779a30626e765e5d6351ab851399240154802a54cdb955c309e8f97d4ad28ef",
+    "veteran_desk/claude_brain.py": "10658378cf66908f5dd1ee3aaac5b878910a9093707bba72115a56bf44339318",
+    "veteran_desk/thf_grok.py": "2a6a975735fce2f3ed214b5eb35af84ce90629d7403204c8691bab9757568561",
+    "veteran_desk/chatgpt_bridge.py": "26446b5b61218bfc370fff62988db47efecb7b8afafd15e694ceaecf35deac0c"
+  },
+  "payloads": [
+    {
+      "path": "veteran_desk/thf_shadow_sampler.py",
+      "base_sha256": "935c73460dcce8789b9eec9e8664b0ffcd44985ef9adc3da6bb053808b4e6673",
+      "target_sha256": "7e2eeb3e544814411f7fb2371b50b232746e2edec9a971197c46b319570de2bf",
+      "live_base_captured": false,
+      "note": "Base is the empty-prompt target built from captured live a779a306. Not a direct live replace."
+    }
+  ],
+  "unchanged": [
+    {
+      "path": "veteran_desk/claude_brain.py",
+      "sha256": "b896da9e49d6690bbda57c805952530aa9d9c2eb034f296f2cc31535255fa49d",
+      "note": "Target of empty_prompt_20261107. Required unchanged. Raw live 10658378 is not this hash."
+    },
+    {
+      "path": "veteran_desk/thf_grok.py",
+      "sha256": "cce75bfa91b94b4c938fe53853a8fbbbe40e1b39e12a080576cfdf8d103c85a6",
+      "note": "Target of empty_prompt_20261107. Required unchanged."
+    },
+    {
+      "path": "veteran_desk/chatgpt_bridge.py",
+      "sha256": "26446b5b61218bfc370fff62988db47efecb7b8afafd15e694ceaecf35deac0c",
+      "note": "Captured live and dash at 14:18:36 WITA. The staged maintenance file is not this package."
+    }
+  ],
+  "new_files": [],
+  "limits_unchanged": {
+    "provider_timeout_s": 90,
+    "chatgpt_timeout_s": 280,
+    "defer_limit": 3,
+    "max_jobs_per_run": "unchanged; a fast busy result does not consume the substantive job count"
+  }
+}

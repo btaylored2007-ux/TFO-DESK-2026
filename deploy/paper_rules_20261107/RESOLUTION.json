@@ -1,0 +1,28 @@
+{
+  "decision": "t2808u effective now, not a historical quote",
+  "nodes": [
+    {"node": "veteran_desk/tests/test_fx_settlement_20261029.py::test_round_trip_cash_via_tick", "was": "cash of the uncapped 1000000-unit cost", "now": "cash uses the capped 125290 units and cost_aud once", "change": "expectation"},
+    {"node": "veteran_desk/tests/test_costmodel_hold_20261030.py::test_giveback_fires_open_held_closed", "was": "giveback booked while the US session was closed", "now": "giveback stays open while closed and still books when the session is open", "change": "source"},
+    {"node": "veteran_desk/tests/test_venuestale_20261029.py::test_lse_over_25_no_fill", "was": "27 minute LSE mark filled at entry", "now": "the order stays armed", "change": "source"},
+    {"node": "veteran_desk/tests/test_venuestale_20261029.py::test_realtime_venue_still_15", "was": "20 minute NORDIC mark filled at entry", "now": "the order stays armed", "change": "source"},
+    {"node": "veteran_desk/tests/test_a1pct_20261031.py::test_non_a_2pct_and_aplus_4pct", "was": "grade B required at 2 percent", "now": "B is half of the 2 percent full risk; A+ stays 4 percent", "change": "expectation"},
+    {"node": "veteran_desk/tests/test_a1pct_20261031.py::test_cut_non_a_below_2pct_rejected_never_1pct", "was": "B cut rejected below_2pct_nonA_floor", "now": "the cut is kept and not lifted", "change": "expectation"},
+    {"node": "veteran_desk/tests/test_one_sizing.py::test_band", "was": "B risk_aud 10000", "now": "B risk_aud 5000", "change": "expectation"},
+    {"node": "veteran_desk/tests/test_one_sizing.py::test_cut_toward_2pct_never_below", "was": "B cut rejected and A cuts lifted to 1 percent", "now": "cuts are kept", "change": "expectation"},
+    {"node": "veteran_desk/tests/test_kai_rails_20261029.py::test_other_seats_unchanged", "was": "B at 2 percent", "now": "B at 1 percent; A and A+ unchanged", "change": "expectation"},
+    {"node": "veteran_desk/tests/test_krakenfx_20261029.py::test_usdkrw_theo_case_risk", "was": "quantity from a 2 percent B budget", "now": "quantity from the half budget", "change": "expectation"},
+    {"node": "veteran_desk/tests/test_desk.py::test_blocks", "was": "grade B did not pass", "now": "B passes at half of 500; the other blocks stay", "change": "expectation"},
+    {"node": "veteran_desk/tests/test_railfix_20261029.py::test_risk_plan_rejects_sub_floor", "was": "below_2pct_nonA_floor", "now": "the 0.45 cut is kept", "change": "expectation"},
+    {"node": "veteran_desk/tests/test_floor_fix_20261029.py::test_crypto_floor_half_pct", "was": "crypto and B cuts rejected", "now": "the cuts are kept", "change": "expectation"},
+    {"node": "veteran_desk/tests/test_kai_rails_20261029.py::test_below_floor_rejected", "was": "crypto mult 0.4 rejected", "now": "the cut stays at 0.4 percent", "change": "expectation"},
+    {"node": "veteran_desk/tests/test_railfix_20261029.py::test_crypto_seat_floor_kept", "was": "crypto mult 0.2 rejected", "now": "the cut stays at 0.2 percent", "change": "expectation"},
+    {"node": "veteran_desk/tests/test_kai_floor_tol_20261029.py::test_genuine_0p4pct_rejected", "was": "0.4 percent crypto arm rejected", "now": "the arm is kept near 0.4 percent", "change": "expectation"},
+    {"node": "veteran_desk/tests/test_railfix_20261029.py::test_rebook_below_floor_rejected_not_lifted", "was": "cancelled below_1pct_floor", "now": "a non-cut rebook lifts inside the budget and is tagged; a history cut is not lifted", "change": "expectation"},
+    {"node": "veteran_desk/tests/test_gate_v2.py::test_hard_rules_kept", "was": "grade B blocked", "now": "B passes; stop, banned asset, halt, and kill switch still block", "change": "expectation"},
+    {"node": "veteran_desk/tests/test_gate_v2.py::test_base_rate_negative_blocks", "was": "negative history made passed false", "now": "negative history cuts size and does not veto", "change": "expectation"}
+  ],
+  "same_rule_outside_the_nineteen": [
+    {"node": "veteran_desk/tests/test_review_20261030.py::test_override_half_size", "now": "the override half stays at 0.5 percent"},
+    {"node": "veteran_desk/tests/test_review_20261030.py::test_missing_lessons_respected_halves", "now": "the missing-lessons half stays at 0.5 percent"}
+  ]
+}

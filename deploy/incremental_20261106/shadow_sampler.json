@@ -1,0 +1,10 @@
+{
+  "enabled": true,
+  "paper_only": true,
+  "provider_timeout_s": 90,
+  "max_jobs_per_run": 2,
+  "resample_after_s": 21600,
+  "concurrency": 4,
+  "providers": ["claude", "chatgpt", "grok", "deepseek_api"],
+  "note": "Calls the existing provider clients. Does not enqueue orders or restart the book tick."
+}

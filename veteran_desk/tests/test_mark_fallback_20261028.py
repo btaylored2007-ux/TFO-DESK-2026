@@ -1,10 +1,11 @@
 import datetime as dt, json, os, sys, tempfile, copy
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 from veteran_desk import book as BK
+from veteran_desk.tests.synthetic_book import skeleton
 U = dt.timezone.utc
 PID = "TEST-XLE-fixture-energy"   # TFO HT 03:28: synthetic fixture position - no dependency on live position IDs
 def _fixture():
-    D = copy.deepcopy(json.load(open(BK._REAL_BOOK)))
+    D = copy.deepcopy(skeleton())
     for B in D["seats"].values(): B["positions"] = {}
     D["hedge"] = {}; D.pop("hedge_realised_aud", None); D["peak_equity_aud"] = 1.0; D["kill_switch"] = dict(state="OK")   # fixer 2026-10-29: clearing live positions must not trip the -12% kill switch
     D["seats"]["energy"]["positions"][PID] = dict(id=PID, seat="energy", ticker="XLE", side="LONG", entry=68.0, stop=66.0, target=72.6, shares=100, risk_aud=300.0, status="open",

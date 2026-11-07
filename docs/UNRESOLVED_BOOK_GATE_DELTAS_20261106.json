@@ -1,0 +1,43 @@
+{
+  "status": "unresolved",
+  "not_authorization": "Current source comments are not acceptance of these deltas. book.py, gate_v2.py, and desk.py were not changed.",
+  "book_sha256": "b4453b503f33e34110519bf4d7a9bf391ecc2802edbd87acca3e77dc96b7e891",
+  "compared_with": "origin/main b77e4d4b692ac17a3ee4327024af9ee563627010",
+  "environment": {
+    "pandas": "Not bundled and not a waiver. veteran_desk/paid_first.py imports pandas. A tree without it fails test_paid_first_frame_shape_and_adjust with ModuleNotFoundError. The test environment used pandas 2.2.3 from python3 -m pip install --user pandas==2.2.3. Receipt: docs/TEST_DEPENDENCY_RECEIPT_20261106.json."
+  },
+  "clean_run_2f5e315": {
+    "result": "779 passed, 20 failed, 0 errors. Unique nodes 20.",
+    "status": "unresolved",
+    "no_waiver": "None of these assertions was deleted, skipped, or changed to the current number. book.py, gate_v2.py, and desk.py were not edited.",
+    "nodes": [
+      {"node": "veteran_desk/tests/test_fx_settlement_20261029.py::test_round_trip_cash_via_tick", "category": "capped_fx_expected_value_mismatch", "proved": "1000000 EURUSD units become 125290. Cash falls by A$14.00 and cost_aud is A$14.00. The assertion expects the uncapped entry cost A$111.74. The A$97.74 gap is that expected value minus the capped cost. The cash identity holds.", "assertion_expects": "cash movement of the original 1000000-unit cost"},
+      {"node": "veteran_desk/tests/test_costmodel_hold_20261030.py::test_giveback_fires_open_held_closed", "category": "proved_production_discrepancy", "proved": "At 2026-10-28 12:00 UTC, XLE books rail_giveback_protect at 101 while the US session is closed. _bank_acts_now returns true for that reason when the print is inside the stale limit, so the closed-session defer does not run.", "assertion_expects": "the giveback stays held while the session is closed"},
+      {"node": "veteran_desk/tests/test_venuestale_20261029.py::test_lse_over_25_no_fill", "category": "proved_production_discrepancy", "proved": "A 27-minute LSE mark fills at the entry. exec_note says the price is older than 25 minutes but the trigger traded through, stale-fallback fill-at-entry.", "assertion_expects": "the order stays armed"},
+      {"node": "veteran_desk/tests/test_venuestale_20261029.py::test_realtime_venue_still_15", "category": "proved_production_discrepancy", "proved": "A 20-minute NORDIC mark fills at the entry by the same stale-fallback path. The stale limit for that venue is 15 minutes.", "assertion_expects": "the order stays armed"},
+      {"node": "veteran_desk/tests/test_a1pct_20261031.py::test_non_a_2pct_and_aplus_4pct", "category": "historical_assertion", "proved": "risk_plan grade B pct is 0.01. On origin/main it is 0.02.", "assertion_expects": "grade B at 2 percent"},
+      {"node": "veteran_desk/tests/test_a1pct_20261031.py::test_cut_non_a_below_2pct_rejected_never_1pct", "category": "historical_assertion", "proved": "A grade B half cut returns pct 0.01 and reject None. On main the same cut returns pct 0 and below_2pct_nonA_floor.", "assertion_expects": "reject below_2pct_nonA_floor"},
+      {"node": "veteran_desk/tests/test_one_sizing.py::test_band", "category": "historical_assertion", "proved": "Grade B risk_aud is 5000 on equity 500000. On main it is 10000.", "assertion_expects": "the 2 percent band"},
+      {"node": "veteran_desk/tests/test_one_sizing.py::test_cut_toward_2pct_never_below", "category": "historical_assertion", "proved": "The B cut is sized to 1 percent instead of rejected.", "assertion_expects": "reject rather than a 1 percent size"},
+      {"node": "veteran_desk/tests/test_kai_rails_20261029.py::test_other_seats_unchanged", "category": "historical_assertion", "proved": "A stays 0.01. B is 0.01 here and 0.02 on main.", "assertion_expects": "B remains 2 percent"},
+      {"node": "veteran_desk/tests/test_krakenfx_20261029.py::test_usdkrw_theo_case_risk", "category": "historical_assertion", "proved": "The unit conversion is not the failure. int(risk_aud / per) uses B risk_aud 5000, so the quantity lands near 5000 rather than 10000.", "assertion_expects": "the quantity from a 2 percent B risk_aud"},
+      {"node": "veteran_desk/tests/test_desk.py::test_blocks", "category": "historical_assertion", "proved": "Only the grade B case changed. risk_gate_v1 returns passed true and risk_aud 250. Banned ticker, bad stop, choppy tape, chase, opposite call, factual kill, missing debate, stale data, poor reward, and the run cap still fail closed.", "assertion_expects": "grade B does not pass"},
+      {"node": "veteran_desk/tests/test_railfix_20261029.py::test_risk_plan_rejects_sub_floor", "category": "historical_assertion", "proved": "risk_plan does not return below_2pct_nonA_floor for B mult 0.45. Main does.", "assertion_expects": "below_2pct_nonA_floor"},
+      {"node": "veteran_desk/tests/test_floor_fix_20261029.py::test_crypto_floor_half_pct", "category": "historical_assertion", "proved": "A crypto cut at mult 0.1 returns reject None. Main returns below_crypto_floor and pct 0.", "assertion_expects": "below_crypto_floor"},
+      {"node": "veteran_desk/tests/test_kai_rails_20261029.py::test_below_floor_rejected", "category": "historical_assertion", "proved": "The same crypto floor cut is sized and not rejected.", "assertion_expects": "below_crypto_floor"},
+      {"node": "veteran_desk/tests/test_railfix_20261029.py::test_crypto_seat_floor_kept", "category": "historical_assertion", "proved": "The crypto seat floor cut is sized and not rejected.", "assertion_expects": "below_crypto_floor"},
+      {"node": "veteran_desk/tests/test_kai_floor_tol_20261029.py::test_genuine_0p4pct_rejected", "category": "historical_assertion", "proved": "With an empty synthetic ledger the 0.4 percent crypto arm becomes a position. Main did not reach this assertion because the owner book file was missing.", "assertion_expects": "no position and below_crypto_floor"},
+      {"node": "veteran_desk/tests/test_railfix_20261029.py::test_rebook_below_floor_rejected_not_lifted", "category": "historical_assertion", "proved": "The off-hours rebook stays open. Main did not reach this assertion because the owner book file was missing.", "assertion_expects": "cancelled with below_1pct_floor"},
+      {"node": "veteran_desk/tests/test_gate_v2.py::test_hard_rules_kept", "category": "historical_assertion", "proved": "gate_v2 sizes grade B, warning and size 0.5, instead of blocking it. Stop, banned-asset, noise, kill-switch, and firm-halt were not the line that changed.", "assertion_expects": "grade B is blocked"},
+      {"node": "veteran_desk/tests/test_gate_v2.py::test_base_rate_negative_blocks", "category": "historical_assertion", "proved": "A negative base_block_exp no longer makes passed false. The gate comment says history sets size. That comment is not acceptance.", "assertion_expects": "passed false"},
+      {"node": "veteran_desk/tests/test_gate_v2.py::test_never_arms", "category": "historical_assertion", "proved": "armed stays false and can_arm stays false. needs_brett_tick is false. The flags that refuse an arm still hold.", "assertion_expects": "needs_brett_tick true"}
+    ]
+  },
+  "observations": [
+    {"id": "grade_b", "main": "risk_plan grade B is 2% and a half cut is rejected as below_2pct_nonA_floor", "current": "grade B is 1% and the half cut is sized to 1%", "tests_still_red": ["test_non_a_2pct_and_aplus_4pct", "test_cut_non_a_below_2pct_rejected_never_1pct", "test_band", "test_cut_toward_2pct_never_below", "test_other_seats_unchanged", "test_usdkrw_theo_case_risk", "test_blocks"]},
+    {"id": "subfloor", "main": "below_crypto_floor and below_2pct_nonA_floor reject", "current": "those cuts are sized instead of rejected", "tests_still_red": ["test_crypto_floor_half_pct", "test_below_floor_rejected", "test_crypto_seat_floor_kept", "test_genuine_0p4pct_rejected", "test_rebook_below_floor_rejected_not_lifted", "test_risk_plan_rejects_sub_floor"]},
+    {"id": "closed_session_giveback", "current": "a fresh in-limit print books rail_giveback_protect while the US session is closed", "test_still_red": "test_giveback_fires_open_held_closed"},
+    {"id": "stale_fallback_fill", "current": "a 27 minute LSE mark and a 20 minute NORDIC mark fill at the entry through the stale-fallback path", "tests_still_red": ["test_lse_over_25_no_fill", "test_realtime_venue_still_15"]},
+    {"id": "fx_cap_math", "current": "1000000 EURUSD units become 125290; cash drop A$14 equals cost_aud; the uncapped cost is A$111.74. Characterized, not accepted as policy."}
+  ]
+}
