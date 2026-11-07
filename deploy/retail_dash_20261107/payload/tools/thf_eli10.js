@@ -132,7 +132,8 @@ function healthLine(color,label){return '<div class="healthline" data-go="health
 function clockLabel(h){var c=String((h&&h.today_clock)||"");if(c==="since 06:00 WITA")return "since 06:00 WITA";if(c.indexOf("midnight")>=0)return "since midnight WITA";return "paper"}
 R.home=function(h){if(!h)return '<div class="card">Loading…</div>';if(h.error)return '<div class="card red"><h3>Home could not load</h3><p>'+esc(h.error)+'</p></div>';
  var today=h.today_shown_aud!=null?h.today_shown_aud:h.today_aud,hc=h.health||{},nb=h.numbers||{},label=clockLabel(h),missing=!h.today_txt||h.today_txt==="—";
- var o='<section class="pnl" aria-label="Today"><div class="kicker">Today · '+esc(label==="paper"?"paper":label+" · paper")+'</div><div class="big '+(missing?"missing":cls(today))+'">'+esc(h.today_txt)+'</div><div class="metrics"><div class="metric" data-go="trades"><b>'+esc(h.open)+'</b><span>Open</span></div><div class="metric" data-go="trades"><b>'+esc(h.armed)+'</b><span>Waiting</span></div></div></section>';
+ var dir=missing?"No figure yet":today>0.5?"Up":today<-0.5?"Down":"Flat";
+ var o='<section class="pnl" aria-label="Today"><div class="kicker">'+esc(dir)+' · '+(label==="paper"?"paper":esc(label)+" · paper")+'</div><div class="big '+(missing?"missing":cls(today))+'">'+esc(h.today_txt)+'</div><div class="metrics"><div class="metric" data-go="trades"><b>'+esc(h.open)+'</b><span>Open</span></div><div class="metric" data-go="trades"><b>'+esc(h.armed)+'</b><span>Waiting</span></div></div></section>';
  o+=healthLine(hc.color,healthLabel(hc));
  if((h.urgent||[]).length)o+='<div class="card red"><h3>Urgent</h3>'+h.urgent.map(function(u){return "<p>"+esc(u)+"</p>"}).join("")+"</div>";
  if(nb.txt&&nb.ok===false)o+=healthLine("red","Figures do not agree");
@@ -167,9 +168,10 @@ function seatDd(r){var o="";if(r.state)o+="<p>"+dot(r.state_color)+" "+esc(r.sta
   o+='<button type="button" class="btn" data-desk="'+esc(r.seat)+'">📊 More about this seat (hit rate, lessons)</button><a class="btn" href="/classic?desk='+esc(r.seat)+'">Old desk page with charts</a><div class="deskbox"></div>'}
  return o}
 R.seats=function(t){if(!t)return '<div class="card">Loading…</div>';var rows=t.rows||[];
- var tt=t.total||{},tone=String(tt.today_txt||"").charAt(0)==="-"?"neg":"pos";
+ var tt=t.total||{},raw=String(tt.today_txt||""),tone=raw.charAt(0)==="-"?"neg":"pos";
+ var seatDir=raw===""||raw==="—"?"No figure":raw.charAt(0)==="-"?"Down":raw.charAt(0)==="+"?"Up":"Flat";
  var tr=rows.filter(function(r){return !r.admin}),ad=rows.filter(function(r){return r.admin});
- var o='<p class="seat-total"><b class="'+tone+'">'+esc(tt.today_txt||"—")+'</b> since 06:00 WITA · '+esc(tt.open)+' open · '+esc(tt.armed)+' waiting</p>';
+ var o='<p class="seat-total">'+esc(seatDir)+' <b class="'+tone+'">'+esc(tt.today_txt||"—")+'</b> since 06:00 WITA · '+esc(tt.open)+' open · '+esc(tt.armed)+' waiting</p>';
  o+='<div class="sec">Traders ('+tr.length+')</div>'+(tr.length?'<div class="card grid" style="padding:4px 12px">'+tr.map(function(r){return row(r.light,esc((r.rank?"#"+r.rank+" ":"")+r.name)+' <span class="mu">'+esc(r.desk)+'</span>','<span class="'+cls(r.today_aud)+'"><b>'+esc(r.today_txt)+'</b></span> today · '+esc(r.since_txt)+' since start',esc(r.open)+' open · '+esc(r.armed)+' waiting',seatDd(r),false,r.seat)}).join("")+"</div>":'<p class="mu">No trader rows in this book.</p>');
  if(ad.length)o+='<div class="sec">Desk ('+ad.length+')</div><div class="card grid" style="padding:4px 12px">'+ad.map(function(r){return row("grey",esc(r.name)+' <span class="mu">'+esc(r.desk)+'</span>',esc(r.money),esc(r.last_action||""),seatDd(r),false,r.seat)}).join("")+"</div>";
  var pw=t.push;if(pw)o+='<div class="card '+(pw.live?"green":"grey")+'">'+row(pw.live?"green":"grey",esc(pw.head),"Tap for the times","","<p class='mu'>"+esc(pw.how||"")+"</p>"+tbl({cols:["push","when (WITA)","who","today"],rows:pw.rows})+(pw.error?'<p class="err">'+esc(pw.error)+'</p>':"")+'<p class="mu">Last check '+esc(pw.last_run||"-")+'.</p>')+'</div>';
@@ -180,7 +182,7 @@ R.seats=function(t){if(!t)return '<div class="card">Loading…</div>';var rows=t
  o+='<details class="fold"><summary>House rules</summary><div class="fold-body">'+notes+'</div></details>';
  return o};
 /* ---- Health ---- */
-var GRP={checks:["Engine and checks","is the machine running and are the numbers right?"],ai:["Model checks","Open for provider status. This list is the existing Health record."],feeds:["Data feeds","prices, news and the borrow list"],sgp:["Singapore server","the machine the whole desk runs on - checked every 5 min; safe things are fixed automatically, the rest goes to Sam (engineer)"],broken:["Broken right now","needs fixing"],info:["Known limits (not broken)","things we know and accept"]};
+var GRP={checks:["Engine and checks","is the machine running and are the numbers right?"],ai:["Service checks","Open only if you need the service names. A red or amber dot above already means something needs a look."],feeds:["Data feeds","prices, news and the borrow list"],sgp:["Singapore server","the machine the whole desk runs on - checked every 5 min; safe things are fixed automatically, the rest goes to Sam (engineer)"],broken:["Broken right now","needs fixing"],info:["Known limits (not broken)","things we know and accept"]};
 R.health=function(t){if(!t)return '<div class="card">Loading…</div>';var rows=t.rows||[];
  var title=t.color==="green"?"All clear":t.color==="amber"?((t.n_amber||0)+" to review"):((t.n_red||0)+" need attention");
  var o='<section class="pnl" aria-label="Health"><div class="kicker">Health</div><div class="healthline" style="border:0;padding:8px 0 0;margin:0"><span class="dot '+esc(t.color)+'"></span><span class="hl-main">'+esc(title)+'</span></div><p class="quiet">'+esc(t.reason||"")+'</p></section>';

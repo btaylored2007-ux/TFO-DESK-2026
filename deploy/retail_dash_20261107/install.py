@@ -52,6 +52,13 @@ def _item(rel):
     return None
 
 
+def allowed_bases(item):
+    extra = item.get("also_base_sha256") or []
+    if isinstance(extra, str):
+        extra = [extra]
+    return [item["base_sha256"]] + list(extra)
+
+
 def _source_ok(item, field="target_sha256"):
     src = SOURCE / item["path"]
     if not src.is_file():
@@ -103,7 +110,7 @@ def classify(live):
         current = sha256(dest)
         if current == item["target_sha256"]:
             state = "CURRENT"
-        elif current == item["base_sha256"]:
+        elif current in allowed_bases(item):
             state = "REPLACE"
         else:
             state = "BASE_MISMATCH"
@@ -207,7 +214,7 @@ def apply_plan(live_root, rows, pin):
                 backup = live / BACKUP / rel
                 backup.parent.mkdir(parents=True, exist_ok=True)
                 shutil.copy2(dest, backup)
-                if sha256(backup) != item["base_sha256"]:
+                if sha256(backup) != before[rel]:
                     raise RuntimeError("backup mismatch")
                 shutil.copy2(src, dest)
                 if sha256(dest) != item["target_sha256"]:
@@ -275,16 +282,18 @@ def rollback(live_root):
         backup = live / BACKUP / rel
         if not dest.is_file() or sha256(dest) != item["target_sha256"]:
             return False
-        if not backup.is_file() or sha256(backup) != item["base_sha256"]:
+        recorded = (receipt.get("before") or {}).get(rel)
+        if not backup.is_file() or not recorded or sha256(backup) != recorded:
             return False
         before[rel] = sha256(dest)
     for rel in receipt.get("installed_new") or []:
         (live / rel).unlink()
         after[rel] = None
     for rel in receipt.get("replaced") or []:
+        recorded = (receipt.get("before") or {})[rel]
         shutil.copy2(live / BACKUP / rel, live / rel)
         after[rel] = sha256(live / rel)
-        if after[rel] != _item(rel)["base_sha256"]:
+        if after[rel] != recorded:
             return False
     note = dict(
         phase="rolled_back",
