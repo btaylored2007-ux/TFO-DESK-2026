@@ -54,6 +54,8 @@ def reason():
  if not current.get('ok'):return 'Authenticated Grok route not successfully verified'+(': '+str(current.get('detail',''))[-180:] if current else '')
  return None
 def _run(prompt,timeout,model,deadline=None):
+ if not isinstance(prompt, str) or not prompt.strip():
+  raise RuntimeError('empty prompt rejected before provider call')
  from veteran_desk import local_llm as LL
  end=min(time.time()+max(1,float(timeout)),float(deadline)) if deadline else time.time()+max(1,float(timeout))
  if end-time.time()<1:raise RuntimeError('grok deadline exhausted')
@@ -70,6 +72,8 @@ def _run(prompt,timeout,model,deadline=None):
   if time.time()>=end:raise RuntimeError('grok late result discarded')
   return Reply(out.strip(),model)
 def ask(prompt,seat='?',timeout=120,model=None,deadline=None):
+ if not isinstance(prompt, str) or not prompt.strip():
+  raise RuntimeError('empty prompt rejected before provider call')
  B.client_guard()
  why=reason()
  if why:raise RuntimeError(why)

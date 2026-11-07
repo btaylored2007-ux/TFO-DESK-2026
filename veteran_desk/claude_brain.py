@@ -261,6 +261,8 @@ def _run_group(cmd, inp, run_to, env, cwd, model="claude"):
     return subprocess.CompletedProcess(cmd, p.returncode, out, err)
 
 def _run(model, prompt, timeout, tools=False, add_dirs=None, cwd=None, skip_perms=False, eff=None, auto_fallback=None, prio="high", slot_wait_max=None):
+    if not isinstance(prompt, str) or not prompt.strip():
+        raise RuntimeError("empty prompt rejected before provider call")
     c = cli()
     if not c: raise RuntimeError("claude cli missing")
     cmd = [c, "-p", "--model", model, "--effort", eff or effort(), "--output-format", "text", "--no-session-persistence"]
@@ -289,6 +291,10 @@ def _run(model, prompt, timeout, tools=False, add_dirs=None, cwd=None, skip_perm
 def ask(prompt, seat="?", timeout=None, tools=False, add_dirs=None, cwd=None, skip_perms=False, eff=None, models=None, kind="seat", prio=None, slot_wait_max=None):
     """Claude fable max, then opus max. Returns (text, label). Raises RuntimeError when both fail (caller moves to the next AI).
     prio (capq_20261103): 'round' | 'high' | 'low' | None (= round for kind 'seat', low for 'review' / LOW_SEATS, else high) - see slot_order()."""
+    if not isinstance(prompt, str) or not prompt.strip():
+        err = "empty prompt rejected before provider call"
+        _log(dict(utc=time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()), seat=seat, model=None, ok=False, secs=0, prompt_chars=0, err=err, kind=kind, prio=prio))
+        raise RuntimeError(err)
     prio = prio_of(kind, seat, prio)
     # capq_20261103: while the shim's Fable cooldown is active it silently runs Opus - ask for Opus directly so the heartbeat label is true
     _fc = fable_cooling()
