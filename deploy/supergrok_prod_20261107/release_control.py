@@ -108,12 +108,8 @@ def health_status(fetcher=None):
 
 
 def operator_apply_allowed():
-    """False flags and a missing accepted approval are a refusal. Editing them is not an approval."""
-    return (
-        MANIFEST.get("deployment_ready") is True
-        and MANIFEST.get("ops_review_ready") is True
-        and bool(MANIFEST.get("accepted_approval_sha256"))
-    )
+    """False flags are a refusal. A nonempty hash field is not, by itself, an approval."""
+    return MANIFEST.get("deployment_ready") is True and MANIFEST.get("ops_review_ready") is True
 
 
 def _under_opt_tfo(path):
@@ -121,22 +117,30 @@ def _under_opt_tfo(path):
     return text == "/opt/tfo" or text.startswith("/opt/tfo/")
 
 
+def _service_argv(action, unit):
+    if action not in ("start", "stop", "is-active") or unit not in PAGE_UNITS + (SIGNIN_UNIT,):
+        raise ReleaseError("REFUSED_LIFECYCLE")
+    if action == "is-active":
+        return ["systemctl", "is-active", "--quiet", unit]
+    return ["systemctl", action, unit]
+
+
 def _exec_fixed(argv):
-    """Start one allowlisted unit. No shell and no other command."""
-    allowed = (
-        ["systemctl", "start", "tfo-grok-xvfb.service"],
-        ["systemctl", "start", "tfo-grok-web.service"],
-        ["systemctl", "start", "tfo-grok-signin.service"],
-    )
+    """One allowlisted systemctl argv. No shell and no other command."""
     command = list(argv)
+    allowed = [_service_argv(action, unit) for unit in PAGE_UNITS + (SIGNIN_UNIT,) for action in ("start", "stop", "is-active")]
     if command not in allowed:
         raise ReleaseError("REFUSED_LIFECYCLE")
     import subprocess
-    subprocess.run(command, check=True)
-    return command
+    return subprocess.run(command, check=command[1] != "is-active")
 
 
-def lifecycle(action, confirm=None):
+def _unit_was_active(unit):
+    result = _exec_fixed(_service_argv("is-active", unit))
+    return result.returncode == 0
+
+
+def lifecycle(action, confirm=None, approval=None, approval_sha=None):
     if action == "status":
         return health_status()
     if not operator_apply_allowed():
@@ -145,40 +149,69 @@ def lifecycle(action, confirm=None):
         raise ReleaseError("REFUSED_LIFECYCLE")
     if confirm != "OWNER-PAGE-WORKER":
         raise ReleaseError("REFUSED_CONFIRM")
+    review_approval(approval, approval_sha)
     units = PAGE_UNITS if action == "start-page-worker" else (SIGNIN_UNIT,)
     if any(unit in FORBIDDEN_UNITS for unit in units):
         raise ReleaseError("REFUSED_LIFECYCLE")
-    started = [_exec_fixed(["systemctl", "start", unit]) for unit in units]
-    return {"action": action, "units": list(units), "commands": started, "connected": False}
+    prior = {}
+    started = []
+    try:
+        for unit in units:
+            prior[unit] = _unit_was_active(unit)
+            if prior[unit]:
+                continue
+            _exec_fixed(_service_argv("start", unit))
+            started.append(unit)
+    except Exception as error:
+        for unit in reversed(started):
+            if not prior.get(unit):
+                _exec_fixed(_service_argv("stop", unit))
+        if isinstance(error, ReleaseError):
+            raise
+        raise ReleaseError("REFUSED_LIFECYCLE") from error
+    return {"action": action, "units": list(units), "started": started, "connected": False}
 
 
-def review_approval(body):
-    """Check a proposed approval. This package accepts none."""
+def review_approval(body, presented_sha=None):
+    """Check a proposed approval. This package's accepted hash is empty, so none match."""
     if not isinstance(body, dict):
         raise ReleaseError("REFUSED_APPROVAL")
     if body.get("example") is True:
         raise ReleaseError("REFUSED_EXAMPLE_APPROVAL")
     if body.get("authorization_id") in (MANIFEST.get("spent_authorization_ids") or []):
         raise ReleaseError("REFUSED_SPENT_AUTHORIZATION")
+    if body.get("scope_verbatim") != MANIFEST.get("scope_verbatim"):
+        raise ReleaseError("REFUSED_APPROVAL_SCOPE")
     if body.get("host") != "tfo-sgp1" or body.get("roots") != MANIFEST.get("roots"):
         raise ReleaseError("REFUSED_APPROVAL")
     if body.get("write_set") != [item["path"] for item in MANIFEST["files"]]:
+        raise ReleaseError("REFUSED_APPROVAL_SCOPE")
+    if body.get("targets") != {item["path"]: item["target"] for item in MANIFEST["files"]}:
+        raise ReleaseError("REFUSED_APPROVAL_SCOPE")
+    if body.get("bases") != {item["path"]: item["bases"] for item in MANIFEST["files"]}:
         raise ReleaseError("REFUSED_APPROVAL_SCOPE")
     if body.get("service_scope") != list(PAGE_UNITS):
         raise ReleaseError("REFUSED_APPROVAL_SCOPE")
     protected = [item["path"] for item in MANIFEST["verify_only"]] + ["veteran_desk/book.py"]
     if sorted(body.get("protected_paths") or []) != sorted(protected):
         raise ReleaseError("REFUSED_APPROVAL_SCOPE")
-    if not operator_apply_allowed():
-        raise ReleaseError("REFUSED_NOT_READY")
+    if not body.get("approval_nonce"):
+        raise ReleaseError("REFUSED_APPROVAL")
+    expected = MANIFEST.get("accepted_approval_sha256")
+    if not expected or presented_sha != expected:
+        raise ReleaseError("REFUSED_APPROVAL_MISMATCH")
     return body
 
 
-def apply_release(roots, codemerge=None, approval=None):
+def apply_release(roots, codemerge=None, approval=None, approval_sha=None, allow_production=False):
     """Operator mutation. Refuses while this package is not an accepted approval."""
     if not operator_apply_allowed():
         raise ReleaseError("REFUSED_NOT_READY")
-    review_approval(approval or {})
+    if not isinstance(approval, dict) or not approval_sha:
+        raise ReleaseError("REFUSED_APPROVAL")
+    review_approval(approval, approval_sha)
+    if any(_under_opt_tfo(root) for root in roots) and not allow_production:
+        raise ReleaseError("REFUSED_ROOT")
     return _mutate(roots, codemerge)
 
 
@@ -236,6 +269,19 @@ def _mutate(roots, codemerge=None):
 def restore_files(roots, codemerge=None):
     pair = _roots(roots)
     trees = list(pair) + ([codemerge] if codemerge is not None else [])
+    for root in trees:
+        receipt_path = Path(root) / RECEIPT
+        if not receipt_path.is_file():
+            raise ReleaseError("REFUSED_RECOVERY")
+        receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+        if receipt.get("release") != MANIFEST["release"] or receipt.get("applied") is not True or receipt.get("restored") is True:
+            raise ReleaseError("REFUSED_RECOVERY")
+        for item in MANIFEST["files"]:
+            if item.get("new"):
+                continue
+            backup = Path(root) / BACKUP / item["path"]
+            if not backup.is_file():
+                raise ReleaseError("REFUSED_RECOVERY")
     before = [_pins(root) for root in trees]
     for root in trees:
         for item in MANIFEST["files"]:
@@ -255,16 +301,26 @@ def restore_files(roots, codemerge=None):
     return body
 
 
-def main(argv=None):
+def main(argv=None, roots=None):
     parser = argparse.ArgumentParser(description="SuperGrok production release candidate. Not run by this workspace.")
     parser.add_argument("--apply", action="store_true")
+    parser.add_argument("--approval")
     parser.add_argument("--restore-files", action="store_true")
     parser.add_argument("--lifecycle", choices=("status", "start-page-worker", "signin-window"))
     parser.add_argument("--confirm")
     args = parser.parse_args(argv)
     try:
+        if args.lifecycle == "status":
+            print(json.dumps(lifecycle("status")))
+            return 0
         if args.lifecycle:
-            result = lifecycle(args.lifecycle, confirm=args.confirm)
+            if not args.approval:
+                print("REFUSED_APPROVAL")
+                print("NOT_DEPLOYED")
+                return 2
+            raw = Path(args.approval).read_bytes()
+            body = json.loads(raw)
+            result = lifecycle(args.lifecycle, confirm=args.confirm, approval=body, approval_sha=hashlib.sha256(raw).hexdigest())
             print(json.dumps(result))
             return 0
         if args.restore_files:
@@ -272,7 +328,18 @@ def main(argv=None):
             print("FILES_RESTORED")
             return 0
         if args.apply:
-            apply_release((LIVE, DASH), CODEMERGE if Path(CODEMERGE).exists() else None)
+            if not args.approval:
+                print("REFUSED_APPROVAL")
+                print("NOT_DEPLOYED")
+                return 2
+            raw = Path(args.approval).read_bytes()
+            body = json.loads(raw)
+            pair = tuple(roots) if roots is not None else (LIVE, DASH)
+            if roots is not None and any(_under_opt_tfo(root) for root in pair):
+                print("REFUSED_ROOT")
+                print("NOT_DEPLOYED")
+                return 2
+            apply_release(pair, None if roots is not None else (CODEMERGE if Path(CODEMERGE).exists() else None), approval=body, approval_sha=hashlib.sha256(raw).hexdigest(), allow_production=roots is None)
             print("APPLIED_NOT_CONNECTED")
             return 0
     except ReleaseError as error:

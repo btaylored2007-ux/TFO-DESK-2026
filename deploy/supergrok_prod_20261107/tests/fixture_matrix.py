@@ -98,6 +98,161 @@ def _payload_call_path():
         fail("repeated requests collapsed")
 
 
+def _approval_body():
+    return {
+        "example": False,
+        "authorization_id": "synthetic-not-an-owner-approval",
+        "scope_verbatim": release.MANIFEST["scope_verbatim"],
+        "host": "tfo-sgp1",
+        "roots": list(release.MANIFEST["roots"]),
+        "write_set": [item["path"] for item in release.MANIFEST["files"]],
+        "targets": {item["path"]: item["target"] for item in release.MANIFEST["files"]},
+        "bases": {item["path"]: item["bases"] for item in release.MANIFEST["files"]},
+        "service_scope": ["tfo-grok-xvfb.service", "tfo-grok-web.service"],
+        "protected_paths": [item["path"] for item in release.MANIFEST["verify_only"]] + ["veteran_desk/book.py"],
+        "approval_nonce": "synthetic-nonce-not-a-user-click",
+    }
+
+
+def _ready_paths():
+    import json as _json
+    import subprocess
+    saved = _json.loads(_json.dumps(release.MANIFEST))
+    with tempfile.TemporaryDirectory() as raw:
+        tmp = Path(raw)
+        live, dash = tmp / "live", tmp / "dash"
+        tree(live)
+        tree(dash)
+        before = (live / "veteran_desk/book.py").read_bytes()
+        try:
+            release.restore_files((live, dash))
+        except release.ReleaseError as error:
+            if error.code != "REFUSED_RECOVERY":
+                fail(error.code)
+        else:
+            fail("restore before apply")
+        if (live / "state/thf/supergrok_prod_20261107_receipt.json").exists():
+            fail("restore manufactured a receipt")
+        release.MANIFEST["deployment_ready"] = True
+        release.MANIFEST["ops_review_ready"] = True
+        body = _approval_body()
+        raw_approval = _json.dumps(body).encode()
+        approval_sha = __import__("hashlib").sha256(raw_approval).hexdigest()
+        release.MANIFEST["accepted_approval_sha256"] = approval_sha
+        try:
+            release.review_approval(dict(body, scope_verbatim="wrong"), approval_sha)
+        except release.ReleaseError as error:
+            if error.code != "REFUSED_APPROVAL_SCOPE":
+                fail(error.code)
+        else:
+            fail("wrong scope")
+        try:
+            release.review_approval(dict(body, host="other"), approval_sha)
+        except release.ReleaseError as error:
+            if error.code != "REFUSED_APPROVAL":
+                fail(error.code)
+        else:
+            fail("wrong host")
+        try:
+            release.review_approval(body, "0" * 64)
+        except release.ReleaseError as error:
+            if error.code != "REFUSED_APPROVAL_MISMATCH":
+                fail(error.code)
+        else:
+            fail("hash mismatch")
+        try:
+            release.apply_release(("/opt/tfo/live/thf", "/opt/tfo/dash/base"), approval=body, approval_sha=approval_sha, allow_production=False)
+        except release.ReleaseError as error:
+            if error.code != "REFUSED_ROOT":
+                fail(error.code)
+        else:
+            fail("ready flags wrote production")
+        applied = release.apply_release((live, dash), approval=body, approval_sha=approval_sha)
+        if applied.get("applied") is not True or (live / "veteran_desk/book.py").read_bytes() != before:
+            fail("ready apply")
+        fresh_live, fresh_dash = tmp / "cli-live", tmp / "cli-dash"
+        tree(fresh_live)
+        tree(fresh_dash)
+        approval_path = tmp / "approval.json"
+        approval_path.write_bytes(raw_approval)
+        import contextlib
+        import io
+        silent = io.StringIO()
+        with contextlib.redirect_stdout(silent):
+            refused_root = release.main(["--apply", "--approval", str(approval_path)], roots=("/opt/tfo/live/thf", "/opt/tfo/dash/base"))
+            missing = release.main(["--apply"], roots=(fresh_live, fresh_dash))
+            applied_cli = release.main(["--apply", "--approval", str(approval_path)], roots=(fresh_live, fresh_dash))
+        if refused_root != 2 or "REFUSED_ROOT" not in silent.getvalue():
+            fail("cli production roots")
+        if missing != 2 or "REFUSED_APPROVAL" not in silent.getvalue():
+            fail("cli missing approval")
+        if applied_cli != 0 or "APPLIED_NOT_CONNECTED" not in silent.getvalue():
+            fail("cli ready apply")
+        if (fresh_live / "veteran_desk/book.py").read_bytes() != before:
+            fail("cli apply book")
+        calls = []
+
+        def fake_run(argv, check=False):
+            calls.append(list(argv))
+            if argv[:3] == ["systemctl", "is-active", "--quiet"]:
+                code = 0 if argv[3] == "tfo-grok-xvfb.service" else 3
+                return subprocess.CompletedProcess(argv, code)
+            if argv == ["systemctl", "start", "tfo-grok-web.service"]:
+                raise subprocess.CalledProcessError(1, argv)
+            if argv == ["systemctl", "stop", "tfo-grok-xvfb.service"]:
+                raise AssertionError("stopped a unit that was already running")
+            return subprocess.CompletedProcess(argv, 0)
+
+        real_run = subprocess.run
+        subprocess.run = fake_run
+        try:
+            try:
+                release.lifecycle("start-page-worker", confirm="OWNER-PAGE-WORKER", approval=body, approval_sha=approval_sha)
+            except release.ReleaseError as error:
+                if error.code != "REFUSED_LIFECYCLE":
+                    fail(error.code)
+            else:
+                fail("web failure was ignored")
+            if ["systemctl", "stop", "tfo-grok-xvfb.service"] in calls:
+                fail("stopped xvfb that was already running")
+            if ["systemctl", "start", "nginx.service"] in calls or ["systemctl", "restart", "tfo-grok-web.service"] in calls:
+                fail("broadened systemctl")
+        finally:
+            subprocess.run = real_run
+        calls.clear()
+
+        def fake_run_new(argv, check=False):
+            calls.append(list(argv))
+            if argv[:3] == ["systemctl", "is-active", "--quiet"]:
+                return subprocess.CompletedProcess(argv, 3)
+            if argv == ["systemctl", "start", "tfo-grok-web.service"]:
+                raise subprocess.CalledProcessError(1, argv)
+            return subprocess.CompletedProcess(argv, 0)
+
+        subprocess.run = fake_run_new
+        try:
+            try:
+                release.lifecycle("start-page-worker", confirm="OWNER-PAGE-WORKER", approval=body, approval_sha=approval_sha)
+            except release.ReleaseError as error:
+                if error.code != "REFUSED_LIFECYCLE":
+                    fail(error.code)
+            else:
+                fail("partial start ignored")
+            if calls.count(["systemctl", "stop", "tfo-grok-xvfb.service"]) != 1:
+                fail("did not stop only the unit this command started")
+            if ["systemctl", "stop", "tfo-grok-web.service"] in calls:
+                fail("stopped web without a successful start")
+        finally:
+            subprocess.run = real_run
+            release.MANIFEST.clear()
+            release.MANIFEST.update(saved)
+        if release.operator_apply_allowed():
+            fail("flags left true")
+    disk = _json.loads((PKG / "MANIFEST.json").read_text(encoding="utf-8"))
+    if disk.get("deployment_ready") is not False or disk.get("accepted_approval_sha256"):
+        fail("shipped manifest was changed")
+
+
 def main():
     if not STAGING.is_file():
         fail("staging installer missing")
@@ -222,6 +377,7 @@ def main():
         else:
             fail("spent approval")
     _payload_call_path()
+    _ready_paths()
     print("FIXTURE_OK")
     return 0
 

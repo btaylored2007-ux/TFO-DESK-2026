@@ -1,5 +1,6 @@
 {
   "release": "supergrok_prod_20261107",
+  "scope_verbatim": "Connect SuperGrok the same way ChatGPT is connected: the owner's grok.com page, as provider supergrok, not the Cursor CLI grok route and not the super fan-out.",
   "applied": false,
   "deployment_ready": false,
   "ops_review_ready": false,

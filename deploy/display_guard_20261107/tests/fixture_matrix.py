@@ -316,6 +316,36 @@ def main():
             fail("direct apply_release wrote while not ready")
         if (live / "veteran_desk/thf_dash.py").read_bytes() != before:
             fail("direct apply_release changed a file")
+        saved_allow = json.loads(json.dumps(release.ALLOW))
+        release.ALLOW["deployment_ready"] = True
+        release.ALLOW["ops_review_ready"] = True
+        ready = {
+            "scope_verbatim": release.ALLOW["scope_verbatim"],
+            "capture_sha256": release.ALLOW["capture_sha256"],
+            "host": "tfo-sgp1",
+            "roots": release.ALLOW["roots"],
+            "excludes": ["veteran_desk/book.py"],
+            "no_tick_restart": True,
+            "no_ledger_rewrite": True,
+            "authorization_id": "synthetic-display-wrapper-not-an-owner-approval",
+            "archives": [{"name": ALLOW["archives"][0]["name"], "sha256": ALLOW["archives"][0]["sha256"]}],
+        }
+        ready_path = tmp / "ready-approval.json"
+        ready_path.write_text(json.dumps(ready), encoding="utf-8")
+        try:
+            wrapped = release.apply_release(ready_path, {ALLOW["archives"][0]["name"]: ARCHIVE}, probe=lambda _u: "inactive", host_name="tfo-sgp1", roots=(live, dash))
+            if wrapped.get("deployed") is not True or wrapped.get("book_written") is not False:
+                fail("ready wrapper")
+            if (live / "veteran_desk/book.py").read_bytes() != (dash / "veteran_desk/book.py").read_bytes():
+                fail("ready wrapper book")
+        finally:
+            release.ALLOW.clear()
+            release.ALLOW.update(saved_allow)
+        if release.operator_apply_allowed():
+            fail("display flags left true")
+        disk_allow = json.loads((PKG / "ALLOWLIST.json").read_text(encoding="utf-8"))
+        if disk_allow.get("deployment_ready") is not False or disk_allow.get("ops_review_ready") is not False:
+            fail("shipped display flags changed")
         try:
             release._apply_files(approval(tmp), {ALLOW["archives"][0]["name"]: ARCHIVE}, probe=lambda _u: "inactive", host_name="tfo-sgp1", roots=("/opt/tfo/live/thf", "/opt/tfo/dash/base"))
         except release.ReleaseError as error:
