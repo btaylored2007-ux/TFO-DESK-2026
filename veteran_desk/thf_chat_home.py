@@ -89,13 +89,19 @@ def adv_rows():
     except Exception: rows = []
     for i, r in enumerate(rows):
         a = str(r.get("advisor") or r.get("role") or "").strip().lower(); me = r.get("role") == "brett"
-        if "adv:" + a not in {sid for sid, _ in ADVISORS}: continue  # historical retired notes stay in the audit file
+        allowed = {sid for sid, _ in ADVISORS}
+        from veteran_desk import supergrok_bridge as _SG
+        if _SG.snapshot()[0] == "ready":
+            allowed.add("adv:supergrok")
+        if "adv:" + a not in allowed: continue  # historical notes stay archived until that provider is actually ready
         out.append({"k": i + 1, "id": r.get("id"), "from": "brett" if me else a, "to": "adv:" + a if me else "brett", "text": r.get("text") or "",
                     "ts_wita": r.get("ts_wita"), "mode": "advisor", "images": r.get("images") or [], "reply_to": r.get("reply_to"), "root": r.get("reply_to") or r.get("id"), "chat": "adv:" + a})
     return out
 def kind(r):
     """me | noise | relay | them.  noise = queue/system lines (hidden unless the toggle is on); relay = seat-to-seat 'FROM SEAT'
     rows (collapsed 'Message from X' line in the recipient's chat); them = a reply worth reading."""
+    if r.get("clarity_hide") and not r.get("clarity_critical"):
+        return "noise"
     t = str(r.get("text") or ""); f = r.get("from")
     if f == "brett": return "me"
     if r.get("kind") == "deferred" or r.get("mode") == "advisor_idea" or f == "code_hands" or NOISE_RX.match(t): return "noise"
@@ -137,6 +143,11 @@ def shape(r, reg, roots=None, chat=None):
                                                                             ts=r.get("ts_wita"), text=t, mode=r.get("mode"), root=r.get("root"), rt=r.get("reply_to"))
     if r.get("images"): out["images"] = list(r["images"])[:4]
     if r.get("ai"): out["ai"] = r["ai"]
+    if r.get("prov"): out["prov"] = r["prov"]
+    if r.get("independent"): out["nm"] = out["nm"] + " · independent answer"
+    elif r.get("unresolved"): out["nm"] = out["nm"] + " · unresolved"
+    elif r.get("stale"): out["nm"] = out["nm"] + " · stale"
+    elif r.get("clarity_lead"): out["nm"] = out["nm"] + " · lead"
     if kd == "relay":
         m = RELAY_RX.match(t); out["nm"] = name_of(m.group(1), reg) if m else out["nm"]; out["text"] = RELAY_RX.sub("", t, 1)
     elif kd == "them" and (r.get("mode") == "code" or CODE_RX.match(t)):
@@ -191,27 +202,49 @@ def summarize(cid, chat_rows, reg, hb=None, now=None):
 def _hb():
     try: return json.load(open(HB))
     except Exception: return {}
+def _stamped(rows):
+    from veteran_desk import thf_chat_clarity as CL
+    return CL.stamp(rows)
+
+
+def _supergrok_card():
+    from veteran_desk import supergrok_bridge as SG
+    state, note = SG.snapshot()
+    available = state == "ready"
+    return dict(id="adv:supergrok", name="SuperGrok", desk=state, label="SuperGrok", av="S", color="#6e2433",
+                pinned=False, star=False, admin=False, can_send=available, provider="supergrok", available=available,
+                state=state, last=dict(k=0, ts="", f="status"), preview=note, imp=[], imp_more=False, n=0, pending=None)
+
+
 def home(rows=None, adv=None, reg=None, hb=None, now=None):
     """Home list: pinned (admins, Head Trader starred) + every seat chat + All desk + advisors, newest first after pinned."""
-    rows = _read_rows() if rows is None else rows; adv = adv_rows() if adv is None else adv
+    rows = _stamped(_read_rows() if rows is None else rows); adv = _stamped(adv_rows() if adv is None else adv)
+    from veteran_desk import supergrok_bridge as _SG
+    if _SG.snapshot()[0] != "ready":
+        adv = [row for row in adv if row.get("chat") != "adv:supergrok"]
     reg = reg or seats(rows); hb = _hb() if hb is None else hb
     g = group(rows, reg)
+    advisor_ids = {sid for sid, _ in ADVISORS}
+    if any(r.get("chat") == "adv:supergrok" and not r.get("clarity_hide") for r in adv):
+        advisor_ids.add("adv:supergrok")
     for r in adv:
-        if r.get("chat") in {sid for sid, _ in ADVISORS}: g.setdefault(r["chat"], []).append(r)
+        if r.get("chat") in advisor_ids: g.setdefault(r["chat"], []).append(r)
     ids = list(reg) + ["ALL"] + [a for a, _ in ADVISORS]
     for c in g:
-        if c.startswith("adv:") and c not in {sid for sid, _ in ADVISORS}: continue
+        if c.startswith("adv:") and c not in advisor_ids: continue
         if c not in ids: ids.append(c)
     chats = [summarize(c, g.get(c, []), reg, hb, now) for c in ids]
     pinned = sorted([c for c in chats if c["pinned"]], key=lambda d: (ADMIN_ORDER.index(d["id"]) if d["id"] in ADMIN_ORDER else 99, d["name"]))
     rest = sorted(chats, key=lambda d: (str(d["last"]["ts"]) if d["last"] else ""), reverse=True)   # newest chat first; never-used chats last
+    if not any(c["id"] == "adv:supergrok" for c in rest):
+        rest.append(_supergrok_card())
     return dict(pinned=[dict(id=c["id"], name=c["name"], desk=c["desk"], av=c["av"], color=c["color"], star=c["star"], status=c.get("status")) for c in pinned],
                 chats=rest, next=len(rows), ts=dt.datetime.now(WITA).strftime("%Y-%m-%d %H:%M:%S WITA"), paper=True)
 def thread(cid, after=0, before=0, limit=60, rows=None, adv=None, reg=None, now=None):
     """One chat. after=k -> only newer rows (incremental poll); before=k -> older page; else the last `limit` rows."""
-    cid = str(cid or "ALL"); rows = _read_rows() if rows is None else rows; reg = reg or seats(rows)
+    cid = str(cid or "ALL"); rows = _stamped(_read_rows() if rows is None else rows); reg = reg or seats(rows)
     if cid.startswith("adv:"):
-        adv = adv_rows() if adv is None else adv; mine = [r for r in adv if r["chat"] == cid]; roots = {}; total = len(adv)
+        adv = _stamped(adv_rows() if adv is None else adv); mine = [r for r in adv if r["chat"] == cid]; roots = {}; total = len(adv)
     else:
         roots = _roots(rows); mine = [r for r in rows if cid in chats_of(r, roots, reg)]; total = len(rows)
     if after: sel = [r for r in mine if r["k"] > int(after)]; more = False
@@ -352,6 +385,10 @@ def ai_status(now=None, cd=None, gpt=None, sgw=None, hb=None, probe=None, recent
             until = c.get("until_wita"); st = "down" if auth else "cooling"
             note = ("off - " if auth else "cooling until %s - " % str(until or "")[11:16]) + _short_why(c.get("why"))
         out.append(dict(id=aid, name=nm, state=st, color=AI_COLOR[st], model=model, note=note, until=until))
+    from veteran_desk import supergrok_bridge as SG
+    sg_state, sg_note = SG.snapshot()
+    sg_chip = "up" if sg_state == "ready" else ("unknown" if sg_state == "stale" else "down")
+    out.append(dict(id="supergrok", name="SuperGrok", state=sg_chip, color=AI_COLOR[sg_chip], model="", note=sg_note, until=None))
     return out
 # ---- html -------------------------------------------------------------------------------------------------------------
 def _file(name):

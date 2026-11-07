@@ -9,14 +9,14 @@ Seats: per-seat default in state/thf/seat_ai_pref.json (set: python -m veteran_d
 any seat/tool can call: python -m veteran_desk.ai_router ask --seat <seat> --ai super "question".
 Never writes books/ledgers/gates. Provider functions live in thf_msgdesk (resolved lazily so tests can monkeypatch)."""
 import concurrent.futures as cf, json, os, re, sys, threading, time
-CHOICES = ("auto", "claude", "chatgpt", "grok", "deepseek", "deepseek_api", "super")
+CHOICES = ("auto", "claude", "chatgpt", "grok", "deepseek", "deepseek_api", "super", "supergrok")
 ALIASES = {"super_power": "super", "superpower": "super", "gpt": "chatgpt", "openai": "chatgpt", "": "auto", "none": "auto", "deepseek": "deepseek_api"}
-LABEL = dict(auto="Auto", claude="Claude", chatgpt="ChatGPT", grok="Grok", deepseek="DeepSeek API", deepseek_api="DeepSeek API", super="SUPER POWER")
+LABEL = dict(auto="Auto", claude="Claude", chatgpt="ChatGPT", grok="Grok", deepseek="DeepSeek API", deepseek_api="DeepSeek API", super="SUPER POWER", supergrok="SuperGrok")
 PREF = "/opt/tfo/live/thf/state/thf/seat_ai_pref.json"
 FAN = ("claude", "chatgpt", "grok")          # super fan-out (distinct AIs)
 STRONG = ("claude", "chatgpt", "grok")  # synth preference (strongest first)
 VISION = ("claude", "chatgpt")
-CAP = dict(claude=16, chatgpt=1, grok=6, seat=3, deepseek_api=4)   # web bridges are serial: busy -> skip, never queue   # fablefirst_20261103: Ultra plan, Claude never throttled
+CAP = dict(claude=16, chatgpt=1, grok=6, seat=3, deepseek_api=4, supergrok=1)   # web bridges are serial: busy -> skip, never queue   # fablefirst_20261103: Ultra plan, Claude never throttled
 _SEM = {k: threading.BoundedSemaphore(v) for k, v in CAP.items()}
 GROK_MAX = os.environ.get("SUPER_GROK_MODEL", "grok-4.7-high-fast")
 
@@ -43,9 +43,16 @@ def _grok_max(seat,p):
     from veteran_desk import thf_grok as G
     return G.ask(p,seat=seat,timeout=95,model=GROK_MAX)
 
+def _supergrok_call(seat, prompt, images=None, **_kwargs):
+    from veteran_desk import supergrok_bridge as SG
+    if images:
+        raise RuntimeError("SuperGrok page route has no image attach in this package")
+    return SG.ask(prompt, seat=seat)
+
+
 def providers(max_effort=False):
     MD = _md()
-    return dict(claude=MD._claude, chatgpt=MD._chatgpt, grok=_grok_max if max_effort else MD._grok, seat=MD._seat_brain, deepseek=MD._deepseek_chat, deepseek_api=MD._deepseek_api)
+    return dict(claude=MD._claude, chatgpt=MD._chatgpt, grok=_grok_max if max_effort else MD._grok, seat=MD._seat_brain, deepseek=MD._deepseek_chat, deepseek_api=MD._deepseek_api, supergrok=_supergrok_call)
 def fan_names(seat, images=None):
     from veteran_desk import deepseek_bridge as DS
     return FAN + (('deepseek_api',) if DS.enabled_for(seat) and not images else ())
@@ -83,14 +90,19 @@ def _fail(name, e):
     if "hard timeout" not in e: MD._CD.mark_fail(name, e)   # our own per-call timeout under fan-out load is not an AI outage
 
 def order(ai, imgs=None):
-    """Names to try, in order. auto = msgdesk's existing chain; explicit = picked AI first, then the auto chain."""
+    """Names to try, in order. auto = msgdesk's existing chain; explicit = picked AI first, then the auto chain.
+    SuperGrok is explicit only and does not fall back to Grok or the fan-out."""
     auto = ("claude", "chatgpt", "seat", "grok")   # fablefirst_20261103: Claude first for every seat, vision or not (Brett P0 12:49 WITA 3 Nov)
     a = norm(ai)
+    if a == "supergrok":
+        return ["supergrok"]
     return list(auto) if a in ("auto", "super") else [a] + [n for n in auto if n != a]
 
 def seat_order(ai, imgs=None, seat=None):
     """Extend the stable base-provider interface for authorised THF seats."""
     names = order(ai, imgs)
+    if names == ["supergrok"]:
+        return names
     from veteran_desk import deepseek_bridge as DS
     if DS.enabled_for(seat) and not imgs and 'deepseek_api' not in names:
         names = names + ['deepseek_api']
