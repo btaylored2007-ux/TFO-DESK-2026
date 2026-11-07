@@ -1,0 +1,36 @@
+{
+  "release": "paper_rules_engine_activation_t2824",
+  "authorization_verbatim": "Finish it up",
+  "authorization_id": "t2824u",
+  "authorization_wita": "2026-11-07 20:08 WITA",
+  "ops_restart": {
+    "unit": "tfo-thf-engine.service",
+    "wita": "2026-11-07 20:12:24-25 WITA",
+    "release_py_rerun": false,
+    "reported_main_pid": "366917 -> 1940860",
+    "reported_cwd": "/opt/tfo/live/thf"
+  },
+  "source_fact": "run_thf_engine_sgp.sh execs python -m veteran_desk.engine_supervisor. That module is not in this repository. The unit MainPID is the supervisor. vd_engine is its child. A fresh supervisor PID does not prove book.py or gate_v2.py was imported.",
+  "reported_unverified_from_cloud": {
+    "official_supervisor": 1940860,
+    "official_children": [],
+    "leftover_supervisor": 833092,
+    "leftover_started_wita": "00:20:58",
+    "leftover_cgroup": "user.slice/session-56389",
+    "vd_engine": 1941386,
+    "vd_engine_started_wita": "20:12:52",
+    "old_vd_engine": 372060,
+    "firm_risk": 337359
+  },
+  "do_not": [
+    "kill 833092, 1940860, 1941386, 372060, or 337359",
+    "systemctl restart or stop tfo-thf-engine.service",
+    "stop or restart the tick timer",
+    "spawn a second vd_engine",
+    "rerun release.py"
+  ],
+  "why_restart_is_unsafe": "The leftover supervisor is outside the unit cgroup, so the 20:12 restart left it alive. It is the parent of the only reported daemon. A second restart can kill nothing in that session and can also spawn another daemon from the new official supervisor.",
+  "stops": "The tick owns stops. Leave tfo-thf-tick.timer running. Firm-risk PID 337359 is exec_speed risk-serve and stays up.",
+  "retire_command": null,
+  "next": "Run capture.py on tfo-sgp1. Persist TAKEOVER under state/thf/build_handover/paper_rules_engine_activation_t2824_20261107T201225/TAKEOVER. Send that file back. No retire step is in this package."
+}
