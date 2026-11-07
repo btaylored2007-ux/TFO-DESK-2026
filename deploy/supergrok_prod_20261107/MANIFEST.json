@@ -1,18 +1,48 @@
 {
   "release": "supergrok_prod_20261107",
   "scope_verbatim": "Connect SuperGrok the same way ChatGPT is connected: the owner's grok.com page, as provider supergrok, not the Cursor CLI grok route and not the super fan-out.",
+  "scope_provenance": "operator_interpretation_not_an_owner_quote",
+  "scope_verbatim_is_owner_quote": false,
+  "owner_quotes": [
+    {
+      "id": "t2853",
+      "provenance": "owner_transcript",
+      "text": "Can you link Supergrok to the chat as another Ai that’s seperate to Grok Supergrok is the chat function of grok"
+    },
+    {
+      "id": "t2854",
+      "provenance": "owner_transcript",
+      "text": "Same way we connected Chat GPT"
+    },
+    {
+      "id": "t2857",
+      "provenance": "owner_transcript",
+      "text": "and make sure that Supergrok is connected"
+    }
+  ],
   "applied": false,
   "deployment_ready": false,
   "ops_review_ready": false,
   "accepted_approval_sha256": null,
   "spent_authorization_ids": ["t2809u"],
   "connected": false,
-  "activation": "separate-lifecycle-not-on-apply",
+  "activation": "bytes-are-not-activation",
+  "preflight_sha256": "5b1c028dda1bc25df1abc9a27ba896735dfd34c6a23e4037cfd85606b6ca3f87",
+  "preflight_observed": "2026-11-07T22:17:56+08:00",
   "roots": [
     "/opt/tfo/live/thf",
-    "/opt/tfo/dash/base"
+    "/opt/tfo/dash/base",
+    "/opt/tfo/dash/codemerge"
   ],
-  "codemerge_if_present": "/opt/tfo/dash/codemerge",
+  "book_pin": {
+    "path": "veteran_desk/book.py",
+    "sha256": "a739477001c33b23ad87ebdf8ca5fc40c76b441eb13100daf1bc67136eb12c7b",
+    "reads_ledger_data": false
+  },
+  "signin_unit": "tfo-grok-signin.service",
+  "signin_unit_execstart_is_shell": true,
+  "controller_uses_shell": false,
+  "controller_adds_sudo": false,
   "files": [
     {
       "path": "veteran_desk/thf_msgdesk.py",
@@ -94,5 +124,144 @@
       "path": "veteran_desk/thf_round.py",
       "sha256": "8ee00fb7519b2c27b5b32b98e56b29d42d3faa0528f7004e5772ad839b5c78f6"
     }
-  ]
+  ],
+  "phases": [
+    {
+      "phase": "apply",
+      "writes": [
+        "/opt/tfo/live/thf",
+        "/opt/tfo/dash/base",
+        "/opt/tfo/dash/codemerge"
+      ],
+      "starts_services": false,
+      "activates_importers": false,
+      "connects": false
+    },
+    {
+      "phase": "chat-service-refresh",
+      "in_page_worker_allowlist": false,
+      "performed_by_this_controller": false,
+      "if_parent_authorizes": [
+        {
+          "unit": "tfo-dash-thf.service",
+          "root": "/opt/tfo/dash/base",
+          "process": "long-running /opt/tfo/venv/bin/python /opt/tfo/dash/base/veteran_desk/thf_dash.py",
+          "exec_reload": false,
+          "need": "dash-only restart to load THF UI modules already imported by this process"
+        },
+        {
+          "unit": "tfo-thf-msgdesk.service",
+          "root": "/opt/tfo/live/thf",
+          "process": "long-running /opt/tfo/venv/bin/python -m veteran_desk.thf_msgdesk loop",
+          "need": "own restart only after in-flight drain and preserved queued requests"
+        }
+      ],
+      "leave_alone": [
+        {
+          "unit": "tfo-dash-vd.service",
+          "why": "same dash/base thf_dash.py import, outside this THF scope; a dash-thf restart does not recycle it; old imports remain; this package does not restart it and does not claim that UI is updated"
+        }
+      ],
+      "unaffected": [
+        "tfo-thf-engine.service",
+        "tfo-thf-tick.service",
+        "tfo-thf-shadow.service",
+        "tfo-chatgpt-web.service",
+        "nginx.service"
+      ]
+    },
+    {
+      "phase": "page-worker-start",
+      "requires_verified_targets": true,
+      "never_start_live_grok_web_stub": true,
+      "units": [
+        "tfo-grok-xvfb.service",
+        "tfo-grok-web.service"
+      ],
+      "grok_web_exec": "/opt/tfo/venv/bin/python /opt/tfo/live/thf/tools/grok_web.py",
+      "grok_web_user": "tfo",
+      "controller_argv": "systemctl start|stop|is-active --quiet for those two units only",
+      "sudo": "not added; sudo policy is not extended; unsudoed systemctl is not assumed to work",
+      "observable": "127.0.0.1:18892 health is not a routed reply"
+    },
+    {
+      "phase": "signin-window",
+      "unit": "tfo-grok-signin.service",
+      "separate_from_page_worker": true,
+      "unit_execstart_is_shell": true,
+      "controller_argv_is_shell": false,
+      "publish": "Tailscale 100.120.8.11:18893 to 127.0.0.1:5989",
+      "not_the_ask_port": 18892
+    },
+    {
+      "phase": "routed-reply",
+      "proof": "grok_com_page_ui reply receipt",
+      "health_is_proof": false,
+      "written_by_this_controller": false
+    }
+  ],
+  "runtime": {
+    "preflight_sha256": "5b1c028dda1bc25df1abc9a27ba896735dfd34c6a23e4037cfd85606b6ca3f87",
+    "host": "tfo-sgp1",
+    "unit_user": "tfo",
+    "port_18892_at_preflight": "closed",
+    "signin_at_preflight": "not started",
+    "browser_block_at_preflight": "not observed because the page worker was not started",
+    "codemerge_role": "bound write root and refresh mirror; not a proved service working directory",
+    "consumers": {
+      "tfo-dash-thf.service": {
+        "working_directory": "/opt/tfo/dash/base",
+        "exec_start": "/opt/tfo/venv/bin/python /opt/tfo/dash/base/veteran_desk/thf_dash.py",
+        "exec_reload": false,
+        "lifetime": "long-running",
+        "this_package_restarts_it": false
+      },
+      "tfo-thf-msgdesk.service": {
+        "working_directory": "/opt/tfo/live/thf",
+        "exec_start": "/opt/tfo/venv/bin/python -m veteran_desk.thf_msgdesk loop",
+        "lifetime": "long-running",
+        "imports_from_source": [
+          "veteran_desk/ai_router.py",
+          "veteran_desk/ai_readiness.py",
+          "veteran_desk/thf_funder.py",
+          "veteran_desk/thf_chat_home.py"
+        ],
+        "in_page_worker_allowlist": false,
+        "this_package_restarts_it": false
+      },
+      "tfo-dash-vd.service": {
+        "working_directory": "/opt/tfo/dash/base",
+        "exec_start": "/opt/tfo/venv/bin/python /opt/tfo/dash/base/veteran_desk/thf_dash.py",
+        "scope": "outside this THF scope",
+        "this_package_restarts_it": false,
+        "claim": "old imports remain; do not claim the VD UI is updated"
+      },
+      "tfo-grok-xvfb.service": {
+        "exec_start": "/usr/bin/Xvfb :89 -screen 0 1280x900x24 -nolisten tcp",
+        "shell": false
+      },
+      "tfo-grok-web.service": {
+        "user": "tfo",
+        "exec_start": "/opt/tfo/venv/bin/python /opt/tfo/live/thf/tools/grok_web.py",
+        "working_directory": null,
+        "exec_reload": false,
+        "restart": "always",
+        "shell": false,
+        "start_before_verified_target": false
+      },
+      "tfo-grok-signin.service": {
+        "exec_start_is_shell": true,
+        "exec_start_shape": "/bin/sh -c with x11vnc on 127.0.0.1:5989 and websockify publishing Tailscale 100.120.8.11:18893",
+        "runtime_max_sec": 21600,
+        "controller_start_argv_is_shell": false
+      },
+      "tfo-thf-engine.service": {
+        "working_directory": "/opt/tfo/live/thf",
+        "loaded_write_set_proved": false,
+        "this_package_restarts_it": false,
+        "hot_reload": false,
+        "debugger": false
+      }
+    }
+  }
 }
