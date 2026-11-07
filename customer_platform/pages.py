@@ -481,7 +481,8 @@ def teach_page(model, csrf, notice=""):
         blocks.append(
             "<article class=\"card\"><h2>{status}</h2><p>Traders: {traders}. Source: {source}. AI: {ai}. Evidence: {evidence_ids}.</p>"
             "<ul>{rules}</ul><ul>{notes}</ul><ul>{versions}</ul>{action}{rollback}"
-            "<p>This is not a promise of results. AI interpretation is {ai}.</p></article>".format(
+            "<p>{ai_line}</p></article>".format(
+                ai_line=_ai_line(skill.get("ai")),
                 status=esc(skill["status"]), traders=esc(", ".join(skill["trader_ids"])),
                 source=esc(skill["rules_source"]), ai=esc(skill["ai"]),
                 evidence_ids=esc(", ".join(skill.get("evidence_ids") or []) or "none"),
@@ -617,6 +618,15 @@ def ask_page(rows, csrf):
         "{cards}</section>"
     ).format(csrf=esc(csrf), cards="".join(cards) or "<p>No question saved yet.</p>")
     return page("Ask", body, logged_in=True)
+
+
+def _ai_line(state):
+    return {
+        "disabled": "No provider reply is stored. Outbound send stays off until you confirm it.",
+        "provider error": "The last provider reply was refused. The skill was not approved.",
+        "provider reply": "A provider reply is stored. This app has not certified a live provider account.",
+        "test fixture": "The stored interpretation is a labelled test fixture, not a live provider reply.",
+    }.get(state, "No provider reply is stored.")
 
 
 def quiz_page(attempt, csrf):

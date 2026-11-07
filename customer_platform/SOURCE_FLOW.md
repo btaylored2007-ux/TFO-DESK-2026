@@ -29,11 +29,15 @@ The recorded reason distinguishes those states. A stored key with send off is `p
 
 The model may return only `symbol`, `side`, `stop_percent`, and `market`. A price, a feed, an approval, a non-finite stop, an oversize body, or a hostile teaching is refused. The engine sets the limit from the synthetic print and the stop from the reviewed percent. The model cannot activate the skill.
 
+Redirects are refused. `product_urlopen` does not follow 301, 302, 303, 307, or 308, so the customer key is not sent to a second host, an HTTP URL, or another port. A scratch reply that is only a redirect is not treated as a decision.
+
+The provider call is outside the tenant lock. Before the call, the worker records the account epoch and the print. Stop, a trader change, a new print, a skill change, funds, and reset each take the same lock briefly and advance the epoch. When the reply returns, the worker locks again and places an order only if that epoch, the entry switch, the trader, the print, the active skill version, and the cash check are unchanged. A late reply after Stop is recorded as cancelled and does not open a position. Stop management of an open position still uses the current print.
+
 A written `buy SYMBOL` plus `stop N percent below entry` rule can still place one paper order. That path is `strategy_rule`. It is a limited fallback, not the provider path.
 
 ## Lock
 
-Every order, fill, teach change, reset, and paper tick takes `tenants/<id>/writer.lock`. A second process gets `writer busy` and does not write. The same thread may re-enter. The kernel releases the lock if the process dies. Pending buy notional is reserved, so a second entry cannot spend the same practice capital. Reset still refuses while a position or order is open.
+Orders, fills, teaching, uploads, reset, funds, stop distance, start, stop, trader entries, activity, arming, the replay print, and the fast part of a paper tick take `tenants/<id>/writer.lock`. The provider network call does not hold that lock. A second process gets `writer busy` and does not write. The same thread may re-enter. The kernel releases the lock if the process dies. Pending buy notional is reserved. Reset still refuses while a position or order is open. A cancelled provider attempt stays in `decision_audit.jsonl`.
 
 ## What remains unproved
 

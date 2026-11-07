@@ -387,9 +387,21 @@ def _traders(value):
     return rows or ["desk"]
 
 
+def _ai_state(skill):
+    rows = [item for item in skill.get("interpretations") or []]
+    if not rows:
+        return "disabled"
+    last = rows[-1]
+    if not last.get("ok"):
+        return "provider error"
+    if last.get("synthetic"):
+        return "test fixture"
+    return "provider reply"
+
+
 def _public(skill):
     return {
-        "ai": skill["ai"],
+        "ai": _ai_state(skill),
         "clarifications": list(skill["clarifications"]),
         "evidence_ids": list(skill.get("evidence_ids") or []),
         "human_attested": bool(skill.get("human_attested")),

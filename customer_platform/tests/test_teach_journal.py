@@ -26,7 +26,7 @@ def test_described_skill_is_saved_without_an_ai_reading(tmp_path):
         "risk": "One small practice position",
         "market": "Listed shares",
     })
-    assert saved["ai"] == "unavailable"
+    assert saved["ai"] == "disabled"
     assert saved["status"] == "draft"
     assert saved["rules_source"] == "your words"
     assert saved["promise"] is False

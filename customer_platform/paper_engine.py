@@ -11,13 +11,104 @@ from customer_platform.files import tenant_writer
 
 
 def tick_tenant(platform, tenant_id):
+    """Stop management stays inside the lock. The provider call does not.
+
+    A late reply is committed only when the account epoch, entry switch,
+    trader, print, skill version, and cash are still the ones that were current
+    when the call started. Stop can land while the call is outstanding.
+    """
     with tenant_writer(platform._tenant_dir(tenant_id)) as gate:
         if gate == "busy":
             return {"engine": "paper_replay", "filled": 0, "managed": False, "reason": "writer busy"}
-        return _tick(platform, tenant_id)
+        local = _tick(platform, tenant_id, entries=True)
+        attempt, rule = _begin_provider_call(platform, tenant_id)
+    if attempt is None:
+        return local
+    decision = platform.provider_decide(tenant_id, rule)
+    with tenant_writer(platform._tenant_dir(tenant_id)) as gate:
+        if gate == "busy":
+            return _merge(local, {"filled": 0, "reason": "writer busy", "status": "pending"})
+        outcome = _commit_provider(platform, tenant_id, attempt, decision)
+        follow = _tick(platform, tenant_id, entries=False)
+    return _merge(_merge(local, outcome), follow)
 
 
-def _tick(platform, tenant_id):
+def _begin_provider_call(platform, tenant_id):
+    platform.expire_provider_attempt(tenant_id)
+    control = platform._control(tenant_id)
+    stored = control.load()
+    view = control.view()
+    if stored.get("state") != "replay" or view.get("state") != "replay":
+        return None, None
+    traders = stored.get("traders") or [{}]
+    if not traders[0].get("entries_enabled"):
+        return None, None
+    price = stored.get("replay_print") or ""
+    if not price:
+        return None, None
+    rules = platform._skills(tenant_id).provider_rules()
+    if not rules:
+        return None, None
+    rule = rules[0]
+    key = "provider-{0}-v{1}".format(rule["skill_id"], rule["version"])
+    state = platform._book(tenant_id).load()
+    if any(row.get("idempotency_key") == key for row in state["orders"]):
+        return None, None
+    if any(row.get("status") == "open" and row.get("strategy_id") == rule["skill_id"] for row in state["positions"]):
+        return None, None
+    attempt = platform.open_provider_attempt(tenant_id, rule, price)
+    return attempt, rule
+
+
+def _commit_provider(platform, tenant_id, attempt, decision):
+    ready = platform.prepare_provider_commit(tenant_id, attempt, decision)
+    if ready["status"] != "ready":
+        return {"filled": 0, "reason": ready["reason"], "status": ready["status"]}
+    rule = ready["rule"]
+    price = ready["price"]
+    mark = Decimal(price)
+    width = Decimal(rule["percent"]) / Decimal("100")
+    stop = (mark * (Decimal("1") - width)).quantize(Decimal("0.01"))
+    if stop >= mark:
+        platform.finish_provider_attempt(tenant_id, attempt, "skipped", "stop is not below the print")
+        return {"filled": 0, "reason": "stop is not below the print", "status": "skipped"}
+    book = platform._book(tenant_id)
+    control = platform._control(tenant_id)
+    key = "provider-{0}-v{1}".format(rule["skill_id"], rule["version"])
+    try:
+        order = book.place_order(
+            symbol=rule["symbol"], side="buy", qty="1", limit_price=price, stop=format(stop, "f"),
+            idempotency_key=key, trader_id="desk", account_id=tenant_id,
+            strategy_id=rule["skill_id"], strategy_version=str(rule["version"]),
+            decision="provider_decision", feed="synthetic_replay",
+        )
+    except ResetBlocked as exc:
+        platform.finish_provider_attempt(tenant_id, attempt, "skipped", str(exc))
+        return {"filled": 0, "reason": str(exc), "status": "skipped"}
+    filled = 0
+    if _fill(book, control, order, book.load(), price):
+        filled = 1
+        row = _latest_fill(book, order["order_id"])
+        if row:
+            platform._brain(tenant_id).record_provider_lesson(
+                tenant_id=tenant_id, fill_id=row.get("id") or order["order_id"],
+                skill_id=rule["skill_id"], version=rule["version"],
+                decision="provider_decision", feed="synthetic_replay",
+            )
+    platform.finish_provider_attempt(tenant_id, attempt, "committed", "")
+    return {"filled": filled, "reason": "", "status": "committed"}
+
+
+def _merge(local, outcome):
+    body = dict(local)
+    body["filled"] = int(local.get("filled") or 0) + int(outcome.get("filled") or 0)
+    if outcome.get("status"):
+        body["provider_status"] = outcome.get("status")
+        body["provider_reason"] = outcome.get("reason") or ""
+    return body
+
+
+def _tick(platform, tenant_id, entries=True):
     control = platform._control(tenant_id)
     stored = control.load()
     if not stored.get("replay_armed"):
@@ -30,8 +121,7 @@ def _tick(platform, tenant_id):
     state = book.load()
     view = control.view()
     filled = 0
-    if view["state"] == "replay":
-        filled += _provider_entries(platform, tenant_id, book, control, mark, price)
+    if entries and view["state"] == "replay":
         filled += _strategy_entries(platform, tenant_id, book, control, mark, price)
         state = book.load()
         for order in list(state["orders"]):
@@ -75,46 +165,6 @@ def _tick(platform, tenant_id):
         "orders_sent": control.view()["orders_sent"],
         "source": "synthetic replay print, not a market price",
     }
-
-
-def _provider_entries(platform, tenant_id, book, control, mark, price):
-    """One paper order from a reviewed provider schema. The model does not set the price."""
-    made = 0
-    if not control.load()["traders"][0]["entries_enabled"]:
-        return 0
-    for rule in platform._skills(tenant_id).provider_rules():
-        key = "provider-{0}-v{1}".format(rule["skill_id"], rule["version"])
-        state = book.load()
-        if any(row.get("idempotency_key") == key for row in state["orders"]):
-            continue
-        if any(row.get("status") == "open" and row.get("strategy_id") == rule["skill_id"] for row in state["positions"]):
-            continue
-        decision = platform.provider_decide(tenant_id, rule)
-        if not decision.get("ok"):
-            continue
-        width = Decimal(rule["percent"]) / Decimal("100")
-        stop = (mark * (Decimal("1") - width)).quantize(Decimal("0.01"))
-        if stop >= mark:
-            continue
-        try:
-            order = book.place_order(
-                symbol=rule["symbol"], side="buy", qty="1", limit_price=price, stop=format(stop, "f"),
-                idempotency_key=key, trader_id="desk", account_id=tenant_id,
-                strategy_id=rule["skill_id"], strategy_version=str(rule["version"]),
-                decision="provider_decision", feed="synthetic_replay",
-            )
-        except ResetBlocked:
-            continue
-        if _fill(book, control, order, book.load(), price):
-            made += 1
-            fill = _latest_fill(book, order["order_id"])
-            if fill:
-                platform._brain(tenant_id).record_provider_lesson(
-                    tenant_id=tenant_id, fill_id=fill.get("id") or order["order_id"],
-                    skill_id=rule["skill_id"], version=rule["version"],
-                    decision="provider_decision", feed="synthetic_replay",
-                )
-    return made
 
 
 def _latest_fill(book, order_id):

@@ -208,9 +208,10 @@ class Platform:
         ctx = self._require(token, "admin", claimed_tenant)
         if acknowledgement != FUNDS_PHRASE:
             raise ResetBlocked("confirmation_required", "paper funds require an explicit acknowledgement")
-        row = self._book(ctx["tenant_id"]).add_funds(amount)
-        self._audit(ctx["tenant_id"], ctx["user_id"], "paper_funds", True)
-        return row
+        with self._gate(ctx["tenant_id"]):
+            row = self._book(ctx["tenant_id"]).add_funds(amount)
+            self._audit(ctx["tenant_id"], ctx["user_id"], "paper_funds", True)
+            return row
 
     def set_starting_capital(self, token, amount, claimed_tenant=None):
         ctx = self._require(token, "admin", claimed_tenant)
@@ -270,15 +271,17 @@ class Platform:
             raise ResetBlocked("stop", "stop distance is not valid") from exc
         if not width.is_finite() or width <= 0 or width >= 1:
             raise ResetBlocked("stop", "stop distance is not valid")
-        book = self._book(ctx["tenant_id"])
-        state = book.load()
-        state["stop_distance"] = format(width, "f")
-        book.save(state)
-        return {"stop_distance": state["stop_distance"]}
+        with self._gate(ctx["tenant_id"]):
+            book = self._book(ctx["tenant_id"])
+            state = book.load()
+            state["stop_distance"] = format(width, "f")
+            book.save(state)
+            return {"stop_distance": state["stop_distance"]}
 
     def set_position_stop(self, token, symbol, stop, claimed_tenant=None):
         ctx = self._require(token, "trade_close", claimed_tenant)
-        return self._book(ctx["tenant_id"]).set_stop(symbol, stop)
+        with self._gate(ctx["tenant_id"]):
+            return self._book(ctx["tenant_id"]).set_stop(symbol, stop)
 
     def use_test_feed_probe(self, token, claimed_tenant=None):
         ctx = self._require(token, "admin", claimed_tenant)
@@ -290,17 +293,19 @@ class Platform:
 
     def start_trading(self, token, claimed_tenant=None):
         ctx = self._require(token, "admin", claimed_tenant)
-        result = self._control(ctx["tenant_id"]).start()
-        if not result["started"]:
-            self.incidents.detect("prices_unavailable", ctx["tenant_id"], evidence=["prices not available"])
-        self._audit(ctx["tenant_id"], ctx["user_id"], "start_trading", result["started"])
-        return result
+        with self._gate(ctx["tenant_id"]):
+            result = self._control(ctx["tenant_id"]).start()
+            if not result["started"]:
+                self.incidents.detect("prices_unavailable", ctx["tenant_id"], evidence=["prices not available"])
+            self._audit(ctx["tenant_id"], ctx["user_id"], "start_trading", result["started"])
+            return result
 
     def stop_trading(self, token, claimed_tenant=None):
         ctx = self._require(token, "admin", claimed_tenant)
-        result = self._control(ctx["tenant_id"]).stop()
-        self._audit(ctx["tenant_id"], ctx["user_id"], "stop_trading", True)
-        return result
+        with self._gate(ctx["tenant_id"]):
+            result = self._control(ctx["tenant_id"]).stop()
+            self._audit(ctx["tenant_id"], ctx["user_id"], "stop_trading", True)
+            return result
 
     def enqueue_entry(self, token, payload, *, grade="A", trader_id="desk", claimed_tenant=None):
         ctx = self._require(token, "trade_open", claimed_tenant)
@@ -319,7 +324,8 @@ class Platform:
 
     def set_activity(self, token, level, claimed_tenant=None):
         ctx = self._require(token, "admin", claimed_tenant)
-        return self._control(ctx["tenant_id"]).set_activity(level)
+        with self._gate(ctx["tenant_id"]):
+            return self._control(ctx["tenant_id"]).set_activity(level)
 
     def set_allow_b(self, token, allowed, claimed_tenant=None):
         ctx = self._require(token, "admin", claimed_tenant)
@@ -327,7 +333,8 @@ class Platform:
 
     def set_trader_entries(self, token, trader_id, enabled, claimed_tenant=None):
         ctx = self._require(token, "admin", claimed_tenant)
-        return self._control(ctx["tenant_id"]).set_entries(trader_id, enabled)
+        with self._gate(ctx["tenant_id"]):
+            return self._control(ctx["tenant_id"]).set_entries(trader_id, enabled)
 
     def school_catalog(self, token, claimed_tenant=None):
         ctx = self._require(token, "read", claimed_tenant)
@@ -386,9 +393,12 @@ class Platform:
 
     def teach_upload(self, token, *, trader_ids, filename, data, claimed_tenant=None):
         ctx = self._require(token, "trade_open", claimed_tenant)
-        return self._skills(ctx["tenant_id"]).save_upload(
-            user_id=ctx["user_id"], trader_ids=trader_ids, filename=filename, data=data,
-        )
+        if isinstance(data, str):
+            data = data.encode("utf-8")
+        with self._gate(ctx["tenant_id"]):
+            return self._skills(ctx["tenant_id"]).save_upload(
+                user_id=ctx["user_id"], trader_ids=trader_ids, filename=filename, data=data,
+            )
 
     def teach_status(self, token, skill_id, status, evidence_ids=None, claimed_tenant=None):
         ctx = self._require(token, "admin", claimed_tenant)
@@ -1161,15 +1171,17 @@ class Platform:
     def arm_synthetic_replay(self, token, claimed_tenant=None):
         ctx = self._require(token, "admin", claimed_tenant)
         self._probes[ctx["tenant_id"]] = "test"
-        result = self._control(ctx["tenant_id"]).arm_replay()
-        self._audit(ctx["tenant_id"], ctx["user_id"], "arm_replay", True)
-        return result
+        with self._gate(ctx["tenant_id"]):
+            result = self._control(ctx["tenant_id"]).arm_replay()
+            self._audit(ctx["tenant_id"], ctx["user_id"], "arm_replay", True)
+            return result
 
     def set_replay_print(self, token, price, claimed_tenant=None):
         ctx = self._require(token, "admin", claimed_tenant)
         if claimed_tenant not in (None, "", ctx["tenant_id"]):
             raise Denied("account does not match the session")
-        return self._control(ctx["tenant_id"]).set_replay_print(price)
+        with self._gate(ctx["tenant_id"]):
+            return self._control(ctx["tenant_id"]).set_replay_print(price)
 
     def paper_tick_tenant(self, tenant_id):
         from customer_platform.paper_engine import tick_tenant
@@ -1207,9 +1219,122 @@ class Platform:
             with tenant_writer(self._tenant_dir(tenant_id)) as gate:
                 if gate == "busy":
                     raise ResetBlocked("writer", "writer busy")
+                self._bump_epoch(tenant_id)
                 yield
 
         return _open()
+
+    def _epoch_path(self, tenant_id):
+        return os.path.join(self._tenant_dir(tenant_id), "epoch.json")
+
+    def _attempt_path(self, tenant_id):
+        return os.path.join(self._tenant_dir(tenant_id), "provider_attempt.json")
+
+    def _decision_log_path(self, tenant_id):
+        return os.path.join(self._tenant_dir(tenant_id), "decision_audit.jsonl")
+
+    def _epoch(self, tenant_id):
+        return int(read_json(self._epoch_path(tenant_id), {"epoch": 0}).get("epoch") or 0)
+
+    def _bump_epoch(self, tenant_id):
+        epoch = self._epoch(tenant_id) + 1
+        write_json(self._epoch_path(tenant_id), {"epoch": epoch})
+        return epoch
+
+    def expire_provider_attempt(self, tenant_id):
+        """Close a pending reply whose account changed. Caller holds the writer lock."""
+        current = read_json(self._attempt_path(tenant_id), {})
+        if current.get("status") != "pending":
+            return None
+        if int(current.get("epoch") or 0) == self._epoch(tenant_id):
+            return current
+        self._close_attempt(tenant_id, current, "cancelled", "account changed while the provider reply was outstanding")
+        return None
+
+    def open_provider_attempt(self, tenant_id, rule, price):
+        """Mark one in-flight reply. Caller holds the writer lock and has not bumped it."""
+        if self.expire_provider_attempt(tenant_id):
+            return None
+        from customer_platform.paperbook import new_id
+        attempt = {
+            "epoch": self._epoch(tenant_id),
+            "id": new_id("dec_"),
+            "print": str(price),
+            "skill_id": rule["skill_id"],
+            "status": "pending",
+            "version": str(rule["version"]),
+        }
+        write_json(self._attempt_path(tenant_id), attempt)
+        self._audit_decision(tenant_id, attempt, "pending", "")
+        return attempt
+
+    def prepare_provider_commit(self, tenant_id, attempt, decision):
+        """Re-read every entry gate. Caller holds the writer lock. This does not place an order."""
+        current = read_json(self._attempt_path(tenant_id), {})
+        if current.get("id") != attempt.get("id") or current.get("status") != "pending":
+            return {"price": "", "reason": "decision already closed", "rule": None, "status": "skipped"}
+        reason = self._stale_provider_reason(tenant_id, attempt, decision)
+        if reason:
+            status = "skipped" if decision and not decision.get("ok") and "account changed" not in reason and "stopped" not in reason and "print" not in reason and "entries" not in reason and "skill" not in reason else "cancelled"
+            if decision and not decision.get("ok") and reason == (decision.get("reason") or "provider reply was refused"):
+                status = "skipped"
+            self._close_attempt(tenant_id, current, status, reason)
+            return {"price": "", "reason": reason, "rule": None, "status": status}
+        rule = next(row for row in self._skills(tenant_id).provider_rules() if row["skill_id"] == attempt["skill_id"])
+        price = self._control(tenant_id).load().get("replay_print") or ""
+        return {"price": price, "reason": "", "rule": rule, "status": "ready"}
+
+    def finish_provider_attempt(self, tenant_id, attempt, status, reason):
+        current = read_json(self._attempt_path(tenant_id), {})
+        if current.get("id") != attempt.get("id"):
+            return
+        self._close_attempt(tenant_id, current, status, reason)
+
+    def _stale_provider_reason(self, tenant_id, attempt, decision):
+        if not decision or not decision.get("ok"):
+            return (decision or {}).get("reason") or "provider reply was refused"
+        control = self._control(tenant_id)
+        stored = control.load()
+        view = control.view()
+        if stored.get("state") != "replay" or view.get("state") != "replay":
+            return "entries stopped"
+        traders = stored.get("traders") or []
+        desk_trader = next((row for row in traders if row.get("trader_id") == "desk"), None)
+        if desk_trader is None or not desk_trader.get("entries_enabled"):
+            return "trader entries are off"
+        price = stored.get("replay_print") or ""
+        if price != attempt.get("print"):
+            return "synthetic print changed"
+        rules = [row for row in self._skills(tenant_id).provider_rules() if row["skill_id"] == attempt.get("skill_id") and str(row["version"]) == str(attempt.get("version"))]
+        if not rules:
+            return "skill version is not active"
+        if int(attempt.get("epoch") or 0) != self._epoch(tenant_id):
+            return "account changed while the provider reply was outstanding"
+        return ""
+
+    def _close_attempt(self, tenant_id, attempt, status, reason):
+        body = dict(attempt)
+        body["status"] = status
+        body["reason"] = reason
+        write_json(self._attempt_path(tenant_id), body)
+        self._audit_decision(tenant_id, body, status, reason)
+
+    def _audit_decision(self, tenant_id, attempt, status, reason):
+        from customer_platform.files import append_jsonl
+        append_jsonl(self._decision_log_path(tenant_id), {
+            "epoch": attempt.get("epoch"),
+            "id": attempt.get("id"),
+            "print": attempt.get("print"),
+            "reason": reason,
+            "skill_id": attempt.get("skill_id"),
+            "status": status,
+            "utc": self.clock(),
+            "version": attempt.get("version"),
+        })
+
+    def decision_audit(self, tenant_id):
+        from customer_platform.files import iter_jsonl
+        return iter_jsonl(self._decision_log_path(tenant_id))
 
     def _school(self, tenant_id):
         override = self._school_override.get(tenant_id)

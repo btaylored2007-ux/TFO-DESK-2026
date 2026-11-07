@@ -39,14 +39,33 @@ def public_egress_allowed():
     return os.environ.get(EGRESS_ENV) == "allow"
 
 
-def product_urlopen(request, timeout):
-    """Real HTTPS opener. Refuses any host that is not an adapter."""
-    parsed = urlparse(request.full_url)
+class RefuseRedirect(urllib.request.HTTPRedirectHandler):
+    """A redirect is not followed. The Authorization header stays on the first host."""
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        raise Denied("provider redirect was refused")
+
+
+def official_request(request):
+    parsed = urlparse(getattr(request, "full_url", "") or "")
     if parsed.scheme != "https" or parsed.hostname not in ALLOW.values() or parsed.username or parsed.port:
         raise Denied("provider endpoint was refused")
+    if parsed.hostname not in {row["host"] for row in ADAPTERS.values()}:
+        raise Denied("provider endpoint was refused")
+    expected = [row["url"] for row in ADAPTERS.values() if row["host"] == parsed.hostname]
+    if request.full_url not in expected:
+        raise Denied("provider endpoint was refused")
+
+
+def product_urlopen(request, timeout):
+    """Real HTTPS opener. Refuses any other host and does not follow redirects."""
+    official_request(request)
     if not public_egress_allowed():
         raise Denied("public egress is off")
-    return urllib.request.urlopen(request, timeout=timeout)
+    opener = urllib.request.build_opener(RefuseRedirect)
+    response = opener.open(request, timeout=timeout)
+    _reject_redirect(response, request.full_url)
+    return response
 
 
 class ProviderClient:
@@ -116,6 +135,7 @@ class ProviderClient:
             headers["Authorization"] = "Bearer " + secret
         request = urllib.request.Request(url, data=data, headers=headers, method="POST")
         response = self.opener(request, TIMEOUT_SECONDS)
+        _reject_redirect(response, url)
         status = int(getattr(response, "status", 200))
         body = response.read(MAX_REPLY + 1)
         if status >= 400 or len(body) > MAX_REPLY:
@@ -188,6 +208,15 @@ def _message_text(body, style):
     if not choices:
         raise RuntimeError("invalid schema")
     return str((choices[0].get("message") or {}).get("content") or "")
+
+
+def _reject_redirect(response, url):
+    status = int(getattr(response, "status", 200) or 200)
+    if status in {301, 302, 303, 307, 308}:
+        raise Denied("provider redirect was refused")
+    final = response.geturl() if hasattr(response, "geturl") else url
+    if final != url:
+        raise Denied("provider redirect was refused")
 
 
 def _guard(url, host):
