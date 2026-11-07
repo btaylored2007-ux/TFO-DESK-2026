@@ -6,7 +6,7 @@
     {
       "path": "veteran_desk/thf_shadow_sampler.py",
       "base_sha256": "7e2eeb3e544814411f7fb2371b50b232746e2edec9a971197c46b319570de2bf",
-      "target_sha256": "9dabe18427f84e65383ffbf97c3e6b7ec372cb18176b1c66034f274c74896a91"
+      "target_sha256": "d10f5cb6655a02606f249e22f0205e83e362c9fd68983c74acf79907d44c1b42"
     },
     {
       "path": "veteran_desk/thf_shadow_bench.py",
@@ -14,8 +14,16 @@
       "target_sha256": "96e084dccefe62bc29406485c259154c1981dcd211fbc60b553e886866a4b62c"
     }
   ],
-  "write_set": ["veteran_desk/thf_shadow_sampler.py", "veteran_desk/thf_shadow_bench.py"],
-  "not_writable": ["veteran_desk/lesson_trace.py", "veteran_desk/thf_msgdesk.py", "veteran_desk/thf_round.py", "veteran_desk/book.py"],
+  "write_set": [
+    "veteran_desk/thf_shadow_sampler.py",
+    "veteran_desk/thf_shadow_bench.py"
+  ],
+  "not_writable": [
+    "veteran_desk/lesson_trace.py",
+    "veteran_desk/thf_msgdesk.py",
+    "veteran_desk/thf_round.py",
+    "veteran_desk/book.py"
+  ],
   "max_jobs_per_run": 2,
   "clock_start_utc": "2026-11-06T15:36:07+00:00",
   "review_due_wita": "2026-11-14 08:00 WITA",

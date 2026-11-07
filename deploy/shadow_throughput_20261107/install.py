@@ -3,6 +3,7 @@
 import argparse
 import hashlib
 import json
+import os
 import shutil
 from pathlib import Path
 
@@ -66,21 +67,57 @@ def plan(live_root):
     return rows
 
 
+def _mode(path):
+    return Path(path).stat().st_mode & 0o777
+
+
+def _prune_empty(start, stop):
+    current = Path(start)
+    stop = Path(stop)
+    while current != stop and stop in current.parents:
+        try:
+            if any(current.iterdir()):
+                return
+            current.rmdir()
+        except OSError:
+            return
+        current = current.parent
+
+
 def _restore(live, rel):
     dest = live / rel
     backup = live / BACKUP / rel
     if not backup.is_file() or sha256(backup) != _row(rel)["base_sha256"]:
         return False
+    mode = _mode(backup)
     dest.parent.mkdir(parents=True, exist_ok=True)
-    shutil.copy2(backup, dest)
+    temporary = dest.with_name(dest.name + ".restore.tmp")
+    shutil.copy2(backup, temporary)
+    os.replace(temporary, dest)
+    os.chmod(dest, mode)
     return sha256(dest) == _row(rel)["base_sha256"]
+
+
+def _clear_failure(live, backed):
+    for rel in reversed(backed):
+        _restore(live, rel)
+        backup = live / BACKUP / rel
+        if backup.exists():
+            backup.unlink()
+        _prune_empty(backup.parent, live)
+    for item in MANIFEST["payloads"]:
+        dest = live / item["path"]
+        for suffix in (".apply.tmp", ".restore.tmp"):
+            temporary = dest.with_name(dest.name + suffix)
+            if temporary.exists():
+                temporary.unlink()
 
 
 def apply_plan(live_root, rows):
     live = Path(live_root)
     if any(row["state"] in BLOCKING for row in rows):
         return False
-    done = []
+    backed = []
     try:
         for row in rows:
             if row["state"] != "REPLACE":
@@ -90,24 +127,38 @@ def apply_plan(live_root, rows):
             dest = live / rel
             backup = live / BACKUP / rel
             if backup.exists():
-                raise RuntimeError("backup exists")
+                if sha256(backup) != item["base_sha256"]:
+                    raise RuntimeError("backup mismatch")
+                if sha256(dest) != item["base_sha256"]:
+                    _restore(live, rel)
+                backup.unlink()
+            original_mode = _mode(dest)
             backup.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(dest, backup)
+            os.chmod(backup, original_mode)
             if sha256(backup) != item["base_sha256"]:
                 raise RuntimeError("backup mismatch")
-            shutil.copy2(ROOT / "payload" / rel, dest)
-            if sha256(dest) != item["target_sha256"]:
-                raise RuntimeError("target mismatch")
-            done.append(rel)
+            backed.append(rel)
+            temporary = dest.with_name(dest.name + ".apply.tmp")
+            try:
+                shutil.copy2(ROOT / "payload" / rel, temporary)
+                if sha256(temporary) != item["target_sha256"]:
+                    raise RuntimeError("target mismatch")
+                os.replace(temporary, dest)
+                os.chmod(dest, original_mode)
+                if sha256(dest) != item["target_sha256"]:
+                    raise RuntimeError("target mismatch")
+            finally:
+                if temporary.exists():
+                    temporary.unlink()
         receipt = dict(release=MANIFEST["release"], production=False, deployed=False,
-                       replaced=done, write_set=list(MANIFEST["write_set"]))
+                       replaced=list(backed), write_set=list(MANIFEST["write_set"]))
         path = live / RECEIPT
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(json.dumps(receipt, indent=2) + "\n")
         return True
     except Exception:
-        for rel in reversed(done):
-            _restore(live, rel)
+        _clear_failure(live, backed)
         return False
 
 

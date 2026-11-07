@@ -53,23 +53,68 @@ def test_apply_and_rollback_restore_the_pinned_bases(tmp_path):
     receipt = json.loads((root / "state/thf/shadow_throughput_20261107_receipt.json").read_text())
     assert receipt["production"] is False and receipt["deployed"] is False
     assert receipt["write_set"] == ["veteran_desk/thf_shadow_sampler.py", "veteran_desk/thf_shadow_bench.py"]
-    assert _sha(root / "veteran_desk/thf_shadow_sampler.py").startswith("9dabe184")
+    manifest = json.loads((PKG / "MANIFEST.json").read_text())
+    assert _sha(root / "veteran_desk/thf_shadow_sampler.py") == manifest["payloads"][0]["target_sha256"]
     assert install.rollback(root) is True
     assert _sha(root / "veteran_desk/thf_shadow_sampler.py") == "7e2eeb3e544814411f7fb2371b50b232746e2edec9a971197c46b319570de2bf"
     assert _sha(root / "veteran_desk/thf_shadow_bench.py") == "957539fa9d52ac1d63e3fb9c7064e0d54aae6af88f687f01b477afaf3795e3fa"
 
 
-def test_a_failed_second_write_restores_the_first(tmp_path, monkeypatch):
+def _files(root):
+    found = {}
+    for path in root.rglob("*"):
+        if path.is_file():
+            found[str(path.relative_to(root))] = _sha(path)
+    return found
+
+
+def test_a_partial_second_write_restores_bytes_and_can_retry(tmp_path, monkeypatch):
     root = _stage(tmp_path)
+    before = _files(root)
+    mode = 0o640
+    for rel in ("veteran_desk/thf_shadow_sampler.py", "veteran_desk/thf_shadow_bench.py"):
+        (root / rel).chmod(mode)
     real = shutil.copy2
-    def boom(src, dest, *args, **kwargs):
-        if str(dest).endswith("thf_shadow_bench.py") and "payload" in str(src):
-            raise RuntimeError("injected")
+    count = {"n": 0}
+
+    def partial(src, dest, *args, **kwargs):
+        if "payload" in str(src):
+            count["n"] += 1
+            if count["n"] == 2:
+                Path(dest).write_bytes(b"PARTIAL")
+                raise OSError("injected")
         return real(src, dest, *args, **kwargs)
-    monkeypatch.setattr(install.shutil, "copy2", boom)
+
+    monkeypatch.setattr(install.shutil, "copy2", partial)
     assert install.apply_plan(root, install.plan(root)) is False
-    assert _sha(root / "veteran_desk/thf_shadow_sampler.py") == "7e2eeb3e544814411f7fb2371b50b232746e2edec9a971197c46b319570de2bf"
-    assert _sha(root / "veteran_desk/thf_shadow_bench.py") == "957539fa9d52ac1d63e3fb9c7064e0d54aae6af88f687f01b477afaf3795e3fa"
+    monkeypatch.setattr(install.shutil, "copy2", real)
+    assert _files(root) == before
+    assert not (root / "state").exists()
+    assert install.apply_plan(root, install.plan(root)) is True
+    assert (root / "veteran_desk/thf_shadow_bench.py").stat().st_mode & 0o777 == mode
+    assert (root / "veteran_desk/thf_shadow_sampler.py").stat().st_mode & 0o777 == mode
+
+
+def test_a_target_hash_mismatch_restores_the_original_bench(tmp_path, monkeypatch):
+    root = _stage(tmp_path)
+    before = _files(root)
+    real = install.sha256
+    seen = {"n": 0}
+
+    def bad(path):
+        digest = real(path)
+        target = install._row("veteran_desk/thf_shadow_bench.py")["target_sha256"]
+        text = str(path)
+        if text.endswith("thf_shadow_bench.py") and "payload" not in text and "backups" not in text and seen["n"] == 0 and digest == target:
+            seen["n"] = 1
+            return "0" * 64
+        return digest
+
+    monkeypatch.setattr(install, "sha256", bad)
+    assert install.apply_plan(root, install.plan(root)) is False
+    monkeypatch.setattr(install, "sha256", real)
+    assert _files(root) == before
+    assert install.apply_plan(root, install.plan(root)) is True
 
 
 def test_a_foreign_hash_is_not_replaced(tmp_path):

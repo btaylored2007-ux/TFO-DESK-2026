@@ -481,7 +481,8 @@ def _recent_provider_busy(job, samples, now_dt, backoff_s):
     times = [item for item in times if item is not None]
     if not times or now_dt is None:
         return False
-    return (now_dt - max(times)).total_seconds() < float(backoff_s)
+    # The timer is 1800s. Equality is still inside that cadence, so the same seat yields.
+    return (now_dt - max(times)).total_seconds() <= float(backoff_s)
 
 
 def select_jobs(jobs, cap, now_dt, samples, window_s, backoff_s):
@@ -501,6 +502,28 @@ def select_jobs(jobs, cap, now_dt, samples, window_s, backoff_s):
                 chosen.append(job)
                 break
     return chosen
+
+
+def _waiting_unmatched(events):
+    """A coverage seat still deferred on a live provider lock is waiting, not finished."""
+    seats = {}
+    coverage = set()
+    latest = {}
+    for row in events:
+        task_id = row.get("task_id")
+        if not task_id:
+            continue
+        if row.get("source") == "coverage" or str(task_id).startswith("coverage-"):
+            coverage.add(task_id)
+        if row.get("seat"):
+            seats[task_id] = row.get("seat")
+        latest[task_id] = row
+    waiting = []
+    for task_id in sorted(coverage):
+        row = latest.get(task_id) or {}
+        if row.get("event") == "deferred" and row.get("reason") == "provider_busy":
+            waiting.append(dict(task_id=task_id, seat=seats.get(task_id), reason="provider_busy", matched=False))
+    return waiting
 
 
 def refuses_root():
@@ -644,7 +667,7 @@ def once(root, now=None):
     except (OSError, ValueError):
         samples = []
     window = BENCH.window_status([row for row in samples if row.get("kind") == "shadow_evaluation"])
-    clock = lock_window(root, window)
+    clock = lock_window(root, window, now=_parse_utc(now) if now else None)
     status["window"] = clock["window"]
     status["seven_day"] = clock["seven_day"]
     status["seven_day_ready"] = clock["seven_day_ready"]
@@ -659,7 +682,8 @@ def once(root, now=None):
     status["production_audit_held"] = len(still_audit)
     status["production_sampled"] = production_sampled
     status["coverage_selected"] = coverage_selected
-    status["throughput"] = "ran_not_a_matched_comparison"
+    status["waiting_unmatched"] = _waiting_unmatched(_events(root))
+    status["throughput"] = "waiting_unmatched" if status["waiting_unmatched"] else "ran_not_a_matched_comparison"
     status["comparison"] = "paired rows in shadow_samples.jsonl only; a production log with shadow_calls 0 is not the trial"
     status["recommendation"] = BENCH.recommend(
         [row for row in samples if row.get("scored") and row.get("kind") == "shadow_evaluation"],

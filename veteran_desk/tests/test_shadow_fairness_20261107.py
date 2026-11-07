@@ -163,6 +163,58 @@ def test_restart_keeps_the_clock_and_does_not_duplicate_coverage(tmp_path, monke
     assert all(cell["recommendation"] == "gap" for cell in second["recommendation"]["cells"])
 
 
+def test_a_busy_seat_yields_at_the_exact_timer_boundary(tmp_path, monkeypatch):
+    calls = _clients(monkeypatch, {})
+    monkeypatch.setattr(SAMPLER, "ensure_coverage", lambda *a, **k: [])
+    _enable(tmp_path, jobs=1)
+    root = str(tmp_path)
+    _queue(root, task_id="coverage-banks-b", prompt="banks", utc="2026-11-07T12:00:00+00:00")
+    _queue(root, task_id="coverage-energy-e", seat="energy", prompt="energy", utc="2026-11-07T12:00:01+00:00")
+    for name in SAMPLER.PROVIDERS:
+        SAMPLER._append(SAMPLER.samples_path(root), dict(
+            task_id="coverage-banks-b", provider_requested=name, availability="busy", ok=False, scored=False,
+            error="RuntimeError: provider busy", latency_ms=5, kind="shadow_evaluation",
+            utc="2026-11-07T12:00:00+00:00"))
+    SAMPLER.once(root, now="2026-11-07T12:30:00+00:00")
+    assert {seat for _name, _prompt, seat in calls} == {"energy"}
+
+
+def test_a_permanent_busy_seat_stays_waiting(tmp_path, monkeypatch):
+    _clients(monkeypatch, {name: RuntimeError("provider busy lock held") for name in SAMPLER.CALLS})
+    monkeypatch.setattr(SAMPLER, "ensure_coverage", lambda *a, **k: [])
+    _enable(tmp_path, jobs=1)
+    root = str(tmp_path)
+    _queue(root, task_id="coverage-banks-z", prompt="banks", utc=NOW)
+    status = SAMPLER.once(root, now=NOW)
+    last = [row for row in SAMPLER._events(root) if row.get("task_id") == "coverage-banks-z"][-1]
+    assert last["event"] == "deferred" and last["reason"] == "provider_busy"
+    assert status["waiting_unmatched"] == [dict(task_id="coverage-banks-z", seat="banks", reason="provider_busy", matched=False)]
+    assert status["throughput"] == "waiting_unmatched"
+    assert status["seven_day_ready"] is False
+    text = (tmp_path / "state/thf/shadow_samples.jsonl").read_text()
+    assert all(json.loads(line)["ok"] is False for line in text.splitlines())
+
+
+def test_once_uses_the_supplied_clock_for_readiness(tmp_path, monkeypatch):
+    _clients(monkeypatch, {})
+    _enable(tmp_path, jobs=1)
+    root = tmp_path / "state" / "thf"
+    (root / "shadow_window.json").write_text(json.dumps(dict(started=True, started_utc=START)))
+
+    class Later(SAMPLER.dt.datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return cls(2030, 1, 1, tzinfo=SAMPLER.dt.timezone.utc)
+
+    monkeypatch.setattr(SAMPLER.dt, "datetime", Later)
+    early = SAMPLER.once(str(tmp_path), now="2026-11-13T16:00:00+00:00")
+    assert early["seven_day"] == "clock_started" and early["seven_day_ready"] is False
+    assert early["window"]["first_row_utc"] == START
+    due = SAMPLER.once(str(tmp_path), now="2026-11-14T00:00:01+00:00")
+    assert due["seven_day"] == "review_due" and due["seven_day_ready"] is True
+    assert due["window"]["first_row_utc"] == START
+
+
 def test_seven_days_before_the_morning_review_is_not_ready(tmp_path):
     started = "2026-11-06T15:36:07+00:00"
     due = SAMPLER.review_due(started)
