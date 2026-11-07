@@ -10,6 +10,8 @@ PINNED_BOOK_COPIES = {
     "docs/live_bank07/book.py",
     "deploy/paper_rules_20261107/base/veteran_desk/book.py",
     "deploy/paper_rules_20261107/payload/veteran_desk/book.py",
+    "deploy/paper_rules_livebase_20261107/base/veteran_desk/book.py",
+    "deploy/paper_rules_livebase_20261107/payload/veteran_desk/book.py",
 }
 SKIP_DIRS = ("research", "work", "backups", "reports", "state", "staged_fixes", "tests", "tests_watchlist", "data", ".claude", ".scratch",
              ".staging_gates", "handover", "static", "logs", "__pycache__", "idea_feeds/.scratch", "ops")
