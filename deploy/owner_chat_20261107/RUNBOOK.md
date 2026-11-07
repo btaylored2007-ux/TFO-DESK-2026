@@ -1,11 +1,30 @@
-# Owner chat package 20261107
+# Owner chat package
 
-Not deployed. SuperGrok is not connected. No browser unit is started.
+Not deployed. SuperGrok is not connected. `/opt/tfo` stays refused. `--activate` stays refused. Do not copy files by hand if preflight refuses.
 
-The installer preflight refuses `/opt/tfo`, refuses `--activate`, and refuses a file whose bytes are not the captured base or the payload target. It does not write redacted sources, the book, the ChatGPT bridge, nginx, the engine, or tick.
+From this directory:
 
-SuperGrok is a separate provider id. `grok` stays the local Cursor route. `super` stays the fan-out. The page worker does not post into the owner chat, does not export cookies, and does not try to pass a page challenge. A real composer reply is still required before the provider can be called connected. Sending to it now is refused with "not connected", so a note is not left pending.
+```
+python3 install.py --root /path/to/review-tree
+python3 install.py --root /path/to/review-tree --apply
+python3 install.py --root /path/to/review-tree --rollback
+python3 tests/fixture_matrix.py
+```
 
-Default chat presentation keeps routine noise available behind the existing noise toggle, keeps halt and approval rows visible, and labels independent answers. Stored rows are not rewritten.
+`--apply` is only for a review tree whose files match the capture bases in `MANIFEST.json`. It writes a backup under `state/thf/owner_chat_20261107_backup/` and a receipt. A second apply prints `REFUSED_RERUN`. Rollback restores that backup and does not start a service.
 
-The archived display kit sha `abfc2af4bdeae0959727afb14f308b0f99ebab06eb7e87bce583e872a5f955e4` is not part of this package and is not applied.
+Expected production preflight:
+
+```
+REFUSED_ROOT
+```
+
+Expected activation attempt, with or without `--apply`:
+
+```
+REFUSED_ACTIVATION
+```
+
+The page worker listens on `127.0.0.1:18892` only after a later, separate activation that this package does not perform. Sign-in is a normal grok.com page. This package does not open it, does not read cookies, and does not pass a challenge. ChatGPT files, when present, must stay at the pinned hashes or the apply prints `REFUSED_PIN`.
+
+`python3 tests/fixture_matrix.py` prints `FIXTURE_OK` when the review apply, repeat refusal, rollback, book invariance, and ChatGPT invariance hold.

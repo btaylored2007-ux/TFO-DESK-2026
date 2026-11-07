@@ -14,7 +14,6 @@
   "spent_authorization_ids": [
     "t2809u"
   ],
-  "book_pin": "b4453b503f33e34110519bf4d7a9bf391ecc2802edbd87acca3e77dc96b7e891",
   "excluded": [
     "veteran_desk/book.py",
     "veteran_desk/thf_home.py",

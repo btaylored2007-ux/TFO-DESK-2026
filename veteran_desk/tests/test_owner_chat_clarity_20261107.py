@@ -147,6 +147,15 @@ def test_page_health_is_required_and_worker_has_no_bypass():
     assert "cookie" not in worker.lower() or "never" in worker.lower()
 
 
+def test_owner_chat_package_fixture():
+    import subprocess
+    import sys
+    script = ROOT / "deploy/owner_chat_20261107/tests/fixture_matrix.py"
+    run = subprocess.run([sys.executable, str(script)], text=True, capture_output=True, check=False)
+    assert run.returncode == 0, run.stdout + run.stderr
+    assert run.stdout.strip() == "FIXTURE_OK"
+
+
 def test_archived_display_kit_bytes_are_unchanged():
     assert hashlib.sha256(KIT.read_bytes()).hexdigest() == KIT_SHA
 

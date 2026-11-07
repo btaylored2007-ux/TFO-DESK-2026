@@ -121,6 +121,15 @@ def test_restart_dash_is_explicit_and_does_not_touch_book(tmp_path, monkeypatch)
     assert "restart_ok" in module._events(live)
 
 
+def test_package_fixture_covers_failure_injection():
+    import subprocess
+    import sys
+    script = ROOT / "deploy/display_guard_20261107/tests/fixture_matrix.py"
+    run = subprocess.run([sys.executable, str(script)], text=True, capture_output=True, check=False)
+    assert run.returncode == 0, run.stdout + run.stderr
+    assert run.stdout.strip() == "FIXTURE_OK"
+
+
 def test_production_recovery_refuses_any_other_root(tmp_path, monkeypatch):
     monkeypatch.delenv("PYTEST_CURRENT_TEST", raising=False)
     module = load()

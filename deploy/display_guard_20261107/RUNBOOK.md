@@ -1,16 +1,18 @@
-# Display guard 20261107
+# Display guard
 
-Not deployed. The display mark is PENDING. The archived kit `deploy/display-epoch-ui-kit-20261107.tar.gz` sha `abfc2af4bdeae0959727afb14f308b0f99ebab06eb7e87bce583e872a5f955e4` is unchanged and is not applied.
+Not deployed. The display mark is PENDING. The archived kit sha `abfc2af4bdeae0959727afb14f308b0f99ebab06eb7e87bce583e872a5f955e4` is unchanged and is not applied.
 
-Live `veteran_desk/book.py` was observed at `a7394770…` on both roots after a paper-rules code update. That file is not in this write set. This controller records the bytes it sees and refuses the apply if the two roots differ or if those bytes change before commit. It does not require the older `b4453b50…` pin and it does not rewrite the book. A book that changes during the apply is `REFUSED_BOOK_CHANGED`; the copied files are restored and the procedure stops. There is no override flag.
+The book is not a historical pin. Both roots must have the same book bytes at the start. If those bytes change during the copy, the command is `REFUSED_BOOK_CHANGED`, the display files already copied are restored, and the book is left as the runtime wrote it. There is no stale-book rollback and no root override.
 
-Recovery is explicit and is not a second apply:
+Recovery is not a second apply:
 
 ```
 python3 release_control.py --recover restore-files
 python3 release_control.py --recover restart-dash
+python3 release_control.py --reconcile
+python3 tests/fixture_matrix.py
 ```
 
-`restore-files` restores only the display write-set from `state/thf/display_release_20261107_backup/` and is allowed after `restart_begin`. `restart-dash` restarts only `tfo-dash-thf.service` when those files already match their targets. Neither command writes the book, the ChatGPT bridge, home, the engine, tick, or nginx.
+`restore-files` restores only the display write-set and is allowed before and after a dash restart. `restart-dash` restarts only `tfo-dash-thf.service` when the write-set already matches its targets. A repeat apply after a commit is `REFUSED_RERUN`.
 
-`chatgpt_bridge.py` was not in the capture used for this UI and is not pinned here.
+`python3 tests/fixture_matrix.py` prints `FIXTURE_OK` for an interrupted copy, a book change during the copy, a recorded dash restart, repeat-apply refusal, reconcile, and restore before and after restart.
