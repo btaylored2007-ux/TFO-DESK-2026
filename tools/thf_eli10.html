@@ -1,64 +1,88 @@
 <!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#10243E"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="apple-mobile-web-app-title" content="Transparent Trading">
 <title>Transparent Trading · Paper</title>
+<link rel="icon" href="/assets/brand/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/assets/brand/apple-touch-icon.png">
+<link rel="stylesheet" href="/assets/brand/tokens.css">
 <style>
-/* dasheli10_20261103 (PAPER): phone-first ELI10 dashboard. One page for / , /desk/phone, /desk/m and /desk/<seat>; the old card page lives at /classic. */
-:root{--bg:#0b0f14;--card:#151b23;--bd:#262d36;--tx:#e6edf3;--mu:#8b949e;--ac:#58a6ff;--g:#2ea043;--a:#d29922;--r:#f85149;--gr:#6e7681;--tb:60px}
-*{box-sizing:border-box;min-width:0}html,body{margin:0;background:var(--bg);color:var(--tx);font:16px/1.4 -apple-system,system-ui,"Segoe UI",Roboto,sans-serif;-webkit-text-size-adjust:100%}
-body{padding-bottom:calc(var(--tb) + env(safe-area-inset-bottom) + 10px);overflow-x:hidden}
-a{color:var(--ac)}button{font:inherit}
-.hd{padding:8px 14px 6px;padding-top:max(8px,env(safe-area-inset-top));background:#10243e;color:#f4f7f6}.hd h1{font-size:18px;margin:0 auto;max-width:1100px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
-.pill{font-size:11px;border:1px solid #8fb8c4;border-radius:8px;padding:1px 6px;color:#f4f7f6;font-weight:700;letter-spacing:.06em}
-.hd .sub{color:#c5d0d8}.hd a{color:#f4f7f6}
+/* Phone hub. Retail first: one figure, two counts, one health line. Provider status is not on this page. */
+:root{--bg:#f4f7f6;--card:#ffffff;--bd:#d5dee6;--tx:#142033;--mu:#3e5160;--ac:#1f4e5f;--g:#1d5c38;--a:#8a5a12;--r:#8c2f2f;--gr:#8aa0b0;--tb:56px;--pad:16px}
+*{box-sizing:border-box;min-width:0}html,body{margin:0;background:var(--bg);color:var(--tx);font:16px/1.4 var(--tt-font),Inter,"Noto Sans","Segoe UI",sans-serif;-webkit-text-size-adjust:100%}
+body{padding-bottom:calc(var(--tb) + env(safe-area-inset-bottom) + 12px);overflow-x:hidden}
+a{color:var(--ac)}button{font:inherit;color:inherit}
+.hd{padding:12px var(--pad) 10px;padding-top:max(12px,env(safe-area-inset-top));background:#10243e;color:#f4f7f6}
+.hd h1{font-size:17px;font-weight:600;letter-spacing:-.02em;margin:0 auto;max-width:1100px;display:flex;align-items:center;gap:8px}
+.brand-mark{width:28px;height:28px;border-radius:7px;display:block;flex:none}
+.brand-name{line-height:1.1}
+.pill{font-size:10px;border:1px solid rgba(244,247,246,.55);border-radius:999px;padding:2px 7px;color:#f4f7f6;font-weight:650;letter-spacing:.08em}
+.hd .sub{color:#c5d0d8;margin:4px auto 0;max-width:1100px}.hd .links{margin-top:2px}.hd a{color:#f4f7f6;text-underline-offset:2px}
 .sub{color:var(--mu);font-size:13px}.mu{color:var(--mu)}
-main{max-width:1100px;margin:0 auto;padding:0 10px}
-.pane{display:none}.pane.on{display:block}body.all .pane{display:block}body.all .tabbar{display:none}body.all .pane::before{content:attr(data-title);display:block;font-size:18px;font-weight:800;margin:18px 0 4px;color:var(--ac)}
-.card{background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:14px;margin:10px 0;overflow-wrap:anywhere}
-.card.green{border-left:6px solid var(--g)}.card.amber{border-left:6px solid var(--a)}.card.red{border-left:6px solid var(--r)}.card.grey{border-left:6px solid var(--gr)}
-.card h3{margin:0 0 6px;font-size:17px}.card p{margin:6px 0}
-.dot{display:inline-block;width:12px;height:12px;border-radius:50%;background:var(--gr);flex:none;vertical-align:middle;margin-top:4px}.dot.green{background:var(--g)}.dot.amber{background:var(--a)}.dot.red{background:var(--r)}.dot.grey{background:var(--gr)}
-.bigdot{width:38px;height:38px;border-radius:50%;flex:none;background:var(--gr);box-shadow:0 0 0 6px rgba(255,255,255,.06)}.bigdot.green{background:var(--g);box-shadow:0 0 0 6px rgba(46,160,67,.25)}.bigdot.amber{background:var(--a);box-shadow:0 0 0 6px rgba(210,153,34,.25)}.bigdot.red{background:var(--r);box-shadow:0 0 0 6px rgba(248,81,73,.25)}
-.hero{display:flex;gap:14px;align-items:center}.hero .h1{font-size:18px;font-weight:700;line-height:1.3}
-.big{font-size:46px;font-weight:800;letter-spacing:-1px;line-height:1.1;margin:2px 0}.big2{font-size:34px;font-weight:800;line-height:1.1}.pos{color:#3fb950}.neg{color:#f85149}
-.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}.grid2 .card{margin:0}.grid{display:grid;grid-template-columns:1fr;gap:0}
-.tap{cursor:pointer}.tap:active{opacity:.75}
-.row{border-top:1px solid var(--bd);margin:0}.row summary{list-style:none;display:flex;align-items:flex-start;gap:10px;padding:12px 4px;cursor:pointer;min-height:52px}
-.row summary::-webkit-details-marker{display:none}.row summary .chev{color:var(--mu);font-size:20px;margin-left:auto;flex:none;transform:rotate(90deg);transition:transform .15s;line-height:1.2}.row[open] summary .chev{transform:rotate(-90deg)}
-.row .mid{flex:1}.row .h{font-weight:600;font-size:16px;line-height:1.3}.row .s{color:var(--mu);font-size:13px;margin-top:2px}.row .pnl{font-size:14px;margin-top:2px}
-.row .dd{padding:0 4px 14px 26px;font-size:14px;color:#c9d1d9}.row .dd p{margin:4px 0}
-.sec{font-size:13px;font-weight:700;color:var(--mu);text-transform:uppercase;letter-spacing:.6px;margin:14px 2px 2px}
-.tabbar{position:fixed;left:0;right:0;bottom:0;height:calc(var(--tb) + env(safe-area-inset-bottom));padding-bottom:env(safe-area-inset-bottom);background:rgba(13,17,23,.96);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-top:1px solid var(--bd);display:flex;z-index:50}
-.tabbar button{flex:1;background:none;border:0;color:var(--mu);font-size:11px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;min-height:var(--tb);cursor:pointer;position:relative;padding:0;-webkit-tap-highlight-color:transparent}
-.tabbar button .i{font-size:22px;line-height:1}.tabbar button.on{color:var(--ac);font-weight:700}.tabbar button .b{position:absolute;top:8px;right:calc(50% - 22px);min-width:16px;height:16px;border-radius:8px;background:#30363d;color:#fff;font-size:10px;line-height:16px;padding:0 4px;font-weight:700}.tabbar button .b.green{background:var(--g)}.tabbar button .b.amber{background:var(--a);color:#000}.tabbar button .b.red{background:var(--r)}
-table{border-collapse:collapse;width:100%;font-size:13px}td,th{padding:5px 6px;border-bottom:1px solid var(--bd);text-align:left;vertical-align:top}th{color:var(--mu);font-weight:600}.tw{overflow-x:auto;max-width:100%;margin-top:6px}
-/* feedtbl_20261103 (Brett 3 Nov 19:18 screenshot): .card overflow-wrap:anywhere let table columns shrink to 1 letter, so "last update" read l-a-s-t down the phone. break-word wraps whole words only; short cells stay on one line. */
+main{max-width:1100px;margin:0 auto;padding:8px var(--pad) 0}
+.pane{display:none}.pane.on{display:block}body.all .pane{display:block}body.all .tabbar{display:none}body.all .pane::before{content:attr(data-title);display:block;font-size:15px;font-weight:650;margin:16px 0 4px;color:var(--ac);letter-spacing:.04em;text-transform:uppercase}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:12px 14px;margin:8px 0;overflow-wrap:anywhere}
+.card.green{border-left:3px solid var(--g)}.card.amber{border-left:3px solid var(--a)}.card.red{border-left:3px solid var(--r)}.card.grey{border-left:3px solid var(--gr)}
+.card h3{margin:0 0 4px;font-size:15px;font-weight:650;letter-spacing:-.01em}.card p{margin:4px 0;font-size:14px}
+.dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--gr);flex:none}.dot.green{background:var(--g)}.dot.amber{background:var(--a)}.dot.red{background:var(--r)}.dot.grey{background:var(--gr)}
+.bigdot{width:28px;height:28px;border-radius:50%;flex:none;background:var(--gr)}.bigdot.green{background:var(--g)}.bigdot.amber{background:var(--a)}.bigdot.red{background:var(--r)}
+.hero{display:flex;gap:12px;align-items:flex-start}.hero .h1{font-size:16px;font-weight:650;line-height:1.3}
+.big{font-size:40px;font-weight:650;letter-spacing:-.03em;line-height:1.05;margin:4px 0 8px}.big.missing{font-size:28px;color:var(--mu);letter-spacing:0}.big2{font-size:28px;font-weight:650;letter-spacing:-.02em;line-height:1.1}.pos{color:var(--g)}.neg{color:var(--r)}
+.pnl{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:16px 16px 12px;margin:8px 0}
+.kicker{font-size:12px;font-weight:650;letter-spacing:.04em;text-transform:uppercase;color:var(--mu)}
+.metrics{display:grid;grid-template-columns:1fr 1fr;border-top:1px solid var(--bd);margin-top:4px}
+.metric{background:none;border:0;padding:10px 0 2px;text-align:left;cursor:pointer;min-height:48px}
+.metric + .metric{border-left:1px solid var(--bd);padding-left:14px}
+.metric b{display:block;font-size:26px;font-weight:650;letter-spacing:-.02em;line-height:1.1}
+.metric span{display:block;margin-top:2px;color:var(--mu);font-size:12px;font-weight:650;letter-spacing:.04em;text-transform:uppercase}
+.quiet{margin:10px 0 0;color:var(--mu);font-size:14px}.quiet b{color:var(--tx);font-weight:650}.quiet .pos,.quiet .neg{font-weight:650}
+.quiet-gap{display:inline-block;margin-left:14px}
+.healthline{display:flex;align-items:center;gap:10px;background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:12px 14px;margin:8px 0;min-height:48px;cursor:pointer}
+.healthline .dot{margin-top:0}.hl-main{flex:1;font-size:15px;font-weight:650}.hl-go{color:var(--ac);font-size:13px;font-weight:650}
+.fold{background:var(--card);border:1px solid var(--bd);border-radius:12px;margin:8px 0;padding:0 14px}
+.fold>summary{cursor:pointer;font-weight:650;font-size:14px;padding:12px 0;min-height:44px;list-style-position:outside}
+.fold-body{padding:0 0 12px;font-size:14px}.fold-body p{margin:6px 0}.fold-body .card{border:0;padding:0;margin:8px 0;background:transparent}
+.foot{margin:8px 0 0;font-size:13px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px}.grid2 .card{margin:0}.grid{display:grid;grid-template-columns:1fr;gap:0}
+.tap{cursor:pointer}
+.row{border-top:1px solid var(--bd);margin:0}.row summary{list-style:none;display:flex;align-items:center;gap:10px;padding:10px 2px;cursor:pointer;min-height:48px}
+.row summary::-webkit-details-marker{display:none}.row summary .chev{color:var(--mu);font-size:18px;margin-left:auto;flex:none;line-height:1}.row[open] summary .chev{transform:rotate(90deg)}
+.row .mid{flex:1}.row .h{font-weight:650;font-size:15px;line-height:1.25}.row .s{color:var(--mu);font-size:13px;margin-top:2px}.row .pnl{font-size:13px;margin:2px 0 0;padding:0;border:0;background:transparent;color:var(--mu)}
+.row .dd{padding:0 2px 12px 18px;font-size:14px;color:var(--tx)}.row .dd p{margin:4px 0}
+.sec{font-size:12px;font-weight:650;color:var(--mu);text-transform:uppercase;letter-spacing:.04em;margin:16px 2px 4px}
+.tabbar{position:fixed;left:0;right:0;bottom:0;height:calc(var(--tb) + env(safe-area-inset-bottom));padding-bottom:env(safe-area-inset-bottom);background:rgba(244,247,246,.96);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-top:1px solid var(--bd);display:flex;z-index:50}
+.tabbar button{flex:1;background:none;border:0;color:var(--mu);font-size:12px;font-weight:600;letter-spacing:.01em;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;min-height:var(--tb);cursor:pointer;position:relative;padding:0;-webkit-tap-highlight-color:transparent}
+.tabbar button .i{font-size:0;line-height:0}.tabbar button.on{color:var(--ac);font-weight:650}.tabbar button .b{position:absolute;top:6px;right:calc(50% - 22px);min-width:16px;height:16px;border-radius:8px;background:#10243e;color:#f4f7f6;font-size:10px;line-height:16px;padding:0 4px;font-weight:650}.tabbar button .b.green{background:var(--g)}.tabbar button .b.amber{background:var(--a);color:#fff}.tabbar button .b.red{background:var(--r)}
+table{border-collapse:collapse;width:100%;font-size:13px}td,th{padding:6px 6px;border-bottom:1px solid var(--bd);text-align:left;vertical-align:top}th{color:var(--mu);font-weight:650;font-size:12px}.tw{overflow-x:auto;max-width:100%;margin-top:6px}
 .tw td,.tw th{overflow-wrap:break-word;word-break:normal}.tw .nw{white-space:nowrap}
-.chip{display:inline-flex;align-items:center;gap:6px;background:#1f2630;border-radius:14px;padding:5px 10px;font-size:13px;margin:3px 6px 3px 0}.chip i{width:9px;height:9px;border-radius:50%;display:inline-block;background:var(--gr)}.chip i.green{background:var(--g)}.chip i.amber{background:var(--a)}.chip i.red{background:var(--r)}
-.btn{display:inline-block;background:#21262d;border:1px solid var(--bd);color:var(--tx);border-radius:10px;padding:10px 14px;font-size:14px;cursor:pointer;min-height:44px;margin:4px 6px 4px 0;text-decoration:none}
-.glo dt{font-weight:700;margin-top:8px}.glo dd{margin:0;color:var(--mu);font-size:13px}
-canvas.ch{width:100%;height:170px;display:block;margin-top:8px;background:#0d1117;border-radius:8px}
+.chip{display:inline-flex;align-items:center;gap:6px;background:#e7eef2;border-radius:999px;padding:4px 8px;font-size:12px;margin:3px 6px 3px 0}.chip i{width:8px;height:8px;border-radius:50%;display:inline-block;background:var(--gr)}.chip i.green{background:var(--g)}.chip i.amber{background:var(--a)}.chip i.red{background:var(--r)}
+.btn{display:inline-block;background:#fff;border:1px solid var(--bd);color:var(--tx);border-radius:8px;padding:8px 12px;font-size:14px;cursor:pointer;min-height:40px;margin:4px 6px 4px 0;text-decoration:none}
+.glo dt{font-weight:650;margin-top:8px}.glo dd{margin:0 0 4px;color:var(--mu);font-size:13px}
+canvas.ch{width:100%;height:170px;display:block;margin-top:8px;background:#10243e;border-radius:8px}
 .err{color:var(--r)}
 #p-chat{padding:0}#p-chat #dchat[data-mode=embed],#p-chat #dchat[data-mode=hub]{max-width:none!important;margin:0!important;border:0!important;border-radius:0!important;height:calc(100dvh - 108px - env(safe-area-inset-bottom));min-height:420px}
 .tabbar button .i:empty{display:none}
 body.tab-chat .start-here,body.tab-chat .refreshbar{display:none}
 body.tab-chat{padding-bottom:calc(var(--tb) + env(safe-area-inset-bottom))}
-@media(min-width:900px){body{padding-bottom:20px}.tabbar{position:sticky;top:0;bottom:auto;border-top:0;border-bottom:1px solid var(--bd);height:50px;justify-content:center;padding-bottom:0}.tabbar button{flex:0 0 160px;flex-direction:row;font-size:15px;gap:8px;min-height:50px}.tabbar button .b{position:static;margin-left:4px}.grid{grid-template-columns:1fr 1fr;gap:0 16px}.grid .row{border-top:1px solid var(--bd)}.big{font-size:52px}}
-/* Product usability: visible freshness, keyboard access and comfortable phone controls. */
-:focus-visible{outline:3px solid var(--ac);outline-offset:3px}
+@media(min-width:900px){body{padding-bottom:20px}.tabbar{position:sticky;top:0;bottom:auto;border-top:0;border-bottom:1px solid var(--bd);height:48px;justify-content:center;padding-bottom:0}.tabbar button{flex:0 0 140px;flex-direction:row;font-size:14px;gap:8px;min-height:48px}.tabbar button .b{position:static;margin-left:4px}.grid{grid-template-columns:1fr 1fr;gap:0 16px}.grid .row{border-top:1px solid var(--bd)}.big{font-size:44px}}
+:focus-visible{outline:2px solid var(--ac);outline-offset:2px}
 .skip{position:absolute;left:10px;top:-80px;z-index:100;background:var(--card);padding:12px}.skip:focus{top:8px}
-.refreshbar{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:8px 0;padding:9px 12px;border:1px solid var(--bd);border-radius:12px;font-size:13px;background:var(--card)}
-.refreshbar.warn{border-color:var(--a)}.refreshbar.offline{border-color:var(--r)}.refreshbar .btn{margin:0;flex:none}
-.start-here{max-width:1080px;margin:8px auto;padding:10px 14px}.start-here summary{cursor:pointer;font-weight:600;min-height:24px}.start-here p{font-size:14px}
+.refreshbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:0 0 8px;padding:8px 12px;border:1px solid var(--bd);border-radius:12px;font-size:13px;background:var(--card);color:var(--mu)}
+.refreshbar.warn{border-color:var(--a)}.refreshbar.offline{border-color:var(--r);color:var(--r)}
+.refreshbar #refresh-status{flex:1;min-width:8rem}
+.fresh-more{font-size:12px;color:var(--mu)}.fresh-more summary{cursor:pointer;font-weight:650;color:var(--ac)}
+.refreshbar .btn{margin:0;flex:none;min-height:36px;padding:6px 12px}
+.start-here{margin:0 0 8px;padding:0 14px}.start-here summary{cursor:pointer;font-weight:650;font-size:14px;padding:12px 0;min-height:44px;display:flex;align-items:center;gap:8px}.start-here summary::-webkit-details-marker{display:none}.start-here p{font-size:14px;margin:4px 0 8px}
+#start-dismiss{margin-left:auto;border:0;background:transparent;color:var(--ac);font-size:13px;font-weight:650;min-height:32px;padding:4px 2px}
+.seat-total{margin:4px 2px 2px;font-size:14px;color:var(--mu)}.seat-total b{font-size:16px;font-weight:650}
 [role=button]{cursor:pointer}button:disabled{cursor:wait;opacity:.65}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
 </style></head>
 <body data-seat="<!--SEAT0-->">
 <a class="skip" href="#main">Skip to the dashboard</a>
 <div id="tfo-tk"></div>
-<header class="hd"><h1>Transparent Trading <span class="pill">PAPER</span></h1><div class="sub" id="hd-sub">Paper trading engine. Not a live broker. Times are WITA. <a href="/desk/chat">Chat full screen</a> · <a href="/classic">Previous page</a></div></header>
+<header class="hd"><h1><img class="brand-mark" src="/assets/brand/favicon.svg" alt=""><span class="brand-name">Transparent Trading</span> <span class="pill">PAPER</span></h1><div class="sub" id="hd-sub">Paper trading. Not a live broker. Times are WITA.</div><div class="sub links"><a href="/desk/chat">Chat</a> · <a href="/classic">Previous page</a></div></header>
 <nav id="tabbar" class="tabbar" role="tablist" aria-label="Dashboard pages"></nav>
-<details class="card start-here"><summary>New here? Start with these three steps</summary><p><b>1. Home:</b> see how the practice fund is doing. Green means a check passed; it does not promise a profit.</p><p><b>2. Trades:</b> see what is open, what is waiting, and how much each trade can lose at its stop.</p><p><b>3. Chat:</b> ask a trader to explain an idea. Open Health for a clear list of anything that needs attention.</p><p class="mu">All money is simulated. The time under the title says when the page was checked; each trade shows when its price was checked.</p></details>
 <main id="main" tabindex="-1">
-<div id="refreshbar" class="refreshbar"><span id="refresh-status" role="status" aria-live="polite" aria-atomic="true">Loading the latest figures…</span><button type="button" class="btn" id="refresh-now" aria-label="Refresh this dashboard page">Refresh</button></div>
+<details class="card start-here" id="start-here"><summary>New here? Start with these three steps <button type="button" id="start-dismiss">Hide</button></summary><p><b>1. Home:</b> see how the practice fund is doing. Green means a check passed; it does not promise a profit.</p><p><b>2. Trades:</b> see what is open, what is waiting, and how much each trade can lose at its stop.</p><p><b>3. Chat:</b> ask a trader to explain an idea. Open Health for a clear list of anything that needs attention.</p><p class="mu">All money is simulated. The time under the title says when the page was checked; each trade shows when its price was checked.</p></details>
+<div id="refreshbar" class="refreshbar"><span id="refresh-status" role="status" aria-live="polite" aria-atomic="true">Loading the latest figures…</span><details id="refresh-more" class="fresh-more"><summary>Details</summary><span id="refresh-detail"></span></details><button type="button" class="btn" id="refresh-now" aria-label="Refresh this dashboard page">Refresh</button></div>
 <section id="p-home" role="tabpanel" aria-labelledby="tab-home" class="pane on" data-title="Home"><div class="card">Loading…</div></section>
 <section id="p-trades" role="tabpanel" aria-labelledby="tab-trades" class="pane" data-title="Trades"></section>
 <section id="p-chat" role="tabpanel" aria-labelledby="tab-chat" class="pane" data-title="Chat"></section>

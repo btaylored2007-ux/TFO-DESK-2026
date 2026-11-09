@@ -6,10 +6,47 @@ import datetime as dt, glob, json, math, os, sys, threading, time
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, BASE)
+# Public brand files only. The map is the allow-list: a query string is not a credential,
+# and names outside this dict are not served.
+BRAND_TYPES = {
+    'favicon.svg': 'image/svg+xml',
+    'mark.svg': 'image/svg+xml',
+    'wordmark.svg': 'image/svg+xml',
+    'tokens.css': 'text/css; charset=utf-8',
+    'apple-touch-icon.png': 'image/png',
+}
+STATIC_EXACT = ('/chat.js', '/ticker.js')
 from veteran_desk.thf_http import wire_payload, etag_matches, mutation_error, jsonl_tail, SnapshotView
 VDM = os.environ.get('DASH_MODE') == 'vd'
 ST = os.path.join(BASE, 'state', 'vd_engine')
 PORT = int(os.environ.get('THF_DASH_PORT', '18860' if VDM else '18870'))
+
+def is_static_asset(url_path):
+    path = str(url_path or '').split('?', 1)[0]
+    return path in STATIC_EXACT or path in {'/assets/brand/' + name for name in BRAND_TYPES}
+
+def brand_asset(url_path):
+    """Return (bytes, content_type) for one allow-listed /assets/brand file, else None.
+
+    The query string is ignored. It does not grant diagnostics or any other route.
+    """
+    path = str(url_path or '').split('?', 1)[0]
+    prefix = '/assets/brand/'
+    if not path.startswith(prefix):
+        return None
+    name = path[len(prefix):]
+    media = BRAND_TYPES.get(name)
+    if media is None:
+        return None
+    root = os.path.realpath(os.path.join(BASE, 'assets', 'brand'))
+    target = os.path.realpath(os.path.join(root, name))
+    try:
+        if os.path.commonpath([root, target]) != root or not os.path.isfile(target):
+            return None
+        with open(target, 'rb') as handle:
+            return handle.read(), media
+    except (OSError, ValueError):
+        return None
 
 def listen_host():
     """Loopback unless an operator sets THF_DASH_BIND. Nginx already proxies 18870 to 127.0.0.1."""
@@ -320,7 +357,7 @@ class H(BaseHTTPRequestHandler):
         return 'THF'
 
     def _send(self, code, body, ct):
-        static = code == 200 and self.path.split('?', 1)[0] in ('/chat.js', '/ticker.js')
+        static = code == 200 and is_static_asset(self.path)
         b, headers = wire_payload(body, ct, self.headers.get('Accept-Encoding', ''), static=static)
         if static and etag_matches(self.headers.get('If-None-Match'), headers['ETag']):
             code, b = 304, b''
@@ -345,6 +382,11 @@ class H(BaseHTTPRequestHandler):
 
     def do_GET(self):
         try:
+            found = brand_asset(self.path)
+            if found is not None:
+                body, ctype = found
+                self._send(200, body, ctype)
+                return
             if self.path.split('?')[0] == '/api/autonomy':
                 from veteran_desk import thf_home as EH
                 report = EH.autonomy_status()
