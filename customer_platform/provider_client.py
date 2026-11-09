@@ -73,6 +73,7 @@ class ProviderClient:
 
     def __init__(self, opener=None):
         self.opener = opener or product_urlopen
+        self.transport_name = "official" if self.opener is product_urlopen else "scratch"
 
     def decide(self, *, provider, secret, teaching, reviewed=None):
         if provider not in ADAPTERS:
@@ -93,7 +94,8 @@ class ProviderClient:
         parsed["called"] = True
         parsed["host"] = spec["host"]
         parsed["provider"] = provider
-        parsed["synthetic"] = synthetic
+        parsed["transport"] = self.transport_name
+        parsed["synthetic"] = self.transport_name != "official"
         if reviewed and parsed.get("ok"):
             expected = reviewed.get("stop_percent")
             if expected in (None, ""):
@@ -145,8 +147,7 @@ class ProviderClient:
             outer = json.loads(text)
         except json.JSONDecodeError as exc:
             raise RuntimeError("invalid schema") from exc
-        synthetic = bool(isinstance(outer, dict) and outer.get("synthetic") is True)
-        return _message_text(outer, spec["style"]), synthetic
+        return _message_text(outer, spec["style"]), self.transport_name != "official"
 
 
 def parse_decision(text):

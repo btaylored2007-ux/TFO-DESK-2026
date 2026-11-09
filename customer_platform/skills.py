@@ -128,7 +128,8 @@ class Skills:
             "self_approved": False,
             "stop_percent": parsed["stop_percent"],
             "symbol": parsed["symbol"],
-            "synthetic": bool(parsed.get("synthetic")),
+            "synthetic": parsed.get("transport") != "official",
+            "transport": parsed.get("transport") or "scratch",
             "version": version,
         })
         write_json(self.path, body)
@@ -394,9 +395,9 @@ def _ai_state(skill):
     last = rows[-1]
     if not last.get("ok"):
         return "provider error"
-    if last.get("synthetic"):
-        return "test fixture"
-    return "provider reply"
+    if last.get("transport") == "official":
+        return "provider reply"
+    return "test fixture"
 
 
 def _public(skill):

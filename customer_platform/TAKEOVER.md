@@ -90,7 +90,7 @@ Dependencies: Python 3.12 standard library, `pytest` for tests, and `veteran_des
 
 ## Tests last run
 
-- Combined command in `TEST_INVENTORY.md`: 52 passed. No public provider call. That count is not acceptance and not a claim that a real provider reply was received.
+- Combined command in `TEST_INVENTORY.md`: 55 passed. No public provider call. That count is not acceptance and not a claim that a real provider reply was received. Trial delivery stays on hold.
 
 Negative cases in the customer tests: wrong tenant, live venue, float/NaN/negative/extra decimals, open position, pending order, zero capital without acknowledgement, idempotency conflict, race, three crash points, rails tamper, cross-tenant idea read, prompt injection, secret redaction, unsigned webhook, live-mode webhook, sector opt-out still allowing an exit, non-loopback bind refused, `/leaderboard` returns 404.
 

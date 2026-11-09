@@ -33,6 +33,10 @@ Redirects are refused. `product_urlopen` does not follow 301, 302, 303, 307, or 
 
 The provider call is outside the tenant lock. Before the call, the worker records the account epoch and the print. Stop, a trader change, a new print, a skill change, funds, and reset each take the same lock briefly and advance the epoch. When the reply returns, the worker locks again and places an order only if that epoch, the entry switch, the trader, the print, the active skill version, and the cash check are unchanged. A late reply after Stop is recorded as cancelled and does not open a position. Stop management of an open position still uses the current print.
 
+A refused provider reply waits before the next call. The wait doubles, with a per-tenant jitter, and after four refusals the login shows Provider paused and no further call is made. A pending attempt whose process is gone is marked abandoned on startup and is never filled.
+
+Whether a stored interpretation is a test fixture comes from the transport. A scratch opener is a test fixture even if the reply body says otherwise. The official opener is the only path labelled as a provider reply, and that label is still not a live-account certification.
+
 A written `buy SYMBOL` plus `stop N percent below entry` rule can still place one paper order. That path is `strategy_rule`. It is a limited fallback, not the provider path.
 
 ## Lock

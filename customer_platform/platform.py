@@ -50,6 +50,13 @@ PROVIDERS = ("anthropic", "deepseek", "grok", "openai")
 BROKER_MODES = ("approval", "auto", "manual")
 
 
+def _backoff_jitter(tenant_id, failures):
+    """Stable per tenant and failure count, and not the same delay for every tenant."""
+    import hashlib
+    digest = hashlib.sha256("{0}:{1}".format(tenant_id, failures).encode("utf-8")).digest()
+    return 0.8 + (digest[0] / 255) * 0.4
+
+
 class Platform:
     def __init__(self, root, *, enabled=False, webhook_secret=None, clock=None,
                  signup_enabled=False, allow_fixtures=False):
@@ -197,6 +204,7 @@ class Platform:
             "stop_distance": state.get("stop_distance") or "",
             "active_strategies": len(self._skills(ctx["tenant_id"]).executable_rules()),
             "provider_strategies": len(self._skills(ctx["tenant_id"]).provider_rules()),
+            "provider_pause": self.provider_pause(ctx["tenant_id"])["label"],
             "venue": state["venue"],
         }
 
@@ -560,12 +568,16 @@ class Platform:
             return {"called": False, "ok": False, "provider": provider, "reason": gate["reason"]}
         from customer_platform.provider_client import ProviderClient
         reviewed = rule if match_reviewed else None
-        return ProviderClient(opener=self._scratch_opener.get(tenant_id)).decide(
+        scratch = self._scratch_opener.get(tenant_id)
+        parsed = ProviderClient(opener=scratch).decide(
             provider=provider,
             secret=self._customer_secret(tenant_id, provider),
             teaching=rule.get("teaching") or "",
             reviewed=reviewed,
         )
+        parsed["transport"] = "scratch" if scratch is not None else "official"
+        parsed["synthetic"] = parsed["transport"] != "official"
+        return parsed
 
     def _customer_secret(self, tenant_id, provider):
         from cryptography.fernet import Fernet
@@ -1097,6 +1109,7 @@ class Platform:
         for tenant_id in self._tenant_ids():
             if os.path.isdir(os.path.join(self._tenant_dir(tenant_id), "paper")):
                 actions.extend(self._reset(tenant_id).recover())
+            actions.extend(self._abandon_pending_attempt(tenant_id))
         return actions
 
     def tree_hashes(self, tenant_id):
@@ -1242,9 +1255,13 @@ class Platform:
         return epoch
 
     def expire_provider_attempt(self, tenant_id):
-        """Close a pending reply whose account changed. Caller holds the writer lock."""
+        """Close a pending reply whose lease expired or whose account changed. Caller holds the writer lock."""
         current = read_json(self._attempt_path(tenant_id), {})
         if current.get("status") != "pending":
+            return None
+        lease = float(current.get("lease_until") or 0)
+        if lease and time.time() > lease:
+            self._close_attempt(tenant_id, current, "abandoned", "pending attempt lease expired")
             return None
         if int(current.get("epoch") or 0) == self._epoch(tenant_id):
             return current
@@ -1259,6 +1276,7 @@ class Platform:
         attempt = {
             "epoch": self._epoch(tenant_id),
             "id": new_id("dec_"),
+            "lease_until": time.time() + 20,
             "print": str(price),
             "skill_id": rule["skill_id"],
             "status": "pending",
@@ -1279,6 +1297,10 @@ class Platform:
             if decision and not decision.get("ok") and reason == (decision.get("reason") or "provider reply was refused"):
                 status = "skipped"
             self._close_attempt(tenant_id, current, status, reason)
+            if decision and not decision.get("ok"):
+                self.note_provider_failure(tenant_id, reason)
+            else:
+                self.clear_provider_backoff(tenant_id)
             return {"price": "", "reason": reason, "rule": None, "status": status}
         rule = next(row for row in self._skills(tenant_id).provider_rules() if row["skill_id"] == attempt["skill_id"])
         price = self._control(tenant_id).load().get("replay_print") or ""
@@ -1335,6 +1357,54 @@ class Platform:
     def decision_audit(self, tenant_id):
         from customer_platform.files import iter_jsonl
         return iter_jsonl(self._decision_log_path(tenant_id))
+
+    def _backoff_path(self, tenant_id):
+        return os.path.join(self._tenant_dir(tenant_id), "provider_backoff.json")
+
+    def provider_pause(self, tenant_id):
+        row = read_json(self._backoff_path(tenant_id), {})
+        if row.get("paused"):
+            return {"label": "provider paused", "paused": True, "waiting": True}
+        next_at = float(row.get("next_attempt") or 0)
+        if next_at > time.time():
+            return {"label": "provider backoff", "paused": False, "waiting": True}
+        return {"label": "", "paused": False, "waiting": False}
+
+    def note_provider_failure(self, tenant_id, reason):
+        """Count one refused reply. After four, pause the tenant and stop calling."""
+        row = read_json(self._backoff_path(tenant_id), {})
+        failures = int(row.get("failures") or 0) + 1
+        row["failures"] = failures
+        if failures >= 4:
+            row["paused"] = True
+            row["next_attempt"] = 0
+            write_json(self._backoff_path(tenant_id), row)
+            if not row.get("pause_audited"):
+                self._audit_decision(tenant_id, {"epoch": self._epoch(tenant_id), "id": "", "print": "", "skill_id": "", "version": ""}, "provider paused", reason)
+                row["pause_audited"] = True
+                write_json(self._backoff_path(tenant_id), row)
+            return
+        delay = min(30.0, float(2 ** (failures - 1))) * _backoff_jitter(tenant_id, failures)
+        row["next_attempt"] = time.time() + delay
+        row["paused"] = False
+        write_json(self._backoff_path(tenant_id), row)
+
+    def clear_provider_backoff(self, tenant_id):
+        write_json(self._backoff_path(tenant_id), {"failures": 0, "next_attempt": 0, "paused": False})
+
+    def _abandon_pending_attempt(self, tenant_id):
+        from customer_platform.files import tenant_writer
+        path = self._attempt_path(tenant_id)
+        if not os.path.exists(path):
+            return []
+        with tenant_writer(self._tenant_dir(tenant_id)) as gate:
+            if gate == "busy":
+                return []
+            current = read_json(path, {})
+            if current.get("status") != "pending":
+                return []
+            self._close_attempt(tenant_id, current, "abandoned", "pending attempt abandoned on startup")
+            return ["abandoned"]
 
     def _school(self, tenant_id):
         override = self._school_override.get(tenant_id)

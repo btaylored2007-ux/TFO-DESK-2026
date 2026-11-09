@@ -21,7 +21,13 @@ def tick_tenant(platform, tenant_id):
         if gate == "busy":
             return {"engine": "paper_replay", "filled": 0, "managed": False, "reason": "writer busy"}
         local = _tick(platform, tenant_id, entries=True)
-        attempt, rule = _begin_provider_call(platform, tenant_id)
+        pause = platform.provider_pause(tenant_id)
+        if pause["label"]:
+            local["provider_status"] = pause["label"]
+            local["provider_reason"] = pause["label"]
+        attempt, rule = (None, None)
+        if not pause["waiting"]:
+            attempt, rule = _begin_provider_call(platform, tenant_id)
     if attempt is None:
         return local
     decision = platform.provider_decide(tenant_id, rule)
@@ -96,6 +102,7 @@ def _commit_provider(platform, tenant_id, attempt, decision):
                 decision="provider_decision", feed="synthetic_replay",
             )
     platform.finish_provider_attempt(tenant_id, attempt, "committed", "")
+    platform.clear_provider_backoff(tenant_id)
     return {"filled": filled, "reason": "", "status": "committed"}
 
 

@@ -173,6 +173,8 @@ def desk(model, csrf):
         notice=esc(trading.get("notice") or ""),
         action=_trade_action(trading, csrf),
         strategy=(
+            "<p class=\"warning\">Provider paused. No further provider calls are made for this login.</p>"
+            if model.get("provider_pause") == "provider paused" else
             "<p>A reviewed provider schema can place one paper order from the synthetic print. The model does not set the price, the stop, or the approval.</p>"
             if model.get("provider_strategies") else
             "<p>An active written rule can place one paper order from the synthetic print. This is not AI trading.</p>"
