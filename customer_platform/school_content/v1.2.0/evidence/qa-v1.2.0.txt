@@ -1,0 +1,31 @@
+numeric recomputed 112/112 ok
+numeric fails []
+structural issues []
+id/key preservation breaks []
+phrase scan []
+modules 21 lessons 126 questions 287 poolA 215 poolB 72
+WORD_COUNTS {'core_lessons': 16637, 'deep_dives': 5549, 'lessons_total': 22186, 'questions_stems_options_explanations': 10565, 'glossary': 1119, 'paper_exercises': 766, 'practical_rubrics_approx': 6339}
+PER_MODULE
+('tts.m01', 1225, 351, 1576, 11, 6)
+('tts.m02', 977, 241, 1218, 11, 0)
+('tts.m03', 659, 191, 850, 11, 6)
+('tts.m04', 834, 225, 1059, 11, 6)
+('tts.m05', 721, 208, 929, 10, 6)
+('tts.m06', 644, 199, 843, 10, 0)
+('tts.m07', 613, 224, 837, 10, 0)
+('tts.m08', 950, 240, 1190, 11, 6)
+('tts.m09', 651, 205, 856, 10, 6)
+('tts.m10', 563, 203, 766, 10, 0)
+('tts.m11', 784, 199, 983, 10, 0)
+('tts.m12', 691, 249, 940, 10, 0)
+('tts.m13', 613, 217, 830, 10, 0)
+('tts.m14', 563, 200, 763, 10, 0)
+('tts.m15', 740, 251, 991, 10, 0)
+('tts.m16', 968, 265, 1233, 10, 0)
+('tts.m17', 695, 230, 925, 10, 0)
+('tts.m18', 1247, 344, 1591, 10, 10)
+('tts.m19', 721, 378, 1099, 10, 8)
+('tts.m20', 779, 477, 1256, 10, 10)
+('tts.m21', 999, 452, 1451, 10, 8)
+lesson_claim_hits []
+EXIT 0

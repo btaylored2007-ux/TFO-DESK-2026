@@ -1,0 +1,17 @@
+Source: Basel Committee on Banking Supervision, "Minimum capital requirements for market risk", January 2019 (rev. February 2019).
+Official URL fetched 2026-11-07 (WITA / UTC+8):
+https://www.bis.org/publications/201901-standards-minimum-capital-requirements-market-risk.pdf
+Read via page-to-text fetch of that official PDF URL (full document retrieved; excerpts below are the claims used).
+Status: full read of the cited paragraphs (not a claim that every paragraph in the 100+ page standard was used).
+
+MAR10.1 Market risk: the risk of losses in on- and off-balance sheet risk positions arising from movements in market prices.
+
+MAR10.17 Value at risk (VaR): a measure of the worst expected loss on a portfolio of instruments resulting from market movements over a given time horizon and a pre-defined confidence level.
+
+MAR10.18 Expected shortfall (ES): a measure of the average of all potential losses exceeding the VaR at a given confidence level.
+
+MAR10.20 Liquidity horizon: the time assumed to be required to exit or hedge a risk position without materially affecting market prices in stressed market conditions.
+
+MAR10.22 Diversification: the reduction in risk at a portfolio level due to holding risk positions in different instruments that are not perfectly correlated with one another.
+
+MAR10.28 Backtesting: the process of comparing daily actual and hypothetical profits and losses with model-generated VaR measures to assess the conservatism of risk measurement systems.

@@ -1,0 +1,166 @@
+{
+ "cutoff": "2026-11-07 (WITA, UTC+8)",
+ "note": "All targets PROPOSED, not measured. 'Number 1' criteria are goals, not a ranking.",
+ "requirements": [
+  {
+   "id": "P0-1",
+   "priority": "P0",
+   "requirement": "Tenant isolation of paper ledger and learning store",
+   "tt_current_gap": "Customer foundation archive cad96a\u2026 not deployed; isolation untested in prod",
+   "vendor_evidence_ids": "QC-7,3C-2",
+   "acceptance_test_PROPOSED": "Two test tenants: 0 cross-tenant reads across 100% of API routes (authz test suite + manual probe)",
+   "dependencies": "auth, DB row-level policy",
+   "next_owner": "build"
+  },
+  {
+   "id": "P0-2",
+   "priority": "P0",
+   "requirement": "BYOK secret vault",
+   "tt_current_gap": "BYOK being built; no external model calls wired",
+   "vendor_evidence_ids": "QC-4,3C-2",
+   "acceptance_test_PROPOSED": "Key never in logs/responses (grep logs for test canary key = 0 hits); encrypted at rest; rotate/delete works; per-trader assignment persists",
+   "dependencies": "KMS/secret store, provider SDKs",
+   "next_owner": "build+security"
+  },
+  {
+   "id": "P0-3",
+   "priority": "P0",
+   "requirement": "Feed-readiness-gated Start; Stop vs Flatten semantics",
+   "tt_current_gap": "Start/Stop being built; feeds unwired",
+   "vendor_evidence_ids": "QC-6,3C-3",
+   "acceptance_test_PROPOSED": "Start disabled while any required feed is stale > N s (PROPOSED N=30). Stop blocks new orders within 1 s (PROPOSED); open positions keep stops; separate explicit Flatten",
+   "dependencies": "feed vendor licences, health checks",
+   "next_owner": "build"
+  },
+  {
+   "id": "P0-4",
+   "priority": "P0",
+   "requirement": "Paper fill + cost model honesty",
+   "tt_current_gap": "No external feed; paper engine not independently validated",
+   "vendor_evidence_ids": "QC-3,TS-2,TI-2",
+   "acceptance_test_PROPOSED": "Every fill records fee+slippage assumption; replay test reproduces ledger bit-for-bit; disclosure shown",
+   "dependencies": "feeds",
+   "next_owner": "build"
+  },
+  {
+   "id": "P0-5",
+   "priority": "P0",
+   "requirement": "Hard risk rails outrank activity/B-grade",
+   "tt_current_gap": "Activity+B controls being built",
+   "vendor_evidence_ids": "3C-3,TI-4",
+   "acceptance_test_PROPOSED": "Property test: no activity/grade setting can raise max loss or position size beyond rails (0 violations in 10k fuzz cases, PROPOSED)",
+   "dependencies": "risk engine",
+   "next_owner": "build+QA"
+  },
+  {
+   "id": "P0-6",
+   "priority": "P0",
+   "requirement": "Test-suite integrity",
+   "tt_current_gap": "Reported 14+6 vs independent 13 pass + 1 missing export test file",
+   "vendor_evidence_ids": "\u2014",
+   "acceptance_test_PROPOSED": "Independent CI run, all tests present and green, export test restored",
+   "dependencies": "CI",
+   "next_owner": "QA"
+  },
+  {
+   "id": "P0-7",
+   "priority": "P0",
+   "requirement": "Backup/restore + reset preserves learning",
+   "tt_current_gap": "Not verified",
+   "vendor_evidence_ids": "QC-8",
+   "acceptance_test_PROPOSED": "Restore drill: RPO \u2264 24 h, RTO \u2264 4 h (PROPOSED); account reset leaves history/lessons intact (diff = 0)",
+   "dependencies": "backups",
+   "next_owner": "ops"
+  },
+  {
+   "id": "P0-8",
+   "priority": "P0",
+   "requirement": "Audit log + export",
+   "tt_current_gap": "Export test missing",
+   "vendor_evidence_ids": "TI-5,QC-2",
+   "acceptance_test_PROPOSED": "Append-only, hash-chained order/settings log; CSV/JSON export of trades per trader",
+   "dependencies": "storage",
+   "next_owner": "build"
+  },
+  {
+   "id": "P1-1",
+   "priority": "P1",
+   "requirement": "Verified learning",
+   "tt_current_gap": "Private learning stores lessons; improvement not proven",
+   "vendor_evidence_ids": "TS-4,TI-4,QC-5",
+   "acceptance_test_PROPOSED": "Lesson applied only if it beats control out of sample in walk-forward paper (pre-registered metric); show before/after with sample size",
+   "dependencies": "ledger history",
+   "next_owner": "research"
+  },
+  {
+   "id": "P1-2",
+   "priority": "P1",
+   "requirement": "Private per-trader leaderboard with honest stats",
+   "tt_current_gap": "Being built",
+   "vendor_evidence_ids": "TI-5",
+   "acceptance_test_PROPOSED": "Shows trades n, net P&L after costs, max DD, win rate, CI; marks n<30 as insufficient",
+   "dependencies": "P0-4",
+   "next_owner": "build"
+  },
+  {
+   "id": "P1-3",
+   "priority": "P1",
+   "requirement": "Transparent Trading School 21 modules",
+   "tt_current_gap": "Being built",
+   "vendor_evidence_ids": "QC-10,TS-7,TI-6,CP-5",
+   "acceptance_test_PROPOSED": "21 modules, question bank \u226520 items/module (PROPOSED), pass mark gating, content reviewed by a qualified reviewer, progress persists",
+   "dependencies": "content author/reviewer",
+   "next_owner": "school"
+  },
+  {
+   "id": "P1-4",
+   "priority": "P1",
+   "requirement": "Mobile/accessibility UX",
+   "tt_current_gap": "Design finish pending",
+   "vendor_evidence_ids": "TS-1",
+   "acceptance_test_PROPOSED": "WCAG 2.2 AA automated scan 0 critical; Start\u2192first paper trade \u2264 3 taps (PROPOSED); 360 px layout pass",
+   "dependencies": "design",
+   "next_owner": "design"
+  },
+  {
+   "id": "P1-5",
+   "priority": "P1",
+   "requirement": "Monitoring + cost control",
+   "tt_current_gap": "Unknown",
+   "vendor_evidence_ids": "TS-6",
+   "acceptance_test_PROPOSED": "Uptime, feed lag and per-tenant AI spend dashboards; per-key monthly spend cap enforced",
+   "dependencies": "observability",
+   "next_owner": "ops"
+  },
+  {
+   "id": "P2-1",
+   "priority": "P2",
+   "requirement": "Live broker integrations",
+   "tt_current_gap": "Unwired; not authorised",
+   "vendor_evidence_ids": "QC-2,TI-3,3C-5",
+   "acceptance_test_PROPOSED": "Per-broker eligibility by jurisdiction documented; sandbox order round-trip",
+   "dependencies": "broker agreements",
+   "next_owner": "biz"
+  },
+  {
+   "id": "P2-2",
+   "priority": "P2",
+   "requirement": "Data/news licensing",
+   "tt_current_gap": "Unverified",
+   "vendor_evidence_ids": "QC-7,TS-8",
+   "acceptance_test_PROPOSED": "Written licences permitting display/redistribution to customers",
+   "dependencies": "paid procurement (NOT authorised)",
+   "next_owner": "biz/legal"
+  },
+  {
+   "id": "P2-3",
+   "priority": "P2",
+   "requirement": "Regulatory/commercial",
+   "tt_current_gap": "Not commercial",
+   "vendor_evidence_ids": "CP-2",
+   "acceptance_test_PROPOSED": "Legal opinion per launch jurisdiction (advice/signals/automation); privacy policy + ToS",
+   "dependencies": "counsel",
+   "next_owner": "legal"
+  }
+ ]
+}

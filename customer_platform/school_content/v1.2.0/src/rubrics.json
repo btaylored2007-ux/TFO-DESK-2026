@@ -1,0 +1,740 @@
+{
+  "tts.m01": {
+    "module": "tts.m01",
+    "scale": "0-3 per criterion (0 absent, 1 inconsistent, 2 consistent with objective evidence, 3 consistent with clear worked evidence). Paper-only. Profit or a positive paper P&L is not a pass criterion.",
+    "pass_default": "Proposed configurable default: mean score at least 2.0, no criterion at 0, and no unremediated critical mistake. Self-declared profit does not pass a failed process or maths criterion.",
+    "retry": "If any critical process or risk-arithmetic criterion scores 0, or if a listed critical mistake appears, mark remediation required even if the quiz passed. The learner resubmits the missing objective evidence (corrected workings, journal fields, or a documented no-trade decision) before the practical can pass. Configurable product default, not an owner-made law and not accreditation.",
+    "criteria": [
+      {
+        "id": "quote_math",
+        "description": "Mid, spread and round-trip cost arithmetic are correct",
+        "objective_evidence": "Written bid, ask, mid = (bid+ask)/2, spread, and at least one cash spread-cost calculation",
+        "fail_examples": "Using last trade as the executable price; omitting spread from cost"
+      },
+      {
+        "id": "order_choice",
+        "description": "Order type matches the stated price-versus-execution trade-off",
+        "objective_evidence": "One sentence naming the order type and what can fail (no fill vs bad fill)",
+        "fail_examples": "Claiming a stop guarantees an exit at the trigger"
+      },
+      {
+        "id": "session_settlement",
+        "description": "Session or settlement note uses a stated venue and cycle",
+        "objective_evidence": "A dated note of the venue cycle used (for example T+2 or T+1) and a time zone where relevant",
+        "fail_examples": "Treating all markets as same-session; spending unsettled cash as cleared"
+      },
+      {
+        "id": "journal_or_workings",
+        "description": "Required journal fields or workings are present so a reviewer can recompute",
+        "objective_evidence": "The listed workings, screenshots of public inputs, or journal fields named in the exercise",
+        "fail_examples": "A conclusion without arithmetic; missing inputs; 'I made money so it is correct'"
+      },
+      {
+        "id": "honest_paper_label",
+        "description": "Results are complete, net of stated costs, and labelled paper",
+        "objective_evidence": "A written statement that lists the period, the paper label, costs included, and any omitted trades",
+        "fail_examples": "Reporting only winners; omitting costs; mixing paper and live; calling the result proof of skill"
+      }
+    ]
+  },
+  "tts.m02": {
+    "module": "tts.m02",
+    "scale": "0-3 per criterion (0 absent, 1 inconsistent, 2 consistent with objective evidence, 3 consistent with clear worked evidence). Paper-only. Profit or a positive paper P&L is not a pass criterion.",
+    "pass_default": "Proposed configurable default: mean score at least 2.0, no criterion at 0, and no unremediated critical mistake. Self-declared profit does not pass a failed process or maths criterion.",
+    "retry": "If any critical process or risk-arithmetic criterion scores 0, or if a listed critical mistake appears, mark remediation required even if the quiz passed. The learner resubmits the missing objective evidence (corrected workings, journal fields, or a documented no-trade decision) before the practical can pass. Configurable product default, not an owner-made law and not accreditation.",
+    "criteria": [
+      {
+        "id": "fee_math",
+        "description": "Fee or weight arithmetic matches the fact-sheet inputs",
+        "objective_evidence": "MER times notional, or index-weight times constituent move, shown as a calculation",
+        "fail_examples": "Comparing a price index with a total-return fund without comment"
+      },
+      {
+        "id": "instrument_fit",
+        "description": "The chosen wrapper matches the intended risk",
+        "objective_evidence": "A written intended risk (broad market, single name, leveraged daily path) and why the instrument fits",
+        "fail_examples": "Treating a leveraged daily ETF as a long-term 2x hold without the SEC daily-reset caveat"
+      },
+      {
+        "id": "journal_or_workings",
+        "description": "Required journal fields or workings are present so a reviewer can recompute",
+        "objective_evidence": "The listed workings, screenshots of public inputs, or journal fields named in the exercise",
+        "fail_examples": "A conclusion without arithmetic; missing inputs; 'I made money so it is correct'"
+      },
+      {
+        "id": "honest_paper_label",
+        "description": "Results are complete, net of stated costs, and labelled paper",
+        "objective_evidence": "A written statement that lists the period, the paper label, costs included, and any omitted trades",
+        "fail_examples": "Reporting only winners; omitting costs; mixing paper and live; calling the result proof of skill"
+      }
+    ]
+  },
+  "tts.m03": {
+    "module": "tts.m03",
+    "scale": "0-3 per criterion (0 absent, 1 inconsistent, 2 consistent with objective evidence, 3 consistent with clear worked evidence). Paper-only. Profit or a positive paper P&L is not a pass criterion.",
+    "pass_default": "Proposed configurable default: mean score at least 2.0, no criterion at 0, and no unremediated critical mistake. Self-declared profit does not pass a failed process or maths criterion.",
+    "retry": "If any critical process or risk-arithmetic criterion scores 0, or if a listed critical mistake appears, mark remediation required even if the quiz passed. The learner resubmits the missing objective evidence (corrected workings, journal fields, or a documented no-trade decision) before the practical can pass. Configurable product default, not an owner-made law and not accreditation.",
+    "criteria": [
+      {
+        "id": "pnl_identity",
+        "description": "Net P&L = realised + unrealised - costs, with cashflows separated",
+        "objective_evidence": "A ledger that shows each term and a TWR around at least one cashflow",
+        "fail_examples": "Calling a deposit a return; omitting open losses or costs"
+      },
+      {
+        "id": "drawdown_recovery",
+        "description": "Drawdown and recovery arithmetic use peak-to-trough and 1/(1-loss)-1",
+        "objective_evidence": "Peak, trough, drawdown percentage, and required recovery percentage",
+        "fail_examples": "Using the latest price as the peak; treating a 50% loss as needing a 50% gain"
+      },
+      {
+        "id": "journal_or_workings",
+        "description": "Required journal fields or workings are present so a reviewer can recompute",
+        "objective_evidence": "The listed workings, screenshots of public inputs, or journal fields named in the exercise",
+        "fail_examples": "A conclusion without arithmetic; missing inputs; 'I made money so it is correct'"
+      },
+      {
+        "id": "honest_paper_label",
+        "description": "Results are complete, net of stated costs, and labelled paper",
+        "objective_evidence": "A written statement that lists the period, the paper label, costs included, and any omitted trades",
+        "fail_examples": "Reporting only winners; omitting costs; mixing paper and live; calling the result proof of skill"
+      }
+    ]
+  },
+  "tts.m04": {
+    "module": "tts.m04",
+    "scale": "0-3 per criterion (0 absent, 1 inconsistent, 2 consistent with objective evidence, 3 consistent with clear worked evidence). Paper-only. Profit or a positive paper P&L is not a pass criterion.",
+    "pass_default": "Proposed configurable default: mean score at least 2.0, no criterion at 0, and no unremediated critical mistake. Self-declared profit does not pass a failed process or maths criterion.",
+    "retry": "If any critical process or risk-arithmetic criterion scores 0, or if a listed critical mistake appears, mark remediation required even if the quiz passed. The learner resubmits the missing objective evidence (corrected workings, journal fields, or a documented no-trade decision) before the practical can pass. Configurable product default, not an owner-made law and not accreditation.",
+    "criteria": [
+      {
+        "id": "duration_sign",
+        "description": "Estimated price change uses minus modified duration times yield change",
+        "objective_evidence": "Written Dmod, dy, and signed dP/P",
+        "fail_examples": "Dropping the minus sign so a yield rise is treated as a price rise"
+      },
+      {
+        "id": "curve_source",
+        "description": "Policy and curve notes come from named public pages",
+        "objective_evidence": "Bank name, decision date, and two or more points on a government curve",
+        "fail_examples": "An unsourced rumour about what a central bank will do"
+      },
+      {
+        "id": "journal_or_workings",
+        "description": "Required journal fields or workings are present so a reviewer can recompute",
+        "objective_evidence": "The listed workings, screenshots of public inputs, or journal fields named in the exercise",
+        "fail_examples": "A conclusion without arithmetic; missing inputs; 'I made money so it is correct'"
+      },
+      {
+        "id": "honest_paper_label",
+        "description": "Results are complete, net of stated costs, and labelled paper",
+        "objective_evidence": "A written statement that lists the period, the paper label, costs included, and any omitted trades",
+        "fail_examples": "Reporting only winners; omitting costs; mixing paper and live; calling the result proof of skill"
+      }
+    ]
+  },
+  "tts.m05": {
+    "module": "tts.m05",
+    "scale": "0-3 per criterion (0 absent, 1 inconsistent, 2 consistent with objective evidence, 3 consistent with clear worked evidence). Paper-only. Profit or a positive paper P&L is not a pass criterion.",
+    "pass_default": "Proposed configurable default: mean score at least 2.0, no criterion at 0, and no unremediated critical mistake. Self-declared profit does not pass a failed process or maths criterion.",
+    "retry": "If any critical process or risk-arithmetic criterion scores 0, or if a listed critical mistake appears, mark remediation required even if the quiz passed. The learner resubmits the missing objective evidence (corrected workings, journal fields, or a documented no-trade decision) before the practical can pass. Configurable product default, not an owner-made law and not accreditation.",
+    "criteria": [
+      {
+        "id": "fx_arithmetic",
+        "description": "Inverses, crosses and home-currency returns compound correctly",
+        "objective_evidence": "At least one inverse (1/rate), one cross, and one (1+r_asset)*(1+r_fx)-1 working",
+        "fail_examples": "Subtracting 1 instead of inverting; adding asset and FX percentages"
+      },
+      {
+        "id": "exposure_intent",
+        "description": "Unhedged foreign-asset FX risk is named and sized",
+        "objective_evidence": "A stated yes/no on whether USD (or other) exposure is intended and an approximate portfolio weight",
+        "fail_examples": "Ignoring the currency leg of a foreign share"
+      },
+      {
+        "id": "journal_or_workings",
+        "description": "Required journal fields or workings are present so a reviewer can recompute",
+        "objective_evidence": "The listed workings, screenshots of public inputs, or journal fields named in the exercise",
+        "fail_examples": "A conclusion without arithmetic; missing inputs; 'I made money so it is correct'"
+      },
+      {
+        "id": "honest_paper_label",
+        "description": "Results are complete, net of stated costs, and labelled paper",
+        "objective_evidence": "A written statement that lists the period, the paper label, costs included, and any omitted trades",
+        "fail_examples": "Reporting only winners; omitting costs; mixing paper and live; calling the result proof of skill"
+      }
+    ]
+  },
+  "tts.m06": {
+    "module": "tts.m06",
+    "scale": "0-3 per criterion (0 absent, 1 inconsistent, 2 consistent with objective evidence, 3 consistent with clear worked evidence). Paper-only. Profit or a positive paper P&L is not a pass criterion.",
+    "pass_default": "Proposed configurable default: mean score at least 2.0, no criterion at 0, and no unremediated critical mistake. Self-declared profit does not pass a failed process or maths criterion.",
+    "retry": "If any critical process or risk-arithmetic criterion scores 0, or if a listed critical mistake appears, mark remediation required even if the quiz passed. The learner resubmits the missing objective evidence (corrected workings, journal fields, or a documented no-trade decision) before the practical can pass. Configurable product default, not an owner-made law and not accreditation.",
+    "criteria": [
+      {
+        "id": "curve_label",
+        "description": "The curve is labelled contango or backwardation from listed prices",
+        "objective_evidence": "Three or more contract prices and the signed roll estimate",
+        "fail_examples": "Assuming an ETF tracks spot"
+      },
+      {
+        "id": "exposure_type",
+        "description": "Producer-equity versus futures-fund risk is distinguished",
+        "objective_evidence": "One sentence on what each wins if the price view is right and what else can go wrong",
+        "fail_examples": "Treating a miner as a clean barrel or ounce claim"
+      },
+      {
+        "id": "journal_or_workings",
+        "description": "Required journal fields or workings are present so a reviewer can recompute",
+        "objective_evidence": "The listed workings, screenshots of public inputs, or journal fields named in the exercise",
+        "fail_examples": "A conclusion without arithmetic; missing inputs; 'I made money so it is correct'"
+      },
+      {
+        "id": "honest_paper_label",
+        "description": "Results are complete, net of stated costs, and labelled paper",
+        "objective_evidence": "A written statement that lists the period, the paper label, costs included, and any omitted trades",
+        "fail_examples": "Reporting only winners; omitting costs; mixing paper and live; calling the result proof of skill"
+      }
+    ]
+  },
+  "tts.m07": {
+    "module": "tts.m07",
+    "scale": "0-3 per criterion (0 absent, 1 inconsistent, 2 consistent with objective evidence, 3 consistent with clear worked evidence). Paper-only. Profit or a positive paper P&L is not a pass criterion.",
+    "pass_default": "Proposed configurable default: mean score at least 2.0, no criterion at 0, and no unremediated critical mistake. Self-declared profit does not pass a failed process or maths criterion.",
+    "retry": "If any critical process or risk-arithmetic criterion scores 0, or if a listed critical mistake appears, mark remediation required even if the quiz passed. The learner resubmits the missing objective evidence (corrected workings, journal fields, or a documented no-trade decision) before the practical can pass. Configurable product default, not an owner-made law and not accreditation.",
+    "criteria": [
+      {
+        "id": "vol_sizing",
+        "description": "Position size uses a stated volatility and a money-risk cap",
+        "objective_evidence": "Written annualised vol, daily conversion factor (for example sqrt(365)), stress multiple, and resulting notional",
+        "fail_examples": "Using maximum available leverage; omitting funding on perpetuals"
+      },
+      {
+        "id": "custody_checklist",
+        "description": "Custody and scam-warning checks are written down",
+        "objective_evidence": "A list that includes key custody and at least one Moneysmart-style warning in the learner's own words",
+        "fail_examples": "A guaranteed-return product treated as conservative"
+      },
+      {
+        "id": "journal_or_workings",
+        "description": "Required journal fields or workings are present so a reviewer can recompute",
+        "objective_evidence": "The listed workings, screenshots of public inputs, or journal fields named in the exercise",
+        "fail_examples": "A conclusion without arithmetic; missing inputs; 'I made money so it is correct'"
+      },
+      {
+        "id": "honest_paper_label",
+        "description": "Results are complete, net of stated costs, and labelled paper",
+        "objective_evidence": "A written statement that lists the period, the paper label, costs included, and any omitted trades",
+        "fail_examples": "Reporting only winners; omitting costs; mixing paper and live; calling the result proof of skill"
+      }
+    ]
+  },
+  "tts.m08": {
+    "module": "tts.m08",
+    "scale": "0-3 per criterion (0 absent, 1 inconsistent, 2 consistent with objective evidence, 3 consistent with clear worked evidence). Paper-only. Profit or a positive paper P&L is not a pass criterion.",
+    "pass_default": "Proposed configurable default: mean score at least 2.0, no criterion at 0, and no unremediated critical mistake. Self-declared profit does not pass a failed process or maths criterion.",
+    "retry": "If any critical process or risk-arithmetic criterion scores 0, or if a listed critical mistake appears, mark remediation required even if the quiz passed. The learner resubmits the missing objective evidence (corrected workings, journal fields, or a documented no-trade decision) before the practical can pass. Configurable product default, not an owner-made law and not accreditation.",
+    "criteria": [
+      {
+        "id": "payoff_math",
+        "description": "Option payoffs and breakevens are tabulated correctly",
+        "objective_evidence": "A table of expiry prices with call and put P&L including premium",
+        "fail_examples": "Omitting premium; stating a long option can lose more than the premium"
+      },
+      {
+        "id": "leverage_identity",
+        "description": "Notional, margin and the adverse move that exhausts margin are consistent",
+        "objective_evidence": "Notional / margin = leverage, and 1/leverage as the no-buffer wipeout move, plus any CFD or share-margin rule cited with jurisdiction",
+        "fail_examples": "Treating margin as the risk; mixing ASIC CFD percentages with US Regulation T figures"
+      },
+      {
+        "id": "futures_quantity",
+        "description": "Futures P&L uses multiplier times index points, not a percent of margin",
+        "objective_evidence": "Multiplier, index level, notional, and P&L of a stated index move",
+        "fail_examples": "Reporting a 1% index move as 1% of initial margin"
+      },
+      {
+        "id": "journal_or_workings",
+        "description": "Required journal fields or workings are present so a reviewer can recompute",
+        "objective_evidence": "The listed workings, screenshots of public inputs, or journal fields named in the exercise",
+        "fail_examples": "A conclusion without arithmetic; missing inputs; 'I made money so it is correct'"
+      },
+      {
+        "id": "honest_paper_label",
+        "description": "Results are complete, net of stated costs, and labelled paper",
+        "objective_evidence": "A written statement that lists the period, the paper label, costs included, and any omitted trades",
+        "fail_examples": "Reporting only winners; omitting costs; mixing paper and live; calling the result proof of skill"
+      }
+    ]
+  },
+  "tts.m09": {
+    "module": "tts.m09",
+    "scale": "0-3 per criterion (0 absent, 1 inconsistent, 2 consistent with objective evidence, 3 consistent with clear worked evidence). Paper-only. Profit or a positive paper P&L is not a pass criterion.",
+    "pass_default": "Proposed configurable default: mean score at least 2.0, no criterion at 0, and no unremediated critical mistake. Self-declared profit does not pass a failed process or maths criterion.",
+    "retry": "If any critical process or risk-arithmetic criterion scores 0, or if a listed critical mistake appears, mark remediation required even if the quiz passed. The learner resubmits the missing objective evidence (corrected workings, journal fields, or a documented no-trade decision) before the practical can pass. Configurable product default, not an owner-made law and not accreditation.",
+    "criteria": [
+      {
+        "id": "slippage_log",
+        "description": "Arrival versus fill is recorded and converted to bps or cash",
+        "objective_evidence": "Arrival mid, fill, size, and slippage for the required trades",
+        "fail_examples": "Assuming paper mid fills equal live fills"
+      },
+      {
+        "id": "carry_and_tax_caveat",
+        "description": "Financing, borrow or FX carry is estimated where relevant, and tax is labelled general information",
+        "objective_evidence": "At least one carry calculation or an explicit 'not applicable', plus a tax caveat that is not personal advice",
+        "fail_examples": "Applying one country's tax rule silently to another"
+      },
+      {
+        "id": "journal_or_workings",
+        "description": "Required journal fields or workings are present so a reviewer can recompute",
+        "objective_evidence": "The listed workings, screenshots of public inputs, or journal fields named in the exercise",
+        "fail_examples": "A conclusion without arithmetic; missing inputs; 'I made money so it is correct'"
+      },
+      {
+        "id": "honest_paper_label",
+        "description": "Results are complete, net of stated costs, and labelled paper",
+        "objective_evidence": "A written statement that lists the period, the paper label, costs included, and any omitted trades",
+        "fail_examples": "Reporting only winners; omitting costs; mixing paper and live; calling the result proof of skill"
+      }
+    ]
+  },
+  "tts.m10": {
+    "module": "tts.m10",
+    "scale": "0-3 per criterion (0 absent, 1 inconsistent, 2 consistent with objective evidence, 3 consistent with clear worked evidence). Paper-only. Profit or a positive paper P&L is not a pass criterion.",
+    "pass_default": "Proposed configurable default: mean score at least 2.0, no criterion at 0, and no unremediated critical mistake. Self-declared profit does not pass a failed process or maths criterion.",
+    "retry": "If any critical process or risk-arithmetic criterion scores 0, or if a listed critical mistake appears, mark remediation required even if the quiz passed. The learner resubmits the missing objective evidence (corrected workings, journal fields, or a documented no-trade decision) before the practical can pass. Configurable product default, not an owner-made law and not accreditation.",
+    "criteria": [
+      {
+        "id": "ratio_math",
+        "description": "Stated ratios recompute from the report figures used",
+        "objective_evidence": "Inputs and workings for margins, current ratio or net debt/EBITDA, and FCF",
+        "fail_examples": "Using EBITDA as cash; skipping the notes"
+      },
+      {
+        "id": "earnings_quality",
+        "description": "A quality comment is tied to a relationship in the statements",
+        "objective_evidence": "A comparison such as receivables versus revenue, or profit versus operating cash flow, with page references",
+        "fail_examples": "A generic 'looks good' with no figure"
+      },
+      {
+        "id": "journal_or_workings",
+        "description": "Required journal fields or workings are present so a reviewer can recompute",
+        "objective_evidence": "The listed workings, screenshots of public inputs, or journal fields named in the exercise",
+        "fail_examples": "A conclusion without arithmetic; missing inputs; 'I made money so it is correct'"
+      },
+      {
+        "id": "honest_paper_label",
+        "description": "Results are complete, net of stated costs, and labelled paper",
+        "objective_evidence": "A written statement that lists the period, the paper label, costs included, and any omitted trades",
+        "fail_examples": "Reporting only winners; omitting costs; mixing paper and live; calling the result proof of skill"
+      }
+    ]
+  },
+  "tts.m11": {
+    "module": "tts.m11",
+    "scale": "0-3 per criterion (0 absent, 1 inconsistent, 2 consistent with objective evidence, 3 consistent with clear worked evidence). Paper-only. Profit or a positive paper P&L is not a pass criterion.",
+    "pass_default": "Proposed configurable default: mean score at least 2.0, no criterion at 0, and no unremediated critical mistake. Self-declared profit does not pass a failed process or maths criterion.",
+    "retry": "If any critical process or risk-arithmetic criterion scores 0, or if a listed critical mistake appears, mark remediation required even if the quiz passed. The learner resubmits the missing objective evidence (corrected workings, journal fields, or a documented no-trade decision) before the practical can pass. Configurable product default, not an owner-made law and not accreditation.",
+    "criteria": [
+      {
+        "id": "multiple_identity",
+        "description": "P/E, EV and yield figures use matching bases",
+        "objective_evidence": "Written price, earnings or FCF, market cap, net debt and the resulting multiple or yield",
+        "fail_examples": "Mixing an equity multiple with an EV base; using an unverified franking rate as if universal"
+      },
+      {
+        "id": "sensitivity_range",
+        "description": "DCF or Gordon output is a range, not a single implied order",
+        "objective_evidence": "At least two (r, g) pairs and the resulting values",
+        "fail_examples": "A single fair-value print treated as a buy instruction"
+      },
+      {
+        "id": "journal_or_workings",
+        "description": "Required journal fields or workings are present so a reviewer can recompute",
+        "objective_evidence": "The listed workings, screenshots of public inputs, or journal fields named in the exercise",
+        "fail_examples": "A conclusion without arithmetic; missing inputs; 'I made money so it is correct'"
+      },
+      {
+        "id": "honest_paper_label",
+        "description": "Results are complete, net of stated costs, and labelled paper",
+        "objective_evidence": "A written statement that lists the period, the paper label, costs included, and any omitted trades",
+        "fail_examples": "Reporting only winners; omitting costs; mixing paper and live; calling the result proof of skill"
+      }
+    ]
+  },
+  "tts.m12": {
+    "module": "tts.m12",
+    "scale": "0-3 per criterion (0 absent, 1 inconsistent, 2 consistent with objective evidence, 3 consistent with clear worked evidence). Paper-only. Profit or a positive paper P&L is not a pass criterion.",
+    "pass_default": "Proposed configurable default: mean score at least 2.0, no criterion at 0, and no unremediated critical mistake. Self-declared profit does not pass a failed process or maths criterion.",
+    "retry": "If any critical process or risk-arithmetic criterion scores 0, or if a listed critical mistake appears, mark remediation required even if the quiz passed. The learner resubmits the missing objective evidence (corrected workings, journal fields, or a documented no-trade decision) before the practical can pass. Configurable product default, not an owner-made law and not accreditation.",
+    "criteria": [
+      {
+        "id": "bank_or_insurer_metrics",
+        "description": "Reported metrics are copied with definitions and not treated as universal legal minima",
+        "objective_evidence": "NIM, cost-to-income, a capital figure, or combined ratio with the source page, plus one risk the numbers omit",
+        "fail_examples": "Declaring a bank safe because ROE is high; citing an unverified Basel percentage as this course's rule"
+      },
+      {
+        "id": "journal_or_workings",
+        "description": "Required journal fields or workings are present so a reviewer can recompute",
+        "objective_evidence": "The listed workings, screenshots of public inputs, or journal fields named in the exercise",
+        "fail_examples": "A conclusion without arithmetic; missing inputs; 'I made money so it is correct'"
+      },
+      {
+        "id": "honest_paper_label",
+        "description": "Results are complete, net of stated costs, and labelled paper",
+        "objective_evidence": "A written statement that lists the period, the paper label, costs included, and any omitted trades",
+        "fail_examples": "Reporting only winners; omitting costs; mixing paper and live; calling the result proof of skill"
+      }
+    ]
+  },
+  "tts.m13": {
+    "module": "tts.m13",
+    "scale": "0-3 per criterion (0 absent, 1 inconsistent, 2 consistent with objective evidence, 3 consistent with clear worked evidence). Paper-only. Profit or a positive paper P&L is not a pass criterion.",
+    "pass_default": "Proposed configurable default: mean score at least 2.0, no criterion at 0, and no unremediated critical mistake. Self-declared profit does not pass a failed process or maths criterion.",
+    "retry": "If any critical process or risk-arithmetic criterion scores 0, or if a listed critical mistake appears, mark remediation required even if the quiz passed. The learner resubmits the missing objective evidence (corrected workings, journal fields, or a documented no-trade decision) before the practical can pass. Configurable product default, not an owner-made law and not accreditation.",
+    "criteria": [
+      {
+        "id": "unit_metric_stress",
+        "description": "Each chosen Energy, Materials and Utilities name has a metric and a 20% adverse stress",
+        "objective_evidence": "The metric, the company's definition if given, the base number, and the stressed number",
+        "fail_examples": "Valuing on an unstressed spot peak; treating resources as reserves"
+      },
+      {
+        "id": "journal_or_workings",
+        "description": "Required journal fields or workings are present so a reviewer can recompute",
+        "objective_evidence": "The listed workings, screenshots of public inputs, or journal fields named in the exercise",
+        "fail_examples": "A conclusion without arithmetic; missing inputs; 'I made money so it is correct'"
+      },
+      {
+        "id": "honest_paper_label",
+        "description": "Results are complete, net of stated costs, and labelled paper",
+        "objective_evidence": "A written statement that lists the period, the paper label, costs included, and any omitted trades",
+        "fail_examples": "Reporting only winners; omitting costs; mixing paper and live; calling the result proof of skill"
+      }
+    ]
+  },
+  "tts.m14": {
+    "module": "tts.m14",
+    "scale": "0-3 per criterion (0 absent, 1 inconsistent, 2 consistent with objective evidence, 3 consistent with clear worked evidence). Paper-only. Profit or a positive paper P&L is not a pass criterion.",
+    "pass_default": "Proposed configurable default: mean score at least 2.0, no criterion at 0, and no unremediated critical mistake. Self-declared profit does not pass a failed process or maths criterion.",
+    "retry": "If any critical process or risk-arithmetic criterion scores 0, or if a listed critical mistake appears, mark remediation required even if the quiz passed. The learner resubmits the missing objective evidence (corrected workings, journal fields, or a documented no-trade decision) before the practical can pass. Configurable product default, not an owner-made law and not accreditation.",
+    "criteria": [
+      {
+        "id": "claims_versus_evidence",
+        "description": "An AI or growth claim is separated into booked figures versus plans",
+        "objective_evidence": "A five-line claims-versus-evidence note that cites a report line or states that the claim is unverified",
+        "fail_examples": "Treating a slide-deck ambition as recognised revenue"
+      },
+      {
+        "id": "unit_metrics",
+        "description": "ARR/NRR or book-to-bill or ARPU/churn is computed or copied with its definition",
+        "objective_evidence": "The figure, the formula, and a limitation (company-defined metric or cycle)",
+        "fail_examples": "Ignoring stock-based compensation when claiming cash profitability"
+      },
+      {
+        "id": "journal_or_workings",
+        "description": "Required journal fields or workings are present so a reviewer can recompute",
+        "objective_evidence": "The listed workings, screenshots of public inputs, or journal fields named in the exercise",
+        "fail_examples": "A conclusion without arithmetic; missing inputs; 'I made money so it is correct'"
+      },
+      {
+        "id": "honest_paper_label",
+        "description": "Results are complete, net of stated costs, and labelled paper",
+        "objective_evidence": "A written statement that lists the period, the paper label, costs included, and any omitted trades",
+        "fail_examples": "Reporting only winners; omitting costs; mixing paper and live; calling the result proof of skill"
+      }
+    ]
+  },
+  "tts.m15": {
+    "module": "tts.m15",
+    "scale": "0-3 per criterion (0 absent, 1 inconsistent, 2 consistent with objective evidence, 3 consistent with clear worked evidence). Paper-only. Profit or a positive paper P&L is not a pass criterion.",
+    "pass_default": "Proposed configurable default: mean score at least 2.0, no criterion at 0, and no unremediated critical mistake. Self-declared profit does not pass a failed process or maths criterion.",
+    "retry": "If any critical process or risk-arithmetic criterion scores 0, or if a listed critical mistake appears, mark remediation required even if the quiz passed. The learner resubmits the missing objective evidence (corrected workings, journal fields, or a documented no-trade decision) before the practical can pass. Configurable product default, not an owner-made law and not accreditation.",
+    "criteria": [
+      {
+        "id": "eleven_sector_coverage",
+        "description": "Names are classified with GICS and a sector metric each",
+        "objective_evidence": "At least the required companies, each with sector, metric, number and one limitation",
+        "fail_examples": "Treating GICS rotation as a trading system; omitting Health Care event risk or REIT gearing"
+      },
+      {
+        "id": "journal_or_workings",
+        "description": "Required journal fields or workings are present so a reviewer can recompute",
+        "objective_evidence": "The listed workings, screenshots of public inputs, or journal fields named in the exercise",
+        "fail_examples": "A conclusion without arithmetic; missing inputs; 'I made money so it is correct'"
+      },
+      {
+        "id": "honest_paper_label",
+        "description": "Results are complete, net of stated costs, and labelled paper",
+        "objective_evidence": "A written statement that lists the period, the paper label, costs included, and any omitted trades",
+        "fail_examples": "Reporting only winners; omitting costs; mixing paper and live; calling the result proof of skill"
+      }
+    ]
+  },
+  "tts.m16": {
+    "module": "tts.m16",
+    "scale": "0-3 per criterion (0 absent, 1 inconsistent, 2 consistent with objective evidence, 3 consistent with clear worked evidence). Paper-only. Profit or a positive paper P&L is not a pass criterion.",
+    "pass_default": "Proposed configurable default: mean score at least 2.0, no criterion at 0, and no unremediated critical mistake. Self-declared profit does not pass a failed process or maths criterion.",
+    "retry": "If any critical process or risk-arithmetic criterion scores 0, or if a listed critical mistake appears, mark remediation required even if the quiz passed. The learner resubmits the missing objective evidence (corrected workings, journal fields, or a documented no-trade decision) before the practical can pass. Configurable product default, not an owner-made law and not accreditation.",
+    "criteria": [
+      {
+        "id": "surprise_not_level",
+        "description": "Event notes record consensus, actual and surprise",
+        "objective_evidence": "A log with those three fields and a time zone",
+        "fail_examples": "Trading a headline level without the consensus"
+      },
+      {
+        "id": "primary_source",
+        "description": "Company or macro items are checked against a primary publisher",
+        "objective_evidence": "A link or official title for each item, or an explicit unverified label",
+        "fail_examples": "Acting on an AI or social screenshot that cannot be opened at source"
+      },
+      {
+        "id": "journal_or_workings",
+        "description": "Required journal fields or workings are present so a reviewer can recompute",
+        "objective_evidence": "The listed workings, screenshots of public inputs, or journal fields named in the exercise",
+        "fail_examples": "A conclusion without arithmetic; missing inputs; 'I made money so it is correct'"
+      },
+      {
+        "id": "honest_paper_label",
+        "description": "Results are complete, net of stated costs, and labelled paper",
+        "objective_evidence": "A written statement that lists the period, the paper label, costs included, and any omitted trades",
+        "fail_examples": "Reporting only winners; omitting costs; mixing paper and live; calling the result proof of skill"
+      }
+    ]
+  },
+  "tts.m17": {
+    "module": "tts.m17",
+    "scale": "0-3 per criterion (0 absent, 1 inconsistent, 2 consistent with objective evidence, 3 consistent with clear worked evidence). Paper-only. Profit or a positive paper P&L is not a pass criterion.",
+    "pass_default": "Proposed configurable default: mean score at least 2.0, no criterion at 0, and no unremediated critical mistake. Self-declared profit does not pass a failed process or maths criterion.",
+    "retry": "If any critical process or risk-arithmetic criterion scores 0, or if a listed critical mistake appears, mark remediation required even if the quiz passed. The learner resubmits the missing objective evidence (corrected workings, journal fields, or a documented no-trade decision) before the practical can pass. Configurable product default, not an owner-made law and not accreditation.",
+    "criteria": [
+      {
+        "id": "rule_specificity",
+        "description": "The chart idea is written as an exact, testable rule including fill timing",
+        "objective_evidence": "Entry, exit, size, costs, and whether the fill is the close or the next open",
+        "fail_examples": "A circled pattern with no rule"
+      },
+      {
+        "id": "vol_convention",
+        "description": "Any annualised volatility states the N used (for example 252 or 365)",
+        "objective_evidence": "Daily (or other) standard deviation, N, and the product with sqrt(N)",
+        "fail_examples": "Annualising a few days as if it were a yearly law"
+      },
+      {
+        "id": "journal_or_workings",
+        "description": "Required journal fields or workings are present so a reviewer can recompute",
+        "objective_evidence": "The listed workings, screenshots of public inputs, or journal fields named in the exercise",
+        "fail_examples": "A conclusion without arithmetic; missing inputs; 'I made money so it is correct'"
+      },
+      {
+        "id": "honest_paper_label",
+        "description": "Results are complete, net of stated costs, and labelled paper",
+        "objective_evidence": "A written statement that lists the period, the paper label, costs included, and any omitted trades",
+        "fail_examples": "Reporting only winners; omitting costs; mixing paper and live; calling the result proof of skill"
+      }
+    ]
+  },
+  "tts.m18": {
+    "module": "tts.m18",
+    "scale": "0-3 per criterion (0 absent, 1 inconsistent, 2 consistent with objective evidence, 3 consistent with clear worked evidence). Paper-only. Profit or a positive paper P&L is not a pass criterion.",
+    "pass_default": "Proposed configurable default: mean score at least 2.0, no criterion at 0, and no unremediated critical mistake. Self-declared profit does not pass a failed process or maths criterion.",
+    "retry": "If any critical process or risk-arithmetic criterion scores 0, or if a listed critical mistake appears, mark remediation required even if the quiz passed. The learner resubmits the missing objective evidence (corrected workings, journal fields, or a documented no-trade decision) before the practical can pass. Configurable product default, not an owner-made law and not accreditation.",
+    "criteria": [
+      {
+        "id": "size_formula",
+        "description": "Shares = risk / (entry - stop) or the stated ATR rule, recomputed correctly",
+        "objective_evidence": "Account, risk %, entry, stop or ATR multiple, and resulting size",
+        "fail_examples": "Sizing from notional percentage alone; placing the stop after the fill"
+      },
+      {
+        "id": "correlation_group",
+        "description": "Positions are grouped by shared driver and group caps are checked",
+        "objective_evidence": "A written grouping and the sum of open risk in each group versus the cap",
+        "fail_examples": "Counting five correlated names as five independent bets"
+      },
+      {
+        "id": "gap_var_stress",
+        "description": "Gap, liquidity or VaR/ES stress is shown, with explicit no-guarantee language",
+        "objective_evidence": "A stressed loss using a gap multiple and/or a stated VaR/ES sample rule, plus a sentence that neither caps future drawdown",
+        "fail_examples": "Treating VaR or a stop as a maximum-loss guarantee"
+      },
+      {
+        "id": "no_trade_gate",
+        "description": "The policy states when new risk is not taken",
+        "objective_evidence": "Written halt or no-trade conditions (heat, ladder, event, unverified news)",
+        "fail_examples": "Adding size to recover after the ladder is hit"
+      },
+      {
+        "id": "journal_or_workings",
+        "description": "Required journal fields or workings are present so a reviewer can recompute",
+        "objective_evidence": "The listed workings, screenshots of public inputs, or journal fields named in the exercise",
+        "fail_examples": "A conclusion without arithmetic; missing inputs; 'I made money so it is correct'"
+      },
+      {
+        "id": "honest_paper_label",
+        "description": "Results are complete, net of stated costs, and labelled paper",
+        "objective_evidence": "A written statement that lists the period, the paper label, costs included, and any omitted trades",
+        "fail_examples": "Reporting only winners; omitting costs; mixing paper and live; calling the result proof of skill"
+      }
+    ]
+  },
+  "tts.m19": {
+    "module": "tts.m19",
+    "scale": "0-3 per criterion (0 absent, 1 inconsistent, 2 consistent with objective evidence, 3 consistent with clear worked evidence). Paper-only. Profit or a positive paper P&L is not a pass criterion.",
+    "pass_default": "Proposed configurable default: mean score at least 2.0, no criterion at 0, and no unremediated critical mistake. Self-declared profit does not pass a failed process or maths criterion.",
+    "retry": "If any critical process or risk-arithmetic criterion scores 0, or if a listed critical mistake appears, mark remediation required even if the quiz passed. The learner resubmits the missing objective evidence (corrected workings, journal fields, or a documented no-trade decision) before the practical can pass. Configurable product default, not an owner-made law and not accreditation.",
+    "criteria": [
+      {
+        "id": "expectancy_math",
+        "description": "Win rate, payoff, expectancy and at least one of Sharpe, Sortino, SE or t recompute",
+        "objective_evidence": "The formulae with inputs from the learner's paper export (or a labelled fictional set)",
+        "fail_examples": "Quoting win rate alone; annualising Sharpe without stating N or the independence assumption"
+      },
+      {
+        "id": "sample_honesty",
+        "description": "Uncertainty and outlier dependence are discussed",
+        "objective_evidence": "A standard error or interval, and a note on what happens if top trades are removed",
+        "fail_examples": "Calling a short or fragile sample proven"
+      },
+      {
+        "id": "journal_or_workings",
+        "description": "Required journal fields or workings are present so a reviewer can recompute",
+        "objective_evidence": "The listed workings, screenshots of public inputs, or journal fields named in the exercise",
+        "fail_examples": "A conclusion without arithmetic; missing inputs; 'I made money so it is correct'"
+      },
+      {
+        "id": "honest_paper_label",
+        "description": "Results are complete, net of stated costs, and labelled paper",
+        "objective_evidence": "A written statement that lists the period, the paper label, costs included, and any omitted trades",
+        "fail_examples": "Reporting only winners; omitting costs; mixing paper and live; calling the result proof of skill"
+      }
+    ]
+  },
+  "tts.m20": {
+    "module": "tts.m20",
+    "scale": "0-3 per criterion (0 absent, 1 inconsistent, 2 consistent with objective evidence, 3 consistent with clear worked evidence). Paper-only. Profit or a positive paper P&L is not a pass criterion.",
+    "pass_default": "Proposed configurable default: mean score at least 2.0, no criterion at 0, and no unremediated critical mistake. Self-declared profit does not pass a failed process or maths criterion.",
+    "retry": "If any critical process or risk-arithmetic criterion scores 0, or if a listed critical mistake appears, mark remediation required even if the quiz passed. The learner resubmits the missing objective evidence (corrected workings, journal fields, or a documented no-trade decision) before the practical can pass. Configurable product default, not an owner-made law and not accreditation.",
+    "criteria": [
+      {
+        "id": "data_quality",
+        "description": "Corporate actions, missing bars, time zones and costs are handled explicitly",
+        "objective_evidence": "Notes on split adjustment versus raw prices, tradable flags, timestamp zone, and the cost assumption",
+        "fail_examples": "Using next-period returns as signal inputs; carrying a halt print forward as a live price"
+      },
+      {
+        "id": "validation_split",
+        "description": "In-sample, out-of-sample or walk-forward results are separated",
+        "objective_evidence": "A freeze date or row split and both result blocks, plus a random-entry or cost-stress comparison",
+        "fail_examples": "Tuning after seeing the holdout; reporting only the best lookback"
+      },
+      {
+        "id": "no_edge_claim",
+        "description": "Synthetic or historical exercises are not presented as proof of alpha",
+        "objective_evidence": "A written disclaimer that the result is not evidence of a tradable edge or live competence",
+        "fail_examples": "Calling the school dataset a profitable system"
+      },
+      {
+        "id": "journal_or_workings",
+        "description": "Required journal fields or workings are present so a reviewer can recompute",
+        "objective_evidence": "The listed workings, screenshots of public inputs, or journal fields named in the exercise",
+        "fail_examples": "A conclusion without arithmetic; missing inputs; 'I made money so it is correct'"
+      },
+      {
+        "id": "honest_paper_label",
+        "description": "Results are complete, net of stated costs, and labelled paper",
+        "objective_evidence": "A written statement that lists the period, the paper label, costs included, and any omitted trades",
+        "fail_examples": "Reporting only winners; omitting costs; mixing paper and live; calling the result proof of skill"
+      }
+    ]
+  },
+  "tts.m21": {
+    "module": "tts.m21",
+    "scale": "0-3 per criterion (0 absent, 1 inconsistent, 2 consistent with objective evidence, 3 consistent with clear worked evidence). Paper-only. Profit or a positive paper P&L is not a pass criterion.",
+    "pass_default": "Proposed configurable default: mean score at least 2.0, no criterion at 0, and no unremediated critical mistake. Self-declared profit does not pass a failed process or maths criterion.",
+    "retry": "If any critical process or risk-arithmetic criterion scores 0, or if a listed critical mistake appears, mark remediation required even if the quiz passed. The learner resubmits the missing objective evidence (corrected workings, journal fields, or a documented no-trade decision) before the practical can pass. Configurable product default, not an owner-made law and not accreditation.",
+    "criteria": [
+      {
+        "id": "position_sizing",
+        "description": "Size calculation correct and within the written rule",
+        "objective_evidence": "Workings for each sampled trade",
+        "fail_examples": "Size above the risk rule"
+      },
+      {
+        "id": "correlated_risk",
+        "description": "Correlated exposure is grouped and capped",
+        "objective_evidence": "Group list and cap check",
+        "fail_examples": "Treating correlated names as independent"
+      },
+      {
+        "id": "drawdown_rules",
+        "description": "Drawdown ladder and no-trade gates are followed",
+        "objective_evidence": "Account path versus the written rungs, including any no-trade days",
+        "fail_examples": "Trading through a halt; revenge sizing"
+      },
+      {
+        "id": "gap_event_risk",
+        "description": "Gaps and events are stress-tested",
+        "objective_evidence": "Event calendar checks and a gap multiple on overnight or event trades",
+        "fail_examples": "Holding leverage into an unplanned binary event"
+      },
+      {
+        "id": "slippage_costs",
+        "description": "Arrival versus fill and costs are recorded",
+        "objective_evidence": "Journal fields for arrival, fill and itemised costs",
+        "fail_examples": "Mid-price reporting presented as a fill"
+      },
+      {
+        "id": "stop_discipline",
+        "description": "Stops are set before entry and not widened",
+        "objective_evidence": "Pre-trade stop in the journal matching the working",
+        "fail_examples": "Moving a stop further from entry after entry"
+      },
+      {
+        "id": "psychology_precommitment",
+        "description": "Losing-streak, revenge, overconfidence and no-trade rules are evidenced",
+        "objective_evidence": "A written precommitment and journal notes when a gate fired, including strategic no-trading",
+        "fail_examples": "No psychology process; a revenge trade after a loss streak"
+      },
+      {
+        "id": "ai_skill_approval",
+        "description": "Uploaded or AI-proposed rules are restated, paper-tested and never bypass rails",
+        "objective_evidence": "A paraphrase of what the AI understood, a paper-test note, and a reject/approve status that preserves risk limits",
+        "fail_examples": "Enabling a prompt that says to ignore stops or size up to recover"
+      },
+      {
+        "id": "separate_tracks",
+        "description": "Human-school evidence is not substituted for AI-strategy approval or the reverse",
+        "objective_evidence": "Separate labels on the capstone journal versus any uploaded-strategy result",
+        "fail_examples": "Using a quiz score to approve an upload, or a backtest to complete the school"
+      },
+      {
+        "id": "counter_evidence",
+        "description": "The best argument against each trade is stated",
+        "objective_evidence": "A counter-evidence field on sampled journals",
+        "fail_examples": "Empty counter-evidence fields"
+      },
+      {
+        "id": "process_vs_luck",
+        "description": "Decision quality is separated from outcome",
+        "objective_evidence": "A review that discusses rule adherence independently of P&L",
+        "fail_examples": "Judging the plan solely by whether the sample made money"
+      },
+      {
+        "id": "overfitting_avoidance",
+        "description": "Rules were fixed before the tested sample where claimed",
+        "objective_evidence": "A dated plan or parameter freeze",
+        "fail_examples": "Changing rules after seeing the result and presenting them as prior"
+      },
+      {
+        "id": "honest_reporting",
+        "description": "Net, complete, paper-labelled reporting with no accreditation claim",
+        "objective_evidence": "A final statement that completion is general education, not a qualification, profit guarantee, or live-competence certificate",
+        "fail_examples": "Presenting paper marks as live skill or as industry accreditation"
+      }
+    ]
+  }
+}

@@ -1,0 +1,6 @@
+# Test and key-storage dependencies for the customer web app template.
+# The app uses the Python standard library plus veteran_desk.tenant_foundation.
+# Fernet storage stays unavailable until CUSTOMER_PLATFORM_DATA_KEY is set.
+# That is a server secret, not a dummy success.
+pytest>=8
+cryptography==41.0.7
